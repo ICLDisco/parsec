@@ -403,8 +403,7 @@ static parsec_task_class_t parsec_device_data_prefetch_tc = {
 /**
  * Release a gpu copy to the zone allocator.
  */
-static void
-parsec_device_release_gpu_copy(parsec_device_gpu_module_t* gpu_device, parsec_data_copy_t *gpu_elem)
+void parsec_device_release_gpu_copy(parsec_device_gpu_module_t* gpu_device, parsec_data_copy_t *gpu_elem)
 {
 #if !defined(PARSEC_GPU_ALLOC_PER_TILE)
 #if defined(PARSEC_PROF_TRACE)

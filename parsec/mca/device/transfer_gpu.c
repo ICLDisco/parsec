@@ -247,10 +247,10 @@ parsec_gpu_create_w2r_task(parsec_device_gpu_module_t *gpu_device,
             parsec_list_item_ring_chop((parsec_list_item_t*)gpu_copy);
             PARSEC_LIST_ITEM_SINGLETON(gpu_copy);
             PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
-                                 "D2H[%d:%s] GPU data copy %p of discarded data %p now available",
+                                 "D2H[%d:%s] GPU data copy %p of discarded data %p will be released",
                                  gpu_device->super.device_index, gpu_device->super.name, gpu_copy, gpu_copy->original);
             parsec_atomic_unlock( &gpu_copy->original->lock );
-            parsec_list_push_back(&gpu_device->gpu_mem_lru, (parsec_list_item_t*)gpu_copy);
+            parsec_device_release_gpu_copy(gpu_device, gpu_copy);
         } else if( 0 == gpu_copy->readers ) {
             if( PARSEC_UNLIKELY(NULL == d2h_task) ) {  /* allocate on-demand */
                 d2h_task = (parsec_gpu_d2h_task_t*)parsec_thread_mempool_allocate(es->context_mempool);
