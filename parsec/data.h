@@ -146,9 +146,11 @@ PARSEC_DECLSPEC void
 parsec_data_destroy( parsec_data_t *holder );
 
 /**
- * Discard the parsec_data_t. Any host-side copies will remain
- * allocated as long as there are potential device copies referencing it.
- * Once it is safe, all copies are dereferenced and eventually destroyed.
+ * Mark the parsec_data_t and its host copy as discarded.
+ * Any host-side copies will remain allocated as long as
+ * there are potential device copies referencing it.
+ * Once all device copies have been released the host
+ * copy and the data_t are destroyed.
  * The parsec_data_t must not be used after this call.
  */
 PARSEC_DECLSPEC void
