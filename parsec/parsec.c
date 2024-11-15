@@ -2152,7 +2152,7 @@ void parsec_taskpool_unregister( parsec_taskpool_t* tp )
     parsec_atomic_lock( &taskpool_array_lock );
     assert( tp->taskpool_id < taskpool_array_size );
     assert( taskpool_array[tp->taskpool_id] == tp );
-    assert( PARSEC_TERM_TP_TERMINATED == tp->tdm.module->taskpool_state(tp) );
+    assert( tp->tdm.module == NULL || PARSEC_TERM_TP_TERMINATED == tp->tdm.module->taskpool_state(tp) );
     taskpool_array[tp->taskpool_id] = NOTASKPOOL;
     parsec_atomic_unlock( &taskpool_array_lock );
 }
