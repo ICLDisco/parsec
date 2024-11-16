@@ -566,18 +566,36 @@ parsec_data_destroy( parsec_data_t *data )
 void
 parsec_data_discard( parsec_data_t *data )
 {
+    /* defensive */
+    if (NULL == data) return;
 
-    /* first release the reference the application held */
-    PARSEC_OBJ_RELEASE(data);
+    /* lock the data so it's safe to touch the flags */
+    parsec_atomic_lock( &data->lock );
 
-    /* second, mark the host copy as discarded */
+    /**
+     * Mark the host copy as discarded
+     *
+     * We mark the host copy as having given up its reference to the data_t
+     * so when the data_t is destroyed (parsec_data_destruct) and
+     * the host copy is being detached we don't release the copy's reference
+     * on the data_t again. We have to releae the copy's reference here
+     * to break the cyclic dependency between the copy and the data_t.
+     * We cannot release the copy immediately as there may device management
+     * threads working with it, e.g., evicting data into it.
+     * */
     parsec_data_copy_t *cpu_copy = data->device_copies[0];
     if (NULL != cpu_copy) {
-        cpu_copy->flags = PARSEC_DATA_FLAG_DISCARDED;
+        cpu_copy->flags |= PARSEC_DATA_FLAG_DISCARDED;
+
+        /* release the reference that the host copy had on the data_t to break
+        *  the circular reference. */
+        PARSEC_OBJ_RELEASE(data);
     }
 
-    /* third: release the reference that the host copy had on the data_t to break
-     *        the circular reference. */
+    /* unlock before releasing our references */
+    parsec_atomic_unlock( &data->lock );
+
+    /* release the reference the application held */
     PARSEC_OBJ_RELEASE(data);
 
     /* From here, any device copy that is still attached to the data_t
