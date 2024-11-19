@@ -32,10 +32,10 @@ include(GNUInstallDirs)
 set (PARSEC_VERSION_MAJOR   4)
 set (PARSEC_VERSION_MINOR   0)
 set (PARSEC_VERSION_RELEASE 0) # Devel master have no release number
-set (PARSEC_VERSION_RELEASE 2411) # Set and uncomment for a release
+#set (PARSEC_VERSION_RELEASE 2411) # Set and uncomment for a release
 
 # Set the following values for a release
-set(GIT_COMMIT_TAG v24.11)
+#set(GIT_COMMIT_TAG v24.11)
 
 # Configure the installation paths
 set(PARSEC_INSTALL_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR})
