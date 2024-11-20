@@ -755,14 +755,16 @@ static void parsec_device_memory_release_list(parsec_device_gpu_module_t* gpu_de
     while(NULL != (item = parsec_list_pop_front(list)) ) {
         parsec_gpu_data_copy_t* gpu_copy = (parsec_gpu_data_copy_t*)item;
         parsec_data_t* original = gpu_copy->original;
+        parsec_data_copy_t *cpu_copy = original->device_copies[0];
 
         PARSEC_DEBUG_VERBOSE(35, parsec_gpu_output_stream,
                             "GPU[%d:%s] Release GPU copy %p (device_ptr %p) [ref_count %d: must be 1], attached to %p, in map %p",
                             gpu_device->super.device_index, gpu_device->super.name, gpu_copy, gpu_copy->device_private, gpu_copy->super.super.obj_reference_count,
                              original, (NULL != original ? original->dc : NULL));
         assert( gpu_copy->device_index == gpu_device->super.device_index );
-
-        if( PARSEC_DATA_COHERENCY_OWNED == gpu_copy->coherency_state ) {
+        /* warn about device data that has not been pushed back to the host or was discarded */
+        if( PARSEC_DATA_COHERENCY_OWNED == gpu_copy->coherency_state
+            && (NULL == cpu_copy || 0 == (cpu_copy->flags & PARSEC_DATA_FLAG_DISCARDED)) ) {
             parsec_warning("GPU[%d:%s] still OWNS the master memory copy for data %d and it is discarding it!",
                            gpu_device->super.device_index, gpu_device->super.name, original->key);
         }
