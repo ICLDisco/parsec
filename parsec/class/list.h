@@ -868,9 +868,10 @@ parsec_list_nolock_push_sorted( parsec_list_t* list,
         parsec_list_nolock_push_front(list, newel);
     } else {
         /* take the range of priorities and decide whether to iterate forward or backward */
-        int tail_val = COMPARISON_VAL(_TAIL(list), off);
-        int head_val = COMPARISON_VAL(_HEAD(list), off);
-        if (COMPARISON_VAL(newel, off) > ((head_val + tail_val) / 2)) {
+        int64_t tail_val = COMPARISON_VAL(_TAIL(list), off);
+        int64_t head_val = COMPARISON_VAL(_HEAD(list), off);
+        int64_t comp_val = COMPARISON_VAL(newel, off);
+        if (comp_val > ((head_val + tail_val) / 2)) {
             /* new element is in upper half of priority range */
             parsec_list_item_t* position = PARSEC_LIST_NOLOCK_ITERATOR(list, pos,
             {
