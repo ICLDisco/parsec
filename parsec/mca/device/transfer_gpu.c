@@ -179,6 +179,7 @@ static const parsec_symbol_t symb_gpu_d2h_task_param = {
 };
 
 int32_t parsec_gpu_d2h_max_flows = 0;
+int32_t parsec_gpu_d2h_max_discarded = 0;
 
 static const parsec_task_class_t parsec_gpu_d2h_task_class = {
     .name = "GPU D2H data transfer",
@@ -215,6 +216,16 @@ static const parsec_task_class_t parsec_gpu_d2h_task_class = {
 #endif
 };
 
+static inline void release_discarded_data(parsec_device_gpu_module_t *gpu_device, parsec_gpu_data_copy_t* gpu_copy)
+{
+    parsec_list_item_ring_chop((parsec_list_item_t*)gpu_copy);
+    PARSEC_LIST_ITEM_SINGLETON(gpu_copy);
+    PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
+                            "D2H[%d:%s] GPU data copy %p of discarded data %p will be released",
+                            gpu_device->super.device_index, gpu_device->super.name, gpu_copy, gpu_copy->original);
+    parsec_device_release_gpu_copy(gpu_device, gpu_copy);
+
+}
 
 /**
  * Transfer at most the MAX_PARAM_COUNT oldest data from the GPU back
@@ -227,58 +238,98 @@ parsec_gpu_create_w2r_task(parsec_device_gpu_module_t *gpu_device,
 {
     parsec_gpu_task_t *w2r_task = NULL;
     parsec_gpu_d2h_task_t *d2h_task = NULL;
-    parsec_gpu_data_copy_t *gpu_copy, *cpu_copy;
-    parsec_list_item_t* item = (parsec_list_item_t*)gpu_device->gpu_mem_owned_lru.ghost_element.list_next;
+    parsec_gpu_data_copy_t *fwd_gpu_copy = NULL, *fwd_cpu_copy = NULL, *rev_gpu_copy = NULL, *rev_cpu_copy = NULL;
+    parsec_list_item_t* fwd = (parsec_list_item_t*)gpu_device->gpu_mem_owned_lru.ghost_element.list_next;
+    parsec_list_item_t* rev = (parsec_list_item_t*)gpu_device->gpu_mem_owned_lru.ghost_element.list_prev;
     int nb_cleaned = 0;
+    int nb_discarded = 0;
+    int nb_candidates = 0;
+    const int max_flows = (parsec_gpu_d2h_max_flows < MAX_PARAM_COUNT) ? parsec_gpu_d2h_max_flows : MAX_PARAM_COUNT;
+    /* store candidates in an array without unlinking them so we can easily abandon them */
+    parsec_gpu_data_copy_t *candidates[MAX_PARAM_COUNT];
 
     /* Find a data copy that has no pending users on the GPU, and can be
-     * safely moved back on the main memory */
-    while(nb_cleaned < parsec_gpu_d2h_max_flows) {
+     * safely moved back on the main memory.
+     * Also look for data that was discarded and can be released immediatly.
+     *
+     * Observation: data to be evicted is more likely at the front of the list
+     *              while data that is discarded is more likely at the end
+     *              (since it was likely discarded shortly after being used)
+     *              so we search from the front and the back. */
+    while(nb_candidates < max_flows &&
+            /* allow discarding to be disabled */
+            (parsec_gpu_d2h_max_discarded == 0 || nb_discarded < parsec_gpu_d2h_max_discarded)) {
         /* Break at the end of the list */
-        if( item == &(gpu_device->gpu_mem_owned_lru.ghost_element) ) {
+        if( fwd == &gpu_device->gpu_mem_owned_lru.ghost_element ) {
             break;
         }
-        gpu_copy = (parsec_gpu_data_copy_t*)item;
-        cpu_copy = gpu_copy->original->device_copies[0];
-        parsec_atomic_lock( &gpu_copy->original->lock );
-        /* get the next item before altering the next pointer */
-        item = (parsec_list_item_t*)item->list_next;  /* conversion needed for volatile */
-        if (cpu_copy->flags & PARSEC_DATA_FLAG_DISCARDED) {
-            parsec_list_item_ring_chop((parsec_list_item_t*)gpu_copy);
-            PARSEC_LIST_ITEM_SINGLETON(gpu_copy);
-            PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
-                                 "D2H[%d:%s] GPU data copy %p of discarded data %p will be released",
-                                 gpu_device->super.device_index, gpu_device->super.name, gpu_copy, gpu_copy->original);
-            parsec_atomic_unlock( &gpu_copy->original->lock );
-            parsec_device_release_gpu_copy(gpu_device, gpu_copy);
-        } else if( 0 == gpu_copy->readers ) {
-            if( PARSEC_UNLIKELY(NULL == d2h_task) ) {  /* allocate on-demand */
-                d2h_task = (parsec_gpu_d2h_task_t*)parsec_thread_mempool_allocate(es->context_mempool);
-                if( PARSEC_UNLIKELY(NULL == d2h_task) ) { /* we're running out of memory. Bail out. */
-                    parsec_atomic_unlock( &gpu_copy->original->lock );
-                    return NULL;
-                }
-                PARSEC_OBJ_CONSTRUCT(d2h_task, parsec_task_t);
-            }
-            parsec_list_item_ring_chop((parsec_list_item_t*)gpu_copy);
-            PARSEC_LIST_ITEM_SINGLETON(gpu_copy);
-            gpu_copy->readers++;
-            d2h_task->data[nb_cleaned].data_out = gpu_copy;
-            gpu_copy->data_transfer_status = PARSEC_DATA_STATUS_UNDER_TRANSFER;  /* mark the copy as in transfer */
-            parsec_atomic_unlock( &gpu_copy->original->lock );
-            PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,  "D2H[%d:%s] task %p:\tdata %d -> %p [%p] readers %d",
-                                 gpu_device->super.device_index, gpu_device->super.name, (void*)d2h_task,
-                                 nb_cleaned, gpu_copy, gpu_copy->original, gpu_copy->readers);
-            nb_cleaned++;
-            if (MAX_PARAM_COUNT == nb_cleaned)
+        if (fwd == rev || fwd->list_next == rev) {
+            /* break at median if we discarded data */
+            if (nb_discarded > 0) {
                 break;
-        } else {
-            parsec_atomic_unlock( &gpu_copy->original->lock );
+            }
+            /* otherwise stop walking backwards because we already
+             * looked for discarded data on the way */
+            rev = NULL;
+            rev_gpu_copy = NULL;
+            rev_cpu_copy = NULL;
+        }
+
+        fwd_gpu_copy = (parsec_gpu_data_copy_t*)fwd;
+        fwd_cpu_copy = fwd_gpu_copy->original->device_copies[0];
+        /* get the next item before altering the next pointer */
+        fwd = (parsec_list_item_t*)fwd->list_next;  /* conversion needed for volatile */
+        if (NULL != rev) {
+            rev_gpu_copy = (parsec_gpu_data_copy_t*)rev;
+            rev_cpu_copy = rev_gpu_copy->original->device_copies[0];
+            rev = (parsec_list_item_t*)rev->list_prev; // cast for volatile
+        }
+        if (parsec_gpu_d2h_max_discarded && fwd_cpu_copy->flags & PARSEC_DATA_FLAG_DISCARDED) {
+            release_discarded_data(gpu_device, fwd_gpu_copy);
+            ++nb_discarded;
+        } else if( max_flows > nb_candidates && 0 == fwd_gpu_copy->readers ) {
+            /* store the candidates but leave them in the LRU */
+            candidates[nb_candidates] = fwd_gpu_copy;
+            nb_candidates++;
+        }
+        if (parsec_gpu_d2h_max_discarded &&
+                   NULL != rev_cpu_copy &&
+                   rev_cpu_copy->flags & PARSEC_DATA_FLAG_DISCARDED) {
+            release_discarded_data(gpu_device, rev_gpu_copy);
+            ++nb_discarded;
         }
     }
 
-    if( 0 == nb_cleaned )
+    if( nb_discarded > 0 || nb_candidates == 0 ) {
+        /* we discarded some data, don't bother pushing out */
         return NULL;
+    }
+
+    d2h_task = (parsec_gpu_d2h_task_t*)parsec_thread_mempool_allocate(es->context_mempool);
+    if( PARSEC_UNLIKELY(NULL == d2h_task) ) { /* we're running out of memory. Bail out. */
+        return NULL;
+    }
+    PARSEC_OBJ_CONSTRUCT(d2h_task, parsec_task_t);
+
+    for (int i = 0; i < nb_candidates; ++i) {
+        parsec_gpu_data_copy_t *gpu_copy = candidates[i];
+        parsec_atomic_lock( &gpu_copy->original->lock );
+        if (PARSEC_UNLIKELY(gpu_copy->readers != 0)) {
+            /* gained a reader, ignore */
+            parsec_atomic_unlock( &gpu_copy->original->lock );
+            continue;
+        }
+        parsec_list_item_ring_chop((parsec_list_item_t*)gpu_copy);
+        PARSEC_LIST_ITEM_SINGLETON(gpu_copy);
+        gpu_copy->readers++;
+        d2h_task->data[nb_cleaned].data_out = gpu_copy;
+        gpu_copy->data_transfer_status = PARSEC_DATA_STATUS_UNDER_TRANSFER;  /* mark the copy as in transfer */
+        parsec_atomic_unlock( &gpu_copy->original->lock );
+        nb_cleaned++;
+        PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,  "D2H[%d:%s] task %p:\tdata %d -> %p [%p] readers %d",
+                             gpu_device->super.device_index, gpu_device->super.name, (void*)d2h_task,
+                             nb_cleaned, gpu_copy, gpu_copy->original, gpu_copy->readers);
+    }
 
     d2h_task->priority        = INT32_MAX;
     d2h_task->task_class      = &parsec_gpu_d2h_task_class;

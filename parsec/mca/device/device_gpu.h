@@ -279,6 +279,7 @@ typedef struct parsec_gpu_workspace_s {
 PARSEC_DECLSPEC extern int parsec_gpu_output_stream;
 PARSEC_DECLSPEC extern int parsec_gpu_verbosity;
 PARSEC_DECLSPEC extern int32_t parsec_gpu_d2h_max_flows;
+PARSEC_DECLSPEC extern int32_t parsec_gpu_d2h_max_discarded;
 
 /**
  * Debugging functions.
