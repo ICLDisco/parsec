@@ -1393,11 +1393,13 @@ mpi_no_thread_enable(parsec_comm_engine_t *ce)
         MPI_Info_set(no_order, "mpi_assert_allow_overtaking", "true");
         MPI_Comm_dup_with_info((MPI_Comm) context->comm_ctx, no_order, &parsec_ce_mpi_comm);
         MPI_Info_free(&no_order);
-    } else {
+        /* There is no need to enable overtake for the AM communicator */
+    }
+    else
+#endif  /* defined(PARSEC_HAVE_MPI_OVERTAKE) */
+    { /* the else intentionally spills out of the ifdef */
         MPI_Comm_dup((MPI_Comm) context->comm_ctx, &parsec_ce_mpi_comm);
     }
-    /* There is no need to enable overtake for the AM communicator */
-#endif  /* defined(PARSEC_HAVE_MPI_OVERTAKE) */
     /* Replace the provided communicator with a pointer to the PaRSEC duplicate */
     context->comm_ctx = (uintptr_t)parsec_ce_mpi_comm;
 
