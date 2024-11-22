@@ -152,6 +152,9 @@
 /* The max number of output dependencies (not flows) for each task */
 #define MAX_DEP_OUT_COUNT @PARSEC_MAX_DEP_OUT_COUNT@
 
+/* The max number of flows handled by device tasks */
+#define PARSEC_MAX_DEVICE_FLOWS   @PARSEC_MAX_DEVICE_FLOWS@
+
 #include "parsec/parsec_config_bottom.h"
 
 #endif  /* PARSEC_CONFIG_H_HAS_BEEN_INCLUDED */

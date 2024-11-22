@@ -160,6 +160,24 @@ typedef int32_t parsec_dependency_t;
 typedef int32_t parsec_dependency_t;
 #endif
 
+#if ((MAX_PARAM_COUNT <= 16) && (PARSEC_MAX_DEVICE_FLOWS <= 16))
+typedef uint16_t parsec_flow_mask_t;
+#elif ((MAX_PARAM_COUNT <= 32) && (PARSEC_MAX_DEVICE_FLOWS <= 32))
+typedef uint32_t parsec_flow_mask_t;
+#elif ((MAX_PARAM_COUNT <= 64) && (PARSEC_MAX_DEVICE_FLOWS <= 64))
+typedef uint64_t parsec_flow_mask_t;
+#elif ((MAX_PARAM_COUNT <= 128) && (PARSEC_MAX_DEVICE_FLOWS <= 128)) && defined(PARSEC_HAVE_INT128)
+typedef __int128_t parsec_flow_mask_t;
+#else
+#error Failed to find proper type for PaRSEC flow mask type. \
+       Make sure MAX_PARAM_COUNT and PARSEC_MAX_DEVICE_FLOWS \
+       is max 128 or 64 if 128bit integer are not supported.
+#endif
+
+#define PARSEC_FLOW_MASK(_id) (((parsec_flow_mask_t)1) << _id)
+#define PARSEC_CHECK_FLOW_MASK(_mask, _id) (!!(_mask & PARSEC_FLOW_MASK(_id)))
+
+
 /*
  * A set of constants defining the capabilities of the underlying
  * runtime.

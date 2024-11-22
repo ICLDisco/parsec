@@ -106,7 +106,7 @@ static int
 datatype_lookup_of_gpu_d2h_task( parsec_execution_stream_t * es,
                                  const parsec_gpu_d2h_task_t* this_task,
                                  const parsec_task_t * parent_task,
-                                 uint32_t * flow_mask,
+                                 parsec_flow_mask_t * flow_mask,
                                  parsec_dep_data_description_t * data)
 {
     (void)es; (void)this_task; (void)parent_task; (void)flow_mask; (void)data;
@@ -183,9 +183,9 @@ int32_t parsec_gpu_d2h_max_flows = 0;
 static const parsec_task_class_t parsec_gpu_d2h_task_class = {
     .name = "GPU D2H data transfer",
     .task_class_id = 0,
-    .nb_flows = MAX_PARAM_COUNT,  /* This value will have an impact on the duration of the
-                                   * search for additional data to move. As this search is linear
-                                   * we need to keep this upper bound set to a reasonable value. */
+    .nb_flows = PARSEC_MAX_DEVICE_FLOWS,  /* This value will have an impact on the duration of the
+                                           * search for additional data to move. As this search is linear
+                                           * we need to keep this upper bound set to a reasonable value. */
     .nb_parameters = 1,
     .nb_locals = 0,
     .params = {&symb_gpu_d2h_task_param},
@@ -217,7 +217,7 @@ static const parsec_task_class_t parsec_gpu_d2h_task_class = {
 
 
 /**
- * Transfer at most the MAX_PARAM_COUNT oldest data from the GPU back
+ * Transfer at most the PARSEC_MAX_DEVICE_FLOWS oldest data from the GPU back
  * to main memory. Create a single task to move them all out, then switch the
  * GPU data copy in shared mode.
  */

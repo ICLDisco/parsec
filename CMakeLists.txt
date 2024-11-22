@@ -151,6 +151,7 @@ set(PARSEC_MAX_LOCAL_COUNT 20 CACHE STRING "Number of local variables for tasks 
 set(PARSEC_MAX_PARAM_COUNT 20 CACHE STRING "Number of parameters for tasks (default 20)")
 set(PARSEC_MAX_DEP_IN_COUNT 10 CACHE STRING "Number of input flows for each task (default 10)")
 set(PARSEC_MAX_DEP_OUT_COUNT 10 CACHE STRING "Number of output flows for each task (default 10)")
+set(PARSEC_MAX_DEVICE_FLOWS ${PARSEC_MAX_PARAM_COUNT} CACHE STRING "Number of parameters for tasks (default: same as PARSEC_MAX_PARAM_COUNT)")
 
 ### PaRSEC PP options
 set(PARSEC_PTGPP_FLAGS "--noline" CACHE STRING "Additional parsec-ptgpp precompiling flags (separate flags with ';')" )
