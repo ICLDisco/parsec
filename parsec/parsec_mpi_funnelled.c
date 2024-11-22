@@ -194,6 +194,8 @@ static int mpi_funnelled_num_recv_req_in_arr = 0;
 
 #if defined(PARSEC_HAVE_MPI_OVERTAKE)
 static int parsec_param_enable_mpi_overtake = 1;
+#else
+static int parsec_param_enable_mpi_overtake = 0;  /* Default to 0 if not supported to avoid complaints about the MCA */
 #endif
 
 /* List to hold pending requests */
@@ -506,9 +508,6 @@ static int mpi_funneled_init_once(parsec_context_t* context)
                              MAX_MPI_TAG, (unsigned int)MAX_MPI_TAG, MAX_MPI_TAG / MAX_DEP_OUT_COUNT);
     }
 
-#if !defined(PARSEC_HAVE_MPI_OVERTAKE)
-    parsec_param_enable_mpi_overtake = 0;  /* Default to 0 if not supported to avoid complaints about the MCA */
-#endif  /* !defined(PARSEC_HAVE_MPI_OVERTAKE) */
     parsec_mca_param_reg_int_name("runtime", "comm_mpi_overtake",
 #if defined(PARSEC_HAVE_MPI_OVERTAKE)
                                   "Enable MPI allow overtaking of messages (if applicable). (0: no, 1: yes)",
@@ -1386,18 +1385,16 @@ mpi_no_thread_enable(parsec_comm_engine_t *ce)
                              offsetof(mpi_funnelled_dynamic_req_t, mempool_owner),
                              1);
 
+    MPI_Info info = MPI_INFO_NULL;
+    MPI_Info_create(&info);
 #if defined(PARSEC_HAVE_MPI_OVERTAKE)
     if( parsec_param_enable_mpi_overtake ) {
-        MPI_Info no_order = MPI_INFO_NULL;
-        MPI_Info_create(&no_order);
-        MPI_Info_set(no_order, "mpi_assert_allow_overtaking", "true");
-        MPI_Comm_dup_with_info((MPI_Comm) context->comm_ctx, no_order, &parsec_ce_mpi_comm);
-        MPI_Info_free(&no_order);
-    } else {
-        MPI_Comm_dup((MPI_Comm) context->comm_ctx, &parsec_ce_mpi_comm);
+        MPI_Info_set(info, "mpi_assert_allow_overtaking", "true");
     }
+#endif /* defined(PARSEC_HAVE_MPI_OVERTAKE) */
     /* There is no need to enable overtake for the AM communicator */
-#endif  /* defined(PARSEC_HAVE_MPI_OVERTAKE) */
+    MPI_Comm_dup_with_info((MPI_Comm) context->comm_ctx, info, &parsec_ce_mpi_comm);
+    MPI_Info_free(&info);
     /* Replace the provided communicator with a pointer to the PaRSEC duplicate */
     context->comm_ctx = (uintptr_t)parsec_ce_mpi_comm;
 
