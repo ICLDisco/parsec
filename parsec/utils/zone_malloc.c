@@ -135,7 +135,7 @@ void *zone_malloc(zone_malloc_t *gdata, size_t size)
     current_segment = (segment_t *)parsec_list_nolock_pop_front(&fl->list);
     assert(current_segment->nb_units >= nb_units);
     current_segment->status = SEGMENT_FULL;
-    if (parsec_list_is_empty(&fl->list)) {
+    if (parsec_list_nolock_is_empty(&fl->list)) {
         /* empty chunk list, remove */
         parsec_rbtree_remove(&gdata->rbtree, &fl->super);
         PARSEC_LIST_ITEM_SINGLETON(&fl->super.super);
@@ -256,7 +256,7 @@ void zone_free(zone_malloc_t *gdata, void *add)
         parsec_rbtree_insert(&gdata->rbtree, &fl->super);
     }
     assert(fl != NULL);
-    parsec_list_push_front(&fl->list, &current_segment->super);
+    parsec_list_nolock_push_front(&fl->list, &current_segment->super);
     parsec_atomic_unlock(&gdata->lock);
 }
 
