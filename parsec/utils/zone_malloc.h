@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2019 The University of Tennessee and The University
+ * Copyright (c) 2012-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -8,6 +8,7 @@
 #define _ZONE_MALLOC_H_
 
 #include "parsec/parsec_config.h"
+#include "parsec/sys/atomic.h"
 
 #include <stdlib.h>
 #include <assert.h>
@@ -30,6 +31,7 @@ typedef struct zone_malloc_s {
     size_t     unit_size;            /* Basic Unit                */
     int        max_segment;          /* Maximum number of segment */
     int        next_tid;             /* Next TID to look at for a malloc */
+    parsec_atomic_lock_t lock;
 } zone_malloc_t;
 
 
