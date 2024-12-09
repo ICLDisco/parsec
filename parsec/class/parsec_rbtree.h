@@ -15,6 +15,7 @@ typedef struct parsec_rbtree_node_t {
 PARSEC_DECLSPEC PARSEC_OBJ_CLASS_DECLARATION(parsec_rbtree_node_t);
 
 typedef struct parsec_rbtree_t {
+    parsec_rbtree_node_t nil_element;
     parsec_rbtree_node_t *root;
     parsec_rbtree_node_t *nil;
     size_t comp_offset;
@@ -23,6 +24,8 @@ typedef struct parsec_rbtree_t {
 typedef void (parsec_rbtree_visitor_cb)(parsec_rbtree_node_t*, void*);
 
 void parsec_rbtree_init(parsec_rbtree_t *tree, size_t compare_offset);
+
+void parsec_rbtree_fini(parsec_rbtree_t* tree);
 
 void parsec_rbtree_insert(parsec_rbtree_t *tree, parsec_rbtree_node_t *node);
 

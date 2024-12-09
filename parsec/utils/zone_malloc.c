@@ -102,6 +102,8 @@ void* zone_malloc_fini(zone_malloc_t** gdata)
     (*gdata)->max_segment = 0;
     (*gdata)->unit_size = 0;
     (*gdata)->base = NULL;
+
+    parsec_rbtree_fini(&(*gdata)->rbtree);
     free(*gdata);
     *gdata = NULL;
     return base_ptr;

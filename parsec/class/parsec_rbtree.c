@@ -23,9 +23,17 @@ PARSEC_OBJ_CLASS_INSTANCE(parsec_rbtree_node_t, parsec_list_item_t,
                           parsec_rbtree_node_construct, NULL);
 
 void parsec_rbtree_init(parsec_rbtree_t* tree, size_t offset) {
-    tree->nil = PARSEC_OBJ_NEW(parsec_rbtree_node_t);
+    PARSEC_OBJ_CONSTRUCT(&tree->nil_element, parsec_rbtree_node_t);
+    tree->nil = &tree->nil_element;
     tree->root = tree->nil;
     tree->comp_offset = offset;
+}
+
+void parsec_rbtree_fini(parsec_rbtree_t* tree) {
+    PARSEC_OBJ_DESTRUCT(&tree->nil_element);
+    tree->nil = NULL;
+    tree->root = NULL;
+    tree->comp_offset = 0;
 }
 
 static inline
