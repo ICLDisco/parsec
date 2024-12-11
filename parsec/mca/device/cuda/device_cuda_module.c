@@ -159,8 +159,12 @@ static int parsec_cuda_all_devices_attached(parsec_device_module_t *device)
                             {return PARSEC_ERR_DEVICE;} );
 
     for( int j = 0; NULL != (target_gpu = (parsec_device_cuda_module_t*)parsec_device_cuda_component.modules[j]); j++ ) {
-        if( target_gpu == source_gpu ) continue;
-
+        if( target_gpu == source_gpu ) {
+            /* always set bit for self-access */
+            source_gpu->super.peer_access_mask = (int16_t)(source_gpu->super.peer_access_mask | 
+                (int16_t)(1 << target_gpu->super.super.device_index));
+            continue;
+        }
         /* Communication mask */
         cudastatus = cudaDeviceCanAccessPeer( &canAccessPeer, source_gpu->cuda_index, target_gpu->cuda_index );
         PARSEC_CUDA_CHECK_ERROR( "(parsec_device_cuda_component_query) cudaDeviceCanAccessPeer", cudastatus,
