@@ -41,6 +41,12 @@ int main(int argc, char *argv[])
         parsec_warning("This test can only run if at least one GPU device is present");
         exit(-PARSEC_ERR_DEVICE);
     }
+    int full_peer_access = parsec_context_query(parsec, PARSEC_CONTEXT_QUERY_DEVICES_FULL_PEER_ACCESS, PARSEC_DEV_CUDA);
+    assert(full_peer_access >= 0);
+    if(0 == full_peer_access) {
+        parsec_warning("This system does not have a full peer access matrix between all GPU devices");
+        exit(-PARSEC_ERR_DEVICE);
+    }
 
     tp = testing_nvlink_New(parsec, 10, 512);
     if( NULL != tp ) {
