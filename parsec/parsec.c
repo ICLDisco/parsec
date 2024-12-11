@@ -2800,6 +2800,20 @@ int parsec_context_query(parsec_context_t *context, parsec_context_query_cmd_t c
                 return count;
             }
 
+        case PARSEC_CONTEXT_QUERY_DEVICES_FULL_PEER_ACCESS:
+            {
+                int device_type = va_arg(args, int);
+                uint16_t mask = 0;
+                if(!PARSEC_DEV_IS_GPU(device_type)) return PARSEC_ERR_BAD_PARAM;
+                for( uint32_t i = 0; i < parsec_nb_devices; i++ ) {
+                    dev = parsec_mca_device_get(i);
+                    if( !(dev->type & device_type ) ) continue;
+                    parsec_device_gpu_module_t* gdev = (parsec_device_gpu_module_t*)dev;
+                    if( (gdev->peer_access_mask ^ (mask = (0 == mask)? gdev->peer_access_mask: mask)) || (0 == mask) ) return 0;
+                }
+                return 1;
+            }
+
         case PARSEC_CONTEXT_QUERY_CORES:
             {
                 int nb_total_comp_threads = 0;
