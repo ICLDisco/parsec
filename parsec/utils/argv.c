@@ -354,7 +354,7 @@ char *parsec_argv_join_range(char **argv, size_t start, size_t end, int delimite
 
     /* Allocate the string. */
 
-    if (NULL == (str = (char*) malloc(str_len)))
+    if (0 == str_len || (NULL == (str = (char*) malloc(str_len))))
         return NULL;
 
     /* Loop filling in the string. */
