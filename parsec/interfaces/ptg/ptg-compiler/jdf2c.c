@@ -6927,7 +6927,7 @@ static void jdf_generate_code_hook_gpu(const jdf_t *jdf,
         }
     }
     string_arena_free(info.sa);
-    coutput("  gpu_task->nb_flows = %d;  /* injerit the flows from the task_class */\n", di);
+    coutput("  gpu_task->nb_flows = %d;  /* inherit the flows from the task_class */\n", di);
 
     coutput("\n"
             "  return dev->kernel_scheduler(dev, es, gpu_task);\n"

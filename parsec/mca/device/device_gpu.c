@@ -2139,7 +2139,7 @@ parsec_device_kernel_pop( parsec_device_gpu_module_t   *gpu_device,
 #endif
 
     if (gpu_task->task_type == PARSEC_GPU_TASK_TYPE_D2HTRANSFER) {
-        for( uint32_t i = 0; i < (uint32_t)this_task->locals[0].value; i++ ) {
+        for( int i = 0; i < this_task->locals[0].value; i++ ) {
             gpu_copy = this_task->data[i].data_out;
             /* If the gpu copy is not owned by parsec, we don't manage it at all */
             if( 0 == (gpu_copy->flags & PARSEC_DATA_FLAG_PARSEC_OWNED) ) continue;
