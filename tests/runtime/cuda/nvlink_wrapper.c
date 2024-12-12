@@ -189,7 +189,7 @@ parsec_taskpool_t* testing_nvlink_New( parsec_context_t *ctx, int depth, int mb 
             /* And copy the tile from CPU to GPU */
             status = (cudaError_t)cudaMemcpy( gpu_copy->device_private,
                                               cpu_copy->device_private,
-                                              dta->nb_elts,
+                                              dta->span,
                                               cudaMemcpyHostToDevice );
             PARSEC_CUDA_CHECK_ERROR( "(nvlink_wrapper) cudaMemcpy", status, {return NULL;} );
             g++;
