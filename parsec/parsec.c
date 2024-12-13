@@ -378,7 +378,7 @@ static void parsec_vp_init( parsec_vp_t *vp,
 
 parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
 {
-    int ret, nb_vp, p, t, nb_total_comp_threads, display_vpmap = 0;
+    int ret, idx, nb_vp, p, t, nb_total_comp_threads, display_vpmap = 0;
     int comm_binding_parameter = -1;
     char *binding_parameter = NULL;
     __parsec_temporary_thread_initialization_t *startup;
@@ -521,14 +521,17 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
         false, false, vpmap_parameter, &vpmap_parameter);
 
     /* thread binding */
-    parsec_mca_param_reg_int_name("bind", "main_thread", "Force the binding of the thread calling parsec_init",
+    idx = parsec_mca_param_reg_int_name("bind", "main_thread", "Force the binding of the thread calling parsec_init",
                                  false, false, parsec_runtime_bind_main_thread, &parsec_runtime_bind_main_thread);
-    parsec_mca_param_reg_int_name("bind", "threads", "Bind main and worker threads", false, false,
+    parsec_mca_param_reg_syn_name(idx, "runtime", "bind_main_thread", true);
+    idx = parsec_mca_param_reg_int_name("bind", "threads", "Bind main and worker threads", false, false,
                                   parsec_runtime_bind_threads, &parsec_runtime_bind_threads);
-    parsec_mca_param_reg_int_name("bind", "comm", "Bind the communication thread to physical core <int>."
+    parsec_mca_param_reg_syn_name(idx, "parsec", "bind", true);
+    idx = parsec_mca_param_reg_int_name("bind", "comm", "Bind the communication thread to physical core <int>."
                                                    "-1: do not bind."
                                                    "Warning: binding relies on HWLOC, be careful when using with cgroups",
                                      false, false, comm_binding_parameter, &comm_binding_parameter);
+    parsec_mca_param_reg_syn_name(idx, "parsec", "bind_comm", true);
     parsec_mca_param_reg_string_name("bind", "map", "Provide a map description of the binding.",
                                      false, false, binding_parameter, &binding_parameter);
 
@@ -587,8 +590,9 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
 
 #if defined(PARSEC_PROF_GRAPHER)
     char *dot_param = NULL;
-    parsec_mca_param_reg_string_name("profile", "dot", "Prefix for the DOT file name containing the DAGs executed by parsec (one file per rank)",
+    idx = parsec_mca_param_reg_string_name("profile", "dot", "Prefix for the DOT file name containing the DAGs executed by parsec (one file per rank)",
                                      false, false, dot_param, &dot_param);
+    parsec_mca_param_reg_syn_name(idx, "parsec", "dot", true);
     if( NULL != dot_param ) {
         asprintf(&parsec_dot_file, "%s-%d.dot", dot_param, parsec_debug_rank);
     }
