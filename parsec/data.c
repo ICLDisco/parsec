@@ -90,7 +90,6 @@ static void parsec_data_destruct(parsec_data_t* obj )
                               copy, copy->original, i);
             }
 #endif  /* defined(PARSEC_DEBUG_PARANOID) */
-            assert(obj->super.obj_reference_count > 1);
             parsec_data_copy_detach( obj, copy, i );
             if ( !(device->type & PARSEC_DEV_CUDA)
               && !(device->type & PARSEC_DEV_HIP) ) {
@@ -194,7 +193,11 @@ int parsec_data_copy_detach(parsec_data_t* data,
 
     copy->original     = NULL;
     copy->older        = NULL;
-    PARSEC_OBJ_RELEASE(data);
+    /* if the host copy is discarded it has already released its reference so
+     * we do not release the data again */
+    if (!(copy->flags & PARSEC_DATA_FLAG_DISCARDED)) {
+        PARSEC_OBJ_RELEASE(data);
+    }
 
     return PARSEC_SUCCESS;
 }
@@ -558,4 +561,47 @@ parsec_data_destroy( parsec_data_t *data )
     ((parsec_object_t *)(data))->obj_magic_id = PARSEC_OBJ_MAGIC_ID;
 #endif
     PARSEC_OBJ_RELEASE(data);
+}
+
+void
+parsec_data_discard( parsec_data_t *data )
+{
+    /* defensive */
+    if (NULL == data) return;
+
+    /* lock the data so it's safe to touch the flags */
+    parsec_atomic_lock( &data->lock );
+
+    /**
+     * Mark the host copy as discarded
+     *
+     * We mark the host copy as having given up its reference to the data_t
+     * so when the data_t is destroyed (parsec_data_destruct) and
+     * the host copy is being detached we don't release the copy's reference
+     * on the data_t again. We have to releae the copy's reference here
+     * to break the cyclic dependency between the copy and the data_t.
+     * We cannot release the copy immediately as there may device management
+     * threads working with it, e.g., evicting data into it.
+     * */
+    parsec_data_copy_t *cpu_copy = data->device_copies[0];
+    if (NULL != cpu_copy) {
+        cpu_copy->flags |= PARSEC_DATA_FLAG_DISCARDED;
+
+        /* release the reference that the host copy had on the data_t to break
+        *  the circular reference. */
+        PARSEC_OBJ_RELEASE(data);
+    }
+
+    /* unlock before releasing our references */
+    parsec_atomic_unlock( &data->lock );
+
+    /* release the reference the application held */
+    PARSEC_OBJ_RELEASE(data);
+
+    /* From here, any device copy that is still attached to the data_t
+     * can continue to use the host copy and once all device copies are
+     * detached the data_t and the host copy are destroyed.
+     * If there were no device copies then the release above will
+     * have destroyed the data_t already. */
+
 }
