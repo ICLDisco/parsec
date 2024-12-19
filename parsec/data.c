@@ -63,7 +63,7 @@ static void parsec_data_construct(parsec_data_t* obj )
     obj->owner_device     = -1;
     obj->preferred_device = -1;
     obj->key              = 0;
-    obj->nb_elts          = 0;
+    obj->span          = 0;
     for( uint32_t i = 0; i < parsec_nb_devices;
          obj->device_copies[i] = NULL, i++ );
     obj->dc               = NULL;
@@ -503,7 +503,7 @@ parsec_data_create( parsec_data_t **holder,
         data->owner_device = 0;
         data->key = key;
         data->dc = desc;
-        data->nb_elts = size;
+        data->span = size;
         parsec_data_copy_attach(data, data_copy, 0);
 
         if( !parsec_atomic_cas_ptr(holder, NULL, data) ) {
@@ -540,7 +540,7 @@ parsec_data_create_with_type( parsec_data_collection_t *desc,
     clone->owner_device = 0;
     clone->key = key;
     clone->dc = desc;
-    clone->nb_elts = size;
+    clone->span = size;
     parsec_data_copy_attach(clone, data_copy, 0);
 
     return clone;
