@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2009-2023 The University of Tennessee and The University
+ * Copyright (c) 2009-2025 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
@@ -6812,7 +6812,7 @@ static void jdf_generate_code_hook_gpu(const jdf_t *jdf,
             "  gpu_task = (parsec_gpu_task_t*)PARSEC_OBJ_NEW(parsec_gpu_dsl_task_t);"
             "  gpu_task->ec = (parsec_task_t*)this_task;\n"
             "  gpu_task->submit = &%s_kernel_submit_%s_%s;\n"
-            "  gpu_task->task_type = 0;\n"
+            "  gpu_task->task_type = PARSEC_GPU_TASK_TYPE_KERNEL;\n"
             "  gpu_task->last_data_check_epoch = -1;  /* force at least one validation for the task */\n",
             dev_lower, jdf_basename, f->fname);
 

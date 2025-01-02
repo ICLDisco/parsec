@@ -1,6 +1,5 @@
 /*
- *
- * Copyright (c) 2021-2022 The University of Tennessee and The University
+ * Copyright (c) 2021-2025 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
@@ -52,6 +51,21 @@ static void parsec_device_release_gpu_task(parsec_gpu_task_t *gpu_task)
 
 static void parsec_device_task_t_constructor(parsec_gpu_task_t *gpu_task)
 {
+    gpu_task->task_type = PARSEC_GPU_TASK_TYPE_INVALID; /* need to be set later */
+    gpu_task->pushout = 0;
+    gpu_task->last_status = 0;
+    gpu_task->submit = NULL;
+    gpu_task->complete_stage = NULL;
+    gpu_task->stage_in = NULL;
+    gpu_task->stage_out = NULL;
+    gpu_task->release_device_task = NULL;
+#if defined(PARSEC_PROF_TRACE)
+    gpu_task->prof_key_end = 0;
+    gpu_task->prof_event_id = 0;
+    gpu_task->prof_tp_id = 0;
+#endif
+    gpu_task->ec = NULL;
+    gpu_task->last_data_check_epoch = 0;
     gpu_task->nb_flows = 0;
     gpu_task->flow_info = NULL;
     /* Default release mechanism, can be replaced by the DSL */
@@ -2101,7 +2115,7 @@ parsec_device_kernel_exec( parsec_device_gpu_module_t      *gpu_device,
 
 #if defined(PARSEC_DEBUG_PARANOID)
     const parsec_flow_t *flow;
-    for( int i = 0; i < gpu_task->nb_flows  /* this_task->task_class->nb_flows */; i++ ) {
+    for( uint i = 0; i < gpu_task->nb_flows  /* this_task->task_class->nb_flows */; i++ ) {
         /* Make sure data_in is not NULL */
         if( NULL == this_task->data[i].data_in ) continue;
 

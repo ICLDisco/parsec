@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023 The University of Tennessee and The University
+ * Copyright (c) 2021-2025 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
@@ -335,6 +335,7 @@ char *parsec_device_describe_gpu_task( char *tmp, size_t len, parsec_gpu_task_t 
 #define PARSEC_GPU_TASK_TYPE_PREFETCH     0x2000
 #define PARSEC_GPU_TASK_TYPE_WARMUP       0x4000
 #define PARSEC_GPU_TASK_TYPE_D2D_COMPLETE 0x8000
+#define PARSEC_GPU_TASK_TYPE_INVALID      0xf000
 
 #if defined(PARSEC_PROF_TRACE)
 #define PARSEC_PROFILE_GPU_TRACK_DATA_IN  0x0001
