@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2014-2024 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
 #include "parsec/parsec_config.h"
 #include <unistd.h>
 #include <string.h>
@@ -28,7 +33,7 @@ char *parsec_process_name(void) {
     }
     name[ret] = '\0';
 #endif
-    sname = rindex(name, PARSEC_PATH_SEP[0]);
+    sname = strrchr(name, PARSEC_PATH_SEP[0]);
     if(NULL == sname) return strdup(name);
     else return strdup(sname+1);
 }

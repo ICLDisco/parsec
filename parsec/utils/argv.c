@@ -2,7 +2,7 @@
  * Copyright (c) 2004-2005 The Trustees of Indiana University and Indiana
  *                         University Research and Technology
  *                         Corporation.  All rights reserved.
- * Copyright (c) 2004-2012 The University of Tennessee and The University
+ * Copyright (c) 2004-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * Copyright (c) 2004-2005 High Performance Computing Center Stuttgart,
@@ -354,7 +354,7 @@ char *parsec_argv_join_range(char **argv, size_t start, size_t end, int delimite
 
     /* Allocate the string. */
 
-    if (NULL == (str = (char*) malloc(str_len)))
+    if (0 == str_len || (NULL == (str = (char*) malloc(str_len))))
         return NULL;
 
     /* Loop filling in the string. */

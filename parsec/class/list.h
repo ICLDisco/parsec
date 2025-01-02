@@ -1,7 +1,8 @@
 /*
- * Copyright (c) 2010-2019 The University of Tennessee and The University
+ * Copyright (c) 2010-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2024      Stony Brook University.  All rights reserved.
  */
 
 /* This file contains functions to access doubly linked lists.
@@ -14,6 +15,8 @@
 
 #ifndef PARSEC_LIST_H_HAS_BEEN_INCLUDED
 #define PARSEC_LIST_H_HAS_BEEN_INCLUDED
+
+#include <stdbool.h>
 
 #include "parsec/parsec_config.h"
 #include "parsec/class/list_item.h"
@@ -870,7 +873,12 @@ parsec_list_nolock_push_sorted( parsec_list_t* list,
         /* take the range of priorities and decide whether to iterate forward or backward */
         int tail_val = COMPARISON_VAL(_TAIL(list), off);
         int head_val = COMPARISON_VAL(_HEAD(list), off);
-        if (COMPARISON_VAL(newel, off) > ((head_val + tail_val) / 2)) {
+        int comp_val = COMPARISON_VAL(newel, off);
+        /* compute the pivot without risking overflow
+         * first, we compute the half point from the head and tail
+         * second, we account for odd numbers by adding 1 if both were odd */
+        int pivot = (head_val/2) + (tail_val/2) + (((head_val%2) + (tail_val%2))) == 2 ? 1 : 0;
+        if (comp_val > pivot) {
             /* new element is in upper half of priority range */
             parsec_list_item_t* position = PARSEC_LIST_NOLOCK_ITERATOR(list, pos,
             {

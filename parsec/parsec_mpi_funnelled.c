@@ -193,7 +193,9 @@ static int mpi_funnelled_static_req_idx = 0;
 static int mpi_funnelled_num_recv_req_in_arr = 0;
 
 #if defined(PARSEC_HAVE_MPI_OVERTAKE)
-static int parsec_param_enable_mpi_overtake;
+static int parsec_param_enable_mpi_overtake = 1;
+#else
+static int parsec_param_enable_mpi_overtake = 0;  /* Default to 0 if not supported to avoid complaints about the MCA */
 #endif
 
 /* List to hold pending requests */
@@ -505,6 +507,17 @@ static int mpi_funneled_init_once(parsec_context_t* context)
                              " which might be too small should you have more than %d pending remote dependencies",
                              MAX_MPI_TAG, (unsigned int)MAX_MPI_TAG, MAX_MPI_TAG / MAX_DEP_OUT_COUNT);
     }
+
+    parsec_mca_param_reg_int_name("runtime", "comm_mpi_overtake",
+#if defined(PARSEC_HAVE_MPI_OVERTAKE)
+                                  "Enable MPI allow overtaking of messages (if applicable). (0: no, 1: yes)",
+#else
+                                  "Not supported by the current MPI library (forced to zero)",
+#endif  /* defined(PARSEC_HAVE_MPI_OVERTAKE) */
+                                  false, false, parsec_param_enable_mpi_overtake, &parsec_param_enable_mpi_overtake);
+#if !defined(PARSEC_HAVE_MPI_OVERTAKE)
+    parsec_param_enable_mpi_overtake = 0;  /* Don't allow to be changed */
+#endif  /* !defined(PARSEC_HAVE_MPI_OVERTAKE) */
 
     (void)context;
     return 0;
@@ -1372,28 +1385,27 @@ mpi_no_thread_enable(parsec_comm_engine_t *ce)
                              offsetof(mpi_funnelled_dynamic_req_t, mempool_owner),
                              1);
 
-    MPI_Comm_dup((MPI_Comm) context->comm_ctx, &parsec_ce_mpi_comm);
-    for(i = 0; i < PARSEC_MAX_REGISTERED_TAGS; i++) {
-        MPI_Comm_dup((MPI_Comm) context->comm_ctx, &parsec_ce_mpi_am_comm[i]);
+    MPI_Info info = MPI_INFO_NULL;
+    MPI_Info_create(&info);
+#if defined(PARSEC_HAVE_MPI_OVERTAKE)
+    if( parsec_param_enable_mpi_overtake ) {
+        MPI_Info_set(info, "mpi_assert_allow_overtaking", "true");
     }
+#endif /* defined(PARSEC_HAVE_MPI_OVERTAKE) */
+    /* There is no need to enable overtake for the AM communicator */
+    MPI_Comm_dup_with_info((MPI_Comm) context->comm_ctx, info, &parsec_ce_mpi_comm);
+    MPI_Info_free(&info);
     /* Replace the provided communicator with a pointer to the PaRSEC duplicate */
     context->comm_ctx = (uintptr_t)parsec_ce_mpi_comm;
 
     MPI_Comm_size(parsec_ce_mpi_comm, &(context->nb_nodes));
     MPI_Comm_rank(parsec_ce_mpi_comm, &(context->my_rank));
 
-    parsec_check_overlapping_binding(context);
-
-#if defined(PARSEC_HAVE_MPI_OVERTAKE)
-    if( parsec_param_enable_mpi_overtake ) {
-        MPI_Info no_order;
-        MPI_Info_create(&no_order);
-        MPI_Info_set(no_order, "mpi_assert_allow_overtaking", "true");
-        MPI_Comm_set_info(parsec_ce_mpi_comm, no_order);
-        MPI_Info_free(&no_order);
+    for(i = 0; i < PARSEC_MAX_REGISTERED_TAGS; i++) {
+        MPI_Comm_dup((MPI_Comm) context->comm_ctx, &parsec_ce_mpi_am_comm[i]);
     }
-    /* There is no need to enable overtake for the AM communicator */
-#endif
+
+    parsec_check_overlapping_binding(context);
 
     parsec_ce_rebuild_am_requests();
     return 1;

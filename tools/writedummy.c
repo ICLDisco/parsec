@@ -105,7 +105,7 @@ node_t **load_dummy_graph(void)
     ta_end.succ = (node_t**)malloc(2*sizeof(node_t));
     ta_end.succ[0] = &tb_start;
     ta_end.succ[1] = &tc_start;
-    
+
     tb_end.nbsucc = 2;
     tb_end.succ = (node_t**)malloc(1*sizeof(node_t));
     tb_end.succ[0] = &te_start;
@@ -114,7 +114,7 @@ node_t **load_dummy_graph(void)
     tc_end.nbsucc = 1;
     tc_end.succ = (node_t**)malloc(1*sizeof(node_t));
     tc_end.succ[0] = &td_start;
-    
+
     td_end.nbsucc = 1;
     td_end.succ = (node_t**)malloc(1*sizeof(node_t));
     td_end.succ[0] = &te_start;

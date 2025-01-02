@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2019-2021 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
 #ifndef _UDF_WRAPPER_H
 #define _UDF_WRAPPER_H
 
