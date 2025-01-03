@@ -10,7 +10,7 @@ on:
 jobs:
   all:
     runs-on: [self-hosted, Linux]
-    timeout-minutes: 31
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
