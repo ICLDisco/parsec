@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2009-2022 The University of Tennessee and The University
+ * Copyright (c) 2009-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -2167,7 +2167,7 @@ void parsec_taskpool_unregister( parsec_taskpool_t* tp )
     parsec_atomic_lock( &taskpool_array_lock );
     assert( tp->taskpool_id < taskpool_array_size );
     assert( taskpool_array[tp->taskpool_id] == tp );
-    assert( PARSEC_TERM_TP_TERMINATED == tp->tdm.module->taskpool_state(tp) );
+    assert( tp->tdm.module == NULL || PARSEC_TERM_TP_TERMINATED == tp->tdm.module->taskpool_state(tp) );
     taskpool_array[tp->taskpool_id] = NOTASKPOOL;
     parsec_atomic_unlock( &taskpool_array_lock );
 }
@@ -2813,6 +2813,20 @@ int parsec_context_query(parsec_context_t *context, parsec_context_query_cmd_t c
                     if( dev->type & device_type ) count++;
                 }
                 return count;
+            }
+
+        case PARSEC_CONTEXT_QUERY_DEVICES_FULL_PEER_ACCESS:
+            {
+                int device_type = va_arg(args, int);
+                uint16_t mask = 0;
+                if(!PARSEC_DEV_IS_GPU(device_type)) return PARSEC_ERR_BAD_PARAM;
+                for( uint32_t i = 0; i < parsec_nb_devices; i++ ) {
+                    dev = parsec_mca_device_get(i);
+                    if( !(dev->type & device_type ) ) continue;
+                    parsec_device_gpu_module_t* gdev = (parsec_device_gpu_module_t*)dev;
+                    if( (gdev->peer_access_mask ^ (mask = (0 == mask)? gdev->peer_access_mask: mask)) || (0 == mask) ) return 0;
+                }
+                return 1;
             }
 
         case PARSEC_CONTEXT_QUERY_CORES:

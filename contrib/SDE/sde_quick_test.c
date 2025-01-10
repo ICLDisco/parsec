@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2018      The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
 #include <pthread.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -39,7 +44,7 @@ void *thread_fct(void *_)
             c++;
             if( *c == '\0' )
                 continue;
-            
+
             retval=PAPI_add_named_event(eventset, c);
             if (retval!=PAPI_OK) {
                 fprintf(stderr, "SDE_QUICK_TEST:: unable to add event '%s' to eventset (PAPI error: '%s')\n",
@@ -54,7 +59,7 @@ void *thread_fct(void *_)
         fprintf(stderr, "SDE_QUICK_TEST:: no counter succesfully defined, bailing out (have you set PAPI_SDE_QUICK_TEST environment variables?)\n");
         return NULL;
     }
-    
+
     counts = (long long*)malloc(sizeof(long long) * nbcounters);
     PAPI_reset(eventset);
     PAPI_start(eventset);
@@ -84,12 +89,12 @@ void init(void)
             nbcounters++;
         }
     }
-    
+
     if( 0 == nbcounters ) {
         fprintf(stderr, "SDE_QUICK_TEST:: No environment variable starting with SDE_QUICK_TEST defined, I don't know what events to log, bailing out\n");
         return;
     }
-    
+
     pthread_create(&my_thread, NULL, thread_fct, NULL);
-    pthread_detach(my_thread);   
+    pthread_detach(my_thread);
 }

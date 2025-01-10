@@ -1,3 +1,8 @@
+#
+# Copyright (c) 2010-2024 The University of Tennessee and The University
+#                         of Tennessee Research Foundation.  All rights
+#                         reserved.
+#
 cmake_minimum_required (VERSION 3.21)
 project (PARSEC C)
 
@@ -25,12 +30,12 @@ include(GNUInstallDirs)
 # (e.g., for a release tagged v20.02 made in the second month
 # of february 2020, PARSEC_VERSION_RELEASE=2002)
 set (PARSEC_VERSION_MAJOR   4)
-set (PARSEC_VERSION_MINOR   0)
+set (PARSEC_VERSION_MINOR   1)
 set (PARSEC_VERSION_RELEASE 0) # Devel master have no release number
-#set (PARSEC_VERSION_RELEASE 2012) # Set and uncomment for a release
+#set (PARSEC_VERSION_RELEASE 2411) # Set and uncomment for a release
 
 # Set the following values for a release
-#set(GIT_COMMIT_TAG vYY.MM)
+#set(GIT_COMMIT_TAG v24.11)
 
 # Configure the installation paths
 set(PARSEC_INSTALL_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR})

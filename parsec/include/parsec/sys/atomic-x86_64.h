@@ -176,7 +176,7 @@ int32_t parsec_atomic_fetch_add_int32(volatile int32_t* v, int32_t i)
 
 #define PARSEC_ATOMIC_HAS_ATOMIC_FETCH_ADD_INT64
 ATOMIC_STATIC_INLINE
-int64_t parsec_atomic_fetch_add_int32(volatile int64_t* v, int64_t i)
+int64_t parsec_atomic_fetch_add_int64(volatile int64_t* v, int64_t i)
 {
     int64_t ret = i;
     __asm__ __volatile__(

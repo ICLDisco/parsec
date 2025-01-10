@@ -1,7 +1,8 @@
 /*
- * Copyright (c) 2021-2023 The University of Tennessee and The University
+ * Copyright (c) 2021-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
  */
 
 #ifndef PARSEC_DEVICE_GPU_H
@@ -76,44 +77,51 @@ typedef int (parsec_stage_out_function_t)(parsec_gpu_task_t        *gtask,
                                           uint32_t                  flow_mask,
                                           parsec_gpu_exec_stream_t *gpu_stream);
 
+/* Function type for releasing a device task. The DSL is responsible for allocating such tasks,
+ * and this function allows the device engine to delegate the release of such tasks back into
+ * the DSL. Once this task called, the device task should not be accessed by the device.
+ */
+typedef void (*parsec_release_device_task_function_t)(void*);
+
 struct parsec_gpu_task_s {
-    parsec_list_item_t                list_item;
-    uint16_t                          task_type;
-    uint16_t                          pushout;
-    int32_t                           last_status;
-    parsec_advance_task_function_t    submit;
-    parsec_complete_stage_function_t  complete_stage;
-    parsec_stage_in_function_t       *stage_in;
-    parsec_stage_out_function_t      *stage_out;
+    parsec_list_item_t                     list_item;
+    uint16_t                               task_type;
+    uint16_t                               pushout;
+    int32_t                                last_status;
+    parsec_advance_task_function_t         submit;
+    parsec_complete_stage_function_t       complete_stage;
+    parsec_stage_in_function_t            *stage_in;
+    parsec_stage_out_function_t           *stage_out;
+    parsec_release_device_task_function_t  release_device_task;
 #if defined(PARSEC_PROF_TRACE)
-    int                               prof_key_end;
-    uint64_t                          prof_event_id;
-    uint32_t                          prof_tp_id;
+    int                                    prof_key_end;
+    uint64_t                               prof_event_id;
+    uint32_t                               prof_tp_id;
 #endif
     union {
         struct {
-            parsec_task_t            *ec;
-            uint64_t                  last_data_check_epoch;
-            const parsec_flow_t      *flow[MAX_PARAM_COUNT];  /* There is no consistent way to access the flows from the task_class,
-                                                               * so the DSL need to provide these flows here.
-                                                               */
-            size_t                    flow_nb_elts[MAX_PARAM_COUNT]; /* for each flow, size of the data to be allocated
-                                                                      * on the GPU.
-                                                                      */
-            parsec_data_collection_t *flow_dc[MAX_PARAM_COUNT];     /* for each flow, data collection from which the data
-                                                                     * to be transferred logically belongs to.
-                                                                     * This gives the user the chance to indicate on the JDF
-                                                                     * a data collection to inspect during GPU transfer.
-                                                                     * User may want info from the DC (e.g. mtype),
-                                                                     * & otherwise remote copies don't have any info.
-                                                                     */
+            parsec_task_t                 *ec;
+            uint64_t                       last_data_check_epoch;
+            const parsec_flow_t           *flow[MAX_PARAM_COUNT];  /* There is no consistent way to access the flows from the task_class,
+                                                                    * so the DSL need to provide these flows here.
+                                                                    */
+            size_t                         flow_nb_elts[MAX_PARAM_COUNT]; /* for each flow, size of the data to be allocated
+                                                                           * on the GPU.
+                                                                           */
+            parsec_data_collection_t      *flow_dc[MAX_PARAM_COUNT];     /* for each flow, data collection from which the data
+                                                                          * to be transferred logically belongs to.
+                                                                          * This gives the user the chance to indicate on the JDF
+                                                                          * a data collection to inspect during GPU transfer.
+                                                                          * User may want info from the DC (e.g. mtype),
+                                                                          * & otherwise remote copies don't have any info.
+                                                                          */
             /* These are private and should not be used outside the device driver */
-            parsec_data_copy_t       *sources[MAX_PARAM_COUNT];  /* If the driver decides to acquire the data from a different
-                                                                  * source, it will temporary store the best candidate here.
-                                                                  */
+            parsec_data_copy_t            *sources[MAX_PARAM_COUNT];  /* If the driver decides to acquire the data from a different
+                                                                       * source, it will temporary store the best candidate here.
+                                                                       */
         };
         struct {
-            parsec_data_copy_t        *copy;
+            parsec_data_copy_t            *copy;
         };
     };
 };

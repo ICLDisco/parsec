@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014 The University of Tennessee and The University
+ * Copyright (c) 2012-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -8,7 +8,8 @@
 #define _ZONE_MALLOC_H_
 
 #include "parsec/parsec_config.h"
-#include "parsec/include/parsec/sys/atomic.h"
+#include "parsec/sys/atomic.h"
+
 #include <stdlib.h>
 #include <assert.h>
 

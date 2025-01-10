@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2019-2023 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
 #include <unistd.h>
 #include <getopt.h>
 

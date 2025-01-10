@@ -1,6 +1,10 @@
 #if !defined(_REDUCE_DATA_H_)
 #define _REDUCE_DATA_H_
-
+/*
+ * Copyright (c) 2013-2022 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
 #include "parsec/runtime.h"
 #include "parsec/data_dist/matrix/matrix.h"
 

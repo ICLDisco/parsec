@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2017-2021 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
 #include <stdlib.h>
 #include <pthread.h>
 #ifdef PARSEC_HAVE_PTHREAD_BARRIER_H
@@ -46,18 +51,18 @@ static void *run_thread(void *_arg)
 
     if( profiling )
         ti->prof = parsec_profiling_stream_init(4096, "Thread %d", ti->thread_index);
-    
+
     pthread_barrier_wait(&barrier); // We wait that all threads have called init
-       
+
     for(i = 0; i < D*D; i++) {
         a[i] = (double)rand() / RAND_MAX;
         b[i] = (double)rand() / RAND_MAX;
         c[i] = (double)rand() / RAND_MAX;
     }
-    
+
     pthread_barrier_wait(&barrier); // Then we wait that all threads are ready and that the main thread has called start
     gettimeofday(&start, NULL);
-    
+
     for(i = 0; i < tasks_per_thread; i++) {
         if(profiling)
             parsec_profiling_trace_flags(ti->prof, event_startkey, i, ti->thread_index, NULL, 0);
@@ -69,7 +74,7 @@ static void *run_thread(void *_arg)
     gettimeofday(&end, NULL);
     timersub(&end, &start, &ti->duration);
     ti->dummy = c[0];
-    
+
     return NULL;
 }
 
@@ -83,7 +88,7 @@ int main(int argc, char *argv[])
 
     MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
-    
+
     while ((opt = getopt(argc, argv, "f:n:N:h?")) != -1) {
         switch (opt) {
         case 'f':
@@ -118,7 +123,7 @@ int main(int argc, char *argv[])
 
     pthread_barrier_init(&barrier, NULL, nbthreads+1);
     thread_info = (per_thread_info_t *)calloc(nbthreads, sizeof(per_thread_info_t));
-    
+
     for(i = 0; i < nbthreads; i++) {
         thread_info[i].thread_index = i;
         pthread_create(&thread_info[i].pthread_id, NULL, run_thread, &thread_info[i]);
@@ -129,7 +134,7 @@ int main(int argc, char *argv[])
         parsec_profiling_start();
     }
     pthread_barrier_wait(&barrier); // Then we free all compute threads to run
-    
+
     for(i = 0; i < nbthreads; i++)
         pthread_join(thread_info[i].pthread_id, NULL);
 

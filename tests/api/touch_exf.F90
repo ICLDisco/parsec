@@ -1,3 +1,9 @@
+!
+! Copyright (c) 2021-2024 The University of Tennessee and The University
+!                         of Tennessee Research Foundation.  All rights
+!                         reserved.
+!
+
 PROGRAM TOUCH_EXF
 
   use, INTRINSIC :: ISO_C_BINDING, only : c_int

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014 The University of Tennessee and The University
+ * Copyright (c) 2012-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -110,7 +110,7 @@ void *zone_malloc(zone_malloc_t *gdata, size_t size)
                 current_segment->nb_units = nb_units;
             }
             parsec_atomic_unlock(&gdata->lock);
-            return (void *)(gdata->base + (current_tid * gdata->unit_size));
+            return (void*)(gdata->base + (current_tid * gdata->unit_size));
         }
 
         current_tid += current_segment->nb_units;
@@ -126,6 +126,7 @@ void zone_free(zone_malloc_t *gdata, void *add)
     int current_tid, next_tid, prev_tid;
     off_t offset;
 
+    parsec_atomic_lock(&gdata->lock);
     offset = (char*)add -gdata->base;
     assert( (offset % gdata->unit_size) == 0);
     current_tid = offset / gdata->unit_size;
@@ -133,11 +134,13 @@ void zone_free(zone_malloc_t *gdata, void *add)
 
     if( NULL == current_segment ) {
         zone_malloc_error("address to free not allocated\n");
+        parsec_atomic_unlock(&gdata->lock);
         return;
     }
 
     if( SEGMENT_EMPTY == current_segment->status ) {
         zone_malloc_error("double free (or other buffer overflow) error in ZONE allocation");
+        parsec_atomic_unlock(&gdata->lock);
         return;
     }
 
@@ -173,6 +176,7 @@ void zone_free(zone_malloc_t *gdata, void *add)
             next_segment->nb_prev = current_segment->nb_units;
         }
     }
+    parsec_atomic_unlock(&gdata->lock);
 }
 
 size_t zone_in_use(zone_malloc_t *gdata)
@@ -180,6 +184,7 @@ size_t zone_in_use(zone_malloc_t *gdata)
     size_t ret = 0;
     segment_t *current_segment;
     int current_tid;
+    parsec_atomic_lock(&gdata->lock);
     for(current_tid = 0;
         (current_segment = SEGMENT_AT_TID(gdata, current_tid)) != NULL;
         current_tid += current_segment->nb_units) {
@@ -187,6 +192,7 @@ size_t zone_in_use(zone_malloc_t *gdata)
             ret += gdata->unit_size * current_segment->nb_units;
         }
     }
+    parsec_atomic_unlock(&gdata->lock);
     return ret;
 }
 
@@ -197,6 +203,7 @@ size_t zone_debug(zone_malloc_t *gdata, int level, int output_id, const char *pr
     int current_tid;
     size_t ret = 0;
 
+    parsec_atomic_lock(&gdata->lock);
     for(current_tid = 0;
         (current_segment = SEGMENT_AT_TID(gdata, current_tid)) != NULL;
         current_tid += current_segment->nb_units) {
@@ -217,6 +224,6 @@ size_t zone_debug(zone_malloc_t *gdata, int level, int output_id, const char *pr
                                      gdata->base + (current_tid+current_segment->nb_units) * gdata->unit_size - 1);
         }
     }
-
+    parsec_atomic_unlock(&gdata->lock);
     return ret;
 }

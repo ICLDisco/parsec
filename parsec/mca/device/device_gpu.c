@@ -1,8 +1,9 @@
 /*
  *
- * Copyright (c) 2021-2022 The University of Tennessee and The University
+ * Copyright (c) 2021-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/parsec_config.h"
@@ -468,6 +469,7 @@ parsec_device_data_advise(parsec_device_module_t *dev, parsec_data_t *data, int 
             parsec_gpu_task_t* gpu_task = NULL;
             gpu_task = (parsec_gpu_task_t*)calloc(1, sizeof(parsec_gpu_task_t));
             gpu_task->task_type = PARSEC_GPU_TASK_TYPE_PREFETCH;
+            gpu_task->release_device_task = free;  /* by default free the device task */
             gpu_task->ec = calloc(1, sizeof(parsec_task_t));
             PARSEC_OBJ_CONSTRUCT(gpu_task->ec, parsec_task_t);
             gpu_task->ec->task_class = &parsec_device_data_prefetch_tc;
@@ -923,7 +925,6 @@ parsec_device_get_copy( parsec_device_gpu_module_t* gpu_device, parsec_data_copy
  * (this call will remove them from the current task).
  * Returns:
  *   PARSEC_HOOK_RETURN_DONE:  All gpu_mem/mem_elem have been initialized
- *   PARSEC_HOOK_RETURN_AGAIN: At least one flow is marked under transfer, task cannot be scheduled yet
  *   PARSEC_HOOK_RETURN_NEXT:  The task needs to rescheduled
  */
 static inline int
@@ -1047,7 +1048,7 @@ parsec_device_data_reserve_space( parsec_device_gpu_module_t* gpu_device,
                 if( data_avail_epoch ) {  /* update the memory epoch */
                     gpu_device->data_avail_epoch++;
                 }
-                return PARSEC_HOOK_RETURN_AGAIN;
+                return PARSEC_HOOK_RETURN_NEXT;
             }
 
             PARSEC_LIST_ITEM_SINGLETON(lru_gpu_elem);
@@ -1718,6 +1719,7 @@ parsec_device_send_transfercomplete_cmd_to_device(parsec_data_copy_t *copy,
     parsec_gpu_task_t* gpu_task = NULL;
     gpu_task = (parsec_gpu_task_t*)calloc(1, sizeof(parsec_gpu_task_t));
     gpu_task->task_type = PARSEC_GPU_TASK_TYPE_D2D_COMPLETE;
+    gpu_task->release_device_task = free;  /* by default free the device task */
     gpu_task->ec = calloc(1, sizeof(parsec_task_t));
     PARSEC_OBJ_CONSTRUCT(gpu_task->ec, parsec_task_t);
     gpu_task->ec->task_class = &parsec_device_d2d_complete_tc;
@@ -2012,13 +2014,24 @@ parsec_device_progress_stream( parsec_device_gpu_module_t* gpu_device,
     rc = progress_fct( gpu_device, task, stream );
     if( 0 > rc ) {
         if( PARSEC_HOOK_RETURN_AGAIN != rc ) {
-           *out_task = task;
+            if( PARSEC_HOOK_RETURN_NEXT == rc ) {
+                /* Dont reorder the push_back, we are running into physical contraints and need to delay
+                 * the resubmission of this task as much as possible, but without loosing track of it
+                 * (aka. returning it to the upper level).
+                 */
+                parsec_list_push_back(stream->fifo_pending, (parsec_list_item_t*)task);
+            } else {
+                /* Something else is going on with this task, remove it from the stream queues
+                 * and return it to the upper level for final decision on its fate.
+                 */
+                *out_task = task;
+            }
             return rc;
         }
 
         *out_task = NULL;
         /**
-         * The task requested to be rescheduled but it might have added some kernels on the
+         * The task requested to be rescheduled but it might have added kernels on the
          * stream and we need to wait for their completion. Thus, treat the task as usual,
          * create and event and upon completion of this event add the task back into the
          * execution stream pending list (to be executed again).
@@ -2773,7 +2786,9 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
     PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream, "GPU[%d:%s]: gpu_task %p freed",
                          gpu_device->super.device_index, gpu_device->super.name,
                          gpu_task);
-    free( gpu_task );
+    if (NULL != gpu_task->release_device_task) {
+        gpu_task->release_device_task(gpu_task);
+    }
     rc = parsec_atomic_fetch_dec_int32( &(gpu_device->mutex) );
     if( 1 == rc ) {  /* I was the last one */
 #if defined(PARSEC_PROF_TRACE)

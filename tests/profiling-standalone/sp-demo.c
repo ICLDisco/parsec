@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2016-2021 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 /**
  * This is a simple example on how to use the parsec profiling system standalone
  *
@@ -74,7 +80,7 @@ static void *run_thread(void *_arg)
     /* Once parsec_profiling_stream_init has been called, the main thread can call
      * parsec_profiling_start */
     pthread_barrier_wait(&barrier);
-    
+
     /**
      *  You can save runtime-specific information per threads, in the form of key/value pair
      */
@@ -85,7 +91,7 @@ static void *run_thread(void *_arg)
     /* Then, the threads need to wait that parsec_profiling_start() has been called
      * before they can proceed to log events */
     pthread_barrier_wait(&barrier);
-    
+
     for(i = 0; i < EVENTS_PER_THREAD; i++) {
         if( rand() % 2 == 0 ) {
             /**
@@ -171,19 +177,19 @@ int main(int argc, char *argv[])
     parsec_profiling_add_information("This is a global information key", "This is the global information value");
 
     pthread_barrier_init(&barrier, NULL, NB_THREADS+1);
-    
+
     for(i = 0; i < NB_THREADS; i++) {
         thread_info[i].thread_index = i;
         pthread_create(&thread_info[i].pthread_id, NULL, run_thread, &thread_info[i]);
     }
 
     pthread_barrier_wait(&barrier); // we wait that all threads call start
-    
+
     /** profiling_start() defines the time 0. It must be called, once all threads have initialized, or no event will be traced */
     parsec_profiling_start();
 
     pthread_barrier_wait(&barrier); // all other threads are waiting that signal we called profiling_start
-    
+
     for(i = 0; i < NB_THREADS; i++)
         pthread_join(thread_info[i].pthread_id, NULL);
 

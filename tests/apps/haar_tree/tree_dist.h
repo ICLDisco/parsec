@@ -1,5 +1,10 @@
 #ifndef _tree_dist_h
 #define _tree_dist_h
+/*
+ * Copyright (c) 2016-2021 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
 
 #include "parsec/runtime.h"
 

@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2022      The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
 #include <stdio.h>
 
 extern "C" {
