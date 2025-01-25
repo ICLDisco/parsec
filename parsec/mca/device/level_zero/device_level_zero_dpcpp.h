@@ -1,5 +1,10 @@
 #ifndef PARSEC_DEVICE_LEVEL_ZERO_DPCPP_H
 #define PARSEC_DEVICE_LEVEL_ZERO_DPCPP_H
+/*
+ * Copyright (c) 2023      The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
 
 typedef struct parsec_sycl_wrapper_platform_s parsec_sycl_wrapper_platform_t;
 typedef struct parsec_sycl_wrapper_device_s parsec_sycl_wrapper_device_t;

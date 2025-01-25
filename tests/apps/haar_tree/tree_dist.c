@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2016-2022 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
 #include "tree_dist.h"
 #include "parsec/mca/device/device.h"
 #include "parsec/data.h"

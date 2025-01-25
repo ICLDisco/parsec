@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2022-2024 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 /* parsec things */
 #include "parsec/runtime.h"
 
@@ -378,7 +384,7 @@ int main(int argc, char **argv)
     parsec_dtd_task_class_add_chore(dtd_tp, fourth_tc, PARSEC_DEV_CPU, cpu_reduce);
 
     parsec_dtd_tile_t **new_tiles;
-    new_tiles = (parsec_dtd_tile_t**)calloc(sizeof(parsec_dtd_tile_t *), NCASE*world);
+    new_tiles = (parsec_dtd_tile_t**)calloc(NCASE*world, sizeof(parsec_dtd_tile_t *));
 
     acc = 0;
 

@@ -1,7 +1,8 @@
 /*
- * Copyright (c) 2017-2018 The University of Tennessee and The University
+ * Copyright (c) 2017-2022 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/runtime.h"
@@ -138,7 +139,7 @@ int main(int argc, char *argv[])
 
     parsec_atomic_rwlock_init(&rwlock);
 
-    threads = (pthread_t*)calloc(sizeof(pthread_t), maxthreads);
+    threads = (pthread_t*)calloc(maxthreads, sizeof(pthread_t));
 
     for( nbthreads = minthreads; nbthreads < maxthreads; nbthreads++) {
         parsec_barrier_init(&barrier, NULL, nbthreads+1);

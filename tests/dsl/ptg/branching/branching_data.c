@@ -1,7 +1,8 @@
 /*
- * Copyright (c) 2013-2018 The University of Tennessee and The University
+ * Copyright (c) 2013-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/runtime.h"
@@ -98,7 +99,7 @@ parsec_data_collection_t *create_and_distribute_data(int rank, int world, int si
 #endif
     parsec_type_create_contiguous(size, parsec_datatype_int32_t, &d->default_dtt);
 
-    m->data = calloc(sizeof(parsec_data_t*), nb);
+    m->data = calloc(nb, sizeof(parsec_data_t*));
     m->nt   = nb;
     m->size = size;
     m->ptr  = (int32_t*)malloc(nb * size * sizeof(int32_t));

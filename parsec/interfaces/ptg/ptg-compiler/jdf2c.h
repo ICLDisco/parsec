@@ -1,6 +1,10 @@
 #ifndef _jdf2c_h
 #define _jdf2c_h
-
+/*
+ * Copyright (c) 2017-2022 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
 #include "jdf.h"
 
 /**

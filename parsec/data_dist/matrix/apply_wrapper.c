@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2021 The University of Tennessee and The University
+ * Copyright (c) 2018-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -111,10 +111,6 @@ void
 parsec_apply_Destruct( parsec_taskpool_t *tp )
 {
     parsec_apply_taskpool_t *omap = (parsec_apply_taskpool_t *)tp;
-
-    if ( omap->_g_op_args ) {
-        free( omap->_g_op_args );
-    }
 
     parsec_del2arena( &omap->arenas_datatypes[PARSEC_apply_DEFAULT_ADT_IDX] );
 

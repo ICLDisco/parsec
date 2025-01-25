@@ -1,4 +1,8 @@
 #
+# Copyright (c) 2013-2023 The University of Tennessee and The University
+#                         of Tennessee Research Foundation.  All rights
+#                         reserved.
+#
 # Check if there is support for 128 types
 #
 include(CheckTypeSize)
@@ -150,7 +154,7 @@ if(NOT PARSEC_ATOMIC_USE_C11_32 OR NOT PARSEC_ATOMIC_USE_C11_64 OR NOT PARSEC_AT
       #else
       #  warning Cannot be used for testing
       #endif
-  
+
       #include <stdint.h>
       int main(void) {
          int32_t where = 0;
@@ -170,7 +174,7 @@ if(NOT PARSEC_ATOMIC_USE_C11_32 OR NOT PARSEC_ATOMIC_USE_C11_64 OR NOT PARSEC_AT
         #else
         #  warning Cannot be used for testing
         #endif
-  
+
         #include <stdint.h>
         int main(void) {
            int64_t where = 0;
@@ -190,7 +194,7 @@ if(NOT PARSEC_ATOMIC_USE_C11_32 OR NOT PARSEC_ATOMIC_USE_C11_64 OR NOT PARSEC_AT
         #else
         #  warning Cannot be used for testing
         #endif
-  
+
         #include <stdint.h>
         int main(void) {
             __int128_t where = 0;
@@ -212,7 +216,7 @@ if(NOT PARSEC_ATOMIC_USE_C11_32 OR NOT PARSEC_ATOMIC_USE_C11_64 OR NOT PARSEC_AT
             #else
             #  warning Cannot be used for testing
             #endif
-  
+
             #include <stdint.h>
             int main(void) {
                 __int128_t where = 0;

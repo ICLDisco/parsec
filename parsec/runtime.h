@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2021 The University of Tennessee and The University
+ * Copyright (c) 2009-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -294,6 +294,7 @@ typedef enum parsec_context_query_cmd_e {
     PARSEC_CONTEXT_QUERY_NODES,
     PARSEC_CONTEXT_QUERY_RANK,
     PARSEC_CONTEXT_QUERY_DEVICES,
+    PARSEC_CONTEXT_QUERY_DEVICES_FULL_PEER_ACCESS,
     PARSEC_CONTEXT_QUERY_CORES,
     PARSEC_CONTEXT_QUERY_ACTIVE_TASKPOOLS
 } parsec_context_query_cmd_t;

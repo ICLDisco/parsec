@@ -1,7 +1,8 @@
 /**
- * Copyright (c) 2013-2020 The University of Tennessee and The University
+ * Copyright (c) 2013-2022 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -70,7 +71,7 @@ static int flow_lhq_init(parsec_execution_stream_t* ces, struct parsec_barrier_t
             /* First of all, we allocate the scheduling object memory for all threads */
             es = vp->execution_streams[t];
 
-            sched_obj = (parsec_mca_sched_local_queues_scheduler_object_t*)calloc(sizeof(parsec_mca_sched_local_queues_scheduler_object_t), 1);
+            sched_obj = (parsec_mca_sched_local_queues_scheduler_object_t*)calloc(1, sizeof(parsec_mca_sched_local_queues_scheduler_object_t));
             es->scheduler_object = sched_obj;
 
             if( es->th_id == 0 ) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2021 The University of Tennessee and The University
+ * Copyright (c) 2017-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -24,7 +24,7 @@ int main(int argc, char *argv[])
     parsec_context_t* parsec;
     int rank, nodes, ch;
     int ret = 0, cret;
-    int *op_args;
+    int op_args = 1, op_args2[2] = {1, 0};
     parsec_matrix_block_cyclic_t dcA;
     parsec_matrix_block_cyclic_t dcA_check;
     parsec_taskpool_t * tp;
@@ -64,18 +64,13 @@ int main(int argc, char *argv[])
     parsec_data_collection_set_key((parsec_data_collection_t*)&dcA_check, "dcA_check");
 
 
-    op_args = (int *)malloc(sizeof(int));
-    op_args[0] = 1;
     parsec_apply( parsec, PARSEC_MATRIX_FULL,
                   (parsec_tiled_matrix_t *)&dcA,
-                  (parsec_tiled_matrix_unary_op_t)reshape_set_matrix_value, op_args);
+                  (parsec_tiled_matrix_unary_op_t)reshape_set_matrix_value, &op_args);
 
-    op_args = (int *)malloc(sizeof(int)*2);
-    op_args[0] = 1;
-    op_args[1] = 0;
     parsec_apply( parsec, PARSEC_MATRIX_FULL,
                   (parsec_tiled_matrix_t *)&dcA_check,
-                  (parsec_tiled_matrix_unary_op_t)reshape_set_matrix_value_lower_tile, op_args);
+                  (parsec_tiled_matrix_unary_op_t)reshape_set_matrix_value_lower_tile, op_args2);
 
     parsec_input_dep_single_copy_reshape_taskpool_t *ctp = NULL;
     ctp = parsec_input_dep_single_copy_reshape_new((parsec_tiled_matrix_t *)&dcA, cores );

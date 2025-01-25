@@ -1,7 +1,8 @@
 /**
- * Copyright (c) 2009-2023 The University of Tennessee and The University
+ * Copyright (c) 2009-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/parsec_config.h"
@@ -2044,7 +2045,7 @@ static void jdf_generate_affinity( const jdf_t *jdf, const jdf_function_entry_t 
         assert( NULL == data_affinity->var );
     }
 
-    coutput("static inline int %s(%s *this_task,\n"
+    coutput("static inline int %s(const %s *this_task,\n"
             "                     parsec_data_ref_t *ref)\n"
             "{\n"
             "    const __parsec_%s_internal_taskpool_t *__parsec_tp = (const __parsec_%s_internal_taskpool_t*)this_task->taskpool;\n",
@@ -6810,6 +6811,7 @@ static void jdf_generate_code_hook_gpu(const jdf_t *jdf,
             "\n"
             "  gpu_task = (parsec_gpu_task_t*)calloc(1, sizeof(parsec_gpu_task_t));\n"
             "  PARSEC_OBJ_CONSTRUCT(gpu_task, parsec_list_item_t);\n"
+            "  gpu_task->release_device_task = free;  /* by default free the device task */\n"
             "  gpu_task->ec = (parsec_task_t*)this_task;\n"
             "  gpu_task->submit = &%s_kernel_submit_%s_%s;\n"
             "  gpu_task->task_type = 0;\n"
@@ -8413,14 +8415,14 @@ int jdf_force_termdet_dynamic(jdf_t* jdf)
         return rc;
     }
 
-    termdet_expr = (jdf_expr_t *)calloc(sizeof(jdf_expr_t), 1);
+    termdet_expr = (jdf_expr_t *)calloc(1, sizeof(jdf_expr_t));
     termdet_expr->op = JDF_STRING;
     termdet_expr->local_variables = NULL;
     termdet_expr->scope = -1;
     termdet_expr->alias = NULL;
     termdet_expr->jdf_var = strdup(JDF_PROP_TERMDET_DYNAMIC);
 
-    property = (jdf_def_list_t*)calloc(sizeof(jdf_def_list_t), 1);
+    property = (jdf_def_list_t*)calloc(1, sizeof(jdf_def_list_t));
     property->expr = termdet_expr;
     property->name = strdup(JDF_PROP_TERMDET_NAME);
     property->next = jdf->global_properties;

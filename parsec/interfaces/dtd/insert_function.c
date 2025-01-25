@@ -1,8 +1,8 @@
 /**
- * Copyright (c) 2013-2023 The University of Tennessee and The University
+ * Copyright (c) 2013-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
- * Copyright (c) 2023      NVIDIA Corporation.  All rights reserved.
+ * Copyright (c) 2023-2024 NVIDIA Corporation.  All rights reserved.
  */
 
 /* **************************************************************************** */
@@ -364,8 +364,9 @@ parsec_dtd_taskpool_destructor(parsec_dtd_taskpool_t *tp)
         assert( tp->super.tdm.module->taskpool_state(&tp->super) == PARSEC_TERM_TP_NOT_READY );
         /* But there should be 0 event on this taskpool at this time */
         assert( tp->super.nb_pending_actions == 0 && tp->super.nb_tasks == 0);
-        /* So, we can terminate this termination detector by stating we are ready */
-        tp->super.tdm.module->taskpool_ready(&tp->super);
+        /* So, we can safely stop monitoring this taskpool, and trigger taskpool termination detection */
+        tp->super.tdm.module->unmonitor_taskpool(&tp->super);
+        parsec_taskpool_termination_detected(&tp->super);
 
         parsec_dtd_data_collection_fini(&tp->new_tile_dc);
         parsec_data_collection_destroy(&tp->new_tile_dc);
@@ -410,7 +411,7 @@ parsec_dtd_taskpool_destructor(parsec_dtd_taskpool_t *tp)
         free((void *)tp->super.profiling_array);
 #endif /* defined(PARSEC_PROF_TRACE) */
  
-    if( tp->super.taskpool_name != NULL ) {
+    if( NULL != tp->super.taskpool_name) {
         free(tp->super.taskpool_name);
         tp->super.taskpool_name = NULL;
     }
@@ -2281,7 +2282,7 @@ static parsec_hook_return_t parsec_dtd_gpu_task_submit(parsec_execution_stream_t
     parsec_dtd_task_class_t *dtd_tc = (parsec_dtd_task_class_t*)this_task->task_class;
     parsec_gpu_task_t *gpu_task = (parsec_gpu_task_t *) calloc(1, sizeof(parsec_gpu_task_t));
     PARSEC_OBJ_CONSTRUCT(gpu_task, parsec_list_item_t);
-
+    gpu_task->release_device_task = free;  /* by default free the device task */
     gpu_task->ec = (parsec_task_t *) this_task;
     gpu_task->submit = dtd_tc->gpu_func_ptr;
     gpu_task->task_type = 0;
@@ -2303,6 +2304,7 @@ static parsec_hook_return_t parsec_dtd_gpu_task_submit(parsec_execution_stream_t
     return device->kernel_scheduler(device, es, gpu_task);
 #else
     parsec_warning("DTD: Selected best device is a GPU, but no GPU is supported at compile time. Falling back to CPU");
+    (void)this_task;
     return PARSEC_HOOK_RETURN_NEXT;
 #endif
 }
@@ -3463,7 +3465,7 @@ parsec_arena_datatype_t *parsec_dtd_create_arena_datatype(parsec_context_t *ctx,
     if(NULL != new_adt)
         return NULL;
 #endif
-    new_adt = calloc(sizeof(parsec_arena_datatype_t), 1);
+    new_adt = calloc(1, sizeof(parsec_arena_datatype_t));
     if(NULL == new_adt)
         return NULL;
     new_adt->ht_item.key = my_id;

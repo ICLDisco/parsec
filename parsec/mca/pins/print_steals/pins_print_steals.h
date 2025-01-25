@@ -1,5 +1,10 @@
 #ifndef PINS_PRINT_STEALS_H
 #define PINS_PRINT_STEALS_H
+/*
+ * Copyright (c) 2016-2018 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
 
 #include "parsec/parsec_config.h"
 #include "parsec/runtime.h"

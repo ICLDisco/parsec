@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2021 The University of Tennessee and The University
+ * Copyright (c) 2017-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -139,11 +139,10 @@ int main(int argc, char *argv[])
          * Init dcY not including ghost region; if initvalue is 0,
          * init to 0; otherwise init to numbers based on index
          */
-        int *op_args = (int *)malloc(sizeof(int));
-        *op_args = 1;
+        int op_args = 1;
         parsec_apply( parsec, PARSEC_MATRIX_FULL,
                       (parsec_tiled_matrix_t *)&dcY,
-                      (parsec_tiled_matrix_unary_op_t)redistribute_init_ops, op_args);
+                      (parsec_tiled_matrix_unary_op_t)redistribute_init_ops, &op_args);
 
         /* Timer start */
         SYNC_TIME_START();
@@ -190,11 +189,10 @@ int main(int argc, char *argv[])
                                       disi_T, disj_T);
 #else
             /* Init dcY to 0 */
-            int *op_args = (int *)malloc(sizeof(int));
-            *op_args = 0;
+            int op_args = 0;
             parsec_apply( parsec, PARSEC_MATRIX_FULL,
                           (parsec_tiled_matrix_t *)&dcY,
-                          (parsec_tiled_matrix_unary_op_t)redistribute_init_ops, op_args);
+                          (parsec_tiled_matrix_unary_op_t)redistribute_init_ops, &op_args);
 
             /* Redistribute back from dcT to dcY */
             parsec_redistribute(parsec, (parsec_tiled_matrix_t *)&dcT,
@@ -212,11 +210,10 @@ int main(int argc, char *argv[])
         /*
          * Init dcT to 0.0 for DTD
          */
-        int *op_args_dtd = (int *)malloc(sizeof(int));
-        *op_args_dtd = 0;
+        int op_args_dtd = 0;
         parsec_apply( parsec, PARSEC_MATRIX_FULL,
                       (parsec_tiled_matrix_t *)&dcT,
-                      (parsec_tiled_matrix_unary_op_t)redistribute_init_ops, op_args_dtd);
+                      (parsec_tiled_matrix_unary_op_t)redistribute_init_ops, &op_args_dtd);
 
         /* Timer start */
         SYNC_TIME_START();
@@ -257,11 +254,10 @@ int main(int argc, char *argv[])
                                       disi_T, disj_T);
 #else
             /* Init dcY to 0 */
-            int *op_args = (int *)malloc(sizeof(int));
-            *op_args = 0;
+            int op_args = 0;
             parsec_apply( parsec, PARSEC_MATRIX_FULL,
                           (parsec_tiled_matrix_t *)&dcY,
-                          (parsec_tiled_matrix_unary_op_t)redistribute_init_ops, op_args);
+                          (parsec_tiled_matrix_unary_op_t)redistribute_init_ops, &op_args);
 
             /* Redistribute back from dcT to dcY */
             parsec_redistribute_dtd(parsec, (parsec_tiled_matrix_t *)&dcT,
@@ -302,9 +298,9 @@ int main(int argc, char *argv[])
         /* Print info to draw figures */
         if( 0 == rank && time ) {
             double ratio_remote = results[7] / results[2];
-            double input_bandwidth_mix = network_bandwidth && memcpy_bandwidth ? 
+            double input_bandwidth_mix = network_bandwidth && memcpy_bandwidth ?
                     network_bandwidth * memcpy_bandwidth / ((ratio_remote + 1) * network_bandwidth + memcpy_bandwidth) / 1.0e9 : 0.0;
-            double input_bandwidth_worst = network_bandwidth && memcpy_bandwidth ? 
+            double input_bandwidth_worst = network_bandwidth && memcpy_bandwidth ?
                     network_bandwidth * memcpy_bandwidth / ((ratio_remote + 2) * network_bandwidth + memcpy_bandwidth) / 1.0e9 : 0.0;
 #if PRINT_MORE
             printf("'Time_PTG', 'Time_DTD', 'm', 'n', 'P', 'Q', 'M', 'N', 'MB', 'NB', 'I', 'J', 'SMB', 'SNB', "
@@ -325,7 +321,7 @@ int main(int argc, char *argv[])
                    "%.10e %.10e %.10e %.10e %.2lf %.2lf %.10e %.10e "
                    "%.2lf %.2lf %.2lf %.2lf %.2lf %.2lf %.2lf %.2lf %.2lf %.2lf\n",
                    time_ptg, time_dtd, size_row, size_col, P, Q, M, N, MB, NB, disi_Y, disj_Y, SMB, SNB,
-                   PR, QR, MR, NR, MBR, NBR, disi_T, disj_T, SMBR, SNBR, cores, nodes, ratio_remote, 
+                   PR, QR, MR, NR, MBR, NBR, disi_T, disj_T, SMBR, SNBR, cores, nodes, ratio_remote,
                    thread_type, no_optimization_version,
                    results[0], results[1], results[2], results[3], results[4], results[5], results[6], results[7],
                    network_bandwidth / 1.0e9, memcpy_bandwidth / 1.0e9,

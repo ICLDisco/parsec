@@ -1,7 +1,8 @@
 /*
- * Copyright (c) 2012-2023 The University of Tennessee and The University
+ * Copyright (c) 2012-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
  */
 
 #if !defined(PARSEC_CONFIG_H_HAS_BEEN_INCLUDED)
@@ -337,8 +338,7 @@ typedef struct parsec_data_ref_s {
     parsec_data_key_t key;
 } parsec_data_ref_t;
 
-typedef int (parsec_data_ref_fn_t)(parsec_task_t *task,
-                                  parsec_data_ref_t *ref);
+typedef int (parsec_data_ref_fn_t)(const parsec_task_t *task, parsec_data_ref_t *ref);
 
 #define PARSEC_HAS_IN_IN_DEPENDENCIES     0x0001
 #define PARSEC_HAS_OUT_OUT_DEPENDENCIES   0x0002

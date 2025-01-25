@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2016-2017 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 #include "parsec/parsec_config.h"
 #if defined(PARSEC_HAVE_TAU)
 #include "TAU.h"

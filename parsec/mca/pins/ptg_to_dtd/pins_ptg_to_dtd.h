@@ -1,6 +1,10 @@
 #ifndef PINS_PTG_TO_DTD_H
 #define PINS_PTG_TO_DTD_H
-
+/*
+ * Copyright (c) 2016-2018 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
 #include "parsec/parsec_config.h"
 #include "parsec/mca/mca.h"
 #include "parsec/mca/pins/pins.h"

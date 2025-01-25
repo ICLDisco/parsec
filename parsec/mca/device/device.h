@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2023 The University of Tennessee and The University
+ * Copyright (c) 2013-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -165,6 +165,7 @@ struct parsec_device_module_s {
     uint64_t  required_data_out;
     uint64_t  executed_tasks;
     uint64_t  nb_data_faults;
+    uint64_t  nb_evictions;
     /* We provide the compute capacity of the device in GFlop/s so that conversion to #nanosec in load estimates is straightforward */
     /* These compute capacities can be useful for users when providing their own
      * time_estimate functions: the user can divide the number of flops for the
@@ -188,7 +189,6 @@ PARSEC_OBJ_CLASS_DECLARATION(parsec_device_module_t);
 
 extern uint32_t parsec_nb_devices;
 extern int parsec_device_output;
-extern parsec_atomic_lock_t parsec_devices_mutex;
 
 /**
  * @brief Find the best device to execute the kernel based on the compute

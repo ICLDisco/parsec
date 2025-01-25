@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2023 The University of Tennessee and The University
+ * Copyright (c) 2009-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -136,8 +136,8 @@ int __parsec_execute( parsec_execution_stream_t* es,
     rc = parsec_select_best_device(task);
     if( PARSEC_ERROR == rc ) return PARSEC_HOOK_RETURN_ERROR;
     if( PARSEC_DEV_IS_GPU(task->selected_device->type) ) {
-        /* counting load on CPU is useless because it would move from 0->1->0 during the span of execute
-         * TODO: select_best_device during __parsec_schedule and adjust loads at that time to enable cpu/gpu load balancing. */
+        /* counting load on CPU is useless because it would move from 0->1->0 during the span of execute.
+         * If we run get_best_device, the caller core is available to run a task, so directly using time_estimate with a 0 base is accurate. */
         parsec_atomic_fetch_add_int64(&task->selected_device->device_load, task->load);
     }
 

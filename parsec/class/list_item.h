@@ -1,7 +1,8 @@
 /*
- * Copyright (c) 2010-2019 The University of Tennessee and The University
+ * Copyright (c) 2010-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
  */
 
 #ifndef PARSEC_LIST_ITEM_H_HAS_BEEN_INCLUDED
@@ -109,7 +110,7 @@ parsec_list_item_ring( parsec_list_item_t* first, parsec_list_item_t* last )
         parsec_list_item_t* item = first;
         do {
             assert( item->belong_to == first->belong_to );
-            item->refcount--;
+            item->refcount = item->refcount - 1;
             assert( 0 == item->refcount );
             item = (parsec_list_item_t*)item->list_next;
         } while(item != first);
@@ -203,7 +204,7 @@ parsec_list_item_ring_chop( parsec_list_item_t* item )
     item->list_prev->list_next = item->list_next;
     item->list_next->list_prev = item->list_prev;
 #if defined(PARSEC_DEBUG_PARANOID)
-    if(item->refcount) item->refcount--;
+    if(item->refcount) item->refcount = item->refcount-1;
     item->list_prev = (parsec_list_item_t*)(void*)0xdeadbeefL;
     item->list_next = (parsec_list_item_t*)(void*)0xdeadbeefL;
 #endif
@@ -285,7 +286,7 @@ parsec_list_item_ring_push_sorted( parsec_list_item_t* ring,
 #define PARSEC_ITEM_ATTACH(LIST, ITEM)                                  \
     do {                                                                \
         parsec_list_item_t *_item_ = (ITEM);                            \
-        _item_->refcount++;                                             \
+        _item_->refcount = _item_->refcount+1;                          \
         assert( 1 == _item_->refcount );                                \
         _item_->belong_to = (LIST);                                     \
     } while(0)
@@ -309,7 +310,7 @@ parsec_list_item_ring_push_sorted( parsec_list_item_t* ring,
         assert( _item->belong_to != (void*)_item );                     \
         _item->list_prev = (parsec_list_item_t*)(void*)0xdeadbeefL;     \
         _item->list_next = (parsec_list_item_t*)(void*)0xdeadbeefL;     \
-        _item->refcount--;                                              \
+        _item->refcount = _item->refcount-1;                            \
         assert( 0 == _item->refcount );                                 \
     } while (0)
 #else

@@ -1,7 +1,8 @@
 /*
- * Copyright (c) 2010-2019 The University of Tennessee and The University
+ * Copyright (c) 2010-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2024      Stony Brook University.  All rights reserved.
  */
 
 /* This file contains functions to access doubly linked lists.
@@ -14,6 +15,8 @@
 
 #ifndef PARSEC_LIST_H_HAS_BEEN_INCLUDED
 #define PARSEC_LIST_H_HAS_BEEN_INCLUDED
+
+#include <stdbool.h>
 
 #include "parsec/parsec_config.h"
 #include "parsec/class/list_item.h"
@@ -143,6 +146,26 @@ static inline int parsec_list_nolock_contains( parsec_list_t *list, parsec_list_
  * @remark this is not thread safe
  */
 #define PARSEC_LIST_NOLOCK_ITERATOR(LIST, ITEM_NAME, CODE_BLOCK) _OPAQUE_LIST_NOLOCK_ITERATOR_DEFINITION(LIST,ITEM_NAME,CODE_BLOCK)
+
+/**
+ * @brief Reverse list iterator macro without taking the lock on the list
+ *
+ * @details Paste code to iterate on all items in the LIST (front to back)
+ *    the CODE_BLOCK code is applied to each item, which can be refered
+ *    to as ITEM_NAME in CODE_BLOCK
+ *    the entire loop iteration takes the list mutex, hence
+ *      CODE_BLOCK must not jump outside the block; although, break
+ *      and continue are legitimate in CODE_BLOCK
+ *
+ * @param[inout] LIST the list on which to iterate
+ * @param[inout] ITEM_NAME the variable to use as item name in CODE_BLOCK
+ * @param[in] CODE_BLOCK a block of code to execute with each item (break
+ *    and continue are allowed)
+ * @return the last considered item
+ *
+ * @remark this is not thread safe
+ */
+#define PARSEC_LIST_NOLOCK_REV_ITERATOR(LIST, ITEM_NAME, CODE_BLOCK) _OPAQUE_LIST_NOLOCK_REV_ITERATOR_DEFINITION(LIST,ITEM_NAME,CODE_BLOCK)
 
 /**
  * @brief iterator convenience macro: get the first element of a list
@@ -748,6 +771,17 @@ parsec_list_is_empty( parsec_list_t* list )
     ITEM;                                                               \
 })
 
+#define _OPAQUE_LIST_NOLOCK_REV_ITERATOR_DEFINITION(list,ITEM,CODE) ({   \
+    parsec_list_item_t* ITEM;                                            \
+    for(ITEM = (parsec_list_item_t*)(list)->ghost_element.list_prev;     \
+        ITEM != &((list)->ghost_element);                                \
+        ITEM = (parsec_list_item_t*)ITEM->list_prev)                     \
+    {                                                                    \
+        CODE;                                                            \
+    }                                                                    \
+    ITEM;                                                                \
+})
+
 static inline int
 parsec_list_nolock_contains( parsec_list_t *list, parsec_list_item_t *item )
 {
@@ -833,12 +867,35 @@ parsec_list_nolock_push_sorted( parsec_list_t* list,
                                parsec_list_item_t* newel,
                                size_t off )
 {
-    parsec_list_item_t* position = PARSEC_LIST_NOLOCK_ITERATOR(list, pos,
-    {
-        if( A_HIGHER_PRIORITY_THAN_B(newel, pos, off) )
-            break;
-    });
-    parsec_list_nolock_add_before(list, position, newel);
+    if (_HEAD(list) == _GHOST(list)) {
+        parsec_list_nolock_push_front(list, newel);
+    } else {
+        /* take the range of priorities and decide whether to iterate forward or backward */
+        int tail_val = COMPARISON_VAL(_TAIL(list), off);
+        int head_val = COMPARISON_VAL(_HEAD(list), off);
+        int comp_val = COMPARISON_VAL(newel, off);
+        /* compute the pivot without risking overflow
+         * first, we compute the half point from the head and tail
+         * second, we account for odd numbers by adding 1 if both were odd */
+        int pivot = (head_val/2) + (tail_val/2) + (((head_val%2) + (tail_val%2))) == 2 ? 1 : 0;
+        if (comp_val > pivot) {
+            /* new element is in upper half of priority range */
+            parsec_list_item_t* position = PARSEC_LIST_NOLOCK_ITERATOR(list, pos,
+            {
+                if( A_HIGHER_PRIORITY_THAN_B(newel, pos, off) )
+                    break;
+            });
+            parsec_list_nolock_add_before(list, position, newel);
+        } else {
+            /* new element is in lower half of priority range */
+            parsec_list_item_t* position = PARSEC_LIST_NOLOCK_REV_ITERATOR(list, pos,
+            {
+                if( !A_HIGHER_PRIORITY_THAN_B(newel, pos, off) )
+                    break;
+            });
+            parsec_list_nolock_add_after(list, position, newel);
+        }
+    }
 }
 
 static inline void

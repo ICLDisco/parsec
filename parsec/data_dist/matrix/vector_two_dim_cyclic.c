@@ -1,7 +1,8 @@
 /*
- * Copyright (c) 2009-2021 The University of Tennessee and The University
+ * Copyright (c) 2009-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/parsec_config.h"
@@ -251,7 +252,7 @@ static parsec_data_t* vector_twoDBC_data_of(parsec_data_collection_t *desc, ...)
 #endif
 
     /* Compute the local tile row */
-    assert( dc->super.bsiz == dc->super.mb );
+    assert( dc->super.bsiz == (size_t)dc->super.mb );
 
     local_m = m / dc->lcm;
 

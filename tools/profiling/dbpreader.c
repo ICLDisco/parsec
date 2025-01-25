@@ -1,7 +1,8 @@
 /*
- * Copyright (c) 2010-2019 The University of Tennessee and The University
+ * Copyright (c) 2010-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/parsec_config.h"
@@ -1071,7 +1072,7 @@ static dbp_multifile_reader_t *open_files(int nbfiles, char **filenames)
     dbp->last_error = SUCCESS;
     dbp->dico_size = 0;
     dbp->dico_allocated = 8;
-    dbp->dico_keys = calloc(sizeof(dbp_dictionary_t), dbp->dico_allocated);
+    dbp->dico_keys = calloc(dbp->dico_allocated, sizeof(dbp_dictionary_t));
 
     n = 0;
     for(i = 0; i < nbfiles; i++) {

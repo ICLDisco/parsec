@@ -1,5 +1,10 @@
 #ifndef DTD_TP_H_INCLUDED
 #define DTD_TP_H_INCLUDED
+/*
+ * Copyright (c) 2023-2023 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
 
 #include "parsec.h"
 #include "parsec/interfaces/dtd/insert_function.h"

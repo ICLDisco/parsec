@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2013-2022 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
 #include "parsec/parsec_config.h"
 #include "parsec/utils/debug.h"
 #include "parsec/mca/mca.h"
@@ -164,7 +169,7 @@ mca_base_component_t *mca_component_open_byname(char *type, char *name)
         return NULL;
     if( NULL != component->mca_register_component_params )
         component->mca_register_component_params();
-    
+
     return component;
 }
 
