@@ -108,6 +108,7 @@ do {                                                                            
 } while (0)
 #else
 #define TRACE(key) do { (void)key; } while(0)
+#define TRACE_SENDRECV_INFO(key, tag, size, remote) do { (void)key; (void)tag; (void)size; (void)remote; } while(0)
 #endif // PARSEC_PROF_TRACE
 
 /* Count and protect the internal building of the arrays of AM */
@@ -1324,7 +1325,7 @@ mpi_no_thread_send_active_message_impl(parsec_comm_engine_t *ce,
 
     assert(mpi_funnelled_last_active_req >= mpi_funnelled_static_req_idx);
 
-    MPI_Request req;
+    MPI_Request req = MPI_REQUEST_NULL;
     //parsec_profiling_ts_trace(mpi_isend_enter_key, 0, PROFILE_OBJECT_ID_NULL, NULL);
 
     //printf("AM MPI_Isend %zu B\n", size);
