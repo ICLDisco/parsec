@@ -19,6 +19,7 @@
 #include "parsec/arena.h"
 #include "parsec/data.h"
 #include "parsec/class/parsec_future.h"
+#include "parsec/utils/debug.h"
 
 /**
  * This structure is the keeper of all the information regarding
@@ -30,11 +31,12 @@ struct parsec_data_s {
 
     parsec_atomic_lock_t       lock;
 
-    parsec_data_key_t          key;
     int8_t                     owner_device;
     int8_t                     preferred_device; /* Hint set from the MEMADVICE device API to define on
                                                   * which device this data should be modified RW when there
                                                   * are multiple choices. -1 means no preference. */
+    int32_t                    nb_copies;        /* How many valid copies are attached to this data */
+    parsec_data_key_t          key;
     struct parsec_data_collection_s*     dc;
     size_t                     nb_elts;          /* size in bytes of the memory layout */
     struct parsec_data_copy_s *device_copies[];  /* this array allocated according to the number of devices
@@ -85,22 +87,50 @@ PARSEC_DECLSPEC PARSEC_OBJ_CLASS_DECLARATION(parsec_data_copy_t);
 
 #define PARSEC_DATA_GET_COPY(DATA, DEVID) \
     ((DATA)->device_copies[(DEVID)])
+
+int parsec_data_release_self_contained_data(parsec_data_t* data);
 /**
  * Decrease the refcount of this copy of the data. If the refcount reach
  * 0 the upper level is in charge of cleaning up and releasing all content
  * of the copy.
  */
-#define PARSEC_DATA_COPY_RELEASE(DATA)     \
+#if 0
+#define PARSEC_DATA_COPY_RELEASE(COPY)     \
     do {                                  \
-        PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "Release data copy %p at %s:%d", (DATA), __FILE__, __LINE__); \
-        PARSEC_OBJ_RELEASE((DATA));                                            \
+        PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "Release data copy %p at %s:%d", (COPY), __FILE__, __LINE__); \
+        PARSEC_OBJ_RELEASE((COPY));                                            \
+        if( (NULL != (COPY)) && (NULL != ((COPY)->original)) ) parsec_data_release_self_contained_data((COPY)->original); \
     } while(0)
 
+#define PARSEC_DATA_COPY_RETAIN(COPY)     \
+    do {                                  \
+        PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "Retain data copy %p at %s:%d", (COPY), __FILE__, __LINE__); \
+        PARSEC_OBJ_RETAIN((COPY));                                            \
+    } while(0)
+#else
+static inline void __parsec_data_copy_release(parsec_data_copy_t** copy)
+{
+    PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "Release data copy %p at %s:%d", *copy, __FILE__, __LINE__);
+    PARSEC_OBJ_RELEASE(*copy);
+    if ((NULL != *copy) && (NULL != (*copy)->original) && (1 == (*copy)->super.super.obj_reference_count))
+        parsec_data_release_self_contained_data((*copy)->original);
+}
+#define PARSEC_DATA_COPY_RELEASE(COPY) \
+    __parsec_data_copy_release(&(COPY))
+
+static inline void __parsec_data_copy_retain(parsec_data_copy_t* copy)
+{
+    PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "Retain data copy %p at %s:%d", copy, __FILE__, __LINE__);
+    PARSEC_OBJ_RETAIN(copy);
+}
+#define PARSEC_DATA_COPY_RETAIN(COPY) \
+    __parsec_data_copy_retain((COPY))
+#endif  /* 0 */
 /**
  * Return the device private pointer for a datacopy.
  */
-#define PARSEC_DATA_COPY_GET_PTR(DATA) \
-    ((DATA) ? (DATA)->device_private : NULL)
+#define PARSEC_DATA_COPY_GET_PTR(COPY) \
+    ((COPY) ? (COPY)->device_private : NULL)
 
 /** @} */
 

@@ -103,7 +103,8 @@ cat <<EOF
                 use the MPI communication library [installed in DIR] (default=autodetect)
 --enable-collectives
                 use asynchronous dataflow collective communication
-
+--enable-mpi-gpu-aware
+                assume the MPI communication library can send/receive from GPU data buffers directly
 
 --with-cuda[=DIR]
                 use the CUDA accelerator libray [installed in DIR] (default=autodetect)
@@ -236,6 +237,8 @@ while [ "x$1" != x ]; do
         --without-mpi) with_mpi=no; shift;;
         --enable-collectives) enable_collectives=yes; shift;;
         --disable-collectives) enable_collectives=no; shift;;
+        --enable-mpi-gpu-aware) enable_mpi_gpu_aware=yes; shift;;
+        --disable-mpi-gpu-aware) enable_mpi_gpu_aware=no; shift;;
 
 # Hwloc options
         --with-hwloc=*) with_hwloc="${1#*=}"; shift;;
@@ -523,7 +526,8 @@ x) ;;
 esac
 [ x$enable_collectives = xyes ] && CMAKE_DEFINES+=" -DPARSEC_DIST_COLLECTIVES=ON"
 [ x$enable_collectives = xno ] && CMAKE_DEFINES+=" -DPARSEC_DIST_COLLECTIVES=OFF"
-
+[ x$enable_mpi_gpu_aware = xyes ] && CMAKE_DEFINES+=" -DPARSEC_MPI_IS_GPU_AWARE=ON"
+[ x$enable_mpi_gpu_aware = xno ] && CMAKE_DEFINES+=" -DPARSEC_MPI_IS_GPU_AWARE=OFF"
 
 case x$with_cuda in
 xno) CMAKE_DEFINES+=" -DPARSEC_GPU_WITH_CUDA=OFF";;
