@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2024 The University of Tennessee and The University
+ * Copyright (c) 2012-2025 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -589,20 +589,21 @@ parsec_data_destroy( parsec_data_t *data )
 
 int parsec_data_release_self_contained_data(parsec_data_t *data)
 {
-    if (data->super.obj_reference_count != data->nb_copies) return 0;
-    parsec_data_copy_t *copy;
+    int32_t nb_copies = data->nb_copies;
+    if (data->super.obj_reference_count != nb_copies) return 0;
+    parsec_data_copy_t *copy = NULL;
     /* this data is only referenced by it's own copies. If these copies are also only referenced by
      * data, then we can release them all.
      */
     for( uint32_t i = 0; i < parsec_nb_devices; i++) {
         if (NULL == (copy = data->device_copies[i])) continue;
-        if( copy->super.super.obj_reference_count > 1 )
+        if( copy->super.super.obj_reference_count > 1 || copy->readers > 0 )
             return 0;
     }
     PARSEC_DEBUG_VERBOSE(90, parsec_debug_output, "Release copy %p from self-contained data %p", copy, data);
     for( uint32_t i = 0; i < parsec_nb_devices; i++) {
         if (NULL == (copy = data->device_copies[i])) continue;
-        assert(1 == copy->super.super.obj_reference_count);
+        assert(1 == copy->super.super.obj_reference_count && 0 == copy->readers);
         if( 0 == copy->device_index ) {
             PARSEC_OBJ_RELEASE(copy);
             assert(NULL == copy);
@@ -616,7 +617,9 @@ int parsec_data_release_self_contained_data(parsec_data_t *data)
             copy->device_private = NULL;
             copy->arena_chunk = NULL;
         }
+        if (0 == --nb_copies) return 1; /* we deallocate the data_t during the copy_release/detach of the last copy, so we need to stop now */
     }
-    return 1;
+    parsec_warning("Release copy %p from self-contained data %p had %d more copies than present in device_copies", copy, data, nb_copies);
+    return 0;
 }
 
