@@ -10,6 +10,7 @@
  * Copyright (c) 2004-2005 The Regents of the University of California.
  *                         All rights reserved.
  * Copyright (c) 2007      Cisco Systems, Inc.  All rights reserved.
+ * Copyright (c) 2025      Stony Brook University.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -137,6 +138,7 @@ typedef struct parsec_object_t parsec_object_t;
 typedef struct parsec_class_t parsec_class_t;
 typedef void (*parsec_construct_t) (parsec_object_t *);
 typedef void (*parsec_destruct_t) (parsec_object_t *);
+typedef void (*parsec_release_t) (parsec_object_t *);
 
 
 /* types **************************************************************/
@@ -152,6 +154,7 @@ struct parsec_class_t {
     parsec_class_t *cls_parent;       /**< parent class descriptor */
     parsec_construct_t cls_construct; /**< class constructor */
     parsec_destruct_t cls_destruct;   /**< class destructor */
+    parsec_release_t cls_release;     /**< class release */
     int cls_initialized;            /**< is class initialized */
     int cls_depth;                  /**< depth of class hierarchy tree */
     parsec_construct_t *cls_construct_array;
@@ -204,6 +207,28 @@ struct parsec_object_t {
 
 
 /**
+ * Extended initializer for a class descriptor
+ *
+ * @param NAME          Name of class
+ * @param PARENT        Name of parent class
+ * @param CONSTRUCTOR   Pointer to constructor
+ * @param DESTRUCTOR    Pointer to destructor
+ * @param RELEASE       Pointer to a function to release an object
+ *
+ * Put this in NAME.c
+ */
+#define PARSEC_OBJ_RELEASE_CLASS_INSTANCE(NAME, PARENT, CONSTRUCTOR, DESTRUCTOR, RELEASE)       \
+    parsec_class_t NAME ## _class = {                                     \
+        # NAME,                                                         \
+        PARSEC_OBJ_CLASS(PARENT),                                              \
+        (parsec_construct_t) CONSTRUCTOR,                                 \
+        (parsec_destruct_t) DESTRUCTOR,                                   \
+        (parsec_release_t) RELEASE,                                       \
+        0, 0, NULL, NULL,                                               \
+        sizeof(NAME)                                                    \
+    }
+
+/**
  * Static initializer for a class descriptor
  *
  * @param NAME          Name of class
@@ -214,15 +239,7 @@ struct parsec_object_t {
  * Put this in NAME.c
  */
 #define PARSEC_OBJ_CLASS_INSTANCE(NAME, PARENT, CONSTRUCTOR, DESTRUCTOR)       \
-    parsec_class_t NAME ## _class = {                                     \
-        # NAME,                                                         \
-        PARSEC_OBJ_CLASS(PARENT),                                              \
-        (parsec_construct_t) CONSTRUCTOR,                                 \
-        (parsec_destruct_t) DESTRUCTOR,                                   \
-        0, 0, NULL, NULL,                                               \
-        sizeof(NAME)                                                    \
-    }
-
+    PARSEC_OBJ_RELEASE_CLASS_INSTANCE(NAME, PARENT, CONSTRUCTOR, DESTRUCTOR, NULL)
 
 /**
  * Declaration for class descriptor
@@ -314,7 +331,7 @@ static inline parsec_object_t *parsec_obj_new_debug(parsec_class_t* type, const 
             parsec_obj_run_destructors((parsec_object_t *) (object));       \
             PARSEC_OBJ_SET_MAGIC_ID((object), 0);                      \
             PARSEC_OBJ_REMEMBER_FILE_AND_LINENO( object, __FILE__, __LINE__ ); \
-            free(object);                                       \
+            ((parsec_object_t *)(object))->obj_class->cls_release((parsec_object_t *) (object));     \
             object = NULL;                                      \
         }                                                       \
     } while (0)
@@ -323,7 +340,7 @@ static inline parsec_object_t *parsec_obj_new_debug(parsec_class_t* type, const 
     do {                                                        \
         if (0 == parsec_obj_update((parsec_object_t *) (object), -1)) {     \
             parsec_obj_run_destructors((parsec_object_t *) (object));       \
-            free(object);                                       \
+            ((parsec_object_t *)(object))->obj_class->cls_release((parsec_object_t *) (object));  \
             object = NULL;                                      \
         }                                                       \
     } while (0)

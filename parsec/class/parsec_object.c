@@ -9,6 +9,7 @@
  *                         University of Stuttgart.  All rights reserved.
  * Copyright (c) 2004-2005 The Regents of the University of California.
  *                         All rights reserved.
+ * Copyright (c) 2025      Stony Brook University.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -29,6 +30,8 @@
 #include "parsec/sys/atomic.h"
 #include "parsec/class/parsec_object.h"
 
+static void parsec_obj_default_class_release(parsec_object_t* obj);
+
 /*
  * Instantiation of class descriptor for the base class.  This is
  * special, since be mark it as already initialized, with no parent
@@ -39,6 +42,7 @@ parsec_class_t parsec_object_t_class = {
     NULL,                 /* parent class */
     NULL,                 /* constructor */
     NULL,                 /* destructor */
+    &parsec_obj_default_class_release, /* release */
     1,                    /* initialized  -- this class is preinitialized */
     0,                    /* class hierarchy depth */
     NULL,                 /* array of constructors */
@@ -144,6 +148,7 @@ void parsec_class_initialize(parsec_class_t *cls)
     cls_construct_array = cls->cls_construct_array + cls_construct_array_count;
     cls_destruct_array  = cls->cls_destruct_array;
 
+    parsec_release_t release = NULL;
     c = cls;
     *cls_construct_array = NULL;  /* end marker for the constructors */
     for (i = 0; i < cls->cls_depth; i++) {
@@ -155,10 +160,13 @@ void parsec_class_initialize(parsec_class_t *cls)
             *cls_destruct_array = c->cls_destruct;
             cls_destruct_array++;
         }
+        if (NULL != c->cls_release && NULL == release) {
+            release = c->cls_release;
+        }
         c = c->cls_parent;
     }
     *cls_destruct_array = NULL;  /* end marker for the destructors */
-
+    cls->cls_release = release;
     cls->cls_initialized = 1;
     save_class(cls);
 
@@ -188,6 +196,9 @@ void parsec_class_finalize(void)
     }
 }
 
+static void parsec_obj_default_class_release(parsec_object_t* obj){
+    free(obj);
+}
 
 static void save_class(parsec_class_t *cls)
 {
