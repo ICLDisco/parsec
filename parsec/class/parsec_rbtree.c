@@ -5,10 +5,17 @@
 #include "parsec/class/parsec_rbtree.h"
 #include "parsec/constants.h"
 
-/* left and right children, using list pointers */
-#define LEFT(node)  (*(parsec_rbtree_node_t**)&node->super.list_prev)
-#define RIGHT(node) (*(parsec_rbtree_node_t**)&node->super.list_next)
+static inline parsec_rbtree_node_t** left_node(parsec_rbtree_node_t* node) {
+  return (parsec_rbtree_node_t**)&node->super.list_prev;
+}
 
+static inline parsec_rbtree_node_t** right_node(parsec_rbtree_node_t* node) {
+  return (parsec_rbtree_node_t**)&node->super.list_next;
+}
+
+/* left and right children, using list pointers */
+#define LEFT(node) (*left_node(node))
+#define RIGHT(node) (*right_node(node))
 
 /**
  * The list_item object instance.
