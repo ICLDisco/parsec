@@ -9,6 +9,7 @@
  *                         University of Stuttgart.  All rights reserved.
  * Copyright (c) 2004-2005 The Regents of the University of California.
  *                         All rights reserved.
+ * Copyright (c) 2025      Stony Brook University.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -60,6 +61,18 @@ static const int increment = 10;
  */
 static void save_class(parsec_class_t *cls);
 static void expand_array(void);
+
+static inline void
+parsec_managed_object_construct( parsec_managed_object_t* obj )
+{
+    /* mark the object as managed so PARSEC_OBJ_RELEASE calls the release callback */
+    obj->super.obj_flags = PARSEC_OBJ_FLAG_MANAGED;
+    obj->obj_release = (parsec_release_t)&free; // fallback, may be overwritten by application
+}
+
+PARSEC_OBJ_CLASS_INSTANCE(parsec_managed_object_t, parsec_object_t,
+                          parsec_managed_object_construct, NULL);
+
 
 /*
  * When we build PaRSEC itself, we will use the inline version of the function from
