@@ -3,7 +3,7 @@ extern "C" %{
  * Copyright (c) 2017-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation. All rights
  *                         reserved.
- * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
+ * Copyright (c) 2024-2025 NVIDIA Corporation.  All rights reserved.
  */
 #include "redistribute_test.h"
 
@@ -114,10 +114,11 @@ parsec_redistribute_check2_New(parsec_tiled_matrix_t *dcY,
     return redistribute_check2_taskpool;
 }
 
-static void
+static int
 __parsec_taskpool_redistribute_check2_destructor(parsec_redistribute_check2_taskpool_t *redistribute_check2_taskpool)
 {
     parsec_del2arena(&redistribute_check2_taskpool->arenas_datatypes[PARSEC_redistribute_check2_DEFAULT_ADT_IDX]);
+    return 0;
 }
 
 PARSEC_OBJ_CLASS_INSTANCE(parsec_redistribute_check2_taskpool_t, parsec_taskpool_t,

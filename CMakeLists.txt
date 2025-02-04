@@ -2,6 +2,7 @@
 # Copyright (c) 2010-2024 The University of Tennessee and The University
 #                         of Tennessee Research Foundation.  All rights
 #                         reserved.
+# Copyright (c) 2025      NVIDIA Corporation.  All rights reserved.
 #
 cmake_minimum_required (VERSION 3.21)
 project (PARSEC C)
@@ -536,6 +537,7 @@ if( NOT PARSEC_HAVE_RUSAGE_THREAD )
 endif( NOT PARSEC_HAVE_RUSAGE_THREAD)
 check_include_files(limits.h PARSEC_HAVE_LIMITS_H)
 check_include_files(string.h PARSEC_HAVE_STRING_H)
+check_include_files(strings.h PARSEC_HAVE_STRINGS_H)
 check_include_files(libgen.h PARSEC_HAVE_GEN_H)
 check_include_files(complex.h PARSEC_HAVE_COMPLEX_H)
 check_include_files(sys/param.h PARSEC_HAVE_SYS_PARAM_H)

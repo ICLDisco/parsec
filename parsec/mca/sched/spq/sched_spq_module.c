@@ -2,6 +2,7 @@
  * Copyright (c) 2017-2022 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2025      NVIDIA Corporation.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -40,7 +41,7 @@ typedef struct parsec_spq_priority_list_s {
 PARSEC_DECLSPEC PARSEC_OBJ_CLASS_DECLARATION(parsec_spq_priority_list_t);
 
 static inline void parsec_spq_priority_list_construct( parsec_spq_priority_list_t*plist );
-static inline void parsec_spq_priority_list_destruct( parsec_spq_priority_list_t *plist );
+static inline int parsec_spq_priority_list_destruct( parsec_spq_priority_list_t *plist );
 
 PARSEC_OBJ_CLASS_INSTANCE(parsec_spq_priority_list_t, parsec_list_item_t,
                    parsec_spq_priority_list_construct, parsec_spq_priority_list_destruct);
@@ -51,9 +52,10 @@ static inline void parsec_spq_priority_list_construct( parsec_spq_priority_list_
     plist->prio = -1;
 }
 
-static inline void parsec_spq_priority_list_destruct( parsec_spq_priority_list_t*plist )
+static inline int parsec_spq_priority_list_destruct( parsec_spq_priority_list_t*plist )
 {
     PARSEC_OBJ_DESTRUCT(&plist->tasks);
+    return 0;
 }
 
 /* Since we're locking the list for all operations anyway,

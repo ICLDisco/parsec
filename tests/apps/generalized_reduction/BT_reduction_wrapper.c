@@ -2,6 +2,7 @@
  * Copyright (c) 2009-2022 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2025      NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/runtime.h"
@@ -19,10 +20,11 @@ static parsec_datatype_t block;
 #include "BT_reduction_wrapper.h"
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
 
-static void
+static int
 __parsec_taskpool_BT_reduction_destruct(parsec_BT_reduction_taskpool_t *tp)
 {
     parsec_type_free( &(tp->arenas_datatypes[PARSEC_BT_reduction_DEFAULT_ADT_IDX].opaque_dtt) );
+    return 0;
 }
 
 PARSEC_OBJ_CLASS_INSTANCE(parsec_BT_reduction_taskpool_t, parsec_taskpool_t,

@@ -2,6 +2,7 @@
  * Copyright (c) 2009-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2025      NVIDIA Corporation.  All rights reserved.
  */
 
 #include <assert.h>
@@ -261,7 +262,7 @@ void parsec_hash_table_unlock_bucket_handle_impl(parsec_hash_table_t *ht,
 }
 
 
-void parsec_hash_table_fini(parsec_hash_table_t *ht)
+int parsec_hash_table_fini(parsec_hash_table_t *ht)
 {
     parsec_hash_table_head_t *head, *next;
     head = ht->rw_hash;
@@ -279,6 +280,7 @@ void parsec_hash_table_fini(parsec_hash_table_t *ht)
         head = next;
     }
     ht->rw_hash = NULL;
+    return 0;
 }
 
 void parsec_hash_table_nolock_insert(parsec_hash_table_t *ht, parsec_hash_table_item_t *item)

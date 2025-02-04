@@ -2,7 +2,7 @@
  * Copyright (c) 2019-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
- * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
+ * Copyright (c) 2024-2025 NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec.h"
@@ -57,7 +57,7 @@ static void destroy_cublas_handle(void *_h, void *_n)
     (void)_h;
 }
 
-static void
+static int
 __parsec_nvlink_destructor( parsec_nvlink_taskpool_t* nvlink_taskpool)
 {
     int g, dev;
@@ -89,6 +89,7 @@ __parsec_nvlink_destructor( parsec_nvlink_taskpool_t* nvlink_taskpool)
 
     free(dcA);
     free(userM);
+    return 0;
 }
 
 PARSEC_OBJ_CLASS_INSTANCE(parsec_nvlink_taskpool_t, parsec_taskpool_t,
@@ -189,7 +190,7 @@ parsec_taskpool_t* testing_nvlink_New( parsec_context_t *ctx, int depth, int mb 
             /* And copy the tile from CPU to GPU */
             status = (cudaError_t)cudaMemcpy( gpu_copy->device_private,
                                               cpu_copy->device_private,
-                                              dta->nb_elts,
+                                              dta->span,
                                               cudaMemcpyHostToDevice );
             PARSEC_CUDA_CHECK_ERROR( "(nvlink_wrapper) cudaMemcpy", status, {return NULL;} );
             g++;

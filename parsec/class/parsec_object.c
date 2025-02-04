@@ -9,6 +9,7 @@
  *                         University of Stuttgart.  All rights reserved.
  * Copyright (c) 2004-2005 The Regents of the University of California.
  *                         All rights reserved.
+ * Copyright (c) 2025      NVIDIA Corporation.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -35,15 +36,15 @@
  * and no constructor or destructor.
  */
 parsec_class_t parsec_object_t_class = {
-    "parsec_object_t",    /* name */
-    NULL,                 /* parent class */
-    NULL,                 /* constructor */
-    NULL,                 /* destructor */
-    1,                    /* initialized  -- this class is preinitialized */
-    0,                    /* class hierarchy depth */
-    NULL,                 /* array of constructors */
-    NULL,                 /* array of destructors */
-    sizeof(parsec_object_t) /* size of the opal object */
+    "parsec_object_t",        /* name */
+    NULL,                     /* parent class */
+    NULL,                     /* constructor */
+    NULL,                     /* destructor */
+    1,                        /* initialized  -- this class is preinitialized */
+    0,                        /* class hierarchy depth */
+    NULL,                     /* array of constructors */
+    NULL,                     /* array of destructors */
+    sizeof(parsec_object_t)   /* size of the opal object */
 };
 
 /*
@@ -135,7 +136,7 @@ void parsec_class_initialize(parsec_class_t *cls)
         exit(-1);
     }
     cls->cls_destruct_array =
-        cls->cls_construct_array + cls_construct_array_count + 1;
+        (parsec_destruct_t*)(cls->cls_construct_array + cls_construct_array_count + 1);
 
     /*
      * The constructor array is reversed, so start at the end

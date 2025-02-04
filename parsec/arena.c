@@ -2,6 +2,7 @@
  * Copyright (c) 2010-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2025      NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/parsec_config.h"
@@ -96,7 +97,7 @@ int parsec_arena_construct(parsec_arena_t* arena,
                                     parsec_arena_max_cached_memory);
 }
 
-static void parsec_arena_destructor(parsec_arena_t* arena)
+static int parsec_arena_destructor(parsec_arena_t* arena)
 {
     parsec_list_item_t* item;
 
@@ -116,6 +117,7 @@ static void parsec_arena_destructor(parsec_arena_t* arena)
         }
         PARSEC_OBJ_DESTRUCT(&arena->area_lifo);
     }
+    return 0;
 }
 
 PARSEC_OBJ_CLASS_INSTANCE(parsec_arena_t, parsec_object_t, NULL, parsec_arena_destructor);
@@ -223,7 +225,7 @@ int  parsec_arena_allocate_device_private(parsec_data_copy_t *copy,
     assert(0 == (((ptrdiff_t)chunk->data) % arena->alignment));
     assert((arena->elem_size + (ptrdiff_t)chunk->data)  <= (size + (ptrdiff_t)chunk));
 
-    data->nb_elts = count * arena->elem_size;
+    data->span = count * arena->elem_size;
 
     copy->flags = PARSEC_DATA_FLAG_ARENA |
                   PARSEC_DATA_FLAG_PARSEC_OWNED |

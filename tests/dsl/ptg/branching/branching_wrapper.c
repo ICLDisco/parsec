@@ -2,6 +2,7 @@
  * Copyright (c) 2009-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2025      NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/runtime.h"
@@ -16,14 +17,8 @@
 #include "branching.h"
 #include "branching_wrapper.h"
 
-static void
-__parsec_taskpool_branching_destructor(parsec_branching_taskpool_t* tp)
-{
-    (void)tp;
-}
-
 PARSEC_OBJ_CLASS_INSTANCE(parsec_branching_taskpool_t, parsec_taskpool_t,
-                          NULL, __parsec_taskpool_branching_destructor);
+                          NULL, NULL);
 
 /**
  * @param [IN] A    the data, already distributed and allocated

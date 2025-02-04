@@ -2,6 +2,7 @@
  * Copyright (c) 2011-2022 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2025      NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/parsec_config.h"
@@ -12,10 +13,11 @@
 #include "reduce_col.h"
 #include "reduce_row.h"
 
-static void
+static int
 __parsec_reduce_col_destructor(parsec_reduce_col_taskpool_t* tp)
 {
     parsec_type_free(&tp->arenas_datatypes[PARSEC_reduce_col_DEFAULT_ADT_IDX].opaque_dtt);
+    return 0;
 }
 
 PARSEC_OBJ_CLASS_INSTANCE(parsec_reduce_col_taskpool_t, parsec_taskpool_t,
@@ -49,10 +51,11 @@ parsec_reduce_col_New( const parsec_tiled_matrix_t* src,
 
 
 
-static void
+static int
 __parsec_reduce_row_destructor(parsec_reduce_row_taskpool_t* tp)
 {
     parsec_type_free(&tp->arenas_datatypes[PARSEC_reduce_row_DEFAULT_ADT_IDX].opaque_dtt);
+    return 0;
 }
 
 PARSEC_OBJ_CLASS_INSTANCE(parsec_reduce_row_taskpool_t, parsec_taskpool_t,

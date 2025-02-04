@@ -2,6 +2,7 @@
  * Copyright (c) 2013-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2025      NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/parsec_config.h"
@@ -39,10 +40,11 @@ parsec_list_construct( parsec_list_t* list )
     parsec_atomic_lock_init(&list->atomic_lock);
 }
 
-static inline void
+static inline int
 parsec_list_destruct( parsec_list_t* list )
 {
     assert(parsec_list_is_empty(list)); (void)list;
+    return 0;
 }
 
 PARSEC_OBJ_CLASS_INSTANCE(parsec_list_t, parsec_object_t,

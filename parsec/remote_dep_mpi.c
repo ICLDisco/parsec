@@ -2,7 +2,7 @@
  * Copyright (c) 2009-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
- * Copyright (c) 2023      NVIDIA CORPORATION. All rights reserved.
+ * Copyright (c) 2023-2025 NVIDIA CORPORATION. All rights reserved.
  */
 
 #include "parsec/parsec_config.h"
@@ -579,6 +579,7 @@ remote_dep_copy_allocate(parsec_dep_type_description_t* data)
         assert(0 == data->dst_count);
         return NULL;
     }
+    /* predict where the data need to be located */
     dc = parsec_arena_get_copy(data->arena, data->dst_count, 0, data->dst_datatype);
 
     dc->coherency_state = PARSEC_DATA_COHERENCY_EXCLUSIVE;
@@ -793,7 +794,20 @@ remote_dep_mpi_retrieve_datatype(parsec_execution_stream_t *eu,
             parsec_ce.pack_size(&parsec_ce, output->data.remote.dst_count, output->data.remote.dst_datatype, &dsize);
             output->data.remote.src_count = output->data.remote.dst_count = dsize;
             output->data.remote.src_datatype = output->data.remote.dst_datatype = PARSEC_DATATYPE_PACKED;
-
+            /* Predict where the incoming temporary should be located, by using the data_affinity.
+             * This only works is the task affinity is linked to the output location of the task, which
+             * is mostly true for owner-compute type of algorithms.
+             */
+            if (NULL != fct->data_affinity ) {
+                parsec_data_ref_t dref;
+                fct->data_affinity(newcontext, &dref);
+                parsec_data_t* data = dref.dc->data_of_key(dref.dc, dref.key);
+                if (-1 != data->preferred_device ) {
+                    printf("Data %p[%llx] is owned to device %d\n", dref.dc, dref.key, data->owner_device);
+                } else {
+                    printf("Data %p[%llx] is owned to preferred on %d\n", dref.dc, dref.key, data->preferred_device);
+                }
+            }
             return PARSEC_ITERATE_STOP;
         }
     }

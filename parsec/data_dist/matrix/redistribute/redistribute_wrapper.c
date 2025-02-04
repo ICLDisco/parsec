@@ -2,6 +2,7 @@
  * Copyright (c) 2017-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2025      NVIDIA Corporation.  All rights reserved.
  */
 #include "redistribute_internal.h"
 #include "redistribute.h"
@@ -143,7 +144,7 @@ parsec_redistribute_New(parsec_tiled_matrix_t *dcY,
 /**
  * @param [inout] the parsec object to destroy
  */
-static void
+static int
 __parsec_redistribute_destructor(parsec_redistribute_taskpool_t *redistribute_taskpool)
 {
     /* Optimized version: tile sizes of source and target ar the same,
@@ -163,6 +164,7 @@ __parsec_redistribute_destructor(parsec_redistribute_taskpool_t *redistribute_ta
         // parsec_del2arena(&redistribute_taskpool->arenas_datatypes[PARSEC_redistribute_SOURCE_ADT_IDX]);
         parsec_del2arena(&redistribute_taskpool->arenas_datatypes[PARSEC_redistribute_INNER_ADT_IDX]);
     }
+    return 0;
 }
 
 PARSEC_OBJ_CLASS_INSTANCE(parsec_redistribute_taskpool_t, parsec_taskpool_t,

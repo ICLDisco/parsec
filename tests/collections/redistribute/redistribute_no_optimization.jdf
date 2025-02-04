@@ -3,6 +3,7 @@ extern "C" %{
  * Copyright (c) 2017-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation. All rights
  *                         reserved.
+ * Copyright (c) 2025      NVIDIA Corporation.  All rights reserved.
  *
  */
 #include "redistribute_test.h"
@@ -444,11 +445,12 @@ parsec_redistribute_no_optimization_New(parsec_tiled_matrix_t *dcY,
 /**
  * @param [inout] the parsec object to destroy
  */
-static void
+static int
 __parsec_taskpool_redistribute_no_optimization_destructor(parsec_redistribute_no_optimization_taskpool_t *redistribute_no_optimization_taskpool)
 {
     parsec_del2arena(&redistribute_no_optimization_taskpool->arenas_datatypes[PARSEC_redistribute_no_optimization_TARGET_ADT_IDX]);
     parsec_del2arena(&redistribute_no_optimization_taskpool->arenas_datatypes[PARSEC_redistribute_no_optimization_SOURCE_ADT_IDX]);
+    return 0;
 }
 
 PARSEC_OBJ_CLASS_INSTANCE(parsec_redistribute_no_optimization_taskpool_t, parsec_taskpool_t,

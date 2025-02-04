@@ -2,6 +2,7 @@
  * Copyright (c) 2009-2022 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2025      NVIDIA Corporation.  All rights reserved.
  */
 
 #ifndef _parsec_hash_table_h
@@ -210,8 +211,11 @@ void parsec_hash_table_unlock_bucket_handle_impl(parsec_hash_table_t *ht,
  *   Releases the resources allocated by the hash table.
  *   In debug mode, will assert if the hash table is not empty
  * @arg[inout] ht the hash table to release
+ * @return As all destructors, it shall return 0 to continue the chain of destructors and
+ *         1 to stop the chain and save the object from oblivion. The user will then be in
+ *         charge of freeing the object.
  */
-void parsec_hash_table_fini(parsec_hash_table_t *ht);
+int parsec_hash_table_fini(parsec_hash_table_t *ht);
 
 /**
  * @brief Insert element in a hash table without
