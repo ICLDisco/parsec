@@ -31,9 +31,12 @@ if [ -z "$INSTALL_DIRECTORY" ]; then
 fi
 
 export CUDA=OFF
+export HIP=OFF
 if [ "$DEVICE" = "gpu_nvidia" ]; then
    spack load cuda
    CUDA=ON
+elif [ "$DEVICE" = "gpu_amd" ]; then
+   HIP=ON
 fi
 
 ! read -d '' BUILD_CONFIG << EOF
@@ -46,5 +49,6 @@ fi
         -DMPIEXEC_PREFLAGS='--bind-to;none;--oversubscribe'
         -DCMAKE_INSTALL_PREFIX=$INSTALL_DIRECTORY
         -DPARSEC_GPU_WITH_CUDA=$CUDA
+        -DPARSEC_GPU_WITH_HIP=$HIP
 EOF
 export BUILD_CONFIG

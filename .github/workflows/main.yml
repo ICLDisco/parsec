@@ -16,7 +16,7 @@ jobs:
         build_type : [ Debug, Release ]
         shared_type : [ OFF, ON ]
         profiling : [ OFF, ON ]
-        device: [ cpu, gpu_nvidia ]
+        device: [ cpu, gpu_nvidia, gpu_amd ]
         exclude:
           - build_type: Debug
             profiling: OFF
