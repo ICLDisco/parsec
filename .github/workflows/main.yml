@@ -9,7 +9,6 @@ on:
 
 jobs:
   all:
-    runs-on: [self-hosted, Linux]
     timeout-minutes: 30
     strategy:
       fail-fast: false
@@ -17,16 +16,19 @@ jobs:
         build_type : [ Debug, Release ]
         shared_type : [ OFF, ON ]
         profiling : [ OFF, ON ]
+        device: [ cpu, gpu_nvidia ]
         exclude:
           - build_type: Debug
             profiling: OFF
           - build_type: Release
             shared_type: OFF
-    name: "${{matrix.build_type}} Shared=${{matrix.shared_type}} Profile=${{matrix.profiling}}"
+    name: "${{matrix.build_type}} Shared=${{matrix.shared_type}} Profile=${{matrix.profiling}} ${{matrix.device}}"
+    runs-on: [ "${{matrix.device}}", self-hosted ]
     env:
       BUILD_TYPE:  ${{matrix.build_type}}
       SHARED_TYPE: ${{matrix.shared_type}}
       PROFILING:   ${{matrix.profiling}}
+      DEVICE: ${{matrix.device}}
       BUILD_DIRECTORY: build
       INSTALL_DIRECTORY: install
     steps:
