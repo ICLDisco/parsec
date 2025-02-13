@@ -747,6 +747,49 @@ parsec_device_memory_reserve( parsec_device_gpu_module_t* gpu_device,
     return PARSEC_SUCCESS;
 }
 
+/**
+ * Release discarded data copies from the LRU list.
+ * Returns the number of discarded items released.
+ */
+static int parsec_device_memory_release_discarded(parsec_device_gpu_module_t* gpu_device,
+                                                  parsec_list_t* list)
+{
+    parsec_list_item_t* item;
+    parsec_list_item_t* ring = NULL;
+    int count = 0;
+
+    if (gpu_device->super.nb_discarded == 0) {
+        return 0;
+    }
+
+    while (NULL != (item = parsec_list_pop_front(list))) {
+        parsec_gpu_data_copy_t* gpu_copy = (parsec_gpu_data_copy_t*)item;
+        parsec_data_t* original = gpu_copy->original;
+        if (NULL != original) {
+            parsec_data_copy_t *cpu_copy = original->device_copies[0];
+            parsec_list_item_ring_chop((parsec_list_item_t*)gpu_copy);
+            PARSEC_LIST_ITEM_SINGLETON(item);
+
+            if (cpu_copy->flags & PARSEC_DATA_FLAG_DISCARDED) {
+                count++;
+                parsec_device_release_gpu_copy(gpu_device, gpu_copy);
+                PARSEC_DEBUG_VERBOSE(30, parsec_gpu_output_stream,
+                                    "Releasing discarded GPU copy %p from data %p", gpu_copy, original);
+            } else if (ring == NULL) {
+                ring = item;
+            } else {
+                parsec_list_item_ring_push(ring, item);
+            }
+        }
+    }
+    /* put the ring back into the list */
+    if (NULL != ring) {
+        parsec_list_chain_front(list, ring);
+    }
+    parsec_atomic_fetch_sub_int64(&gpu_device->super.nb_discarded, count);
+    return count;
+}
+
 static void parsec_device_memory_release_list(parsec_device_gpu_module_t* gpu_device,
                                               parsec_list_t* list)
 {
@@ -755,7 +798,6 @@ static void parsec_device_memory_release_list(parsec_device_gpu_module_t* gpu_de
     while(NULL != (item = parsec_list_pop_front(list)) ) {
         parsec_gpu_data_copy_t* gpu_copy = (parsec_gpu_data_copy_t*)item;
         parsec_data_t* original = gpu_copy->original;
-        parsec_data_copy_t *cpu_copy = original->device_copies[0];
 
         PARSEC_DEBUG_VERBOSE(35, parsec_gpu_output_stream,
                             "GPU[%d:%s] Release GPU copy %p (device_ptr %p) [ref_count %d: must be 1], attached to %p, in map %p",
@@ -763,8 +805,7 @@ static void parsec_device_memory_release_list(parsec_device_gpu_module_t* gpu_de
                              original, (NULL != original ? original->dc : NULL));
         assert( gpu_copy->device_index == gpu_device->super.device_index );
         /* warn about device data that has not been pushed back to the host or was discarded */
-        if( PARSEC_DATA_COHERENCY_OWNED == gpu_copy->coherency_state
-            && (NULL == cpu_copy || 0 == (cpu_copy->flags & PARSEC_DATA_FLAG_DISCARDED)) ) {
+        if( PARSEC_DATA_COHERENCY_OWNED == gpu_copy->coherency_state) {
             parsec_warning("GPU[%d:%s] still OWNS the master memory copy for data %d and it is discarding it!",
                            gpu_device->super.device_index, gpu_device->super.name, original->key);
         }
@@ -793,7 +834,11 @@ parsec_device_flush_lru( parsec_device_module_t *device )
 {
     size_t in_use;
     parsec_device_gpu_module_t *gpu_device = (parsec_device_gpu_module_t*)device;
-    /* Free all memory on GPU */
+    /* Remove discarded data copies */
+    parsec_device_memory_release_discarded(gpu_device, &gpu_device->gpu_mem_lru);
+    parsec_device_memory_release_discarded(gpu_device, &gpu_device->gpu_mem_owned_lru);
+    assert(gpu_device->super.nb_discarded == 0);
+    /* Free all remaining memory on GPU */
     parsec_device_memory_release_list(gpu_device, &gpu_device->gpu_mem_lru);
     parsec_device_memory_release_list(gpu_device, &gpu_device->gpu_mem_owned_lru);
     parsec_device_free_workspace(gpu_device);
@@ -956,6 +1001,12 @@ parsec_device_data_reserve_space( parsec_device_gpu_module_t* gpu_device,
 #endif
                 parsec_atomic_unlock(&master->lock);
                 return PARSEC_HOOK_RETURN_NEXT;
+            } else if (NULL != lru_gpu_elem->original) {
+                /* account for discarded data */
+                parsec_data_copy_t* cpu_copy = lru_gpu_elem->original->device_copies[0];
+                if (cpu_copy->flags & PARSEC_DATA_FLAG_DISCARDED) {
+                    parsec_atomic_fetch_dec_int64(&gpu_device->super.nb_discarded);
+                }
             }
 
             PARSEC_LIST_ITEM_SINGLETON(lru_gpu_elem);
@@ -2345,6 +2396,7 @@ parsec_device_kernel_epilog( parsec_device_gpu_module_t *gpu_device,
             PARSEC_LIST_ITEM_SINGLETON(gpu_copy);
             /* release the original and */
             parsec_device_release_gpu_copy(gpu_device, gpu_copy);
+            parsec_atomic_fetch_dec_int64(&gpu_device->super.nb_discarded);
         } else if( gpu_task->pushout & (1 << i)) {
             PARSEC_DEBUG_VERBOSE(20, parsec_gpu_output_stream,
                                  "GPU copy %p [ref_count %d] moved to the read LRU in %s",
@@ -2530,6 +2582,11 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
             goto remove_gpu_task;
         }
         assert(NULL == progress_task);
+
+        /* try to release all discarded copies and try again if succesful */
+        if (0 < parsec_device_memory_release_discarded(gpu_device, &gpu_device->gpu_mem_owned_lru)) {
+            goto check_in_deps;
+        }
 
         /* TODO: check this */
         /* If we can extract data go for it, otherwise try to drain the pending tasks */

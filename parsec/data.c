@@ -592,6 +592,21 @@ parsec_data_discard( parsec_data_t *data )
         PARSEC_OBJ_RELEASE(data);
     }
 
+    /**
+     * Tell the devices that they have discarded data.
+     */
+    for (uint32_t i = 1; i < parsec_nb_devices; i++) {
+        if (parsec_mca_device_is_gpu(i)) {
+            parsec_data_copy_t *device_copy = data->device_copies[i];
+            if (NULL != device_copy) {
+                parsec_device_module_t* device = parsec_mca_device_get(i);
+                if (NULL != device) {
+                    parsec_atomic_fetch_inc_int64(&device->nb_discarded);
+                }
+            }
+        }
+    }
+
     /* unlock before releasing our references */
     parsec_atomic_unlock( &data->lock );
 
