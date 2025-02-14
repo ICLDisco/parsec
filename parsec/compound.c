@@ -2,6 +2,7 @@
  * Copyright (c) 2019-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2025      NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/parsec_config.h"
@@ -65,7 +66,7 @@ parsec_compound_taskpool_startup( parsec_context_t *context,
     (void)startup_list;
 }
 
-static void
+static int
 __parsec_compound_taskpool_destructor( parsec_compound_taskpool_t* compound )
 {
     assert(PARSEC_TASKPOOL_TYPE_COMPOUND == compound->super.taskpool_type);
@@ -76,6 +77,7 @@ __parsec_compound_taskpool_destructor( parsec_compound_taskpool_t* compound )
         free(compound->super.taskpool_name);
         compound->super.taskpool_name = NULL;
     }
+    return 0;
 }
 
 static void

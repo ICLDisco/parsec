@@ -2,7 +2,7 @@
  * Copyright (c) 2009-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
- * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
+ * Copyright (c) 2024-2025 NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/parsec_config.h"
@@ -4534,7 +4534,7 @@ static void jdf_generate_destructor( const jdf_t *jdf )
     string_arena_t *sa1 = string_arena_new(64);
     jdf_function_entry_t* f;
 
-    coutput("static void __parsec_%s_internal_destructor( __parsec_%s_internal_taskpool_t *__parsec_tp )\n"
+    coutput("static int __parsec_%s_internal_destructor( __parsec_%s_internal_taskpool_t *__parsec_tp )\n"
             "{\n"
             "  uint32_t i;\n",
             jdf_basename, jdf_basename);
@@ -4630,9 +4630,9 @@ static void jdf_generate_destructor( const jdf_t *jdf )
             "    if( PARSEC_SUCCESS != device->taskpool_unregister(device, &__parsec_tp->super.super) ) continue;\n"
             "  }\n");
 
-    coutput("  free(__parsec_tp->super.super.taskpool_name); __parsec_tp->super.super.taskpool_name = NULL;\n");
-
-    coutput("}\n\n");
+    coutput("  free(__parsec_tp->super.super.taskpool_name); __parsec_tp->super.super.taskpool_name = NULL;\n"
+            "  return 0;\n"
+            "}\n\n");
 
     string_arena_free(sa);
     string_arena_free(sa1);
@@ -6858,17 +6858,17 @@ static void jdf_generate_code_hook_gpu(const jdf_t *jdf,
                         fl->varname, JDF_OBJECT_LINENO(fl));
                 exit(-1);
             }
-            coutput("  gpu_task->flow_nb_elts[%d] = 0;\n", di);
+            coutput("  gpu_task->flow_span[%d] = 0;\n", di);
         }else{
             coutput("  // A shortcut to check if the flow exists\n");
             coutput("  if (gpu_task->ec->data[%d].data_in != NULL) {\n", di);
             if(size_property == NULL){
-                coutput("  gpu_task->flow_nb_elts[%d] = gpu_task->ec->data[%d].data_in->original->nb_elts;\n", di, di);
+                coutput("  gpu_task->flow_span[%d] = gpu_task->ec->data[%d].data_in->original->span;\n", di, di);
             }else{
-                coutput("  gpu_task->flow_nb_elts[%d] = %s;\n",
+                coutput("  gpu_task->flow_span[%d] = %s;\n",
                         di, dump_expr((void**)size_property->expr, &info));
                 if( (stage_in_property == NULL) || ( stage_out_property == NULL )){
-                    coutput("  assert(gpu_task->ec->data[%d].data_in->original->nb_elts <= %s);\n",
+                    coutput("  assert(gpu_task->ec->data[%d].data_in->original->span <= %s);\n",
                             di, dump_expr((void**)size_property->expr, &info));
                 }
 

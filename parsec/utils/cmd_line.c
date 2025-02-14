@@ -12,6 +12,7 @@
  * Copyright (c) 2012      Los Alamos National Security, LLC.
  *                         All rights reserved.
  * Copyright (c) 2012-2013 Cisco Systems, Inc.  All rights reserved.
+ * Copyright (c) 2025      NVIDIA Corporation.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -69,7 +70,7 @@ struct cmd_line_option_t {
 };
 typedef struct cmd_line_option_t cmd_line_option_t;
 static void option_constructor(cmd_line_option_t *cmd);
-static void option_destructor(cmd_line_option_t *cmd);
+static int option_destructor(cmd_line_option_t *cmd);
 
 PARSEC_OBJ_CLASS_INSTANCE(cmd_line_option_t,
                    parsec_list_item_t,
@@ -101,7 +102,7 @@ struct cmd_line_param_t {
 };
 typedef struct cmd_line_param_t cmd_line_param_t;
 static void param_constructor(cmd_line_param_t *cmd);
-static void param_destructor(cmd_line_param_t *cmd);
+static int param_destructor(cmd_line_param_t *cmd);
 PARSEC_OBJ_CLASS_INSTANCE(cmd_line_param_t,
                    parsec_list_item_t,
                    param_constructor, param_destructor);
@@ -110,7 +111,7 @@ PARSEC_OBJ_CLASS_INSTANCE(cmd_line_param_t,
  * Instantiate the parsec_cmd_line_t class
  */
 static void cmd_line_constructor(parsec_cmd_line_t *cmd);
-static void cmd_line_destructor(parsec_cmd_line_t *cmd);
+static int cmd_line_destructor(parsec_cmd_line_t *cmd);
 PARSEC_OBJ_CLASS_INSTANCE(parsec_cmd_line_t,
                    parsec_object_t,
                    cmd_line_constructor,
@@ -870,7 +871,7 @@ static void option_constructor(cmd_line_option_t *o)
 }
 
 
-static void option_destructor(cmd_line_option_t *o)
+static int option_destructor(cmd_line_option_t *o)
 {
     if (NULL != o->clo_single_dash_name) {
         free(o->clo_single_dash_name);
@@ -884,6 +885,7 @@ static void option_destructor(cmd_line_option_t *o)
     if (NULL != o->clo_mca_param_env_var) {
         free(o->clo_mca_param_env_var);
     }
+    return 0;
 }
 
 
@@ -896,11 +898,12 @@ static void param_constructor(cmd_line_param_t *p)
 }
 
 
-static void param_destructor(cmd_line_param_t *p)
+static int param_destructor(cmd_line_param_t *p)
 {
     if (NULL != p->clp_argv) {
         parsec_argv_free(p->clp_argv);
     }
+    return 0;
 }
 
 
@@ -926,7 +929,7 @@ static void cmd_line_constructor(parsec_cmd_line_t *cmd)
 }
 
 
-static void cmd_line_destructor(parsec_cmd_line_t *cmd)
+static int cmd_line_destructor(parsec_cmd_line_t *cmd)
 {
     parsec_list_item_t *item;
 
@@ -947,6 +950,7 @@ static void cmd_line_destructor(parsec_cmd_line_t *cmd)
 
     PARSEC_OBJ_DESTRUCT(&cmd->lcl_options);
     PARSEC_OBJ_DESTRUCT(&cmd->lcl_params);
+    return 0;
 }
 
 

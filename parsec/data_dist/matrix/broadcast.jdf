@@ -4,6 +4,7 @@ extern "C" %{
  * Copyright (c) 2011-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2025      NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/data_internal.h"
@@ -59,7 +60,7 @@ static parsec_data_t* data_of(parsec_data_collection_t *desc, ...)
             data->owner_device = 0;
             data->key = k;
             data->dc = (parsec_data_collection_t*)desc;
-            data->nb_elts = 1;
+            data->span = 1;
             parsec_data_copy_t* data_copy = (parsec_data_copy_t*)PARSEC_OBJ_NEW(parsec_data_copy_t);
             parsec_data_copy_attach(data, data_copy, 0);
             data_copy->device_private = NULL;

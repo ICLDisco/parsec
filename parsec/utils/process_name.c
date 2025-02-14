@@ -2,10 +2,14 @@
  * Copyright (c) 2014-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2025      NVIDIA Corporation.  All rights reserved.
  */
 #include "parsec/parsec_config.h"
 #include <unistd.h>
 #include <string.h>
+#if defined(PARSEC_HAVE_STRINGS_H)
+#include <strings.h>
+#endif  /* defined(PARSEC_HAVE_STRINGS_H) */
 #include <limits.h>
 #include <stdio.h>
 

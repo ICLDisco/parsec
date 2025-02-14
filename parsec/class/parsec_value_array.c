@@ -9,6 +9,7 @@
  *                         University of Stuttgart.  All rights reserved.
  * Copyright (c) 2004-2005 The Regents of the University of California.
  *                         All rights reserved.
+ * Copyright (c) 2025      NVIDIA Corporation.  All rights reserved.
  * $COPYRIGHT$
  * 
  * Additional copyrights may follow
@@ -28,10 +29,11 @@ static void parsec_value_array_construct(parsec_value_array_t* array)
     array->array_alloc_size = 0;
 }
 
-static void parsec_value_array_destruct(parsec_value_array_t* array)
+static int parsec_value_array_destruct(parsec_value_array_t* array)
 {
     if (NULL != array->array_items)
         free(array->array_items);
+    return 0;
 }
 
 PARSEC_OBJ_CLASS_INSTANCE(

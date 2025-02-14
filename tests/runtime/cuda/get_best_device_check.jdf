@@ -3,6 +3,7 @@ extern "C" %{
  * Copyright (c) 2021-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation. All rights
  *                         reserved.
+ * Copyright (c) 2025      NVIDIA Corporation.  All rights reserved.
  */
 #include "cuda_test_internal.h"
 
@@ -180,7 +181,7 @@ parsec_get_best_device_check_New(parsec_tiled_matrix_t *dcA, int *info)
 /**
  * @param [inout] the parsec object to destroy
  */
-static void
+static int
 __parsec_taskpool_get_best_device_check_destructor(parsec_get_best_device_check_taskpool_t *get_best_device_check_taskpool)
 {
     parsec_del2arena(&get_best_device_check_taskpool->arenas_datatypes[PARSEC_get_best_device_check_DEFAULT_ADT_IDX]);
@@ -188,6 +189,7 @@ __parsec_taskpool_get_best_device_check_destructor(parsec_get_best_device_check_
     if( NULL != get_best_device_check_taskpool->_g_cuda_device_index )
         free(get_best_device_check_taskpool->_g_cuda_device_index);
 #endif
+    return 0;
 }
 
 PARSEC_OBJ_CLASS_INSTANCE(parsec_get_best_device_check_taskpool_t, parsec_taskpool_t,

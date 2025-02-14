@@ -2,6 +2,7 @@
  * Copyright (c) 2009-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2025      NVIDIA Corporation.  All rights reserved.
  */
 
 #ifndef PARSEC_RUNTIME_H_HAS_BEEN_INCLUDED
@@ -560,17 +561,6 @@ void parsec_taskpool_unregister(parsec_taskpool_t* tp);
  *  taskpools not registered over all ranks.
 */
 void parsec_taskpool_sync_ids_context( intptr_t comm );
-
-/**
- * @brief Globally synchronize taskpool IDs.
- *
- * @details
- *  Globally synchronize taskpool IDs so that next register generates the same
- *  id at all ranks. This is a collective over the communication object
- *  associated with PaRSEC, and can be used to resolve discrepancies introduced by
- *  taskpools not registered over all ranks.
-*/
-void parsec_taskpool_sync_ids(void);
 
 /**
  * @brief Returns the execution stream that corresponds to the calling thread

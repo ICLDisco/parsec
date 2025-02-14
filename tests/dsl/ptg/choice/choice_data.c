@@ -2,6 +2,7 @@
  * Copyright (c) 2009-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2025      NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/runtime.h"
@@ -50,7 +51,7 @@ get_or_create_data(my_datatype_t* dat, uint32_t pos)
 
         data->owner_device = 0;
         data->key = pos;
-        data->nb_elts = 1;
+        data->span = 1;
         data->device_copies[0] = data_copy;
 
         if( !parsec_atomic_cas_ptr(&dat->data_map[pos], NULL, data) ) {

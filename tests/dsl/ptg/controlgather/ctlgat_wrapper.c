@@ -2,6 +2,7 @@
  * Copyright (c) 2009-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2025      NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/runtime.h"
@@ -18,13 +19,14 @@
 
 static parsec_datatype_t block;
 
-static void
+static int
 __parsec_taskpool_ctlgat_destructor(parsec_ctlgat_taskpool_t *tp)
 {
     /* We have created our own datatype, instead of using a predefined one
      * so we need to clean up.
      */
     parsec_type_free(&(tp->arenas_datatypes[PARSEC_ctlgat_DEFAULT_ADT_IDX].opaque_dtt));
+    return 0;
 }
 
 PARSEC_OBJ_CLASS_INSTANCE(parsec_ctlgat_taskpool_t, parsec_taskpool_t,

@@ -2,7 +2,7 @@
  * Copyright (c) 2013-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
- * Copyright (c) 2023-2024 NVIDIA Corporation.  All rights reserved.
+ * Copyright (c) 2023-2025 NVIDIA Corporation.  All rights reserved.
  */
 
 /* **************************************************************************** */
@@ -352,7 +352,7 @@ void parsec_dtd_taskpool_constructor(parsec_dtd_taskpool_t *tp)
  * @ingroup         DTD_INTERFACE_INTERNAL
  *
  ******************************************************************************/
-void
+int
 parsec_dtd_taskpool_destructor(parsec_dtd_taskpool_t *tp)
 {
     uint32_t i;
@@ -424,6 +424,8 @@ parsec_dtd_taskpool_destructor(parsec_dtd_taskpool_t *tp)
 
     parsec_hash_table_fini(tp->function_h_table);
     PARSEC_OBJ_RELEASE(tp->function_h_table);
+
+    return 0;
 }
 
 /* To create object of class parsec_dtd_taskpool_t that inherits parsec_taskpool_t
@@ -2293,7 +2295,7 @@ static parsec_hook_return_t parsec_dtd_gpu_task_submit(parsec_execution_stream_t
         if(flow->op_type & PARSEC_PUSHOUT)
             gpu_task->pushout |= 1<<i;
         gpu_task->flow[i] = dtd_tc->super.in[i];
-        gpu_task->flow_nb_elts[i] = this_task->data[i].data_in->original->nb_elts;
+        gpu_task->flow_span[i] = this_task->data[i].data_in->original->span;
     }
 
     parsec_device_module_t *device = this_task->selected_device;

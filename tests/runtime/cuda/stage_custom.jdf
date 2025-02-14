@@ -3,7 +3,7 @@ extern "C" %{
  * Copyright (c) 2019-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
- * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
+ * Copyright (c) 2024-2025 NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/parsec_config.h"
@@ -62,7 +62,7 @@ stage_stride_in(parsec_gpu_task_t *gtask,
             }else{
                 ret = (cudaError_t)cudaMemcpyAsync( copy_out->device_private,
                                                     copy_in->device_private,
-                                                    copy_in->original->nb_elts,
+                                                    copy_in->original->span,
                                                     cudaMemcpyDeviceToDevice,
                                                     cuda_stream->cuda_stream );
                 PARSEC_CUDA_CHECK_ERROR( "cudaMemcpyAsync", ret, { return PARSEC_ERROR; } );
@@ -312,7 +312,7 @@ parsec_taskpool_t* testing_stage_custom_New( parsec_context_t *ctx, int M, int N
     return &testing_handle->super;
 }
 
-static void
+static int
 __parsec_taskpool_stage_custom_destructor(parsec_stage_custom_taskpool_t *stage_custom_taskpool)
 {
     parsec_matrix_block_cyclic_t *descA = (parsec_matrix_block_cyclic_t*)stage_custom_taskpool->_g_descA;
@@ -324,6 +324,7 @@ __parsec_taskpool_stage_custom_destructor(parsec_stage_custom_taskpool_t *stage_
     parsec_tiled_matrix_destroy( (parsec_tiled_matrix_t*)stage_custom_taskpool->_g_descB );
     free(descA);
     free(descB);
+    return 0;
 }
 
 PARSEC_OBJ_CLASS_INSTANCE(parsec_stage_custom_taskpool_t, parsec_taskpool_t,

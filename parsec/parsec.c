@@ -2,6 +2,7 @@
  * Copyright (c) 2009-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2025      NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/parsec_config.h"
@@ -21,6 +22,7 @@
 #if defined(PARSEC_HAVE_GETOPT_H)
 #include <getopt.h>
 #endif  /* defined(PARSEC_HAVE_GETOPT_H) */
+#include <sys/time.h>
 #include "parsec/ayudame.h"
 
 #include "parsec/mca/pins/pins.h"
@@ -192,7 +194,7 @@ static void __parsec_taskpool_constructor(parsec_taskpool_t* tp)
     tp->tdm.module = NULL;
 }
 
-static void __parsec_taskpool_destructor(parsec_taskpool_t* tp)
+static int __parsec_taskpool_destructor(parsec_taskpool_t* tp)
 {
     if( NULL != tp->context ) {
         parsec_context_remove_taskpool(tp);
@@ -200,6 +202,7 @@ static void __parsec_taskpool_destructor(parsec_taskpool_t* tp)
     if( NULL != tp->taskpool_name ) {
         free(tp->taskpool_name);
     }
+    return 0;
 }
 
 /* To create object of class parsec_taskpool_t that inherits parsec_list_t
@@ -209,7 +212,7 @@ PARSEC_OBJ_CLASS_INSTANCE(parsec_taskpool_t, parsec_list_item_t,
                           __parsec_taskpool_constructor, __parsec_taskpool_destructor);
 
 static void __parsec_task_constructor(parsec_task_t* task) {
-    /* no allocation here, only initalizations: the task_t will be constructed
+    /* no allocation here, only initializations: the task_t will be constructed
      * multiple times when push-poped from the mempool */
     task->selected_device = NULL;
     task->selected_chore = -1;
@@ -2134,13 +2137,6 @@ void parsec_taskpool_sync_ids_context( intptr_t comm )
     taskpool_array_size = msz;
     taskpool_array_pos = idx;
     parsec_atomic_unlock( &taskpool_array_lock );
-}
-
-/* globally synchronize taskpool id's so that next register generates the same
- * id at all ranks. */
-void parsec_taskpool_sync_ids( void )
-{
-  parsec_taskpool_sync_ids_context( (intptr_t)MPI_COMM_WORLD );
 }
 
 /* Unregister the taskpool with the engine. This make the taskpool_id available for

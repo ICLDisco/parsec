@@ -2,7 +2,7 @@
  * Copyright (c) 2011-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
- * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
+ * Copyright (c) 2024-2025 NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/runtime.h"
@@ -513,13 +513,14 @@ __parsec_map_operator_constructor(parsec_map_operator_taskpool_t* tp )
 #endif /* defined(PARSEC_PROF_TRACE) */
 }
 
-static void
+static int
 __parsec_map_operator_destructor(parsec_map_operator_taskpool_t* tp)
 {
     if( NULL != tp->super.taskpool_name ) {
         free(tp->super.taskpool_name);
         tp->super.taskpool_name = NULL;
     }
+    return 0;
 }
 
 PARSEC_OBJ_CLASS_INSTANCE(parsec_map_operator_taskpool_t, parsec_taskpool_t,

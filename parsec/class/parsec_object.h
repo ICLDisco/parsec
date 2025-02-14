@@ -10,6 +10,7 @@
  * Copyright (c) 2004-2005 The Regents of the University of California.
  *                         All rights reserved.
  * Copyright (c) 2007      Cisco Systems, Inc.  All rights reserved.
+ * Copyright (c) 2025      NVIDIA Corporation.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -136,7 +137,8 @@ BEGIN_C_DECLS
 typedef struct parsec_object_t parsec_object_t;
 typedef struct parsec_class_t parsec_class_t;
 typedef void (*parsec_construct_t) (parsec_object_t *);
-typedef void (*parsec_destruct_t) (parsec_object_t *);
+/* Class destructor: Returns 0 to continue through the class inheritance, or 1 to stop */
+typedef int (*parsec_destruct_t) (parsec_object_t *);
 
 
 /* types **************************************************************/
@@ -306,26 +308,28 @@ static inline parsec_object_t *parsec_obj_new_debug(parsec_class_t* type, const 
  * @param object        Pointer to the object
  */
 #if defined(PARSEC_DEBUG_PARANOID)
-#define PARSEC_OBJ_RELEASE(object)                                     \
-    do {                                                        \
-        assert(NULL != ((parsec_object_t *) (object))->obj_class);        \
-        assert(PARSEC_OBJ_MAGIC_ID == ((parsec_object_t *) (object))->obj_magic_id); \
-        if (0 == parsec_obj_update((parsec_object_t *) (object), -1)) {     \
-            parsec_obj_run_destructors((parsec_object_t *) (object));       \
-            PARSEC_OBJ_SET_MAGIC_ID((object), 0);                      \
-            PARSEC_OBJ_REMEMBER_FILE_AND_LINENO( object, __FILE__, __LINE__ ); \
-            free(object);                                       \
-            object = NULL;                                      \
-        }                                                       \
+#define PARSEC_OBJ_RELEASE(object)                                                  \
+    do                                                                              \
+    {                                                                               \
+        assert(NULL != ((parsec_object_t *)(object))->obj_class);                   \
+        assert(PARSEC_OBJ_MAGIC_ID == ((parsec_object_t *)(object))->obj_magic_id); \
+        if (0 == parsec_obj_update((parsec_object_t *)(object), -1))                \
+        {                                                                           \
+            PARSEC_OBJ_SET_MAGIC_ID((object), 0);                                   \
+            PARSEC_OBJ_REMEMBER_FILE_AND_LINENO(object, __FILE__, __LINE__);        \
+            if (0 == parsec_obj_run_destructors((parsec_object_t *)(object)))       \
+                free(object);                                                       \
+            object = NULL;                                                          \
+        }                                                                           \
     } while (0)
 #else
-#define PARSEC_OBJ_RELEASE(object)                                     \
-    do {                                                        \
-        if (0 == parsec_obj_update((parsec_object_t *) (object), -1)) {     \
-            parsec_obj_run_destructors((parsec_object_t *) (object));       \
-            free(object);                                       \
-            object = NULL;                                      \
-        }                                                       \
+#define PARSEC_OBJ_RELEASE(object)                                                   \
+    do {                                                                             \
+        if (0 == parsec_obj_update((parsec_object_t *) (object), -1)) {              \
+            if (0 == parsec_obj_run_destructors((parsec_object_t *) (object)))       \
+                free(object);                                                        \
+            object = NULL;                                                           \
+        }                                                                            \
     } while (0)
 #endif
 
@@ -435,7 +439,7 @@ static inline void parsec_obj_run_constructors(parsec_object_t * object)
  *
  * @param object          Pointer to the object.
  */
-static inline void parsec_obj_run_destructors(parsec_object_t * object)
+static inline int parsec_obj_run_destructors(parsec_object_t * object)
 {
     parsec_destruct_t* cls_destruct;
 
@@ -443,9 +447,15 @@ static inline void parsec_obj_run_destructors(parsec_object_t * object)
 
     cls_destruct = object->obj_class->cls_destruct_array;
     while( NULL != *cls_destruct ) {
-        (*cls_destruct)(object);
+        /* Any destructor is allowed to withdraw the object from the complete release, and thus prevent the
+         * base object management from freeing the object. Instead, the destructor will have to recycle the object 
+         * by some internal means, and free it later.
+         */
+        if (0 != (*cls_destruct)(object))
+            return 1;
         cls_destruct++;
     }
+    return 0;
 }
 
 

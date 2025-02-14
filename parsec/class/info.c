@@ -2,7 +2,7 @@
  * Copyright (c) 2020-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
- * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
+ * Copyright (c) 2024-2025 NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/parsec_config.h"
@@ -21,7 +21,7 @@ static void parsec_info_constructor(parsec_object_t *obj)
     PARSEC_OBJ_CONSTRUCT(&nfo->ioa_list, parsec_list_t);
 }
 
-static void parsec_info_destructor(parsec_object_t *obj)
+static int parsec_info_destructor(parsec_object_t *obj)
 {
     parsec_info_t *nfo = (parsec_info_t*)obj;
     parsec_list_item_t *item, *next;
@@ -34,6 +34,7 @@ static void parsec_info_destructor(parsec_object_t *obj)
     }
     PARSEC_OBJ_DESTRUCT(&nfo->ioa_list);
     /* nfo->info_list is the parent and will be destructed at exit */
+    return 0;
 }
 
 PARSEC_OBJ_CLASS_INSTANCE(parsec_info_t, parsec_list_t, parsec_info_constructor, parsec_info_destructor);
@@ -223,7 +224,7 @@ void parsec_info_object_array_init(parsec_info_object_array_t *oa, parsec_info_t
     oa->cons_obj = cons_obj;
 }
 
-static void parsec_info_object_array_destructor(parsec_object_t *obj)
+static int parsec_info_object_array_destructor(parsec_object_t *obj)
 {
     parsec_list_item_t *next, *item;
     parsec_info_object_array_t *oa = (parsec_info_object_array_t*)obj;
@@ -246,6 +247,7 @@ static void parsec_info_object_array_destructor(parsec_object_t *obj)
     oa->info_objects = NULL;
     oa->infos = NULL;
     oa->known_infos = -1;
+    return 0;
 }
 
 PARSEC_OBJ_CLASS_INSTANCE(parsec_info_object_array_t, parsec_list_item_t,

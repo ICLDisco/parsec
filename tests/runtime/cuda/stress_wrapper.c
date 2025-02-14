@@ -2,6 +2,7 @@
  * Copyright (c) 2019-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2025      NVIDIA Corporation.  All rights reserved.
  */
 #include "parsec.h"
 #include "parsec/execution_stream.h"
@@ -11,7 +12,7 @@
 
 #include "stress.h"
 
-static void __parsec_stress_destructor( parsec_taskpool_t *tp )
+static int __parsec_stress_destructor( parsec_taskpool_t *tp )
 {
     parsec_stress_taskpool_t *stress_taskpool = (parsec_stress_taskpool_t *)tp;
     parsec_matrix_block_cyclic_t *dcA;
@@ -21,6 +22,7 @@ static void __parsec_stress_destructor( parsec_taskpool_t *tp )
     parsec_tiled_matrix_destroy( (parsec_tiled_matrix_t*)stress_taskpool->_g_descA );
     free(dcA);
     free(stress_taskpool->_g_cuda_device_index);
+    return 0;
 }
 
 PARSEC_OBJ_CLASS_INSTANCE(parsec_stress_taskpool_t, parsec_taskpool_t,

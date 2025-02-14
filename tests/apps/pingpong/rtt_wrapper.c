@@ -1,8 +1,8 @@
-
 /*
  * Copyright (c) 2009-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2025      NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/runtime.h"
@@ -17,13 +17,14 @@
 #include "rtt.h"
 #include "rtt_wrapper.h"
 
-static void
+static int
 __parsec_rtt_taskpool_destructor(parsec_rtt_taskpool_t *rtt_tp)
 {
     /* We have created our own datatype, instead of using a predefined one
      * so we need to clean up.
      */
     parsec_type_free( &(rtt_tp->arenas_datatypes[PARSEC_rtt_DEFAULT_ADT_IDX].opaque_dtt) );
+    return 0;
 }
 
 PARSEC_OBJ_CLASS_INSTANCE(parsec_rtt_taskpool_t, parsec_taskpool_t,

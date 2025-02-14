@@ -2,7 +2,7 @@
  * Copyright (c) 2009-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
- * Copyright (c) 2023      NVIDIA CORPORATION. All rights reserved.
+ * Copyright (c) 2023-2025 NVIDIA CORPORATION. All rights reserved.
  */
 #ifndef __USE_PARSEC_REMOTE_DEP_H__
 #define __USE_PARSEC_REMOTE_DEP_H__
@@ -426,18 +426,30 @@ extern int parsec_comm_puts;
 static inline void
 remote_dep_rank_to_bit(int rank, uint32_t *bank, uint32_t *bit, int root)
 {
+#ifdef DISTRIBUTED
     uint32_t nb_nodes = parsec_remote_dep_context.max_nodes_number;
     uint32_t _rank = (rank + nb_nodes - root) % nb_nodes;
     *bank = _rank / (8 * sizeof(uint32_t));
     *bit =  _rank % (8 * sizeof(uint32_t));
+#else
+    /* it's a lonely world ! */
+    *bank = *bit = 0;
+    (void)rank; (void)root;
+#endif  /* DISTRIBUTED */
 }
 
 static inline void
 remote_dep_bit_to_rank(int *rank, uint32_t bank, uint32_t bit, int root)
 {
+#ifdef DISTRIBUTED
     int nb_nodes = parsec_remote_dep_context.max_nodes_number;
     uint32_t _rank = bank * (8 * sizeof(uint32_t)) + bit;
     *rank = (_rank + root) % nb_nodes;
+#else
+    /* it's a lonely world ! */
+    *rank = 0;
+    (void)bank; (void)bit; (void)root;
+#endif  /* DISTRIBUTED */
 }
 
 #endif /* __USE_PARSEC_REMOTE_DEP_H__ */

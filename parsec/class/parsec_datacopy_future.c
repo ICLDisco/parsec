@@ -2,7 +2,7 @@
  * Copyright (c) 2018-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
- * Copyright (c) 2023      NVIDIA CORPORATION. All rights reserved.
+ * Copyright (c) 2023-2025 NVIDIA CORPORATION. All rights reserved.
  */
 #include "parsec/parsec_config.h"
 #include "parsec/class/parsec_future.h"
@@ -12,7 +12,7 @@
 static void parsec_datacopy_future_construct(parsec_base_future_t* future);
 
 static void parsec_datacopy_future_cleanup_nested(parsec_base_future_t* future);
-static void parsec_datacopy_future_destruct(parsec_base_future_t* future);
+static int parsec_datacopy_future_destruct(parsec_base_future_t* future);
 
 static void  parsec_datacopy_future_init(parsec_base_future_t* future,
                                         parsec_future_cb_fulfill cb, ...);
@@ -295,7 +295,7 @@ static void parsec_datacopy_future_cleanup_nested(parsec_base_future_t* future)
  *
  * @param[in] future to be destructed.
  */
-static void parsec_datacopy_future_destruct(parsec_base_future_t* future)
+static int parsec_datacopy_future_destruct(parsec_base_future_t* future)
 {
     parsec_datacopy_future_t* d_fut = (parsec_datacopy_future_t*)future;
 
@@ -313,6 +313,7 @@ static void parsec_datacopy_future_destruct(parsec_base_future_t* future)
     if(d_fut->cb_cleanup != NULL){
         d_fut->cb_cleanup(future);
     }
+    return 0;
 }
 
 PARSEC_OBJ_CLASS_INSTANCE(parsec_datacopy_future_t, parsec_base_future_t,

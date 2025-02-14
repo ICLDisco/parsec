@@ -12,6 +12,7 @@
  * Copyright (c) 2008-2011 Cisco Systems, Inc.  All rights reserved.
  * Copyright (c) 2012      Los Alamos National Security, LLC. All rights
  *                         reserved.
+ * Copyright (c) 2025      NVIDIA Corporation.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -135,13 +136,13 @@ static bool lookup_default(parsec_mca_param_t *param,
 static bool set(parsec_mca_param_type_t type,
                 parsec_mca_param_storage_t *dest, parsec_mca_param_storage_t *src);
 static void param_constructor(parsec_mca_param_t *p);
-static void param_destructor(parsec_mca_param_t *p);
+static int param_destructor(parsec_mca_param_t *p);
 static void fv_constructor(parsec_mca_param_file_value_t *p);
-static void fv_destructor(parsec_mca_param_file_value_t *p);
+static int fv_destructor(parsec_mca_param_file_value_t *p);
 static void info_constructor(parsec_mca_param_info_t *p);
-static void info_destructor(parsec_mca_param_info_t *p);
+static int info_destructor(parsec_mca_param_info_t *p);
 static void syn_info_constructor(parsec_syn_info_t *si);
-static void syn_info_destructor(parsec_syn_info_t *si);
+static int syn_info_destructor(parsec_syn_info_t *si);
 static parsec_mca_param_type_t param_type_from_index (size_t index);
 
 /*
@@ -1835,7 +1836,7 @@ static void param_constructor(parsec_mca_param_t *p)
 /*
  * Free all the contents of a param container
  */
-static void param_destructor(parsec_mca_param_t *p)
+static int param_destructor(parsec_mca_param_t *p)
 {
     parsec_list_item_t *item;
 
@@ -1891,6 +1892,7 @@ static void param_destructor(parsec_mca_param_t *p)
     /* Cheap trick to reset everything to NULL */
     param_constructor(p);
 #endif
+    return 0;
 }
 
 
@@ -1902,7 +1904,7 @@ static void fv_constructor(parsec_mca_param_file_value_t *f)
 }
 
 
-static void fv_destructor(parsec_mca_param_file_value_t *f)
+static int fv_destructor(parsec_mca_param_file_value_t *f)
 {
     if (NULL != f->mbpfv_param) {
         free(f->mbpfv_param);
@@ -1914,6 +1916,7 @@ static void fv_destructor(parsec_mca_param_file_value_t *f)
         free(f->mbpfv_file);
     }
     fv_constructor(f);
+    return 0;
 }
 
 static void info_constructor(parsec_mca_param_info_t *p)
@@ -1936,7 +1939,7 @@ static void info_constructor(parsec_mca_param_info_t *p)
     p->mbpp_help_msg = NULL;
 }
 
-static void info_destructor(parsec_mca_param_info_t *p)
+static int info_destructor(parsec_mca_param_info_t *p)
 {
     if (NULL != p->mbpp_synonyms) {
         free(p->mbpp_synonyms);
@@ -1945,6 +1948,7 @@ static void info_destructor(parsec_mca_param_info_t *p)
        by value from their corresponding parameter registration */
 
     info_constructor(p);
+    return 0;
 }
 
 static void syn_info_constructor(parsec_syn_info_t *si)
@@ -1954,7 +1958,7 @@ static void syn_info_constructor(parsec_syn_info_t *si)
     si->si_deprecated = si->si_deprecated_warning_shown = false;
 }
 
-static void syn_info_destructor(parsec_syn_info_t *si)
+static int syn_info_destructor(parsec_syn_info_t *si)
 {
     if (NULL != si->si_type_name) {
         free(si->si_type_name);
@@ -1973,6 +1977,7 @@ static void syn_info_destructor(parsec_syn_info_t *si)
     }
 
     syn_info_constructor(si);
+    return 0;
 }
 
 int parsec_mca_param_find_int_name(const char *type,
