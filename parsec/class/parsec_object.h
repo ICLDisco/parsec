@@ -10,6 +10,7 @@
  * Copyright (c) 2004-2005 The Regents of the University of California.
  *                         All rights reserved.
  * Copyright (c) 2007      Cisco Systems, Inc.  All rights reserved.
+ * Copyright (c) 2025      Stony Brook University.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -135,9 +136,19 @@ BEGIN_C_DECLS
 
 typedef struct parsec_object_t parsec_object_t;
 typedef struct parsec_class_t parsec_class_t;
+typedef struct parsec_managed_object_t parsec_managed_object_t;
 typedef void (*parsec_construct_t) (parsec_object_t *);
 typedef void (*parsec_destruct_t) (parsec_object_t *);
+typedef void (*parsec_release_t) (parsec_managed_object_t *);
 
+
+
+/* enums **************************************************************/
+
+enum {
+    PARSEC_OBJ_FLAG_DEFAULT = 0,
+    PARSEC_OBJ_FLAG_MANAGED = 1, // object release managed by applications
+};
 
 /* types **************************************************************/
 
@@ -183,12 +194,22 @@ struct parsec_object_t {
         struct's memory */
     uint64_t obj_magic_id;
 #endif  /* defined(PARSEC_DEBUG_PARANOID) */
-    parsec_class_t *obj_class;            /**< class descriptor */
+    parsec_class_t *obj_class;              /**< class descriptor */
     volatile int32_t obj_reference_count;   /**< reference count */
+    int              obj_flags;             /**< flags */
 #if defined(PARSEC_DEBUG_PARANOID)
     const char* cls_init_file_name;        /**< In debug mode store the file where the object get contructed */
     int   cls_init_lineno;           /**< In debug mode store the line number where the object get contructed */
 #endif  /* defined(PARSEC_DEBUG_PARANOID) */
+};
+
+/**
+ * Managed object. This is a base object that allows users to set
+ * the function with which the object is released back to the system.
+ */
+struct parsec_managed_object_t {
+    parsec_object_t super;
+    parsec_release_t obj_release;
 };
 
 /* macros ************************************************************/
@@ -314,7 +335,12 @@ static inline parsec_object_t *parsec_obj_new_debug(parsec_class_t* type, const 
             parsec_obj_run_destructors((parsec_object_t *) (object));       \
             PARSEC_OBJ_SET_MAGIC_ID((object), 0);                      \
             PARSEC_OBJ_REMEMBER_FILE_AND_LINENO( object, __FILE__, __LINE__ ); \
-            free(object);                                       \
+            if (((parsec_object_t *) (object))->obj_flags &= PARSEC_OBJ_FLAG_MANAGED) { \
+                assert(((parsec_managed_object_t*)(object))->obj_release != NULL);      \
+                ((parsec_managed_object_t*)(object))->obj_release((parsec_managed_object_t*)object); \
+            } else {                                                                    \
+                free(object);                                                           \
+            }                                                                           \
             object = NULL;                                      \
         }                                                       \
     } while (0)
@@ -323,7 +349,11 @@ static inline parsec_object_t *parsec_obj_new_debug(parsec_class_t* type, const 
     do {                                                        \
         if (0 == parsec_obj_update((parsec_object_t *) (object), -1)) {     \
             parsec_obj_run_destructors((parsec_object_t *) (object));       \
-            free(object);                                       \
+            if (((parsec_object_t *) (object))->obj_flags &= PARSEC_OBJ_FLAG_MANAGED) { \
+                ((parsec_managed_object_t*)(object))->obj_release((parsec_managed_object_t*)object); \
+            } else {                                                                    \
+                free(object);                                                           \
+            }                                                                           \
             object = NULL;                                      \
         }                                                       \
     } while (0)
@@ -503,5 +533,15 @@ END_C_DECLS
 /**
  * @}
  */
+
+/**
+ * Set the release callback on a managed object.
+ */
+static inline void
+parsec_managed_object_set_release(parsec_managed_object_t *obj, parsec_release_t release) {
+    obj->obj_release = release;
+}
+
+PARSEC_OBJ_CLASS_DECLARATION(parsec_managed_object_t);
 
 #endif

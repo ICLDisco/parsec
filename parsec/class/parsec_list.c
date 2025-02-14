@@ -2,6 +2,7 @@
  * Copyright (c) 2013-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2025      Stony Brook University.  All rights reserved.
  */
 
 #include "parsec/parsec_config.h"
@@ -22,7 +23,7 @@ parsec_list_item_construct( parsec_list_item_t* item )
 #endif
 }
 
-PARSEC_OBJ_CLASS_INSTANCE(parsec_list_item_t, parsec_object_t,
+PARSEC_OBJ_CLASS_INSTANCE(parsec_list_item_t, parsec_managed_object_t,
                    parsec_list_item_construct, NULL);
 
 /**

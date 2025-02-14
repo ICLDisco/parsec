@@ -410,7 +410,7 @@ parsec_dtd_taskpool_destructor(parsec_dtd_taskpool_t *tp)
 #if defined(PARSEC_PROF_TRACE)
         free((void *)tp->super.profiling_array);
 #endif /* defined(PARSEC_PROF_TRACE) */
- 
+
     if( NULL != tp->super.taskpool_name) {
         free(tp->super.taskpool_name);
         tp->super.taskpool_name = NULL;
@@ -1197,8 +1197,8 @@ parsec_dtd_tile_find(parsec_data_collection_t *dc, uint64_t key)
 void
 parsec_dtd_tile_release(parsec_dtd_tile_t *tile)
 {
-    assert(tile->super.super.obj_reference_count > 1);
-    if( 2 == parsec_atomic_fetch_dec_int32(&tile->super.super.obj_reference_count)) {
+    assert(tile->super.super.super.obj_reference_count > 1);
+    if( 2 == parsec_atomic_fetch_dec_int32(&tile->super.super.super.obj_reference_count)) {
         assert(tile->flushed == FLUSHED);
         if(tile->dc->data_of_key == parsec_dtd_tile_new_dc_data_of_key) {
             // This is a tile_new, we need to collect everything that it points to
@@ -1282,7 +1282,7 @@ parsec_dtd_tile_of(parsec_data_collection_t *dc, parsec_data_key_t key)
     }
     assert(tile->flushed == NOT_FLUSHED);
 #if defined(PARSEC_DEBUG_PARANOID)
-    assert(tile->super.super.obj_reference_count > 0);
+    assert(tile->super.super.super.obj_reference_count > 0);
 #endif
     return tile;
 }
@@ -1328,7 +1328,7 @@ parsec_dtd_tile_t *parsec_dtd_tile_new(parsec_taskpool_t *tp, int rank)
     SET_LAST_ACCESSOR(tile);
 
 #if defined(PARSEC_DEBUG_PARANOID)
-    assert(tile->super.super.obj_reference_count > 0);
+    assert(tile->super.super.super.obj_reference_count > 0);
 #endif
     return tile;
 }
@@ -1852,7 +1852,7 @@ parsec_hook_return_t
 parsec_dtd_release_local_task(parsec_dtd_task_t *this_task)
 {
     parsec_object_t *object = (parsec_object_t *)this_task;
-    assert(this_task->super.super.super.obj_reference_count > 1);
+    assert(this_task->super.super.super.super.obj_reference_count > 1);
     if( 2 == parsec_atomic_fetch_dec_int32(&object->obj_reference_count)) {
         int current_flow;
         for( current_flow = 0; current_flow < this_task->super.task_class->nb_flows; current_flow++ ) {
@@ -1870,7 +1870,7 @@ parsec_dtd_release_local_task(parsec_dtd_task_t *this_task)
                 parsec_dtd_tile_release(tile);
             }
         }
-        assert(this_task->super.super.super.obj_reference_count == 1);
+        assert(this_task->super.super.super.super.obj_reference_count == 1);
         parsec_thread_mempool_free(this_task->mempool_owner, this_task);
     }
     return PARSEC_HOOK_RETURN_DONE;
@@ -1916,7 +1916,7 @@ parsec_dtd_remote_task_release(parsec_dtd_task_t *this_task)
                 parsec_dtd_tile_release(tile);
             }
         }
-        assert(this_task->super.super.super.obj_reference_count == 1);
+        assert(this_task->super.super.super.super.obj_reference_count == 1);
         parsec_taskpool_t *tp = this_task->super.taskpool;
         parsec_thread_mempool_free(this_task->mempool_owner, this_task);
         parsec_taskpool_update_runtime_nbtask(tp, -1);
