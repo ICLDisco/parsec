@@ -137,6 +137,7 @@ typedef struct parsec_object_t parsec_object_t;
 typedef struct parsec_class_t parsec_class_t;
 typedef void (*parsec_construct_t) (parsec_object_t *);
 typedef void (*parsec_destruct_t) (parsec_object_t *);
+typedef void (*parsec_release_t) (parsec_object_t *);
 
 
 /* types **************************************************************/
@@ -185,6 +186,7 @@ struct parsec_object_t {
 #endif  /* defined(PARSEC_DEBUG_PARANOID) */
     parsec_class_t *obj_class;            /**< class descriptor */
     volatile int32_t obj_reference_count;   /**< reference count */
+    parsec_release_t obj_release;           /**< destruct and release */
 #if defined(PARSEC_DEBUG_PARANOID)
     const char* cls_init_file_name;        /**< In debug mode store the file where the object get contructed */
     int   cls_init_lineno;           /**< In debug mode store the line number where the object get contructed */
@@ -295,6 +297,9 @@ static inline parsec_object_t *parsec_obj_new_debug(parsec_class_t* type, const 
 #define PARSEC_OBJ_SET_MAGIC_ID( OBJECT, VALUE )
 #endif  /* defined(PARSEC_DEBUG_PARANOID) */
 
+void parsec_obj_destruct(parsec_object_t * object);
+void parsec_obj_destruct_and_free(parsec_object_t * object);
+
 /**
  * Release an object (by decrementing its reference count).  If the
  * reference count reaches zero, destruct (finalize) the object and
@@ -311,10 +316,8 @@ static inline parsec_object_t *parsec_obj_new_debug(parsec_class_t* type, const 
         assert(NULL != ((parsec_object_t *) (object))->obj_class);        \
         assert(PARSEC_OBJ_MAGIC_ID == ((parsec_object_t *) (object))->obj_magic_id); \
         if (0 == parsec_obj_update((parsec_object_t *) (object), -1)) {     \
-            parsec_obj_run_destructors((parsec_object_t *) (object));       \
-            PARSEC_OBJ_SET_MAGIC_ID((object), 0);                      \
             PARSEC_OBJ_REMEMBER_FILE_AND_LINENO( object, __FILE__, __LINE__ ); \
-            free(object);                                       \
+            ((parsec_object_t*)object)->obj_release((parsec_object_t*)object);  \
             object = NULL;                                      \
         }                                                       \
     } while (0)
@@ -322,13 +325,11 @@ static inline parsec_object_t *parsec_obj_new_debug(parsec_class_t* type, const 
 #define PARSEC_OBJ_RELEASE(object)                                     \
     do {                                                        \
         if (0 == parsec_obj_update((parsec_object_t *) (object), -1)) {     \
-            parsec_obj_run_destructors((parsec_object_t *) (object));       \
-            free(object);                                       \
+            ((parsec_object_t*)object)->obj_release((parsec_object_t*)object); \
             object = NULL;                                      \
         }                                                       \
     } while (0)
 #endif
-
 
 /**
  * Construct (initialize) objects that are not dynamically allocated.
@@ -339,10 +340,18 @@ static inline parsec_object_t *parsec_obj_new_debug(parsec_class_t* type, const 
 
 #define PARSEC_OBJ_CONSTRUCT(object, type)                             \
 do {                                                            \
-    PARSEC_OBJ_CONSTRUCT_INTERNAL((object), PARSEC_OBJ_CLASS(type));          \
+    PARSEC_OBJ_CONSTRUCT_WRELEASE_INTERNAL((object), PARSEC_OBJ_CLASS(type), &parsec_obj_destruct); \
 } while (0)
 
-#define PARSEC_OBJ_CONSTRUCT_INTERNAL(object, type)                    \
+#define PARSEC_OBJ_CONSTRUCT_WRELEASE(object, type, release)     \
+do {                                                            \
+    PARSEC_OBJ_CONSTRUCT_WRELEASE_INTERNAL((object), PARSEC_OBJ_CLASS(type), release);          \
+} while (0)
+
+/* backwards compatible macro for mempool */
+#define PARSEC_OBJ_CONSTRUCT_INTERNAL(object, type) PARSEC_OBJ_CONSTRUCT_WRELEASE_INTERNAL(object, type, &parsec_obj_destruct)
+
+#define PARSEC_OBJ_CONSTRUCT_WRELEASE_INTERNAL(object, type, release)  \
 do {                                                            \
     PARSEC_OBJ_SET_MAGIC_ID((object), PARSEC_OBJ_MAGIC_ID);             \
     if (0 == (type)->cls_initialized) {                         \
@@ -350,6 +359,7 @@ do {                                                            \
     }                                                           \
     ((parsec_object_t *) (object))->obj_class = (type);          \
     ((parsec_object_t *) (object))->obj_reference_count = 1;     \
+    ((parsec_object_t *) (object))->obj_release = (parsec_release_t)release; \
     parsec_obj_run_constructors((parsec_object_t *) (object));    \
     PARSEC_OBJ_REMEMBER_FILE_AND_LINENO( object, __FILE__, __LINE__ ); \
 } while (0)
@@ -470,6 +480,7 @@ static inline parsec_object_t *parsec_obj_new(parsec_class_t * cls)
     if (NULL != object) {
         object->obj_class = cls;
         object->obj_reference_count = 1;
+        object->obj_release = &parsec_obj_destruct_and_free;
         parsec_obj_run_constructors(object);
     }
     return object;
