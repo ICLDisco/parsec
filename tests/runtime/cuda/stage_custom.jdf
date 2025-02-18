@@ -37,12 +37,13 @@ stage_stride_in(parsec_gpu_task_t *gtask,
     parsec_device_gpu_module_t *in_elem_dev;
     parsec_tiled_matrix_t * dc;
     int elem_sz;
-    int i;
-    for(i = 0; i < task->task_class->nb_flows; i++){
+
+    assert(gtask->nb_flows == task->task_class->nb_flows);
+    for(uint32_t i = 0; i < gtask->nb_flows; i++){
         if(flow_mask & (1U << i)){
             copy_in = task->data[i].data_in;
             copy_out = task->data[i].data_out;
-            dc = (parsec_tiled_matrix_t*)gtask->flow_dc[i];
+            dc = (parsec_tiled_matrix_t*)gtask->flow_info[i].flow_dc;
             elem_sz = parsec_datadist_getsizeoftype(dc->mtype);
             in_elem_dev = (parsec_device_gpu_module_t*)parsec_mca_device_get( copy_in->device_index);
             if(in_elem_dev->super.type != PARSEC_DEV_CUDA ){
@@ -62,7 +63,7 @@ stage_stride_in(parsec_gpu_task_t *gtask,
             }else{
                 ret = (cudaError_t)cudaMemcpyAsync( copy_out->device_private,
                                                     copy_in->device_private,
-                                                    copy_in->original->nb_elts,
+                                                    copy_in->original->span,
                                                     cudaMemcpyDeviceToDevice,
                                                     cuda_stream->cuda_stream );
                 PARSEC_CUDA_CHECK_ERROR( "cudaMemcpyAsync", ret, { return PARSEC_ERROR; } );
@@ -89,7 +90,7 @@ stage_stride_out(parsec_gpu_task_t *gtask,
         if(flow_mask & (1U << i)){
             copy_in = task->data[i].data_out;
             copy_out = copy_in->original->device_copies[0];
-            dc = (parsec_tiled_matrix_t*)gtask->flow_dc[i];
+            dc = (parsec_tiled_matrix_t*)gtask->flow_info[i].flow_dc;
             elem_sz = parsec_datadist_getsizeoftype(dc->mtype);
             /* copy width bytes heigth times, skipping pitch - width bytes every time */
             size_t dpitch = dc->llm * elem_sz;
