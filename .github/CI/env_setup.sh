@@ -10,10 +10,15 @@ if [[ -z "$SPACK_SETUP" || ! -e "$SPACK_SETUP" ]]; then
    exit 1
 fi
 source $SPACK_SETUP
-spack env activate parsec
+spack env activate -V parsec
+spack load python
+spack load cmake
+spack load openmpi
+spack load cuda
+spack load ninja
 
 DEBUG=ON
-[ $BUILD_TYPE = "Release" ] && DEBUG=OFF
+[ "$BUILD_TYPE" = "Release" ] && DEBUG=OFF
 
 if [ -z "$BUILD_DIRECTORY" ]; then
    echo Error! ENV \$BUILD_DIRECTORY is undefined.
@@ -25,6 +30,15 @@ if [ -z "$INSTALL_DIRECTORY" ]; then
    exit 1
 fi
 
+export CUDA=OFF
+export HIP=OFF
+if [ "$DEVICE" = "gpu_nvidia" ]; then
+   spack load cuda
+   CUDA=ON
+elif [ "$DEVICE" = "gpu_amd" ]; then
+   HIP=ON
+fi
+
 ! read -d '' BUILD_CONFIG << EOF
         -G Ninja
         -DCMAKE_BUILD_TYPE=$BUILD_TYPE
@@ -34,5 +48,7 @@ fi
         -DPARSEC_PROF_TRACE=$PROFILING
         -DMPIEXEC_PREFLAGS='--bind-to;none;--oversubscribe'
         -DCMAKE_INSTALL_PREFIX=$INSTALL_DIRECTORY
+        -DPARSEC_GPU_WITH_CUDA=$CUDA
+        -DPARSEC_GPU_WITH_HIP=$HIP
 EOF
 export BUILD_CONFIG

@@ -341,10 +341,15 @@ int parsec_gpu_complete_w2r_task(parsec_device_gpu_module_t *gpu_device,
             PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
                                  "D2H[%d:%s] task %p:%i GPU data copy %p [%p] has a backup in memory",
                                  gpu_device->super.device_index, gpu_device->super.name, (void*)task, i, gpu_copy, gpu_copy->original);
+            if (cpu_copy->release_cb != NULL) {
+                /* the data is used again so release the host copy */
+                cpu_copy->release_cb(cpu_copy, 0);
+            }
         } else {
             gpu_copy->coherency_state = PARSEC_DATA_COHERENCY_SHARED;
             cpu_copy->coherency_state =  PARSEC_DATA_COHERENCY_SHARED;
             cpu_copy->version = gpu_copy->version;
+            cpu_copy->flags |= PARSEC_DATA_FLAG_EVICTED;
             PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
                                  "D2H[%d:%s]: CPU copy %p gets the same version %d as GPU copy %p at %s:%d",
                                  gpu_device->super.device_index, gpu_device->super.name,

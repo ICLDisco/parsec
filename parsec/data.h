@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2021 The University of Tennessee and The University
+ * Copyright (c) 2012-2025 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -56,8 +56,12 @@ typedef uint8_t parsec_data_flag_t;
 #define PARSEC_DATA_FLAG_ARENA          ((parsec_data_flag_t)1<<0)
 #define PARSEC_DATA_FLAG_TRANSIT        ((parsec_data_flag_t)1<<1)
 #define PARSEC_DATA_FLAG_DISCARDED      ((parsec_data_flag_t)1<<2)
+#define PARSEC_DATA_FLAG_EVICTED        ((parsec_data_flag_t)1<<5)
 #define PARSEC_DATA_FLAG_PARSEC_MANAGED ((parsec_data_flag_t)1<<6)
 #define PARSEC_DATA_FLAG_PARSEC_OWNED   ((parsec_data_flag_t)1<<7)
+
+typedef void (parsec_data_copy_alloc_cb)  (parsec_data_copy_t*, int device);
+typedef void (parsec_data_copy_release_cb)(parsec_data_copy_t*, int device);
 
 /**
  * Initialize the PaRSEC data infrastructure
