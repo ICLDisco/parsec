@@ -188,6 +188,21 @@ void parsec_class_finalize(void)
     }
 }
 
+void parsec_obj_release(parsec_object_t *object)
+{
+    PARSEC_OBJ_SET_MAGIC_ID((object), 0);
+    object->obj_release(object);
+}
+
+void parsec_obj_destruct(parsec_object_t * object) {
+    PARSEC_OBJ_SET_MAGIC_ID((object), 0);
+    parsec_obj_run_destructors(object);
+}
+
+void parsec_obj_destruct_and_free(parsec_object_t * object) {
+    parsec_obj_destruct(object);
+    free(object);
+}
 
 static void save_class(parsec_class_t *cls)
 {
