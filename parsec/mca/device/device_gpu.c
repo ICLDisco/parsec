@@ -1286,6 +1286,7 @@ parsec_default_gpu_stage_in(parsec_gpu_task_t        *gtask,
     for(int i = 0; i < task->task_class->nb_flows; i++) {
         if( !(flow_mask & (1U << i)) ) continue;
         src_copy = gtask->sources[i];
+        assert(src_copy->device_private != NULL);
         dst_copy = task->data[i].data_out;
         src_dev = (parsec_device_gpu_module_t *)parsec_mca_device_get(src_copy->device_index);
         dst_dev = (parsec_device_gpu_module_t *)parsec_mca_device_get(dst_copy->device_index);
@@ -1345,6 +1346,12 @@ parsec_default_gpu_stage_out(parsec_gpu_task_t        *gtask,
                 dir = parsec_device_gpu_transfer_direction_d2d;
             } else {
                 dir = parsec_device_gpu_transfer_direction_d2h;
+                if (dst_copy->device_private == NULL && dst_copy->alloc_cb != NULL) {
+                    dst_copy->alloc_cb(dst_copy, 0); // allocate on host
+                }
+                if (dst_copy->device_private == NULL) {
+                    return PARSEC_HOOK_RETURN_ERROR;
+                }
             }
             ret = src_dev->memcpy_async( src_dev, gpu_stream,
                                          dst_copy->device_private,
@@ -1790,6 +1797,48 @@ parsec_device_callback_complete_push(parsec_device_gpu_module_t   *gpu_device,
             parsec_data_end_transfer_ownership_to_copy(task->data[i].data_out->original,
                                                        gpu_device->super.device_index,
                                                        flow->flow_flags);
+
+            parsec_data_copy_t* source = gtask->sources[i];
+            parsec_device_gpu_module_t *src_device =
+                    (parsec_device_gpu_module_t*)parsec_mca_device_get( source->device_index );
+            if (task->data[i].data_in->flags & PARSEC_DATA_FLAG_EVICTED) {
+                /**
+                 * The device copy had been evicted to the host and brought back in.
+                 * If this is the only device on which that data is used we can release
+                 * the host memory back to the application. If there are other devices
+                 * we cannot release the host memory because the data may actually be used
+                 * by a host task (e.g., after being sent there from a different device)
+                 * or be used as input to the other device.
+                 */
+                parsec_data_copy_t *cpu_copy = task->data[i].data_out->original->device_copies[0];
+                parsec_data_copy_t *gpu_copy = task->data[i].data_out;
+                parsec_data_t *original = task->data[i].data_out->original;
+                /* release host memory if requested */
+                if (cpu_copy->device_private != NULL &&
+                    cpu_copy->release_cb != NULL) {
+                    bool may_release = true;
+                    /* check if there are any other device copies */
+                    for (uint32_t i = 1; i < parsec_nb_devices; ++i) {
+                        parsec_data_copy_t *copy = original->device_copies[i];
+                        if (NULL != copy && copy != gpu_copy) {
+                            may_release = false;
+                            break;
+                        }
+                    }
+                    if (may_release) {
+                        PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
+                                            "GPU[%d:%s]: CPU copy %p [ref_count %d] memory %p eager release",
+                                            gpu_device->super.device_index, gpu_device->super.name,
+                                            cpu_copy, cpu_copy->super.super.obj_reference_count, cpu_copy->device_private);
+                        cpu_copy->release_cb(cpu_copy, 0);
+                        cpu_copy->device_private = NULL;
+                    }
+                }
+                task->data[i].data_in->flags ^= PARSEC_DATA_FLAG_EVICTED;
+            }
+
+            parsec_atomic_unlock(&task->data[i].data_out->original->lock);
+
 #if defined(PARSEC_PROF_TRACE)
             if(gpu_device->trackable_events & PARSEC_PROFILE_GPU_TRACK_DATA_IN) {
                 PARSEC_PROFILING_TRACE(gpu_stream->profiling,
@@ -1799,10 +1848,6 @@ parsec_device_callback_complete_push(parsec_device_gpu_module_t   *gpu_device,
                                        NULL);
             }
 #endif
-            parsec_atomic_unlock(&task->data[i].data_out->original->lock);
-            parsec_data_copy_t* source = gtask->sources[i];
-            parsec_device_gpu_module_t *src_device =
-                    (parsec_device_gpu_module_t*)parsec_mca_device_get( source->device_index );
             if( PARSEC_DEV_IS_GPU(src_device->super.type) ) {
                 int om;
                 while(1) {
@@ -2139,7 +2184,8 @@ parsec_device_kernel_push( parsec_device_gpu_module_t      *gpu_device,
         if( NULL != this_task->data[i].data_out &&
             (0 == (this_task->data[i].data_out->flags & PARSEC_DATA_FLAG_PARSEC_OWNED) ) ) continue;
 
-        assert( NULL != parsec_data_copy_get_ptr(this_task->data[i].data_in) );
+        assert( NULL != parsec_data_copy_get_ptr(this_task->data[i].data_in)
+             || NULL != this_task->data[i].data_in->alloc_cb );
 
         PARSEC_DEBUG_VERBOSE(20, parsec_gpu_output_stream,
                              "GPU[%d:%s]:\t\tIN  Data of %s <%x> on GPU",

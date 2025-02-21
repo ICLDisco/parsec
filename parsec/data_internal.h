@@ -78,7 +78,9 @@ struct parsec_data_copy_s {
                                                       *   so for many reasons, not necessarily because a transfer is ongoing.
                                                       *   We use this transfer_status to guard scheduling multiple transfers
                                                       *   on the same data. */
-    parsec_datatype_t         dtt;                   /**< the appropriate type for the network engine to send an element */
+    parsec_datatype_t            dtt;                /**< the appropriate type for the network engine to send an element */
+    parsec_data_copy_alloc_cb   *alloc_cb;           /**< callback to allocate data copy memory */
+    parsec_data_copy_release_cb *release_cb;         /**< callback to release data copy memory */
 };
 
 #define PARSEC_DATA_CREATE_ON_DEMAND ((parsec_data_copy_t*)(intptr_t)(-1))

@@ -55,8 +55,12 @@ typedef uint8_t parsec_data_status_t;
 typedef uint8_t parsec_data_flag_t;
 #define PARSEC_DATA_FLAG_ARENA          ((parsec_data_flag_t)1<<0)
 #define PARSEC_DATA_FLAG_TRANSIT        ((parsec_data_flag_t)1<<1)
+#define PARSEC_DATA_FLAG_EVICTED        ((parsec_data_flag_t)1<<5)
 #define PARSEC_DATA_FLAG_PARSEC_MANAGED ((parsec_data_flag_t)1<<6)
 #define PARSEC_DATA_FLAG_PARSEC_OWNED   ((parsec_data_flag_t)1<<7)
+
+typedef void (parsec_data_copy_alloc_cb)  (parsec_data_copy_t*, int device);
+typedef void (parsec_data_copy_release_cb)(parsec_data_copy_t*, int device);
 
 /**
  * Initialize the PaRSEC data infrastructure

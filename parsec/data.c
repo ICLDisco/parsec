@@ -34,6 +34,8 @@ static void parsec_data_copy_construct(parsec_data_copy_t* obj)
     obj->arena_chunk          = NULL;
     obj->data_transfer_status = PARSEC_DATA_STATUS_NOT_TRANSFER;
     obj->dtt                  = PARSEC_DATATYPE_NULL;
+    obj->alloc_cb             = NULL;
+    obj->release_cb           = NULL;
     PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "Allocate data copy %p", obj);
 }
 
@@ -52,6 +54,10 @@ static void parsec_data_copy_destruct(parsec_data_copy_t* obj)
          * give the chunk back to the arena memory management.
          * obj is already detached from obj->original, but this frees the arena chunk */
         parsec_arena_release(obj);
+    }
+
+    if (NULL != obj->release_cb) {
+        obj->release_cb(obj, obj->device_index);
     }
 }
 
