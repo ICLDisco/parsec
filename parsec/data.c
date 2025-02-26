@@ -610,7 +610,7 @@ int parsec_data_release_self_contained_data(parsec_data_t *data)
     for( uint32_t i = 0; i < parsec_nb_devices; i++) {
         if (NULL == (copy = data->device_copies[i])) continue;
         assert(1 == copy->super.super.obj_reference_count && 0 == copy->readers);
-        if( 0 == copy->device_index ) {
+        if (!parsec_mca_device_is_gpu(copy->device_index)) {
             PARSEC_OBJ_RELEASE(copy);
             assert(NULL == copy);
         } else {
