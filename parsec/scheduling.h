@@ -69,6 +69,23 @@ int __parsec_schedule_vp( parsec_execution_stream_t*,
                           int32_t distance);
 
 /**
+ * Some runtime systems (e.g. MADNESS) that use PaRSEC as a task scheduler may detect
+ * late that a task that already scheduled new work may block on the
+ * completion of that work (too late to mark the new task as a potential
+ * blocker). That new task, however, may have been stored in the private
+ * queue of this execution stream, and since it's not going to be scheduled
+ * until the current task is completed, the system is unable to progress.
+ *
+ * This function tells the scheduler that any enabled tasks that were reserved
+ * for private execution must be scheduled by another thread.
+ *
+ * @param[in] es The execution stream whose private queue must be flushed.
+ * @return the same return codes as __parsec_schedule (PARSEC_SUCCESS in
+ *    case of success)
+ */
+int __parsec_schedule_flush_private( parsec_execution_stream_t* es );
+
+/**
  * @brief Reschedule a task on the most appropriate resource.
  *
  * @details The function reschedules a task, by trying to locate it as closer
