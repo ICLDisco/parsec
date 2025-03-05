@@ -378,6 +378,16 @@ int __parsec_schedule_vp(parsec_execution_stream_t* es,
     return ret;
 }
 
+int __parsec_schedule_flush_private( parsec_execution_stream_t* es )
+{
+    parsec_task_t* task = es->next_task;
+    if( NULL != task ) {
+        es->next_task = NULL;
+        return __parsec_schedule(es, task, 0);
+    }
+    return PARSEC_SUCCESS;
+}
+
 /**
  * @brief Reschedule a task on some resource.
  *
