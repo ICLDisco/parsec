@@ -337,7 +337,7 @@ int __parsec_schedule_vp(parsec_execution_stream_t* es,
     assert( (NULL == es) || (parsec_my_execution_stream() == es) );
 #endif  /* defined(PARSEC_DEBUG_PARANOID) */
 
-    if( NULL == es || !parsec_runtime_keep_highest_priority_task || NULL == es->scheduler_object) {
+    if( NULL == es || !parsec_runtime_keep_highest_priority_task || distance || NULL == es->scheduler_object) {
         for(int vp = 0; vp < es->virtual_process->parsec_context->nb_vp; vp++ ) {
             parsec_task_t* ring = task_rings[vp];
             if( NULL == ring ) continue;
