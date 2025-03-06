@@ -65,7 +65,7 @@ static void parsec_device_task_t_constructor(parsec_gpu_task_t *gpu_task)
     gpu_task->prof_tp_id = 0;
 #endif
     gpu_task->ec = NULL;
-    gpu_task->last_data_check_epoch = 0;
+    gpu_task->last_data_check_epoch = UINT64_MAX; /* force at least one validation for the task */
     gpu_task->nb_flows = 0;
     gpu_task->flow_info = NULL;
     /* Default release mechanism, can be replaced by the DSL */

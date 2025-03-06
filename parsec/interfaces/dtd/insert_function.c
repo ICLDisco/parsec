@@ -2284,7 +2284,6 @@ static parsec_hook_return_t parsec_dtd_gpu_task_submit(parsec_execution_stream_t
     gpu_task->ec = (parsec_task_t *) this_task;
     gpu_task->submit = dtd_tc->gpu_func_ptr;
     gpu_task->task_type = 0;
-    gpu_task->last_data_check_epoch = -1;       /* force at least one validation for the task */
     gpu_task->pushout = 0;
     gpu_task->nb_flows = dtd_tc->super.nb_flows;  /* inherit the flows from the task class */
     for(int i = 0; i < dtd_tc->super.nb_flows; i++) {
