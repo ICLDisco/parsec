@@ -319,7 +319,7 @@ __parsec_schedule(parsec_execution_stream_t* es,
  * If the provided execution stream is NULL, all tasks are delivered to their
  * respective vp.
  *
- * Beware, as the manipulation of next_task is not protected, an exeuction
+ * Beware, as the manipulation of next_task is not protected, an execution
  * stream should never be used concurrently in two call to this function (or
  * a thread should never `borrow` an execution stream for this call).
  */
@@ -376,6 +376,16 @@ int __parsec_schedule_vp(parsec_execution_stream_t* es,
         task_rings[vp] = NULL;  /* remove the tasks already scheduled */
     }
     return ret;
+}
+
+int __parsec_schedule_flush_private( parsec_execution_stream_t* es )
+{
+    parsec_task_t* task = es->next_task;
+    if( NULL != task ) {
+        es->next_task = NULL;
+        return __parsec_schedule(es, task, 0);
+    }
+    return PARSEC_SUCCESS;
 }
 
 /**
