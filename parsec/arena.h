@@ -133,15 +133,15 @@ int parsec_arena_construct_ex(parsec_arena_t* arena,
  *   enough resource to allocate a new data copy of this type.
  */
 
-parsec_data_copy_t *parsec_arena_get_copy(parsec_arena_t *arena,
-                                          size_t count, int device,
-                                          parsec_datatype_t dtt);
+parsec_data_copy_t *parsec_arena_get_new_copy(parsec_arena_t *arena,
+                                              size_t count, int device,
+                                              parsec_datatype_t dtt);
 
 /**
  * @brief Allocates memory for a given data copy. This is a function used by
  *  DSLs to set the memory associated with a data copy they have created.
- *  It is also used by parsec_arena_get_copy.
- * 
+ *  It is also used by parsec_arena_get_new_copy.
+ *
  * @param copy the (empty) data copy to allocate memory for. NB: the @p original
  *  field of this data copy must be set. The operation overwrites the device
  *  dtt and count of this data copy, as well as the device_private pointer.
