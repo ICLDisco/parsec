@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2024 The University of Tennessee and The University
+ * Copyright (c) 2010-2025 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
@@ -307,18 +307,18 @@ static void* parsec_cuda_find_incarnation(parsec_device_gpu_module_t* gpu_device
 
 static int parsec_cuda_set_device(parsec_device_gpu_module_t *gpu)
 {
-    cudaError_t cudaStatus;
+    cudaError_t status;
     parsec_device_cuda_module_t *cuda_device = (parsec_device_cuda_module_t *)gpu;
 
-    cudaStatus = cudaSetDevice(cuda_device->cuda_index);
-    PARSEC_CUDA_CHECK_ERROR( "cudaSetDevice", cudaStatus, {return PARSEC_ERROR;} );
+    status = cudaSetDevice(cuda_device->cuda_index);
+    PARSEC_CUDA_CHECK_ERROR( "cudaSetDevice", status, {return PARSEC_ERROR;} );
     return PARSEC_SUCCESS;
 }
 
 static int parsec_cuda_memcpy_async(struct parsec_device_gpu_module_s *gpu, struct parsec_gpu_exec_stream_s *gpu_stream,
                                         void *dest, void *source, size_t bytes, parsec_device_transfer_direction_t direction)
 {
-    cudaError_t cudaStatus;
+    cudaError_t status;
     enum cudaMemcpyKind kind;
     parsec_cuda_exec_stream_t *cuda_stream = (parsec_cuda_exec_stream_t *)gpu_stream;
 
@@ -338,45 +338,45 @@ static int parsec_cuda_memcpy_async(struct parsec_device_gpu_module_s *gpu, stru
         PARSEC_CUDA_CHECK_ERROR( "Translate parsec_device_transfer_direction_t to cudaMemcpyKind", cudaErrorInvalidValue, {return PARSEC_ERROR;} );
     }
 
-    cudaStatus =  cudaMemcpyAsync( dest, source, bytes, kind, cuda_stream->cuda_stream );
-    PARSEC_CUDA_CHECK_ERROR( "cudaMemcpyAsync", cudaStatus, {return PARSEC_ERROR;} );
+    status =  cudaMemcpyAsync( dest, source, bytes, kind, cuda_stream->cuda_stream );
+    PARSEC_CUDA_CHECK_ERROR( "cudaMemcpyAsync", status, {return PARSEC_ERROR;} );
     return PARSEC_SUCCESS;
 }
 
 static int parsec_cuda_event_record(struct parsec_device_gpu_module_s *gpu, struct parsec_gpu_exec_stream_s *gpu_stream, int32_t event_idx)
 {
     parsec_cuda_exec_stream_t *cuda_stream = (parsec_cuda_exec_stream_t*)gpu_stream;
-    cudaError_t cudaStatus;
+    cudaError_t status;
     (void)gpu;
 
-    cudaStatus = cudaEventRecord(cuda_stream->events[event_idx], cuda_stream->cuda_stream);
-    PARSEC_CUDA_CHECK_ERROR( "cudaEventRecord", cudaStatus, {return PARSEC_ERROR;} );
+    status = cudaEventRecord(cuda_stream->events[event_idx], cuda_stream->cuda_stream);
+    PARSEC_CUDA_CHECK_ERROR( "cudaEventRecord", status, {return PARSEC_ERROR;} );
     return PARSEC_SUCCESS;
 }
 
 static int parsec_cuda_event_query(struct parsec_device_gpu_module_s *gpu, struct parsec_gpu_exec_stream_s *gpu_stream, int32_t event_idx)
 {
     parsec_cuda_exec_stream_t *cuda_stream = (parsec_cuda_exec_stream_t*)gpu_stream;
-    cudaError_t cudaStatus;
+    cudaError_t status;
     (void)gpu;
 
-    cudaStatus = cudaEventQuery(cuda_stream->events[event_idx]);
-    if(cudaSuccess == cudaStatus) {
+    status = cudaEventQuery(cuda_stream->events[event_idx]);
+    if(cudaSuccess == status) {
         return 1;
     }
-    if(cudaErrorNotReady == cudaStatus) {
+    if(cudaErrorNotReady == status) {
         return 0;
     }
-    PARSEC_CUDA_CHECK_ERROR( "cudaEventQuery", cudaStatus, {return PARSEC_ERROR;} );
+    PARSEC_CUDA_CHECK_ERROR( "cudaEventQuery", status, {return PARSEC_ERROR;} );
     return PARSEC_ERROR; /* should be unreachable */
 }
 
 static int parsec_cuda_memory_info(struct parsec_device_gpu_module_s *gpu, size_t *free_mem, size_t *total_mem)
 {
-    cudaError_t cudaStatus;
+    cudaError_t status;
     (void)gpu;
-    cudaStatus = cudaMemGetInfo(free_mem, total_mem);
-    PARSEC_CUDA_CHECK_ERROR( "cudaMemGetInfo", cudaStatus, {return PARSEC_ERROR;});
+    status = cudaMemGetInfo(free_mem, total_mem);
+    PARSEC_CUDA_CHECK_ERROR( "cudaMemGetInfo", status, {return PARSEC_ERROR;});
     /* sanity check: no more free memory than total memory
      * some hip devices on Frontier may report more free memory than is available */
     if (*free_mem > *total_mem) {
@@ -387,19 +387,19 @@ static int parsec_cuda_memory_info(struct parsec_device_gpu_module_s *gpu, size_
 
 static int parsec_cuda_memory_allocate(struct parsec_device_gpu_module_s *gpu, size_t bytes, void **addr)
 {
-    cudaError_t cudaStatus;
+    cudaError_t status;
     (void)gpu;
-    cudaStatus = cudaMalloc(addr, bytes);
-    PARSEC_CUDA_CHECK_ERROR( "cudaMalloc", cudaStatus, {return PARSEC_ERROR;});
+    status = cudaMalloc(addr, bytes);
+    PARSEC_CUDA_CHECK_ERROR( "cudaMalloc", status, {return PARSEC_ERROR;});
     return PARSEC_SUCCESS;
 }
 
 static int parsec_cuda_memory_free(struct parsec_device_gpu_module_s *gpu, void *addr)
 {
-    cudaError_t cudaStatus;
+    cudaError_t status;
     (void)gpu;
-    cudaStatus = cudaFree(addr);
-    PARSEC_CUDA_CHECK_ERROR( "cudaFree", cudaStatus, {return PARSEC_ERROR;});
+    status = cudaFree(addr);
+    PARSEC_CUDA_CHECK_ERROR( "cudaFree", status, {return PARSEC_ERROR;});
     return PARSEC_SUCCESS;
 }
 
