@@ -149,8 +149,8 @@ static char *parsec_dot_file = NULL;
 static char *parsec_app_name = NULL;
 
 static int parsec_runtime_max_number_of_cores = -1;
-static int parsec_runtime_bind_main_thread = 1;
-static int parsec_runtime_bind_threads     = 1;
+static int parsec_runtime_bind_main_thread = 0;
+static int parsec_runtime_bind_threads     = 0;
 
 int parsec_runtime_keep_highest_priority_task = 1;
 
@@ -521,10 +521,11 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
         false, false, vpmap_parameter, &vpmap_parameter);
 
     /* thread binding */
-    parsec_mca_param_reg_int_name("bind", "main_thread", "Force the binding of the thread calling parsec_init",
-                                 false, false, parsec_runtime_bind_main_thread, &parsec_runtime_bind_main_thread);
     parsec_mca_param_reg_int_name("bind", "threads", "Bind main and worker threads", false, false,
                                   parsec_runtime_bind_threads, &parsec_runtime_bind_threads);
+    parsec_runtime_bind_main_thread = parsec_runtime_bind_threads;
+    parsec_mca_param_reg_int_name("bind", "main_thread", "Force the binding of the thread calling parsec_init",
+                                 false, false, parsec_runtime_bind_main_thread, &parsec_runtime_bind_main_thread);
     parsec_mca_param_reg_int_name("bind", "comm", "Bind the communication thread to physical core <int>."
                                                    "-1: do not bind."
                                                    "Warning: binding relies on HWLOC, be careful when using with cgroups",
