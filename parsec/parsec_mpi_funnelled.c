@@ -203,6 +203,8 @@ parsec_list_t mpi_funnelled_dynamic_sendreq_fifo; /* ordered non threaded fifo *
 parsec_list_t mpi_funnelled_dynamic_recvreq_fifo; /* ordered non threaded fifo */
 parsec_mempool_t *mpi_funnelled_dynamic_req_mempool = NULL;
 
+int parsec_mpi_allow_gpu_memory_communications = 3;
+
 /* This structure is used to save all the information necessary to
  * invoke a callback after a MPI_Request is satisfied
  */
@@ -507,6 +509,15 @@ static int mpi_funneled_init_once(parsec_context_t* context)
                              " which might be too small should you have more than %d pending remote dependencies",
                              MAX_MPI_TAG, (unsigned int)MAX_MPI_TAG, MAX_MPI_TAG / MAX_DEP_OUT_COUNT);
     }
+
+#if !defined(PARSEC_MPI_IS_GPU_AWARE)
+    parsec_mpi_allow_gpu_memory_communications = 0;
+#endif
+    parsec_mca_param_reg_int_name("mpi", "gpu_aware",
+                                  "Enabled if PaRSEC should allow MPI to move data directly from or to GPU memory. Otherwise, all data"
+                                  " movements will transit through CPU memory, and will always have a backup copy there. Accepted values "
+                                  "are ORed between 1 for receiving into GPU memory and 2 for sending from GPU memory",
+                                  false, false, parsec_mpi_allow_gpu_memory_communications, &parsec_mpi_allow_gpu_memory_communications);
 
     parsec_mca_param_reg_int_name("runtime", "comm_mpi_overtake",
 #if defined(PARSEC_HAVE_MPI_OVERTAKE)
@@ -1332,6 +1343,10 @@ parsec_check_overlapping_binding(parsec_context_t *context)
 #endif
 }
 
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
+#include <parsec/mca/device/device_gpu.h>
+#endif  /* defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) */
+
 int
 mpi_no_thread_enable(parsec_comm_engine_t *ce)
 {
@@ -1343,6 +1358,21 @@ mpi_no_thread_enable(parsec_comm_engine_t *ce)
     if(parsec_ce_mpi_comm == (MPI_Comm)context->comm_ctx) {
         return PARSEC_SUCCESS;
     }
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
+    /* The communication thread need to have a CUDA context in order to be able to use
+     * CUDA managed memory. It should be enough to just create a context onto the first
+     * active device.
+     */
+    for (int dev = 0; dev < (int)parsec_nb_devices; dev++) {
+        parsec_device_module_t *device = parsec_mca_device_get(dev);
+        if (PARSEC_DEV_CUDA & device->type) {
+            parsec_device_gpu_module_t *gpu_dev = (parsec_device_gpu_module_t*)device;
+            gpu_dev->set_device(gpu_dev);
+        }
+    }
+#endif  /* defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) */
+
+
     /* Finish the initialization of the communication engine */
     parsec_ce.mem_register        = mpi_no_thread_mem_register;
     parsec_ce.mem_unregister      = mpi_no_thread_mem_unregister;
