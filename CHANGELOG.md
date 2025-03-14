@@ -4,6 +4,35 @@ changes to this project (since v1.1.0).
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+v4.1.2503
+---------
+
+### Added
+ - PaRSEC API 4.1
+ - New query to obtain the peer-access mask between GPUs: PR#716
+ - GPU Data copies can have no primary CPU copies, the CPU copy is allocated as needed if we run out of GPU memory: PR#711
+ - PaRSEC objects can have customized free callbacks: PR#731
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+ - Usage of MPI hint allow_overtake would taint the input communicator: PR#708
+ - Non-POSIX calls prevented compilation on Windows: PR#719
+ - Eviction of memory under-transfer would cause assert: PR#733
+ - Tasks scheduled from tasks could deadlock: PR#736
+
+### Known Bugs
+
+ - PaRSEC Thread binding ignores externally provided binding (e.g., a cpuset enforced by `srun`); see issue icldisco/dplasma#9.
+ - Enabling the `RECURSIVE` device will cause crashes (it is disabled by default in this release); see issues #548, #541.
+ - Running out of GPU memory when using the NEW keyword in PTG may cause deadlocks; see issue #527.
+
+### Security
+
 
 v4.0.2411
 ---------
