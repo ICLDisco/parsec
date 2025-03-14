@@ -2,6 +2,7 @@
  * Copyright (c) 2009-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2025      NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/runtime.h"
@@ -323,26 +324,22 @@ __parsec_schedule(parsec_execution_stream_t* es,
  * stream should never be used concurrently in two call to this function (or
  * a thread should never `borrow` an execution stream for this call).
  */
-int __parsec_schedule_vp(parsec_execution_stream_t* es,
+int __parsec_schedule_vp(parsec_execution_stream_t* submission_es,
                          parsec_task_t** task_rings,
                          int32_t distance)
 {
-    parsec_execution_stream_t* target_es;
-    const parsec_vp_t** vps = (const parsec_vp_t**)es->virtual_process->parsec_context->virtual_processes;
+    parsec_execution_stream_t *target_es,
+                              *es = (NULL == submission_es ? parsec_my_execution_stream() : submission_es);
     int ret = 0;
 
-#if  defined(PARSEC_DEBUG_PARANOID)
-    /* As the setting of the next_task is not protected no thread should call
-     * this function with a stream other than its own. */
-    assert( (NULL == es) || (parsec_my_execution_stream() == es) );
-#endif  /* defined(PARSEC_DEBUG_PARANOID) */
-
-    if( NULL == es || !parsec_runtime_keep_highest_priority_task || NULL == es->scheduler_object) {
-        for(int vp = 0; vp < es->virtual_process->parsec_context->nb_vp; vp++ ) {
+    if( NULL == submission_es || !parsec_runtime_keep_highest_priority_task ||
+        distance || NULL == submission_es->scheduler_object /* not the communication thread */ ) {
+        parsec_context_t* context = es->virtual_process->parsec_context;
+        for(int vp = 0; vp < context->nb_vp; vp++ ) {
             parsec_task_t* ring = task_rings[vp];
             if( NULL == ring ) continue;
 
-            target_es = vps[vp]->execution_streams[0];
+            target_es = context->virtual_processes[vp]->execution_streams[0];
 
             ret = __parsec_schedule(target_es, ring, distance);
             if( 0 != ret )
@@ -352,22 +349,30 @@ int __parsec_schedule_vp(parsec_execution_stream_t* es,
         }
         return ret;
     }
-    for(int vp = 0; vp < es->virtual_process->parsec_context->nb_vp; vp++ ) {
+#if  defined(PARSEC_DEBUG_PARANOID)
+    /* As the setting of the next_task is not protected no thread should call
+     * this function with a stream other than its own (with a distance 0). */
+    assert( (parsec_my_execution_stream() == submission_es) );
+#endif  /* defined(PARSEC_DEBUG_PARANOID) */
+
+    parsec_context_t* context = submission_es->virtual_process->parsec_context;
+    for(int vp = 0; vp < context->nb_vp; vp++ ) {
         parsec_task_t* ring = task_rings[vp];
         if( NULL == ring ) continue;
 
-        target_es = vps[vp]->execution_streams[0];
+        target_es = context->virtual_processes[vp]->execution_streams[0];
 
-        if( vp == es->virtual_process->vp_id ) {
-            if( NULL == es->next_task ) {
-                es->next_task = ring;
+        if( vp == submission_es->virtual_process->vp_id ) {
+            if( NULL == submission_es->next_task ) {
+                submission_es->next_task = ring;
                 ring = (parsec_task_t*)parsec_list_item_ring_chop(&ring->super);
                 if( NULL == ring ) {
                     task_rings[vp] = NULL;  /* remove the tasks already scheduled */
                     continue;
                 }
             }
-            target_es = es;
+            /* Beware we are changing the submission execution stream for the local vp */
+            target_es = submission_es;
         }
         ret = __parsec_schedule(target_es, ring, distance);
         if( 0 != ret )

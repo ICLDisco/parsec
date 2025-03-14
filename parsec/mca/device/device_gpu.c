@@ -927,11 +927,31 @@ parsec_device_data_reserve_space( parsec_device_gpu_module_t* gpu_device,
                                  flow->name, i, gpu_elem,
                                  gpu_elem->data_transfer_status == PARSEC_DATA_STATUS_UNDER_TRANSFER ? " [in transfer]" : "");
             if ( gpu_elem->data_transfer_status == PARSEC_DATA_STATUS_UNDER_TRANSFER ) {
-              /* The data is indeed under transfer, but as we always force an event at the end of this
-                 * step, we do not need to have a special case for this, because the forced event will
-                 * ensure the data will be available on the GPU by the time this task will move to the
-                 * next step.
+                /* The data is under transfer, which is fine for RO data since we always force an event
+                 * at the end of this step so we do not need to have a special case for this. The forced
+                 * event will ensure the data will be available on the GPU by the time this task will move
+                 * to the next step. For WRITE flows, we have to abort here and come back later because
+                 * transfer_ownership will bark at WRITE flows that are under transfer.
                  */
+                if (0 != (PARSEC_FLOW_ACCESS_WRITE & flow->flow_flags)) {
+                    this_task->data[i].data_out = NULL;
+                    PARSEC_DEBUG_VERBOSE(20, parsec_gpu_output_stream,
+                                        "GPU[%d:%s]:%s:\tWrite flow under transfer for copy %p",
+                                        gpu_device->super.device_index, gpu_device->super.name, task_name,
+                                        gpu_elem);
+                    for (j = 0; j <= i; ++j) {
+                        if (temp_loc[i] == NULL) continue;
+                        if( 0 == (temp_loc[j]->flags & PARSEC_DATA_FLAG_PARSEC_OWNED) ) continue;
+                        PARSEC_DEBUG_VERBOSE(20, parsec_gpu_output_stream,
+                                            "GPU[%d:%s]:%s:\tAdd copy %p [ref_count %d] back to the LRU list",
+                                            gpu_device->super.device_index, gpu_device->super.name, task_name,
+                                            temp_loc[j], temp_loc[j]->super.super.obj_reference_count);
+                        parsec_list_push_front(&gpu_device->gpu_mem_lru, (parsec_list_item_t*)temp_loc[j]);
+                    }
+                    parsec_atomic_unlock(&master->lock);
+                    return PARSEC_HOOK_RETURN_AGAIN;
+                }
+
             }
             parsec_atomic_unlock(&master->lock);
             continue;
