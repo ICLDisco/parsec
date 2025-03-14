@@ -14,6 +14,7 @@ v4.1.2503
  - PaRSEC objects can have customized free callbacks: PR#731
 
 ### Changed
+ - PaRSEC will not bind threads by default, but will instead inherit binding from the external launcher (e.g., mpiexec, srun). In some cases the launcher will bind 1-process-per-node on a single core, be mindful about checking the binding with the external launcher (e.g., `mpiexec --report-binding` for Open MPI, `srun --cpu-bind=verbose` in Slurm, etc.). PR#730
 
 ### Deprecated
 
@@ -27,7 +28,6 @@ v4.1.2503
 
 ### Known Bugs
 
- - PaRSEC Thread binding ignores externally provided binding (e.g., a cpuset enforced by `srun`); see issue icldisco/dplasma#9.
  - Enabling the `RECURSIVE` device will cause crashes (it is disabled by default in this release); see issues #548, #541.
  - Running out of GPU memory when using the NEW keyword in PTG may cause deadlocks; see issue #527.
 
