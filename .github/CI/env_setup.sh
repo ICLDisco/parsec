@@ -14,24 +14,13 @@ spack env activate -V parsec
 spack load python
 spack load cmake
 spack load openmpi
-spack load cuda
 spack load ninja
 
 DEBUG=ON
 [ "$BUILD_TYPE" = "Release" ] && DEBUG=OFF
 
-if [ -z "$BUILD_DIRECTORY" ]; then
-   echo Error! ENV \$BUILD_DIRECTORY is undefined.
-   exit 1
-fi
-
-if [ -z "$INSTALL_DIRECTORY" ]; then
-   echo Error! ENV \$INSTALL_DIRECTORY is undefined.
-   exit 1
-fi
-
-export CUDA=OFF
-export HIP=OFF
+CUDA=OFF
+HIP=OFF
 if [ "$DEVICE" = "gpu_nvidia" ]; then
    spack load cuda
    CUDA=ON
@@ -47,7 +36,7 @@ fi
         -DBUILD_SHARED_LIBS=$SHARED_TYPE
         -DPARSEC_PROF_TRACE=$PROFILING
         -DMPIEXEC_PREFLAGS='--bind-to;none;--oversubscribe'
-        -DCMAKE_INSTALL_PREFIX=$INSTALL_DIRECTORY
+        -DCMAKE_INSTALL_PREFIX=install
         -DPARSEC_GPU_WITH_CUDA=$CUDA
         -DPARSEC_GPU_WITH_HIP=$HIP
 EOF

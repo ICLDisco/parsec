@@ -9,7 +9,7 @@ on:
 
 jobs:
   all:
-    timeout-minutes: 30
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -29,26 +29,45 @@ jobs:
       SHARED_TYPE: ${{matrix.shared_type}}
       PROFILING:   ${{matrix.profiling}}
       DEVICE: ${{matrix.device}}
-      BUILD_DIRECTORY: build
-      INSTALL_DIRECTORY: install
+      SETUP: ${{github.workspace}}/.github/CI/env_setup.sh
     steps:
     - uses: actions/checkout@v4
 
     - name: Setup Build Environment ${{ runner.os }}
-      run: .github/CI/setup.sh
+      id: setup
+      run: cmake -E make_directory build
 
     - name: Configure CMake
-      run: .github/CI/configure.sh
+      working-directory: build
+      run: |
+           source $SETUP
+           cmake $GITHUB_WORKSPACE $BUILD_CONFIG
 
     - name: Build
-      run: .github/CI/build.sh
+      working-directory: build
+      run: |
+           source $SETUP
+           cmake --build .
 
     - name: Install
-      run: .github/CI/install.sh
+      working-directory: build
+      run: |
+           source $SETUP
+           cmake --build . --target install
 
     - name: Test
-      run: .github/CI/test.sh
-
+      if: ${{ startsWith(matrix.build_type, 'Release') }}
+      working-directory: build
+      env:
+          # enable devices only in tests that explicitely require them
+          PARSEC_MCA_device_cuda_enabled: 0
+          PARSEC_MCA_device_hip_enabled: 0
+          # restrict memory use for oversubscribed runners
+          PARSEC_MCA_device_cuda_memory_use: 10
+          PARSEC_MCA_device_hip_memory_use: 10
+      run: |
+           source $SETUP
+           ctest --output-on-failure
     - name: Save Artifact
       if: failure()
       uses: actions/upload-artifact@v4
