@@ -3946,12 +3946,12 @@ jdf_generate_function_incarnation_list( const jdf_t *jdf,
         jdf_find_property(body->properties, "type", &type_property);
         jdf_find_property(body->properties, "dyld", &dyld_property);
         jdf_find_property(body->properties, JDF_BODY_PROP_EVALUATE, &evaluate_property);
-        if( NULL == type_property) {
+        if( NULL == type_property || !strcasecmp("CPU", type_property->expr->jdf_var)) {
             string_arena_add_string(sa, "#if defined(PARSEC_HAVE_DEV_CPU_SUPPORT)\n");
             string_arena_add_string(sa, "    { .type     = PARSEC_DEV_CPU,\n");
             string_arena_add_string(sa, "      .evaluate = (parsec_evaluate_function_t*)%s,\n",
                                     (NULL == evaluate_property) ? "NULL" : evaluate_property->expr->jdf_c_code.fname);
-            string_arena_add_string(sa, "      .hook     = (parsec_hook_t*)hook_of_%s },\n", base_name);
+            string_arena_add_string(sa, "      .hook     = (parsec_hook_t*)hook_of_%s_CPU },\n", base_name);
             string_arena_add_string(sa, "#endif  /* defined(PARSEC_HAVE_DEV_CPU_SUPPORT) */\n");
         } else {
             char* dev_upper = strdup_upper(type_property->expr->jdf_var);
@@ -6997,12 +6997,8 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
     ai.holder = "this_task->locals.";
     ai.expr = NULL;
 
-    if(NULL == type_property)
-        coutput("static int %s(parsec_execution_stream_t *es, %s *this_task)\n",
-                name, parsec_get_name(jdf, f, "task_t"));
-    else
-        coutput("static int %s_%s(parsec_execution_stream_t *es, %s *this_task)\n",
-                name, type_property->expr->jdf_var, parsec_get_name(jdf, f, "task_t"));
+    coutput("static int %s_%s(parsec_execution_stream_t *es, %s *this_task)\n",
+            name, type_upper, parsec_get_name(jdf, f, "task_t"));
 
     coutput("{\n"
             "  __parsec_%s_internal_taskpool_t *__parsec_tp = (__parsec_%s_internal_taskpool_t *)this_task->taskpool;\n"

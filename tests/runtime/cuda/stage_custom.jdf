@@ -222,7 +222,7 @@ k = 0 .. descA->nt-1
 READ A <- A TASK_GPU(m, k)
 READ B <- B TASK_GPU_CUSTOM_STAGE(m, k)
 
-BODY
+BODY [type=CPU]
 {
     int i,j;
     int ldam = descB->mb;
