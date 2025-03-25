@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2024 The University of Tennessee and The University
+ * Copyright (c) 2009-2025 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * Copyright (c) 2023      NVIDIA CORPORATION. All rights reserved.
@@ -777,6 +777,9 @@ remote_dep_mpi_retrieve_datatype(parsec_execution_stream_t *eu,
     if(output->data.remote.dst_count == 0) {
         /* control dep */
         return PARSEC_ITERATE_STOP;
+    }
+    if(output->data.remote.dst_datatype == NULL) {
+        parsec_fatal("Retrieving MPI datatype for %s [dep_datatype_index %x] found count=%d, but the datatype is NULL. Forgetting to set the arena_datatypes in a PTG taskpool is usually the root cause.", newcontext->task_class->name, dep->dep_datatype_index, output->data.remote.dst_count);
     }
     if(old_dtt != PARSEC_DATATYPE_NULL) {
         if(old_dtt != output->data.remote.dst_datatype) {
