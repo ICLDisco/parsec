@@ -15,6 +15,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <limits.h>
+#include <inttypes.h>
 #if defined(PARSEC_HAVE_GEN_H)
 #include <libgen.h>
 #endif  /* defined(PARSEC_HAVE_GEN_H) */
@@ -1953,7 +1954,7 @@ parsec_task_snprintf( char* str, size_t size,
         if ((NULL == task->data[i].data_in) || (NULL == task->data[i].data_in->original))
             index += snprintf(str + index, size - index, "%s*", prefix);
         else
-            index += snprintf(str + index, size - index, "%s%lx", prefix, task->data[i].data_in->original->key);
+            index += snprintf(str + index, size - index, "%s%"PRIx64, prefix, task->data[i].data_in->original->key);
         if( index >= size ) return str;
     }
     index += snprintf(str + index, size - index, "}" );
