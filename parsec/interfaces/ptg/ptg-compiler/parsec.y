@@ -530,18 +530,18 @@ body:         BODY_START properties BODY_END
                   * Go over the list of properties and tag them with the type of the BODY. This
                   * allows us to protect the generated code to avoid compiler warnings.
                   */
+                 char* protected_by;
                  jdf_expr_t* type_str = jdf_find_property( body->properties, "type", NULL );
-                 if( NULL != type_str ) {
-                     char* protected_by;
-                     asprintf(&protected_by, "PARSEC_HAVE_DEV_%s_SUPPORT", type_str->jdf_var);
-                     jdf_def_list_t* property = body->properties;
-                     while( NULL != property ) {
-                         assert(NULL == property->expr->protected_by);
-                         property->expr->protected_by = strdup(protected_by);
-                         property = property->next;
-                     }
-                     free(protected_by);
+                 asprintf(&protected_by, "PARSEC_HAVE_DEV_%s_SUPPORT",
+                          ( NULL != type_str) ? type_str->jdf_var : "CPU");
+                 jdf_def_list_t* property = body->properties;
+                 while( NULL != property ) {
+                     assert(NULL == property->expr->protected_by);
+                     property->expr->protected_by = strdup(protected_by);
+                     property = property->next;
                  }
+                 free(protected_by);
+
                  body->next = NULL;
                  /* The body of the function is stored as a string in BODY_END */
                  body->external_code = $3;
@@ -574,6 +574,26 @@ function:       VAR OPEN_PAR param_list CLOSE_PAR properties local_variables sim
                     e->priority          = $10;
                     e->bodies            = $11;
 
+                    /* Check if we have both no-type and CPU-type bodies defined */
+                    {
+                        int have_cpu_body = 0;
+                        jdf_body_t* body = e->bodies;
+                        while( NULL != body ) {
+                            jdf_expr_t* type_str = jdf_find_property( body->properties, "type", NULL );
+                            if( NULL == type_str ) {
+                                have_cpu_body++;
+                            } else {
+                                if( 0 == strcasecmp(type_str->jdf_var, "CPU") )
+                                    have_cpu_body++;
+                            }
+                            body = body->next;
+                        }
+                        if( have_cpu_body > 1 ) {
+                            jdf_fatal(current_lineno, "Function %s has multiple CPU BODY (either marked with TYPE of not type) at line %d\n",
+                                      e->fname, JDF_OBJECT_LINENO($3));
+                            YYERROR;
+                        }
+                    }
                     jdf_link_params_and_locals(e);  /* link params and locals */
                     jdf_assign_ldef_index(e);       /* find the datatype indexes */
 
