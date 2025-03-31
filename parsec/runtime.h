@@ -532,7 +532,7 @@ int parsec_taskpool_reserve_id(parsec_taskpool_t* tp);
  * Register the taskpool with the engine. The taskpool must have a unique taskpool, especially
  * in a distributed environment.
  *
- * @param[in] taskpool the taskpoo lto register
+ * @param[in] taskpool the taskpool to register
  * @return PARSEC_SUCCESS on success, an error otherwise
  */
 int parsec_taskpool_register(parsec_taskpool_t* tp);
