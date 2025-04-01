@@ -18,6 +18,7 @@
 #include "parsec/scheduling.h"
 
 #include <limits.h>
+#include <threads.h>
 
 #define PARSEC_DEVICE_DATA_COPY_ATOMIC_SENTINEL 1024
 
@@ -38,6 +39,8 @@ static int parsec_gpu_profiling_initiated = 0;
 #endif  /* defined(PROFILING) */
 int parsec_gpu_output_stream = -1;
 int parsec_gpu_verbosity;
+
+static thread_local int active_w2r_tasks = 0;
 
 static inline int
 parsec_device_check_space_needed(parsec_device_gpu_module_t *gpu_device,
@@ -2596,9 +2599,13 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
 
         /* TODO: check this */
         /* If we can extract data go for it, otherwise try to drain the pending tasks */
-        gpu_task = parsec_gpu_create_w2r_task(gpu_device, es);
-        if( NULL != gpu_task )
-            goto get_data_out_of_device;
+        if (active_w2r_tasks == 0) {
+            gpu_task = parsec_gpu_create_w2r_task(gpu_device, es);
+            if( NULL != gpu_task ) {
+                active_w2r_tasks++;
+                goto get_data_out_of_device;
+            }
+        }
     }
     gpu_task = progress_task;
 
@@ -2694,6 +2701,7 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
     PARSEC_LIST_ITEM_SINGLETON(gpu_task);
     if (gpu_task->task_type == PARSEC_GPU_TASK_TYPE_D2HTRANSFER) {
         parsec_gpu_complete_w2r_task(gpu_device, gpu_task, es);
+        active_w2r_tasks--;
         gpu_task = progress_task;
         goto fetch_task_from_shared_queue;
     }
