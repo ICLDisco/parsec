@@ -145,15 +145,16 @@ int main( int argc, char** argv )
     parsec_translate_matrix_type(PARSEC_MATRIX_DOUBLE, &dt);
     parsec_add2arena( &adt, dt, PARSEC_MATRIX_FULL, 0, descA.super.mb, descA.super.nb, descA.super.mb, PARSEC_ARENA_ALIGNMENT_SSE, -1 );
 
-    /* Start the PaRSEC engine */
-    rc = parsec_context_start(parsec);
-    PARSEC_CHECK_ERROR(rc, "parsec_context_start");
-
     nb_tasks = 0;
     tp = parsec_utt_new( &descA, &nb_tasks, nt, 1 );
     assert( NULL != tp );
     tp->arenas_datatypes[PARSEC_utt_DEFAULT_ADT_IDX] = adt;
     rc = parsec_context_add_taskpool( parsec, (parsec_taskpool_t*)tp );
+
+    /* Start the PaRSEC engine */
+    rc = parsec_context_start(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_start");
+
     PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
     rc = parsec_context_wait(parsec);
 
@@ -164,16 +165,34 @@ int main( int argc, char** argv )
 
     parsec_context_wait(parsec);
 
-    ret = 0;
-    if( 0 == mr ) {
-        if( nb_tasks != 25 ) {
-            fprintf(stderr, "*** Test failed: expected 25 STARTUP tasks, found %d total\n", nb_tasks);
-            ret++;
+    int nb_local_tasks = 0;
+    if(0 == mr) {
+        nb_local_tasks += 2; // STARTUP(0, 0) and END(0) always run on rank 0
+    }
+    for(int i = 0; i < nt; i++) {
+        for(int j = 0; j < (1<<(i+1)); j++) {
+            if(j % ws == mr) {
+                nb_local_tasks+=2; // FANOUT(i, j) and FANIN(i, j) run on this node
+            }
         }
     }
 
+    ret = 0;
+    if( nb_tasks != nb_local_tasks ) {
+        fprintf(stderr, "*** Test failed on rank %d: expected %d tasks, found %d total\n", mr, nb_local_tasks, nb_tasks);
+        ret++;
+    }
+    int gret;
+#ifdef PARSEC_HAVE_MPI
+    MPI_Allreduce(&ret, &gret, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+#else
+    gret = ret;
+#endif
+
     free(descA.mat);
     parsec_del2arena( & adt );
+
+    parsec_taskpool_free((parsec_taskpool_t*)tp);
 
     parsec_fini( &parsec);
 
@@ -181,7 +200,7 @@ int main( int argc, char** argv )
     MPI_Finalize();
 #endif
 
-    return ret;
+    return gret;
 }
 
 %}
