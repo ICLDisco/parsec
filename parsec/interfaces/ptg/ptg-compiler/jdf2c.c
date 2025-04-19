@@ -3939,6 +3939,7 @@ jdf_generate_function_incarnation_list( const jdf_t *jdf,
     jdf_def_list_t* dyld_property;
     jdf_def_list_t* evaluate_property = NULL;
     jdf_def_list_t* device_property = NULL;
+     char* dev_upper;
 
     (void)jdf;
     string_arena_add_string(sa, "static const __parsec_chore_t __%s_chores[] ={\n", base_name);
@@ -3947,45 +3948,40 @@ jdf_generate_function_incarnation_list( const jdf_t *jdf,
         jdf_find_property(body->properties, "dyld", &dyld_property);
         jdf_find_property(body->properties, JDF_BODY_PROP_EVALUATE, &evaluate_property);
         if( NULL == type_property) {
-            string_arena_add_string(sa, "#if defined(PARSEC_HAVE_DEV_CPU_SUPPORT)\n");
-            string_arena_add_string(sa, "    { .type     = PARSEC_DEV_CPU,\n");
+            dev_upper = strdup_upper("CPU");
+        } else {
+            dev_upper = strdup_upper(type_property->expr->jdf_var);
+        }
+        string_arena_add_string(sa, "#if defined(PARSEC_HAVE_DEV_%s_SUPPORT)\n", dev_upper);
+        string_arena_add_string(sa, "    { .type     = PARSEC_DEV_%s,\n", dev_upper);
+        if( NULL == dyld_property ) {
+            string_arena_add_string(sa, "      .dyld     = NULL,\n");
+        } else {
+            jdf_def_list_t* dyld_proptotype_property;
+            jdf_find_property(body->properties, "dyldtype", &dyld_proptotype_property);
+            if ( NULL == dyld_proptotype_property ) {
+                fprintf(stderr,
+                        "Internal Error: function prototype (dyldtype) of dyld function (%s) is not defined in %s body of task %s at line %d\n",
+                        dyld_property->expr->jdf_var, type_property->expr->jdf_var, f->fname, JDF_OBJECT_LINENO( body ) );
+                assert( NULL != dyld_proptotype_property );
+            }
+            string_arena_add_string(sa, "      .dyld     = \"%s\",\n", dyld_property->expr->jdf_var);
+        }
+        jdf_find_property(body->properties, "device", &device_property);
+        if( evaluate_property && device_property ) {
+            fprintf(stdout, "Warning: Property %s defined at line %d is overruled by %s defined at line %d.\n", device_property->name, JDF_OBJECT_LINENO(device_property), evaluate_property->name, JDF_OBJECT_LINENO(evaluate_property));
+            device_property = NULL;
+        }
+        if( NULL != device_property )
+            string_arena_add_string(sa, "      .evaluate = (parsec_evaluate_function_t*)eval_hook_of_%s_%s_select_device,\n",
+                                    base_name, dev_upper);
+        else
             string_arena_add_string(sa, "      .evaluate = (parsec_evaluate_function_t*)%s,\n",
                                     (NULL == evaluate_property) ? "NULL" : evaluate_property->expr->jdf_c_code.fname);
-            string_arena_add_string(sa, "      .hook     = (parsec_hook_t*)hook_of_%s },\n", base_name);
-            string_arena_add_string(sa, "#endif  /* defined(PARSEC_HAVE_DEV_CPU_SUPPORT) */\n");
-        } else {
-            char* dev_upper = strdup_upper(type_property->expr->jdf_var);
+        string_arena_add_string(sa, "      .hook     = (parsec_hook_t*)hook_of_%s_%s },\n", base_name, dev_upper);
+        string_arena_add_string(sa, "#endif  /* defined(PARSEC_HAVE_DEV_%s_SUPPORT) */\n", dev_upper);
+        free(dev_upper);
 
-            string_arena_add_string(sa, "#if defined(PARSEC_HAVE_DEV_%s_SUPPORT)\n", dev_upper);
-            string_arena_add_string(sa, "    { .type     = PARSEC_DEV_%s,\n", dev_upper);
-            if( NULL == dyld_property ) {
-                string_arena_add_string(sa, "      .dyld     = NULL,\n");
-            } else {
-                jdf_def_list_t* dyld_proptotype_property;
-                jdf_find_property(body->properties, "dyldtype", &dyld_proptotype_property);
-                if ( NULL == dyld_proptotype_property ) {
-                    fprintf(stderr,
-                            "Internal Error: function prototype (dyldtype) of dyld function (%s) is not defined in %s body of task %s at line %d\n",
-                            dyld_property->expr->jdf_var, type_property->expr->jdf_var, f->fname, JDF_OBJECT_LINENO( body ) );
-                    assert( NULL != dyld_proptotype_property );
-                }
-                string_arena_add_string(sa, "      .dyld     = \"%s\",\n", dyld_property->expr->jdf_var);
-            }
-            jdf_find_property(body->properties, "device", &device_property);
-            if( evaluate_property && device_property ) {
-                fprintf(stdout, "Warning: Property %s defined at line %d is overruled by %s defined at line %d.\n", device_property->name, JDF_OBJECT_LINENO(device_property), evaluate_property->name, JDF_OBJECT_LINENO(evaluate_property));
-                device_property = NULL;
-            }
-            if( NULL != device_property )
-                string_arena_add_string(sa, "      .evaluate = (parsec_evaluate_function_t*)eval_hook_of_%s_%s_select_device,\n",
-                                        base_name, dev_upper);
-            else
-                string_arena_add_string(sa, "      .evaluate = (parsec_evaluate_function_t*)%s,\n",
-                                        (NULL == evaluate_property) ? "NULL" : evaluate_property->expr->jdf_c_code.fname);
-            string_arena_add_string(sa, "      .hook     = (parsec_hook_t*)hook_of_%s_%s },\n", base_name, dev_upper);
-            string_arena_add_string(sa, "#endif  /* defined(PARSEC_HAVE_DEV_%s_SUPPORT) */\n", dev_upper);
-            free(dev_upper);
-        }
         body = body->next;
     } while (NULL != body);
     string_arena_add_string(sa,
@@ -6997,17 +6993,12 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
     ai.holder = "this_task->locals.";
     ai.expr = NULL;
 
-    if(NULL == type_property)
-        coutput("static int %s(parsec_execution_stream_t *es, %s *this_task)\n",
-                name, parsec_get_name(jdf, f, "task_t"));
-    else
-        coutput("static int %s_%s(parsec_execution_stream_t *es, %s *this_task)\n",
-                name, type_property->expr->jdf_var, parsec_get_name(jdf, f, "task_t"));
-
-    coutput("{\n"
+    coutput("static int %s_%s(parsec_execution_stream_t *es, %s *this_task)\n"
+            "{\n"
             "  __parsec_%s_internal_taskpool_t *__parsec_tp = (__parsec_%s_internal_taskpool_t *)this_task->taskpool;\n"
             "  (void)es; (void)__parsec_tp;\n"
             "%s",
+            name, type_upper, parsec_get_name(jdf, f, "task_t"),
             jdf_basename, jdf_basename,
             UTIL_DUMP_LIST(sa, f->locals, next,
                            dump_local_assignments, &ai, "", "  ", "\n", "\n"));

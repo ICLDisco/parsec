@@ -81,7 +81,7 @@ END
 
 BODY  [type=CPU]
 {
-    fprintf(stderr, "do_something(level=%d, i=%d): prio=%d\n", level, i, prio );
+    fprintf(stderr, "do_something[TYPE=CPU](level=%d, i=%d): prio=%d\n", level, i, prio );
 }
 END
 
