@@ -14,21 +14,22 @@ jobs:
       fail-fast: false
       matrix:
         build_type : [ Debug, Release ]
-        shared_type : [ OFF, ON ]
-        profiling : [ OFF, ON ]
+        shared_type : [ ON, OFF ]
+        profiling : [ ON, OFF ]
         device: [ cpu, gpu_nvidia, gpu_amd ]
         exclude:
           - build_type: Debug
             profiling: OFF
           - build_type: Release
             shared_type: OFF
-    name: "${{matrix.build_type}} Shared=${{matrix.shared_type}} Profile=${{matrix.profiling}} ${{matrix.device}}"
+    name: "PaRSEC ${{matrix.build_type}} Shared=${{matrix.shared_type}} Profile=${{matrix.profiling}} ${{matrix.device}}"
     runs-on: [ "${{matrix.device}}", self-hosted ]
     env:
       BUILD_TYPE:  ${{matrix.build_type}}
       SHARED_TYPE: ${{matrix.shared_type}}
       PROFILING:   ${{matrix.profiling}}
       DEVICE: ${{matrix.device}}
+      PARSEC_INSTALL_DIR: ${{github.workspace}}/install
       SETUP: ${{github.workspace}}/.github/CI/env_setup.sh
     steps:
     - uses: actions/checkout@v4
@@ -76,3 +77,6 @@ jobs:
       with:
         name: CMake-error-log
         path: CMakeFiles/CMakeError.log
+
+    - name: Test with DPLASMA
+      uses: ./.github/dplasma
