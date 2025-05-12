@@ -3,7 +3,7 @@ on: [push, pull_request]
 
 jobs:
   msys2-ucrt64:
-    runs-on: windows-latest
+    runs-on: github-win-x64
     defaults:
       run:
         shell: msys2 {0}
