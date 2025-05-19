@@ -279,6 +279,7 @@ typedef struct parsec_gpu_workspace_s {
 PARSEC_DECLSPEC extern int parsec_gpu_output_stream;
 PARSEC_DECLSPEC extern int parsec_gpu_verbosity;
 PARSEC_DECLSPEC extern int32_t parsec_gpu_d2h_max_flows;
+PARSEC_DECLSPEC extern int32_t parsec_gpu_d2h_max_discarded;
 
 /**
  * Debugging functions.
@@ -351,6 +352,12 @@ int parsec_device_taskpool_unregister(parsec_device_module_t* device, parsec_tas
 int parsec_device_data_advise(parsec_device_module_t *dev, parsec_data_t *data, int advice);
 int parsec_device_flush_lru( parsec_device_module_t *device );
 int parsec_device_memory_release( parsec_device_gpu_module_t* gpu_device );
+
+
+/**
+ * Release a gpu copy and return its memory to the zone allocator of the device.
+ */
+void parsec_device_release_gpu_copy(parsec_device_gpu_module_t* gpu_device, parsec_data_copy_t *gpu_elem);
 
 /**
  * This version is based on 4 streams: one for transfers from the memory to
