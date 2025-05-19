@@ -135,7 +135,7 @@ static int my_project_dyn_startup(parsec_execution_stream_t * es, __parsec_proje
   new_task->data._f_RL.data_out = NULL;
   new_task->data._f_NODE.source_repo = NULL;
   new_task->data._f_NODE.source_repo_entry = NULL;
-  chunk = parsec_arena_get_copy(__tp->super.arenas_datatypes[PARSEC_project_dyn_DEFAULT_ADT_IDX].arena, 1, 0, __tp->super.arenas_datatypes[PARSEC_project_dyn_DEFAULT_ADT_IDX].opaque_dtt);
+  chunk = parsec_arena_get_new_copy(__tp->super.arenas_datatypes[PARSEC_project_dyn_DEFAULT_ADT_IDX].arena, 1, 0, __tp->super.arenas_datatypes[PARSEC_project_dyn_DEFAULT_ADT_IDX].opaque_dtt);
   chunk->original->owner_device = 0;
   new_task->data._f_NODE.data_out = chunk;
   new_task->data._f_NODE.data_in = chunk;

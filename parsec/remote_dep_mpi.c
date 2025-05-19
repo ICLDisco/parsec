@@ -80,6 +80,7 @@ remote_dep_cmd_to_string(remote_dep_wire_activate_t* origin,
     if( NULL == task.task_class ) return snprintf(str, len, "UNKNOWN_of_TASKCLASS_%d", origin->task_class_id), str;
     memcpy(&task.locals, origin->locals, sizeof(parsec_assignment_t) * task.task_class->nb_locals);
     task.priority     = 0xFFFFFFFF;
+    for(int i = 0; i < task.task_class->nb_flows; task.data[i++].data_in = NULL);
     return parsec_task_snprintf(str, len, &task);
 }
 
@@ -141,10 +142,6 @@ parsec_execution_stream_t parsec_comm_es = {
 
 static void remote_dep_mpi_put_start(parsec_execution_stream_t* es, dep_cmd_item_t* item);
 static void remote_dep_mpi_get_start(parsec_execution_stream_t* es, parsec_remote_deps_t* deps);
-
-static void remote_dep_mpi_get_end(parsec_execution_stream_t* es,
-                                   int idx,
-                                   parsec_remote_deps_t* deps);
 
 static int
 remote_dep_mpi_get_end_cb(parsec_comm_engine_t *ce,
@@ -565,25 +562,34 @@ void parsec_remote_dep_memcpy(parsec_execution_stream_t* es,
     item->cmd.memcpy.destination  = dst;
     item->cmd.memcpy.layout       = data->local;
 
-    PARSEC_OBJ_RETAIN(src);
+    PARSEC_DATA_COPY_RETAIN(src);
     remote_dep_inc_flying_messages(tp);
 
     parsec_dequeue_push_back(&dep_cmd_queue, (parsec_list_item_t*) item);
 }
 
 static inline parsec_data_copy_t*
-remote_dep_copy_allocate(parsec_dep_type_description_t* data)
+remote_dep_copy_allocate(parsec_dep_type_description_t* data, int preferred_device)
 {
     parsec_data_copy_t* dc;
     if( NULL == data->arena ) {
         assert(0 == data->dst_count);
         return NULL;
     }
-    dc = parsec_arena_get_copy(data->arena, data->dst_count, 0, data->dst_datatype);
-
-    dc->coherency_state = PARSEC_DATA_COHERENCY_EXCLUSIVE;
-    PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "MPI:\tMalloc new remote tile %p size %" PRIu64 " count = %" PRIu64 " displ = %" PRIi64 " %p",
-            dc, data->arena->elem_size, data->dst_count, data->dst_displ, data->arena);
+    /* Go and allocate on the preferred device. If that fails, fall back and allocate a
+     * copy on the main memory (device 0), and parsec will transfer the data as needed
+     * for all tasks executing on acclerators.
+     */
+    dc = parsec_arena_get_new_copy(data->arena, data->dst_count, preferred_device, data->dst_datatype);
+    PARSEC_DATA_COPY_RETAIN(dc);
+    /* don't use preferred_device, it might not be the location where the data copy resides */
+    parsec_data_start_transfer_ownership_to_copy(dc->original, dc->device_index, PARSEC_FLOW_ACCESS_WRITE);
+    if (dc->device_index != preferred_device) {
+        PARSEC_DEBUG_VERBOSE(5, parsec_comm_output_stream, "MPI:\tFail to allocate tile on device %d and instead allocate on device %d\n",
+                             preferred_device, dc->device_index);
+    }
+    PARSEC_DEBUG_VERBOSE(5, parsec_comm_output_stream, "MPI:\tMalloc new temporary tile [dev %d] copy %p size %" PRIu64 " count = %" PRIu64 " displ = %" PRIi64 " %p",
+                         dc->device_index, dc, data->arena->elem_size, data->dst_count, data->dst_displ, data->arena);
     return dc;
 }
 
@@ -598,7 +604,7 @@ static inline parsec_data_copy_t*
 reshape_copy_allocate(parsec_dep_type_description_t* data)
 {
     parsec_data_copy_t* dc;
-    dc = remote_dep_copy_allocate(data);
+    dc = remote_dep_copy_allocate(data, 0  /* default device */);
 
     parsec_data_start_transfer_ownership_to_copy(dc->original,
                                                  0,
@@ -608,7 +614,7 @@ reshape_copy_allocate(parsec_dep_type_description_t* data)
 
 /**
  *
- * Routine to fulfilled a reshape promise by the current thread
+ * Fulfill a reshape promise by the current thread
  * (when MPI_THREAD_MULTIPLE) or delegate the reshaping to the communication
  * thread.
  * Routine set as callback when initializing a future.
@@ -657,9 +663,9 @@ void parsec_local_reshape_cb(parsec_base_future_t *future, ... )
     }
     if(src_pack_size != dst_pack_size){
         parsec_warning("parsec_local_reshape: reshape requested between dtt with different packed size fut %p dtt [%p:%s = sz(%d) -> %p:%s= sz(%d)]",
-                         future,
-                         dt->local->src_datatype, type_name_src, src_pack_size,
-                         dt->local->dst_datatype, type_name_dst, dst_pack_size);
+                       future,
+                       dt->local->src_datatype, type_name_src, src_pack_size,
+                       dt->local->dst_datatype, type_name_dst, dst_pack_size);
     }
 #endif
 
@@ -779,13 +785,19 @@ remote_dep_mpi_retrieve_datatype(parsec_execution_stream_t *eu,
         return PARSEC_ITERATE_STOP;
     }
     if(old_dtt != PARSEC_DATATYPE_NULL) {
+        /* multiple input deps from the same predecessor exists. Be careful on what format
+         * to receive the data. It would not make sense to receive different amount, but
+         * it is legal to receive them with different type signatures. In this case, ignore
+         * the datatype, and instead fall back into a packed format (aka bytes) and the
+         * entire length of the incomming data.
+         */
         if(old_dtt != output->data.remote.dst_datatype) {
 #if defined(PARSEC_DEBUG_NOISIER)
             char type_name_src[MAX_TASK_STRLEN] = "NULL";
             char type_name_dst[MAX_TASK_STRLEN] = "NULL";
             int len;
-            if(old_dtt!=PARSEC_DATATYPE_NULL) MPI_Type_get_name(old_dtt, type_name_src, &len);
-            if(output->data.remote.dst_datatype!=PARSEC_DATATYPE_NULL) MPI_Type_get_name(output->data.remote.dst_datatype, type_name_dst, &len);
+            if(old_dtt != PARSEC_DATATYPE_NULL) MPI_Type_get_name(old_dtt, type_name_src, &len);
+            if(output->data.remote.dst_datatype != PARSEC_DATATYPE_NULL) MPI_Type_get_name(output->data.remote.dst_datatype, type_name_dst, &len);
             PARSEC_DEBUG_VERBOSE(30, parsec_comm_output_stream, "MPI: retrieve dtt for %s [dep_datatype_index %x] DTT: old %s new %s (%p) --> PACKED",
                 newcontext->task_class->name, dep->dep_datatype_index, type_name_src, type_name_dst, output->data.remote.dst_datatype);
 #endif
@@ -793,7 +805,6 @@ remote_dep_mpi_retrieve_datatype(parsec_execution_stream_t *eu,
             parsec_ce.pack_size(&parsec_ce, output->data.remote.dst_count, output->data.remote.dst_datatype, &dsize);
             output->data.remote.src_count = output->data.remote.dst_count = dsize;
             output->data.remote.src_datatype = output->data.remote.dst_datatype = PARSEC_DATATYPE_PACKED;
-
             return PARSEC_ITERATE_STOP;
         }
     }
@@ -808,6 +819,20 @@ remote_dep_mpi_retrieve_datatype(parsec_execution_stream_t *eu,
                 newcontext->task_class->name, dep->dep_datatype_index, type_name_src, type_name_dst, output->data.remote.dst_datatype);
     }
 #endif
+    /* Predict where the incoming temporary should be located, by using the data_affinity.
+     * This only works is the task affinity is linked to the output location of the task, which
+     * is mostly true for owner-compute type of algorithms.
+     */
+    output->data.preferred_device = 0;  /* the default is CPU memory (aka. device 0) */
+    if (NULL != fct->data_affinity ) {
+        parsec_data_ref_t dref;
+        fct->data_affinity(newcontext, &dref);
+        if(NULL != dref.dc->data_of_key) {
+            parsec_data_t* data = dref.dc->data_of_key(dref.dc, dref.key);
+            output->data.preferred_device = (-1 != data->preferred_device) ?
+                                            data->preferred_device : data->owner_device;
+        }
+    }
     return PARSEC_ITERATE_CONTINUE;
 }
 
@@ -989,6 +1014,12 @@ remote_dep_release_incoming(parsec_execution_stream_t* es,
         task.data[target->flow_index].source_repo_entry = NULL;
         task.data[target->flow_index].data_in   = origin->output[i].data.data;
         task.data[target->flow_index].data_out  = origin->output[i].data.data;
+        if( NULL != origin->output[i].data.data ) {  /* nothing for control flows */
+            /* The data has been fully received, mark the copy accordingly */
+            task.data[target->flow_index].data_in->coherency_state = PARSEC_DATA_COHERENCY_OWNED;
+            task.data[target->flow_index].data_in->flags &= ~PARSEC_DATA_FLAG_TRANSIT;  /* not in transit anymore */
+            task.data[target->flow_index].data_in->data_transfer_status = PARSEC_DATA_STATUS_COMPLETE_TRANSFER;
+        }
     }
 
 #ifdef PARSEC_DIST_COLLECTIVES
@@ -1436,7 +1467,7 @@ static int local_dep_nothread_reshape(parsec_execution_stream_t* es,
      * once all successors have consumed the future, in case it is needed
      * as an input for nested futures.
      */
-    PARSEC_OBJ_RETAIN(cmd->memcpy.source);
+    PARSEC_DATA_COPY_RETAIN(cmd->memcpy.source);
 
     int rc = remote_dep_nothread_memcpy(es, item);
     assert(MPI_SUCCESS == rc);
@@ -1649,7 +1680,7 @@ remote_dep_mpi_put_start(parsec_execution_stream_t* es,
 
             deps->output[k].data.data = reshape_data;
 
-            PARSEC_OBJ_RETAIN(reshape_data);
+            PARSEC_DATA_COPY_RETAIN(reshape_data);
             PARSEC_DATA_COPY_RELEASE(old_data);/*old data has been retained for remote communication*/
 
             PARSEC_OBJ_RELEASE(deps->output[k].data.data_future);
@@ -1854,7 +1885,8 @@ static void remote_dep_mpi_recv_activate(parsec_execution_stream_t* es,
             if((length - (*position)) >= (int)data_sizes[ds_idx]) {
                 assert(NULL == data_desc->data); /* we do not support in-place tiles now, make sure it doesn't happen yet */
                 if(NULL == data_desc->data) {
-                    data_desc->data = remote_dep_copy_allocate(type_desc);
+                    /* if we have to unpack the data onto this new copy we might want to allocated it on the CPU */
+                    data_desc->data = remote_dep_copy_allocate(type_desc, 0);
                 }
 #ifndef PARSEC_PROF_DRY_DEP
                 PARSEC_DEBUG_VERBOSE(10, parsec_comm_output_stream,
@@ -2080,9 +2112,13 @@ static void remote_dep_mpi_get_start(parsec_execution_stream_t* es,
         /* prepare the local receiving data */
         assert(NULL == deps->output[k].data.data); /* we do not support in-place tiles now, make sure it doesn't happen yet */
         if(NULL == deps->output[k].data.data) {
-            deps->output[k].data.data = remote_dep_copy_allocate(&deps->output[k].data.remote);
+            int best_device = (parsec_mpi_allow_gpu_memory_communications & PARSEC_RUNTIME_RECV_GPU_MEMORY) ? deps->output[k].data.preferred_device : 0;
+            deps->output[k].data.data = remote_dep_copy_allocate(&deps->output[k].data.remote, best_device);
         }
-        dtt   = deps->output[k].data.remote.dst_datatype;
+        /* Mark the data under tranfer */
+        deps->output[k].data.data->data_transfer_status = PARSEC_DATA_STATUS_UNDER_TRANSFER;
+        deps->output[k].data.data->flags |= PARSEC_DATA_FLAG_TRANSIT;
+        dtt = deps->output[k].data.remote.dst_datatype;
         nbdtt = deps->output[k].data.remote.dst_count;
 
         /* We have the remote mem_handle.
@@ -2159,14 +2195,6 @@ static void remote_dep_mpi_get_start(parsec_execution_stream_t* es,
     }
 }
 
-static void remote_dep_mpi_get_end(parsec_execution_stream_t* es,
-                                   int idx,
-                                   parsec_remote_deps_t* deps)
-{
-    /* The ref on the data will be released below */
-    remote_dep_release_incoming(es, deps, (1U<<idx));
-}
-
 static int
 remote_dep_mpi_get_end_cb(parsec_comm_engine_t *ce,
                           parsec_ce_tag_t tag,
@@ -2197,7 +2225,7 @@ remote_dep_mpi_get_end_cb(parsec_comm_engine_t *ce,
 #if defined(PARSEC_PROF_TRACE)
     TAKE_TIME(es->es_profile, MPI_Data_pldr_ek, callback_data->event_id);
 #endif /* PARSEC_PROF_TRACE */
-    remote_dep_mpi_get_end(es, callback_data->k, deps);
+    remote_dep_release_incoming(es, deps, (1U << callback_data->k));
 
     parsec_ce.mem_unregister(&callback_data->memory_handle);
     parsec_thread_mempool_free(parsec_remote_dep_cb_data_mempool->thread_mempools, callback_data);
@@ -2239,6 +2267,7 @@ int remote_dep_ce_reconfigure(parsec_context_t* context)
          * execution stream to parsec_comm_es. */
         parsec_set_my_execution_stream(&parsec_comm_es);
     }
+
     return PARSEC_SUCCESS;
 }
 

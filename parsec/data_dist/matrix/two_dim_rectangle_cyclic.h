@@ -45,7 +45,6 @@ typedef struct parsec_matrix_block_cyclic {
  * @param dc matrix description structure, already allocated, that will be initialize
  * @param mtype type of data used for this matrix
  * @param storage type of storage of data
- * @param nodes number of nodes
  * @param myrank rank of the local node (as of mpi rank)
  * @param mb number of row in a tile
  * @param nb number of column in a tile

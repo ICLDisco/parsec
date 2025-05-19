@@ -71,6 +71,7 @@
 
 /* Communication engine */
 #cmakedefine PARSEC_DIST_WITH_MPI
+#cmakedefine PARSEC_MPI_IS_GPU_AWARE
 #cmakedefine PARSEC_DIST_THREAD
 #cmakedefine PARSEC_DIST_PRIORITIES
 #cmakedefine PARSEC_DIST_COLLECTIVES

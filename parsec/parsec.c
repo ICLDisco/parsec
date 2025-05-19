@@ -15,6 +15,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <limits.h>
+#include <inttypes.h>
 #if defined(PARSEC_HAVE_GEN_H)
 #include <libgen.h>
 #endif  /* defined(PARSEC_HAVE_GEN_H) */
@@ -215,6 +216,10 @@ static void __parsec_task_constructor(parsec_task_t* task) {
     task->selected_chore = -1;
     task->load = 0;
     task->status = PARSEC_TASK_STATUS_NONE;
+#if defined(PARSEC_DEBUG_NOISIER)
+    /* used during task_snprintf for non-fully initialized task_t */
+    memset(&task->data, 0, MAX_PARAM_COUNT * sizeof(parsec_data_pair_t));
+#endif
 }
 
 /*
@@ -1226,7 +1231,7 @@ int parsec_fini( parsec_context_t** pcontext )
 #endif  /* PARSEC_PROF_TRACE */
 
     /* PAPI SDE needs to process the shutdown before resources exposed to it are freed.
-     * This includes scheduling resources, so SDE needs to be finalized before the 
+     * This includes scheduling resources, so SDE needs to be finalized before the
      * computation threads leave */
     PARSEC_PAPI_SDE_FINI();
 
@@ -1553,7 +1558,7 @@ parsec_update_deps_with_counter(parsec_taskpool_t *tp,
     (void)origin;
     (void)origin_flow;
     (void)dest_flow;
-    
+
     if( 0 == *deps ) {
         dep_new_value = parsec_check_IN_dependencies_with_counter(tp, task) - 1;
         if( parsec_atomic_cas_int32( deps, 0, dep_new_value ) == 1 )
@@ -1716,7 +1721,7 @@ parsec_release_local_OUT_dependencies(parsec_execution_stream_t* es,
             PARSEC_COPY_EXECUTION_CONTEXT(new_context, task);
             PARSEC_AYU_ADD_TASK(new_context);
 
-            PARSEC_DEBUG_VERBOSE(6, parsec_debug_output,
+            PARSEC_DEBUG_VERBOSE(7, parsec_debug_output,
                    "%s becomes ready from %s on thread %d:%d, with mask 0x%04x",
                    tmp1,
                    parsec_task_snprintf(tmp2, MAX_TASK_STRLEN, origin),
@@ -1799,7 +1804,7 @@ parsec_release_dep_fct(parsec_execution_stream_t *es,
      * Check that we don't forward a NULL data to someone else. This
      * can be done only on the src node, since the dst node can
      * check for datatypes without knowing the data yet.
-     * By checking now, we allow for the data to be created any time bfore we
+     * By checking now, we allow for the data to be created any time before we
      * actually try to transfer it.
      */
     if( PARSEC_UNLIKELY((data->data == NULL) &&
@@ -1840,20 +1845,20 @@ parsec_release_dep_fct(parsec_execution_stream_t *es,
 #ifdef PARSEC_RESHAPE_BEFORE_SEND_TO_REMOTE
                     /* Now everything is a reshaping entry */
                     /* Check if we need to reshape before sending */
-                    if(parsec_is_CTL_dep(output->data)){ /* CTL DEP */
+                    if(parsec_is_CTL_dep(output->data)) { /* CTL DEP */
                         output->data.data_future = NULL;
                         output->data.repo = NULL;
                         output->data.repo_key = -1;
-                    }else{
+                    } else {
                         /* Get reshape from whatever repo it has been set up into */
                         output->data.data_future = (parsec_datacopy_future_t*)target_dc;
                         output->data.repo = target_repo;
                         output->data.repo_key = target_repo_entry->ht_item.key;
                         PARSEC_DEBUG_VERBOSE(4, parsec_debug_output,
-                                         "th%d RESHAPE_PROMISE SETUP FOR REMOTE DEPS [%p:%p] for INLINE REMOTE %s fut %p",
-                                         es->th_id, output->data.data, (output->data.data)->dtt,
-                                         (target_repo == successor_repo? "UNFULFILLED" : "FULFILLED"),
-                                         output->data.data_future);
+                                             "th%d RESHAPE_PROMISE SETUP FOR REMOTE DEPS [%p:%p] for INLINE REMOTE %s fut %p",
+                                             es->th_id, output->data.data, (output->data.data)->dtt,
+                                             (target_repo == successor_repo? "UNFULFILLED" : "FULFILLED"),
+                                             output->data.data_future);
                     }
 #endif
                 } else {
@@ -1943,10 +1948,20 @@ parsec_task_snprintf( char* str, size_t size,
                            task->locals[i].value );
         if( index >= size ) return str;
     }
-    index += snprintf(str + index, size - index, "]<%d>", task->priority );
+    index += snprintf(str + index, size - index, "]<%d> keys = {", task->priority );
+    if( index >= size ) return str;
+    for( i = 0; i < tc->nb_flows; i++ ) {
+        char *prefix = (i == 0) ? "" : ", ";
+        if ((NULL == task->data[i].data_in) || (NULL == task->data[i].data_in->original))
+            index += snprintf(str + index, size - index, "%s*", prefix);
+        else
+            index += snprintf(str + index, size - index, "%s%"PRIx64, prefix, task->data[i].data_in->original->key);
+        if( index >= size ) return str;
+    }
+    index += snprintf(str + index, size - index, "}" );
     if( index >= size ) return str;
     if( NULL != task->taskpool ) {
-        index += snprintf(str + index, size - index, "{%u}", task->taskpool->taskpool_id );
+        index += snprintf(str + index, size - index, " {tp: %u}", task->taskpool->taskpool_id );
         if( index >= size ) return str;
     }
     return str;
@@ -2085,6 +2100,7 @@ int parsec_taskpool_reserve_id( parsec_taskpool_t* tp )
     tp->taskpool_id = idx;
     assert( NOTASKPOOL == taskpool_array[idx] );
     parsec_atomic_unlock( &taskpool_array_lock );
+    PARSEC_DEBUG_VERBOSE(5, parsec_debug_output, "Taskpool %s received id %d", tp->taskpool_name, tp->taskpool_id);
     return idx;
 }
 
@@ -2207,7 +2223,7 @@ int parsec_taskpool_enable(parsec_taskpool_t* tp,
     }
 
     if( 0 != distributed ) {
-        PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Register a new taskpool %p: %d with the comm engine", tp, tp->taskpool_id);
+        PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Register a new taskpool %s: %d with the comm engine", tp->taskpool_name, tp->taskpool_id);
         (void)parsec_remote_dep_new_taskpool(tp);
     }
     return PARSEC_HOOK_RETURN_DONE;
