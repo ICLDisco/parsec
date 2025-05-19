@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024 The University of Tennessee and The University
+ * Copyright (c) 2021-2025 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
@@ -81,7 +81,25 @@ typedef int (parsec_stage_out_function_t)(parsec_gpu_task_t        *gtask,
  * and this function allows the device engine to delegate the release of such tasks back into
  * the DSL. Once this task called, the device task should not be accessed by the device.
  */
-typedef void (*parsec_release_device_task_function_t)(void*);
+typedef void (*parsec_release_device_task_function_t)(parsec_gpu_task_t*);
+typedef struct parsec_gpu_flow_info_s {
+    const parsec_flow_t      *flow;         /* Some DSL might not have a task_class, but they still need to provide a flow. */
+    size_t                    flow_span;    /* the span of the data on the device. For contiguous layout this is equal to the
+                                             * size of the data, for all the other copies this should be the amount of memory
+                                             * needed on the device.
+                                             */
+    parsec_data_collection_t *flow_dc; /* the data collection from which the data originates. When the data copy is local, the data
+                                        * collection can be accessed via the data_t, but for all copies coming from the network there
+                                        * is no known data collection. Thus, for such cases the DSL need to provide a reference to the
+                                        * local data collection to be used for all transfers. This data collection is needed to get
+                                        * access to the mtype, to get the memory layout of the copy.
+                                        */
+    /* The is private to the device code and should not be used outside the device driver */
+    parsec_data_copy_t       *source; /* If the driver decides to acquire the data from a different
+                                        * source, it will temporary store the best candidate here.
+                                        */
+
+} parsec_gpu_flow_info_t;
 
 struct parsec_gpu_task_s {
     parsec_list_item_t                     list_item;
@@ -102,29 +120,28 @@ struct parsec_gpu_task_s {
         struct {
             parsec_task_t                 *ec;
             uint64_t                       last_data_check_epoch;
-            const parsec_flow_t           *flow[MAX_PARAM_COUNT];  /* There is no consistent way to access the flows from the task_class,
-                                                                    * so the DSL need to provide these flows here.
-                                                                    */
-            size_t                         flow_nb_elts[MAX_PARAM_COUNT]; /* for each flow, size of the data to be allocated
-                                                                           * on the GPU.
-                                                                           */
-            parsec_data_collection_t      *flow_dc[MAX_PARAM_COUNT];     /* for each flow, data collection from which the data
-                                                                          * to be transferred logically belongs to.
-                                                                          * This gives the user the chance to indicate on the JDF
-                                                                          * a data collection to inspect during GPU transfer.
-                                                                          * User may want info from the DC (e.g. mtype),
-                                                                          * & otherwise remote copies don't have any info.
-                                                                          */
-            /* These are private and should not be used outside the device driver */
-            parsec_data_copy_t            *sources[MAX_PARAM_COUNT];  /* If the driver decides to acquire the data from a different
-                                                                       * source, it will temporary store the best candidate here.
-                                                                       */
+            uint32_t                       nb_flows;
+            parsec_gpu_flow_info_t        *flow_info;
         };
         struct {
             parsec_data_copy_t            *copy;
         };
     };
 };
+
+PARSEC_DECLSPEC PARSEC_OBJ_CLASS_DECLARATION(parsec_gpu_task_t);
+
+/**
+ * Specialized GPU tasks for the PTG and DTD DSL. The maximum number of flows being MAX_PARAM_COUNT we
+ * can make the gpu_flow_info array part of the struct, to allocate the gpu_task as a single, 
+ * contiguous block of memory.
+ */
+typedef struct parsec_gpu_dsl_task_s {
+    parsec_gpu_task_t                      super;
+    parsec_gpu_flow_info_t                 flows[MAX_PARAM_COUNT];  /* All the flow info necessary for the PTG and DTD DSL */
+} parsec_gpu_dsl_task_t;
+
+PARSEC_DECLSPEC PARSEC_OBJ_CLASS_DECLARATION(parsec_gpu_dsl_task_t);
 
 typedef enum parsec_device_transfer_direction_e {
     parsec_device_gpu_transfer_direction_h2d,
@@ -318,6 +335,7 @@ char *parsec_device_describe_gpu_task( char *tmp, size_t len, parsec_gpu_task_t 
 #define PARSEC_GPU_TASK_TYPE_PREFETCH     0x2000
 #define PARSEC_GPU_TASK_TYPE_WARMUP       0x4000
 #define PARSEC_GPU_TASK_TYPE_D2D_COMPLETE 0x8000
+#define PARSEC_GPU_TASK_TYPE_INVALID      0xf000
 
 #if defined(PARSEC_PROF_TRACE)
 #define PARSEC_PROFILE_GPU_TRACK_DATA_IN  0x0001
