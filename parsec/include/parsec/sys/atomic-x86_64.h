@@ -196,7 +196,7 @@ __int128_t parsec_atomic_fetch_add_int128(volatile __int128_t* v, __int128_t i)
     do {
         ov = *v;
         nv = ov + i;
-    } while( !parsec_atomic_cas_int128(v, nv) );
+    } while( !parsec_atomic_cas_int128(v, ov, nv) );
     return ov;
 }
 #endif
