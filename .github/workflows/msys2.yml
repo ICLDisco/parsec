@@ -1,0 +1,23 @@
+name: MSYS2
+on: [push, pull_request]
+
+jobs:
+  msys2-ucrt64:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: git bison flex mingw-w64-ucrt-x86_64-cc mingw-w64-ucrt-x86_64-fc mingw-w64-ucrt-x86_64-gcc-libgfortran mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-msmpi mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-hwloc
+      - name: CI-Build
+        run: |
+          mkdir build
+          cd build
+          export CFLAGS+=" -D_GNU_SOURCE -Wno-attributes -Wno-incompatible-pointer-types -Wno-implicit-function-declaration"
+          cmake -GNinja -DCMAKE_BUILD_TYPE=Release -DPARSEC_DIST_WITH_MPI=OFF ..
+          cmake --build . -j $(nproc)
