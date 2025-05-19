@@ -17,6 +17,7 @@ set(BASE_SOURCES
   class/parsec_value_array.c
   class/parsec_hash_table.c
   class/parsec_rwlock.c
+  class/parsec_rbtree.c
   class/parsec_future.c
   class/parsec_datacopy_future.c
   class/info.c
@@ -323,6 +324,7 @@ install(FILES
         ${CMAKE_CURRENT_SOURCE_DIR}/class/list.h
         ${CMAKE_CURRENT_SOURCE_DIR}/class/info.h
         ${CMAKE_CURRENT_SOURCE_DIR}/class/parsec_future.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/class/parsec_rbtree.h
         DESTINATION ${PARSEC_INSTALL_INCLUDEDIR}/parsec/class)
 install(FILES
         ${CMAKE_CURRENT_SOURCE_DIR}/scheduling.h

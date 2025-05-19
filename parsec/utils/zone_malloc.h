@@ -10,6 +10,9 @@
 #include "parsec/parsec_config.h"
 #include "parsec/sys/atomic.h"
 
+#include "parsec/class/parsec_rbtree.h"
+#include "parsec/class/lifo.h"
+
 #include <stdlib.h>
 #include <assert.h>
 
@@ -20,18 +23,21 @@ BEGIN_C_DECLS
 #define SEGMENT_UNDEFINED  3
 
 typedef struct segment {
+    parsec_list_item_t super;
     int status;     /* True if this segment is full, false if it is free */
-    int32_t nb_units;   /* Number of units on this segment */
-    int32_t nb_prev;    /* Number of units on the segment before */
+    int nb_units;   /* Number of units on this segment */
+    int nb_prev;    /* Number of units on the segment before */
 } segment_t;
 
 typedef struct zone_malloc_s {
     char      *base;                 /* Base pointer              */
-    segment_t *segments;             /* Array of available segments */
+    segment_t *segments;             /* Array of segments */
     size_t     unit_size;            /* Basic Unit                */
     int        max_segment;          /* Maximum number of segment */
     int        next_tid;             /* Next TID to look at for a malloc */
     parsec_atomic_lock_t lock;
+    parsec_rbtree_t rbtree;          /* RB tree tracking chunks of free segments */
+    parsec_lifo_t rbtree_free_list;
 } zone_malloc_t;
 
 
