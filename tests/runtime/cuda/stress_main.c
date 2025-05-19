@@ -7,6 +7,7 @@
 #include "parsec/data_distribution.h"
 #include "parsec/data_dist/matrix/matrix.h"
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include "parsec/utils/mca_param.h"
 
 #include "stress.h"
 #include "stress_wrapper.h"
@@ -20,7 +21,7 @@ int main(int argc, char *argv[])
     parsec_context_t *parsec = NULL;
     parsec_taskpool_t *tp;
     int size = 1;
-    int rank = 0;
+    int rank = 0, nb_gpus = 1;
 
 #if defined(DISTRIBUTED)
     {
@@ -29,6 +30,27 @@ int main(int argc, char *argv[])
     }
     MPI_Comm_size(MPI_COMM_WORLD, &size);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
+    {
+        MPI_Comm local_comm;
+        int local_rank, local_size;
+        MPI_Comm_split_type(MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, 0,
+                            MPI_INFO_NULL, &local_comm);
+        MPI_Comm_rank(local_comm, &local_rank);
+        MPI_Comm_size(local_comm, &local_size);
+        MPI_Comm_free(&local_comm);
+        int gpu_mask = 0;
+        for (int i = 0; i < nb_gpus; i++)
+        {
+            gpu_mask |= ((1 << local_rank) << i);
+        }
+        char *value;
+        asprintf(&value, "%d", gpu_mask);
+        parsec_setenv_mca_param("device_cuda_mask", value, &environ);
+        free(value);
+        value = NULL;
+    }
+#endif /* defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)*/
 #endif /* DISTRIBUTED */
 
     parsec = parsec_init(-1, &argc, &argv);
