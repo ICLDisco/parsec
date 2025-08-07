@@ -1,0 +1,40 @@
+name: DPLASMA
+description: Uses the DPLASMA CI as a tester for PaRSEC
+
+# Environment variables required:
+#      BUILD_TYPE:  ${{matrix.build_type}}
+#      SHARED_TYPE: ${{matrix.shared_type}}
+#      DEVICE: ${{matrix.device}}
+#      PARSEC_INSTALL_DIR: 
+#      INSTALL_DIRECTORY: ${{github.workspace}}/dplasma/install
+#      SETUP: ${{github.workspace}}/dplasma/.github/workflows/env_setup.sh
+
+runs:
+  using: "composite"
+  steps:
+    - name: Build and Install DPLASMA
+      shell: bash
+      run: |
+          export INSTALL_DIRECTORY=$PWD/dplasma/install
+          git clone https://github.com/ICLDisco/dplasma
+          sed -i s/MPIEXEC_NUMPROC_FLAGS/MPIEXEC_NUMPROC_FLAG/ dplasma/CMakeLists.txt
+          source dplasma/.github/workflows/env_setup.sh
+          mkdir dplasma/build
+          cd dplasma/build
+          CC=gcc CXX=g++ FC=gfortran cmake $BUILD_CONFIG -DPaRSEC_ROOT=$PARSEC_INSTALL_DIR ..
+          cmake --build .
+          cmake --build . --target install
+
+    - name: Test
+      working-directory: dplasma/build
+      shell: bash
+      run: |
+        source ../.github/workflows/env_setup.sh
+        ctest --output-on-failure
+
+    - name: Save Artifact
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: CMake-error-log
+        path: dplasma/build/CMakeFiles/CMakeError.log

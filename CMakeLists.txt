@@ -736,14 +736,14 @@ int main(int argc, char *argv[]) {
   endif( PARSEC_GPU_WITH_CUDA )
 
   if( PARSEC_GPU_WITH_HIP )
-    # This is kinda ugly but the PATH and HINTS don't get transmitted to sub-dependents
-    set(CMAKE_SYSTEM_PREFIX_PATH_save ${CMAKE_SYSTEM_PREFIX_PATH})
-    list(APPEND CMAKE_SYSTEM_PREFIX_PATH /opt/rocm)
+    if( NOT DEFINED ROCM_ROOT_DIR AND IS_DIRECTORY /opt/rocm )
+      set(ROCM_ROOT_DIR /opt/rocm)
+    endif()
+    list(APPEND CMAKE_PREFIX_PATH ${ROCM_ROOT_DIR}/hip ${ROCM_ROOT_DIR})
     find_package(HIP QUIET) #quiet because hip-config.cmake is not part of core-cmake and will spam a loud warning when hip/rocm is not installed
     if(HIP_FOUND AND HIP_VERSION VERSION_LESS 5) # find_package(HIP 5...6) does not work for some reason
         message(FATAL_ERROR "Found HIP version ${HIP_VERSION} in ${HIP_LIB_INSTALL_DIR} is too old, use HIP_ROOT to select another version")
     endif()
-    set(CMAKE_SYSTEM_PREFIX_PATH ${CMAKE_SYSTEM_PREFIX_PATH_save})
     if(HIP_FOUND AND PARSEC_HAVE_CUDA)
       # the underlying reason is that the generated ptg code cannot include at the same time
       # cuda_runtime.h and hip_runtime.h, so we need to modify the dev_cuda.h to not expose any

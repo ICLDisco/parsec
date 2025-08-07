@@ -69,6 +69,7 @@ endif(@PARSEC_HAVE_CUDA@)
 
 if(@PARSEC_HAVE_HIP@)
   enable_language(CXX)
+  list (APPEND CMAKE_PREFIX_PATH @ROCM_ROOT_DIR@/hip @ROCM_ROOT_DIR@)
   find_package(HIP REQUIRED)
   set(PARSEC_HAVE_HIP TRUE)
 endif(@PARSEC_HAVE_HIP@)
