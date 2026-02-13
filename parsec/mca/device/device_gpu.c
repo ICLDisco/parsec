@@ -889,7 +889,9 @@ parsec_device_memory_release( parsec_device_gpu_module_t* gpu_device )
 int
 parsec_device_get_copy( parsec_device_gpu_module_t* gpu_device, parsec_data_copy_t** dc )
 {
+#if defined(PARSEC_DEBUG_NOISIER)
     char task_name[] = "unknown";
+#endif /* defined(PARSEC_DEBUG_NOISIER) */
     parsec_gpu_data_copy_t *gpu_mem_lru_cycling = NULL, *lru_gpu_elem;
     /* Get the head of the LRU, assuming it has no readers and mark it as used, using the same mechanism as
      * the GPU to GPU tranfers. Once the communication into this copy completes, the task will get into
@@ -2768,11 +2770,11 @@ parsec_device_kernel_epilog( parsec_device_gpu_module_t *gpu_device,
     parsec_data_t              *original;
 
 #if defined(PARSEC_DEBUG_NOISIER)
-    char tmp[MAX_TASK_STRLEN];
+    char task_str[MAX_TASK_STRLEN];
+    (void)parsec_task_snprintf(task_str, MAX_TASK_STRLEN, this_task);
     PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
                          "GPU[%d:%s]: Epilog of %s",
-                         gpu_device->super.device_index, gpu_device->super.name,
-                         parsec_task_snprintf(tmp, MAX_TASK_STRLEN, this_task) );
+                         gpu_device->super.device_index, gpu_device->super.name, task_str);
 #endif
 
     for( uint32_t i = 0; i < gpu_task->nb_flows  /* not this_task->task_class->nb_flows */; i++ ) {
@@ -2815,9 +2817,9 @@ parsec_device_kernel_epilog( parsec_device_gpu_module_t *gpu_device,
             cpu_copy->coherency_state = PARSEC_DATA_COHERENCY_SHARED;
 
             cpu_copy->version = gpu_copy->version;
-            PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
-                                 "GPU[%d:%s]: CPU copy %p [ref_count %d] gets the same version %d as GPU copy %p [ref_count %d]",
-                                 gpu_device->super.device_index, gpu_device->super.name,
+            PARSEC_DEBUG_VERBOSE(20, parsec_gpu_output_stream,
+                                 "GPU[%d:%s]: %s: CPU copy %p [ref_count %d] gets the same version %d as GPU copy %p [ref_count %d]",
+                                 gpu_device->super.device_index, gpu_device->super.name, task_str,
                                  cpu_copy, cpu_copy->super.super.obj_reference_count, cpu_copy->version, gpu_copy, gpu_copy->super.super.obj_reference_count);
 
             /**
@@ -2839,19 +2841,32 @@ parsec_device_kernel_epilog( parsec_device_gpu_module_t *gpu_device,
             gpu_copy->coherency_state = PARSEC_DATA_COHERENCY_SHARED;
             assert(PARSEC_DATA_STATUS_UNDER_TRANSFER == cpu_copy->data_transfer_status);
             cpu_copy->data_transfer_status = PARSEC_DATA_STATUS_COMPLETE_TRANSFER;
-            if( 0 == (parsec_mpi_allow_gpu_memory_communications & PARSEC_RUNTIME_SEND_GPU_MEMORY) ) {
+            /* This condition should be checked more strictly. It is one thing to be able to send the
+             * data directly from the GPU via the communication engine, but if we have local successors
+             * that are not executing on the GPU (aka. the pushout has been set) we need to propagate
+             * the CPU copy instead.
+             */
+            if( 1 || (0 == (parsec_mpi_allow_gpu_memory_communications & PARSEC_RUNTIME_SEND_GPU_MEMORY)) ) {
                 /* Report the CPU copy as the output of the task. */
                 this_task->data[i].data_out = cpu_copy;
+                PARSEC_DEBUG_VERBOSE(100, parsec_gpu_output_stream,
+                                 "GPU[%d:%s]: %s: GPU copy %p [ref_count %d] replaced by the CPU copy %p [ref_count %d] in %s",
+                                 gpu_device->super.device_index, gpu_device->super.name, task_str,
+                                 gpu_copy, gpu_copy->super.super.obj_reference_count,
+                                 cpu_copy, cpu_copy->super.super.obj_reference_count, __func__);
             }
             PARSEC_DEBUG_VERBOSE(20, parsec_gpu_output_stream,
-                                 "GPU copy %p [ref_count %d] moved to the read LRU in %s",
+                                 "GPU[%d:%s]: %s: GPU copy %p [ref_count %d] moved to the read LRU in %s",
+                                 gpu_device->super.device_index, gpu_device->super.name, task_str,
                                  gpu_copy, gpu_copy->super.super.obj_reference_count, __func__);
             parsec_list_item_ring_chop((parsec_list_item_t*)gpu_copy);
             PARSEC_LIST_ITEM_SINGLETON(gpu_copy);
             parsec_list_push_back(&gpu_device->gpu_mem_lru, (parsec_list_item_t*)gpu_copy);
         } else {
+            /* No need to detach the GPU copy it does not belong to any lists because it was owned by the task */
             PARSEC_DEBUG_VERBOSE(20, parsec_gpu_output_stream,
-                                 "GPU copy %p [ref_count %d] moved to the owned LRU in %s",
+                                 "GPU[%d:%s]: %s: GPU copy %p [ref_count %d] moved to the owned LRU in %s",
+                                 gpu_device->super.device_index, gpu_device->super.name, task_str,
                                  gpu_copy, gpu_copy->super.super.obj_reference_count, __func__);
             parsec_list_push_back(&gpu_device->gpu_mem_owned_lru, (parsec_list_item_t*)gpu_copy);
         }
