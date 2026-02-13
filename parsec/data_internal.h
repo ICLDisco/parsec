@@ -50,27 +50,27 @@ PARSEC_DECLSPEC PARSEC_OBJ_CLASS_DECLARATION(parsec_data_t);
  * This structure represent a device copy of a parsec_data_t.
  */
 struct parsec_data_copy_s {
-    parsec_list_item_t          super;
+    parsec_list_item_t           super;
 
-    int8_t                      device_index;         /**< Index in the original->device_copies array */
-    parsec_data_flag_t          flags;
-    parsec_data_coherency_t     coherency_state;
+    int8_t                       device_index;         /**< Index in the original->device_copies array */
+    parsec_data_flag_t           flags;
+    parsec_data_coherency_t      coherency_state;
     /* int8_t */
 
-    int32_t                     readers;
+    int32_t                      readers;
 
-    uint32_t                    version;
+    uint32_t                     version;
 
-    struct parsec_data_copy_s   *older;                 /**< unused yet */
+    struct parsec_data_copy_s   *older;              /**< unused yet */
     parsec_data_t               *original;
     struct parsec_arena_chunk_s *arena_chunk;        /**< If this is an arena-based data, keep
                                                       *   the chunk pointer here, to avoid
                                                       *   risky pointers arithmetic (pointers misalignment
                                                       *   depending on many parameters) */
-    void                     *device_private;        /**< The pointer to the device-specific data.
+    void                        *device_private;     /**< The pointer to the device-specific data.
                                                       *   Overlay data distributions assume that arithmetic
                                                       *   can be done on these pointers. */
-    parsec_data_status_t      data_transfer_status;  /**< Have we scheduled a communication to update this data yet?
+    parsec_data_status_t         data_transfer_status;  /**< Have we scheduled a communication to update this data yet?
                                                       *   Possible values are NOT_TRANSFER, UNDER_TRANSFER, TRANSFER_COMPLETE.
                                                       *   NB: this closely follows, but is not equivalent, to
                                                       *   the coherency_flag INVALID. A data copy that is 'under transfer'

@@ -789,7 +789,7 @@ remote_dep_mpi_retrieve_datatype(parsec_execution_stream_t *eu,
          * to receive the data. It would not make sense to receive different amount, but
          * it is legal to receive them with different type signatures. In this case, ignore
          * the datatype, and instead fall back into a packed format (aka bytes) and the
-         * entire length of the incomming data.
+         * entire length of the incoming data.
          */
         if(old_dtt != output->data.remote.dst_datatype) {
 #if defined(PARSEC_DEBUG_NOISIER)
@@ -2145,7 +2145,7 @@ static void remote_dep_mpi_get_start(parsec_execution_stream_t* es,
             int best_device = (parsec_mpi_allow_gpu_memory_communications & PARSEC_RUNTIME_RECV_GPU_MEMORY) ? deps->output[k].data.preferred_device : 0;
             deps->output[k].data.data = remote_dep_copy_allocate(&deps->output[k].data.remote, best_device);
         }
-        /* Mark the data under tranfer */
+        /* Mark the data under transfer */
         deps->output[k].data.data->data_transfer_status = PARSEC_DATA_STATUS_UNDER_TRANSFER;
         deps->output[k].data.data->flags |= PARSEC_DATA_FLAG_TRANSIT;
         dtt = deps->output[k].data.remote.dst_datatype;

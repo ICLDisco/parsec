@@ -173,6 +173,7 @@ int __parsec_execute( parsec_execution_stream_t* es,
     for( int i = 0; parsec_debug_verbose > 5 && i < task->task_class->nb_flows; i++ ) {
         parsec_data_copy_t* copy = task->data[i].data_in;
         if( NULL == copy ) continue; /* Make sure data_in is not NULL */
+        if( NULL == task->task_class->in[i] ) continue; /* Ignore output-only flows */
         if( PARSEC_FLOW_ACCESS_NONE == (PARSEC_FLOW_ACCESS_MASK & task->task_class->in[i]->flow_flags) )  continue;  /* control flow */
         len += snprintf(&tmp2[len], 4096-len, "\n\t  Data[%d] key %lx\ton dev:%d version:%d readers:%d ptr:%p", i, copy->original->key, copy->device_index, copy->version, copy->readers, copy->device_private);
     }

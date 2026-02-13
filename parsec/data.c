@@ -456,11 +456,11 @@ int parsec_data_start_transfer_ownership_to_copy(parsec_data_t* data,
 
 void parsec_data_copy_dump(parsec_data_copy_t* copy)
 {
-    char *tranfer = "---", flags[] = "----", *coherency = "undef";
+    char *transfer = "---", flags[] = "----", *coherency = "undef";
     switch(copy->data_transfer_status) {
-        case PARSEC_DATA_STATUS_NOT_TRANSFER: tranfer = "no"; break;
-        case PARSEC_DATA_STATUS_UNDER_TRANSFER: tranfer = "yes"; break;
-        case PARSEC_DATA_STATUS_COMPLETE_TRANSFER: tranfer = "no"; break;
+        case PARSEC_DATA_STATUS_NOT_TRANSFER: transfer = "no"; break;
+        case PARSEC_DATA_STATUS_UNDER_TRANSFER: transfer = "yes"; break;
+        case PARSEC_DATA_STATUS_COMPLETE_TRANSFER: transfer = "no"; break;
     }
     if (copy->flags & PARSEC_DATA_FLAG_ARENA) flags[0] = 'A';
     if (copy->flags & PARSEC_DATA_FLAG_TRANSIT) flags[1] = 'T';
@@ -475,7 +475,7 @@ void parsec_data_copy_dump(parsec_data_copy_t* copy)
     parsec_debug_verbose(0, 0, "%s  [%d]: copy %p [ref %d] coherency %s readers %d version %u transit %s flags %s\n"
                                "          older %p orig %p [%llx] arena %p dev_priv %p\n",
                          ((NULL != copy->original) && (copy->original->owner_device == copy->device_index)) ? "*" : " ",
-                         (int)copy->device_index, copy, copy->super.super.obj_reference_count, coherency, copy->readers, copy->version, tranfer, flags,
+                         (int)copy->device_index, copy, copy->super.super.obj_reference_count, coherency, copy->readers, copy->version, transfer, flags,
                          (void *)copy->older, (void *)copy->original,
                          (NULL != copy->original) ? (unsigned long)copy->original->key : (unsigned long)-1, (void *)copy->arena_chunk, copy->device_private);
 }
