@@ -256,7 +256,7 @@ parsec_arena_internal_copy_new(parsec_arena_t *arena,
             return NULL;
         }
 #if defined(PARSEC_DEBUG)
-        /* Name the data with a default key to facilitate debuging */
+        /* Name the data with a default key to facilitate debugging */
         ldata->key = (uint64_t)parsec_atomic_fetch_inc_int64(&parsec_countable_incoming_message);
         ldata->key |= ((uint64_t)device) << 56;
 #endif  /* defined(PARSEC_DEBUG) */
@@ -275,9 +275,9 @@ parsec_arena_internal_copy_new(parsec_arena_t *arena,
     }
     /**
      * This part is not really nice, it breaks the separation between devices, and how their memory is
-     * managed. But, it should give nice perfromance improvements if the communication layer is
+     * managed. But, it should give nice performance improvements if the communication layer is
      * capable of sending or receiving data directly to and from the accelerator memory. The only drawback
-     * is that once the GPU memory is full, this will fail, so the soeftware will fall back to the
+     * is that once the GPU memory is full, this will fail, so the software will fall back to the
      * prior behavior, going through the CPU memory.
      *
      * The zone deallocation is not symmetric, it will happen in the GPU management, when the data copies
@@ -291,22 +291,21 @@ parsec_arena_internal_copy_new(parsec_arena_t *arena,
     void* device_private = zone_malloc(gpu_device->memory, size);
     if( NULL == device_private ) {
         PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Arena:\tallocate data copy on device %d of size %zu from zone %p failed (out of memory)\n",
-                             device, size, (void *)copy->arena_chunk);
+                             device, size, (void *)gpu_device->memory);
         goto free_and_return;
     }
     copy = parsec_data_copy_new(ldata, device, dtt,
                                 PARSEC_DATA_FLAG_PARSEC_OWNED | PARSEC_DATA_FLAG_PARSEC_MANAGED);
     if (NULL == copy) {
         PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Arena:\tallocate data copy on device %d of size %zu from zone %p failed to allocate copy (out of memory)\n",
-                             device, size, (void *)copy->arena_chunk);
+                             device, size, (void *)gpu_device->memory);
         zone_free(gpu_device->memory, device_private);
         goto free_and_return;
     }
     copy->dtt = dtt;
     copy->device_private = device_private;
     copy->arena_chunk = (parsec_arena_chunk_t*)gpu_device->memory;
-    PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Arena:\tallocate data copy on device %d of size %zu from zone %p, "
-                                                  "data ptr %p",
+    PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Arena:\tallocate data copy on device %d of size %zu from zone %p, data ptr %p",
                          device, size, (void*)copy->arena_chunk, (void*)copy->device_private);
     copy->version = 0;
     copy->coherency_state = PARSEC_DATA_COHERENCY_INVALID;
@@ -335,6 +334,9 @@ parsec_arena_get_new_copy(parsec_arena_t *arena,
     dev0_copy->coherency_state = PARSEC_DATA_COHERENCY_INVALID;
     dev0_copy->version = 0;  /* start from somewhere */
     if( 0 == device ) {
+        /* Device 0 (CPU) copy is special: it belongs to the user in the current design,
+         * so we must not release the original here.
+         */
         return dev0_copy;
     }
 
