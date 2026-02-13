@@ -35,6 +35,7 @@ if(PARSEC_HAVE_CUDA)
   # Testing for communications to and from GPU
   parsec_addtest_executable(C cuda_rtt SOURCES rtt.c rtt_main.c)
   target_include_directories(cuda_rtt PRIVATE $<$<NOT:${PARSEC_BUILD_INPLACE}>:${CMAKE_CURRENT_SOURCE_DIR}>)
+  target_link_libraries(cuda_rtt PRIVATE m)
   target_ptg_sources(cuda_rtt PRIVATE "rtt.jdf")
 endif(PARSEC_HAVE_CUDA)
 
