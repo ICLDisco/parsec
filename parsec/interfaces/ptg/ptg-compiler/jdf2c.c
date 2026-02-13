@@ -7392,7 +7392,8 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
                             prefix, indent(nbopen), parsec_get_name(jdf, targetf, "task_t"), parsec_get_name(jdf, targetf, "task_t"), var);
     string_arena_add_string(sa_open, "%s%s%s.task_class = __parsec_tp->super.super.task_classes_array[%s_%s.task_class_id];\n",
                             prefix, indent(nbopen), var, jdf_basename, targetf->fname);
-
+    string_arena_add_string(sa_open, "%s%sfor (int _i = 0; _i < %s.task_class->nb_flows; %s.data[_i].data_in = NULL, _i++);\n",
+                            prefix, indent(nbopen), var, var);
     nbparam_given = 0;
     for(el = call->parameters; el != NULL; el = el->next) {
         nbparam_given++;
@@ -7424,7 +7425,7 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
                 dep_ld = jdf_expr_lv_next(dep->local_defs, dep_ld);
                 continue; /* This local define was already issued as part of the dep */
             }
-            string_arena_add_string(sa_open, "%s%s  int %s;\n", prefix, indent(nbopen), ld->alias);
+            string_arena_add_string(sa_open, "%s%sint %s;\n", prefix, indent(nbopen), ld->alias);
             if(JDF_RANGE == ld->op) {
                 string_arena_add_string(sa_open,
                                         "%s%sfor( %s = %s;",
@@ -7462,11 +7463,11 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
              */
             assert(el == NULL);
             string_arena_add_string(sa_open,
-                                    "%s%s  const int %s_%s = %s;\n",
+                                    "%s%sconst int %s_%s = %s;\n",
                                     prefix, indent(nbopen), targetf->fname, vl->name, dump_expr((void**)vl->expr, &dest_info));
-            string_arena_add_string(sa_open, "%s%s  assert(&%s.locals[%d].value == &ncc->locals.%s.value);\n",
+            string_arena_add_string(sa_open, "%s%sassert(&%s.locals[%d].value == &ncc->locals.%s.value);\n",
                                     prefix, indent(nbopen), var, i, vl->name);
-            string_arena_add_string(sa_open, "%s%s  ncc->locals.%s.value = %s_%s;\n",
+            string_arena_add_string(sa_open, "%s%sncc->locals.%s.value = %s_%s;\n",
                                     prefix, indent(nbopen), vl->name,
                                     targetf->fname, vl->name);
         } else {
@@ -7523,7 +7524,7 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
 
             if( JDF_RANGE == el->op ) {
                 string_arena_add_string(sa_open,
-                                        "%s%s  int %s_%s;\n",
+                                        "%s%sint %s_%s;\n",
                                         prefix, indent(nbopen), targetf->fname, nl->name);
 
                 string_arena_add_string(sa_open,
@@ -7536,7 +7537,7 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
                 nbopen++;
             } else {
                 string_arena_add_string(sa_open,
-                                        "%s%s  const int %s_%s = %s;\n",
+                                        "%s%sconst int %s_%s = %s;\n",
                                         prefix, indent(nbopen), targetf->fname, nl->name, dump_expr((void**)el, &local_info));
             }
 
