@@ -194,6 +194,12 @@ extern uint32_t parsec_nb_devices;
 extern int parsec_device_output;
 
 /**
+ * Whether to skip events on input, output, and execution streams that
+ * are not strictly necessary (enabled by default).
+ */
+extern int parsec_device_skip_empty_events;
+
+/**
  * @brief Find the best device to execute the kernel based on the compute
  * capability of the device.
  *

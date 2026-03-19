@@ -2134,7 +2134,7 @@ parsec_device_progress_stream( parsec_device_gpu_module_t* gpu_device,
 
   schedule_task:
     rc = progress_fct( gpu_device, task, stream );
-    if(0 == rc) {
+    if( 0 == rc && parsec_device_skip_empty_events ) {
 #if defined(PARSEC_PROF_TRACE)
         if( stream->prof_event_track_enable ) {
             if( task->prof_key_end != -1 ) {
