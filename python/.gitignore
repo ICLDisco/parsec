@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+*.so
+*.pyd
+
+# Cython generated
+src/py_parsec/*.c
+src/py_parsec/*.html
+
+# Virtual environment
+venv/
+
+# Generated env script
+parsec_env.sh
+
+# IDE
+.vscode/
+.idea/
+
+# Coverage
+.coverage
+htmlcov/
+.pytest_cache/
