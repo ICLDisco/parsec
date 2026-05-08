@@ -2,6 +2,7 @@
  * Copyright (c) 2015-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  **/
 /**
  *
@@ -238,6 +239,30 @@ parsec_dtd_tile_of( parsec_data_collection_t *dc, parsec_data_key_t key );
 parsec_dtd_tile_t * parsec_dtd_tile_new(parsec_taskpool_t *dtd_tp, int rank);
 
 /**
+ * Thread-safety contract for DTD insertion.
+ *
+ * A DTD taskpool may be fed by multiple producer threads once all task classes
+ * used by those producers have been created, fully configured with chores, and
+ * registered in the taskpool. Task-class creation, direct-insert first use that
+ * auto-creates a task class, chore addition, and task-class release/destruction
+ * must be serialized by the application.
+ *
+ * Concurrent producers must also follow the DTD tile contract. Tile handle
+ * creation and lookup for a data collection must be externally serialized while
+ * the data collection's DTD tile table can be mutated. This includes
+ * `parsec_dtd_tile_of()`, `PARSEC_DTD_TILE_OF()`, and `PARSEC_DTD_TILE_OF_KEY()`
+ * calls for handles that might not already exist.
+ *
+ * Once the relevant tile handles have been created, producer threads may insert
+ * tasks concurrently only if they use disjoint DTD tile sets, or if the
+ * application otherwise serializes every operation that can touch the same DTD
+ * tile. Flushes are tile operations too: they must be serialized with task
+ * insertion for the same tile. A safe parallel pattern is to create all task
+ * classes and tile handles in a serialized setup phase, then let producer
+ * threads insert tasks over pre-created disjoint tile sets.
+ */
+
+/**
  * Using this function users can insert task in PaRSEC
  * 1. The parsec taskpool (parsec_dtd_taskpool_t *)
  * 2. The function pointer which will be executed as the "real computation task" being inserted.
@@ -293,6 +318,17 @@ parsec_dtd_tile_t * parsec_dtd_tile_new(parsec_taskpool_t *dtd_tp, int rank);
  *      *******  THIS PARAMETER MUST BE PROVIDED *******
  *      4. "0" indicates the end of parameter list. This should always be the last parameter.
  *
+ * Direct insertion is intended for low-volume control tasks, examples, and
+ * prototyping. Performance-sensitive DTD applications should pre-create
+ * explicit task classes, register their chores, and insert tasks with
+ * `parsec_dtd_insert_task_with_task_class()` so the hot path does not repeat
+ * the direct-insert class discovery and vararg metadata setup.
+ *
+ * For direct insertion, `device_type` must name exactly one concrete CPU/GPU
+ * device type supported by the taskpool. Device masks are only accepted by
+ * `parsec_dtd_insert_task_with_task_class()`, where they select among concrete
+ * chores already registered on the task class.
+ *
  */
 void
 parsec_dtd_insert_task(parsec_taskpool_t  *tp,
@@ -310,7 +346,9 @@ parsec_dtd_get_dev_ptr(parsec_task_t *this_task, int i);
 /**
  * This function behaves exactly like parsec_dtd_insert_task()
  * except it does not insert the task in PaRSEC and just returns it.
- * Users will need to use parsec_insert_dtd_task() to insert the task
+ * Users will need to use parsec_insert_dtd_task() to insert the task.
+ * `device_type` follows the same direct-insertion contract as
+ * parsec_dtd_insert_task(): exactly one concrete CPU/GPU device type.
  */
 parsec_task_t *
 parsec_dtd_create_task(parsec_taskpool_t  *tp,
@@ -403,11 +441,24 @@ parsec_dtd_create_task_classv(const char *name,
 void
 parsec_dtd_task_class_release(parsec_taskpool_t *tp, parsec_task_class_t *tc );
 
+/**
+ * Add one concrete chore to a DTD task class.
+ *
+ * `device_type` must name exactly one CPU/GPU device type, and that device type
+ * must be available in the taskpool. Device masks are task-insertion filters,
+ * not chore definitions.
+ */
 int parsec_dtd_task_class_add_chore(parsec_taskpool_t *tp,
                                     parsec_task_class_t *tc,
                                     int device_type,
                                     void *function);
 
+/**
+ * Insert a task using an explicit task class.
+ *
+ * Here `device_type` may be a mask: it selects among the concrete chores already
+ * registered on `tc` with parsec_dtd_task_class_add_chore().
+ */
 void
 parsec_dtd_insert_task_with_task_class(parsec_taskpool_t *tp,
                                        parsec_task_class_t *tc, int priority,
