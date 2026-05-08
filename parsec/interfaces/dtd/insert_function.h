@@ -187,26 +187,26 @@ typedef struct parsec_dtd_taskpool_s     parsec_dtd_taskpool_t;
 typedef parsec_hook_return_t (parsec_dtd_funcptr_t)(parsec_execution_stream_t *, parsec_task_t *);
 
 /**
- * This function is used to retrieve the parameters passed during insertion of a task.
- * This function takes variadic parameters.
- * 1. parsec_task_t * -> The parameter list is attached with this structure.
- *                                     The User needs to pass a FLAG to specify what sort of value needs to be
- *                                     unpacked. Three types of FLAGS are supported:
- *                                     - UNPACK_VALUE
- *                                     - UNPACK_SCRATCH
- *                                     - UNPACK_DATA
- *                                     Following each FLAG the pointer to the memory location where the parameter
- *                                     will be copied needs to be given.
+ * This function is used to retrieve the parameters passed during insertion of a
+ * task. The unpacked outputs must be passed in the same order as the insertion
+ * or task-class parameters.
  *
  * There is no way to unpack individual parameters. e.g. If user wants to unpack the 3rd parameter only, they have to
  * unpack at least the first three to maintain the order in which whey were inserted. However user can unpack
- * a partial amount of parameters. To do that correctly user needs to pass 0 as the last parameter.
+ * a partial amount of parameters. Source code including this header can simply
+ * stop passing output arguments after the last parameter it needs; the macro
+ * below appends the required terminator. Code that calls the exported function
+ * symbol directly must pass (void *)0 as the last output argument when unpacking a
+ * prefix.
  *
  *  ******* THE ORDER IN WHICH THE PARAMETERS WERE PASSED DURING INSERTION NEEDS TO BE *******
  *                              STRICTLY FOLLOWED WHILE UNPACKING
  */
 void
 parsec_dtd_unpack_args( parsec_task_t *this_task, ... );
+
+#define parsec_dtd_unpack_args(this_task, ...) \
+    (parsec_dtd_unpack_args)((this_task), ##__VA_ARGS__, (void *)0)
 
 /**
  * The following macro is very specific to two dimensional matrix.

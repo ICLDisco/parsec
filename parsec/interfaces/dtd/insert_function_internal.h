@@ -13,6 +13,8 @@
 #ifndef INSERT_FUNCTION_INTERNAL_H_HAS_BEEN_INCLUDED
 #define INSERT_FUNCTION_INTERNAL_H_HAS_BEEN_INCLUDED
 
+#include <limits.h>
+
 #include "parsec/parsec_internal.h"
 #include "parsec/data.h"
 #include "parsec/data_internal.h"
@@ -45,8 +47,8 @@ extern int parsec_dtd_dump_traversal_info; /**< For printing traversal info */
 /* To flag the task we are trying to complete as a local one */
 #define PARSEC_ACTION_COMPLETE_LOCAL_TASK 0x08000000
 
-/* Macros to figure out offset of parameters attached to a task */
-#define GET_HEAD_OF_PARAM_LIST(TASK) (parsec_dtd_task_param_t *) ( ((char *)TASK) + sizeof(parsec_dtd_task_t) + (TASK->super.task_class->nb_flows * sizeof(parsec_dtd_parent_info_t)) + (TASK->super.task_class->nb_flows * sizeof(parsec_dtd_descendant_info_t))  + (TASK->super.task_class->nb_flows * sizeof(parsec_dtd_flow_info_t)) )
+/* Macros to figure out offset of paramters attached to a task */
+#define GET_HEAD_OF_PARAM_LIST(TASK) (parsec_dtd_task_param_t *) ( ((char *)TASK) + ((parsec_dtd_task_class_t*)((TASK)->super.task_class))->params_offset )
 
 #define GET_VALUE_BLOCK(HEAD, PARAM_COUNT) ((char *)HEAD) + PARAM_COUNT * sizeof(parsec_dtd_task_param_t)
 
@@ -79,7 +81,7 @@ extern int parsec_dtd_dump_traversal_info; /**< For printing traversal info */
 #define DATA_IS_BEING_TRACKED  2
 #define INVALIDATED  3
 
-#define MAX_RANK_INFO 32
+#define PARSEC_DTD_RANK_INFO_BITS ((int)(sizeof(uint32_t) * CHAR_BIT))
 
 /* Structure used to pack arguments of insert_task() */
 struct parsec_dtd_task_param_s {
@@ -108,19 +110,6 @@ typedef void (parsec_taskpool_wait_t)( parsec_taskpool_t *tp );
  * We assume each task will have at most MAX_FLOW
  * number of flows.
  */
-typedef struct parsec_dtd_min_flow_info_s {
-    int16_t  arena_index;
-    int      op_type;  /* Operation type on the data */
-    int      flags;
-    /*
-    0 successor_iterated;
-    1 task_inserted;
-    2 data_released;
-    3 release remote data
-    */
-    parsec_dtd_tile_t *tile;
-} parsec_dtd_min_flow_info_t;
-
 typedef struct parsec_dtd_flow_info_s {
     int16_t  arena_index;
     int      op_type;  /* Operation type on the data */
@@ -133,7 +122,6 @@ typedef struct parsec_dtd_flow_info_s {
     4 release ownership even when the flow is of type R
     */
     parsec_dtd_tile_t *tile;
-    int rank_sent_to[MAX_RANK_INFO]; /* currently support 1024 nodes */
 } parsec_dtd_flow_info_t;
 
 /**
@@ -145,34 +133,29 @@ typedef struct dtd_hash_table_pointer_item_s {
     void                    *value;
 } dtd_hash_table_pointer_item_t;
 
-/* All the fields store info about the descendant
+/*
+ * A DTD dependency edge only needs to identify the peer task flow. The access
+ * mode remains owned by that flow's parsec_dtd_flow_info_t.
  */
-typedef struct parsec_dtd_descendant_info_s {
-    int                op_type;
+typedef struct parsec_dtd_dep_info_s {
     uint8_t            flow_index;
     parsec_dtd_task_t *task;
-} parsec_dtd_descendant_info_t;
+} parsec_dtd_dep_info_t;
 
-typedef struct parsec_dtd_parent_info_s {
-    uint8_t            op_type;
-    uint8_t            flow_index;
-    parsec_dtd_task_t *task;
-} parsec_dtd_parent_info_t;
+typedef struct parsec_dtd_task_flow_s {
+    parsec_dtd_dep_info_t  parent;
+    parsec_dtd_dep_info_t  desc;
+    parsec_dtd_flow_info_t flow;
+    uint32_t              *rank_sent_to;
+} parsec_dtd_task_flow_t;
 
-#define PARENT_OF(TASK, INDEX) (parsec_dtd_parent_info_t *) ( ((char *)TASK) + sizeof(parsec_dtd_task_t) + (INDEX*sizeof(parsec_dtd_parent_info_t)) )
+#define TASK_FLOW_OF(TASK, INDEX) (((parsec_dtd_task_flow_t *)(((char *)(TASK)) + sizeof(parsec_dtd_task_t))) + (INDEX))
 
-#define DESC_OF(TASK, INDEX) (parsec_dtd_descendant_info_t *) ( ((char *)TASK) + sizeof(parsec_dtd_task_t) + (TASK->super.task_class->nb_flows*sizeof(parsec_dtd_parent_info_t)) + (INDEX*sizeof(parsec_dtd_descendant_info_t)) )
+#define PARENT_OF(TASK, INDEX) (&(TASK_FLOW_OF((TASK), (INDEX))->parent))
 
-#define FLOW_OF(TASK, INDEX) (((TASK->super.taskpool->context->my_rank) == (TASK->rank)) ? (parsec_dtd_flow_info_t *) ( ((char *)TASK) + \
-                                                        sizeof(parsec_dtd_task_t) + \
-                                                       (TASK->super.task_class->nb_flows*sizeof(parsec_dtd_parent_info_t)) + \
-                                                       (TASK->super.task_class->nb_flows*sizeof(parsec_dtd_descendant_info_t)) + \
-                                                       (INDEX*sizeof(parsec_dtd_flow_info_t)) ) : \
-                                                       (parsec_dtd_flow_info_t *) ( ((char *)TASK) + \
-                                                        sizeof(parsec_dtd_task_t) + \
-                                                       (TASK->super.task_class->nb_flows*sizeof(parsec_dtd_parent_info_t)) + \
-                                                       (TASK->super.task_class->nb_flows*sizeof(parsec_dtd_descendant_info_t)) + \
-                                                       (INDEX*sizeof(parsec_dtd_min_flow_info_t)) ))
+#define DESC_OF(TASK, INDEX) (&(TASK_FLOW_OF((TASK), (INDEX))->desc))
+
+#define FLOW_OF(TASK, INDEX) (&(TASK_FLOW_OF((TASK), (INDEX))->flow))
 
 struct parsec_dtd_task_s {
     parsec_task_t                super;
@@ -224,15 +207,13 @@ struct parsec_dtd_taskpool_s {
     parsec_taskpool_t            super;
     parsec_thread_mempool_t     *mempool_owner;
     int                          enqueue_flag;
-    int                          task_id;
+    int32_t                      task_id;
     int                          task_window_size;
     int32_t                      task_threshold_size;
     int                          total_tasks_to_be_exec;
-    uint32_t                     local_task_inserted;  /* don't waste an atomic operation
-                                                          on this, it can be loosely connected
-                                                          to the number of locally inserted
-                                                          tasks. */
-    uint8_t                      flow_set_flag[PARSEC_DTD_NB_TASK_CLASSES];
+    uint32_t                     local_task_inserted;
+    parsec_atomic_lock_t         task_class_lock;
+    parsec_atomic_lock_t         task_window_lock;
     int64_t                      new_tile_keys;
     parsec_data_collection_t     new_tile_dc;
     parsec_mempool_t            *hash_table_bucket_mempool;
@@ -249,8 +230,12 @@ struct parsec_dtd_task_class_s {
     parsec_task_class_t        super;
     parsec_hash_table_item_t   ht_item;
     parsec_thread_mempool_t   *mempool_owner;
-    parsec_mempool_t           context_mempool;
+    parsec_mempool_t           local_task_mempool;
     parsec_mempool_t           remote_task_mempool;
+    size_t                     params_offset;
+    size_t                     value_block_size;
+    size_t                     rank_sent_to_storage_offset;
+    int                        rank_info_words;
     int8_t                     dep_datatype_index;
     int8_t                     dep_out_index;
     int8_t                     dep_in_index;
@@ -260,6 +245,8 @@ struct parsec_dtd_task_class_s {
     parsec_hook_t             *cpu_func_ptr;
     parsec_advance_task_function_t gpu_func_ptr;
 };
+
+#define RANK_SENT_TO_OF(TASK, INDEX) (TASK_FLOW_OF((TASK), (INDEX))->rank_sent_to)
 
 typedef int (parsec_dtd_arg_cb)(int first_arg, void *second_arg, int third_arg, void *cb_data);
 
@@ -373,12 +360,6 @@ parsec_hook_return_t
 parsec_dtd_release_local_task( parsec_dtd_task_t *this_task );
 
 void
-parsec_dtd_template_retain( const parsec_task_class_t *tc );
-
-void
-parsec_dtd_template_release( const parsec_task_class_t *tc );
-
-void
 parsec_dtd_tile_retain( parsec_dtd_tile_t *tile );
 
 void
@@ -392,26 +373,22 @@ void
 parsec_dtd_remote_task_retain(parsec_dtd_task_t *this_task);
 
 void
-parsec_dtd_set_flow_in_function( parsec_dtd_taskpool_t *dtd_tp,
-                      parsec_dtd_task_t *this_task, int tile_op_type,
-                      int flow_index);
-
-void
 parsec_dtd_set_parent(parsec_dtd_task_t *parent_task, uint8_t parent_flow_index,
-                      parsec_dtd_task_t *desc_task, uint8_t desc_flow_index,
-                      int parent_op_type, int desc_op_type);
+                      parsec_dtd_task_t *desc_task, uint8_t desc_flow_index);
 
 void
 parsec_dtd_set_descendant(parsec_dtd_task_t *parent_task, uint8_t parent_flow_index,
                           parsec_dtd_task_t *desc_task, uint8_t desc_flow_index,
-                          int parent_op_type, int desc_op_type, int last_user_alive);
+                          int last_user_alive);
 
 int
-parsec_dtd_schedule_task_if_ready(int satisfied_flow, parsec_dtd_task_t *this_task,
-                                  parsec_dtd_taskpool_t *dtd_tp, int *vpid);
+parsec_dtd_schedule_task_if_ready(int satisfied_flow, parsec_dtd_task_t *this_task);
 
 int
-parsec_dtd_block_if_threshold_reached(parsec_dtd_taskpool_t *dtd_tp, int task_threshold);
+parsec_dtd_record_local_task_inserted(parsec_dtd_taskpool_t *dtd_tp);
+
+int
+set_deps_for_flush_task(const parsec_task_class_t *tc);
 
 void
 parsec_dtd_fini();
@@ -427,6 +404,38 @@ static inline void
 parsec_dtd_release_data_copy( parsec_data_copy_t *data )
 {
     PARSEC_OBJ_RELEASE(data);
+}
+
+/*
+ * DTD uses data_copy->readers as a lightweight gate between readers and later
+ * writers. Keep all DTD-side updates atomic because the same counter can also
+ * be touched by device and remote-dependency paths.
+ */
+static inline int32_t
+parsec_dtd_data_copy_reader_count(parsec_data_copy_t *data)
+{
+    assert(NULL != data);
+    return parsec_atomic_fetch_add_int32(&data->readers, 0);
+}
+
+static inline int32_t
+parsec_dtd_data_copy_reader_retain(parsec_data_copy_t *data)
+{
+    int32_t previous;
+    assert(NULL != data);
+    previous = parsec_atomic_fetch_inc_int32(&data->readers);
+    assert(previous >= 0);
+    return previous + 1;
+}
+
+static inline int32_t
+parsec_dtd_data_copy_reader_release(parsec_data_copy_t *data)
+{
+    int32_t previous;
+    assert(NULL != data);
+    previous = parsec_atomic_fetch_dec_int32(&data->readers);
+    assert(previous > 0);
+    return previous - 1;
 }
 
 
