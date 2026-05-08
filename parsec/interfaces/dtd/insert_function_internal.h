@@ -47,7 +47,7 @@ extern int parsec_dtd_dump_traversal_info; /**< For printing traversal info */
 /* To flag the task we are trying to complete as a local one */
 #define PARSEC_ACTION_COMPLETE_LOCAL_TASK 0x08000000
 
-/* Macros to figure out offset of paramters attached to a task */
+/* Macros to figure out offset of parameters attached to a task */
 #define GET_HEAD_OF_PARAM_LIST(TASK) (parsec_dtd_task_param_t *) ( ((char *)TASK) + ((parsec_dtd_task_class_t*)((TASK)->super.task_class))->params_offset )
 
 #define GET_VALUE_BLOCK(HEAD, PARAM_COUNT) ((char *)HEAD) + PARAM_COUNT * sizeof(parsec_dtd_task_param_t)

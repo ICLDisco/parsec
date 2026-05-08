@@ -86,10 +86,10 @@ int main(int argc, char ** argv)
     rc = parsec_taskpool_wait( dtd_tp );
     PARSEC_CHECK_ERROR(rc, "parsec_taskpool_wait");
 
-    SYNC_TIME_PRINT(rank, ("\n"));
-
     rc = parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
+
+    SYNC_TIME_PRINT(rank, ("\n"));
 
     parsec_taskpool_free( dtd_tp );
 

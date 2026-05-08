@@ -40,7 +40,9 @@ stage_stride_in(parsec_gpu_task_t *gtask,
     int i;
     for(i = 0; i < task->task_class->nb_flows; i++){
         if(flow_mask & (1U << i)){
-            copy_in = task->data[i].data_in;
+            copy_in = gtask->sources[i];  /* task->data[i].data_in can be the CPU version,
+                                             but  parsec_device_data_stage_in already selected the best
+                                             source for this input, so use it instead. */
             copy_out = task->data[i].data_out;
             dc = (parsec_tiled_matrix_t*)gtask->flow_dc[i];
             elem_sz = parsec_datadist_getsizeoftype(dc->mtype);
@@ -59,10 +61,10 @@ stage_stride_in(parsec_gpu_task_t *gtask,
                                                        cudaMemcpyHostToDevice,
                                                        cuda_stream->cuda_stream );
                 PARSEC_CUDA_CHECK_ERROR( "cudaMemcpyAsync", ret, { return PARSEC_ERROR; } );
-            }else{
+            } else {
                 ret = (cudaError_t)cudaMemcpyAsync( copy_out->device_private,
                                                     copy_in->device_private,
-                                                    copy_in->original->nb_elts,
+                                                    gtask->flow_nb_elts[i],
                                                     cudaMemcpyDeviceToDevice,
                                                     cuda_stream->cuda_stream );
                 PARSEC_CUDA_CHECK_ERROR( "cudaMemcpyAsync", ret, { return PARSEC_ERROR; } );
