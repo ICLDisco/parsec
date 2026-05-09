@@ -6,6 +6,7 @@ target_link_libraries(kcyclic PRIVATE m)
 
 add_subdirectory(two_dim_band)
 
-add_subdirectory(redistribute)
+if(PARSEC_HAVE_MPI)
+  add_subdirectory(redistribute)
+endif(PARSEC_HAVE_MPI)
 add_subdirectory(reshape)
-

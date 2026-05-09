@@ -426,18 +426,29 @@ extern int parsec_comm_puts;
 static inline void
 remote_dep_rank_to_bit(int rank, uint32_t *bank, uint32_t *bit, int root)
 {
+#if defined(DISTRIBUTED)
     uint32_t nb_nodes = parsec_remote_dep_context.max_nodes_number;
     uint32_t _rank = (rank + nb_nodes - root) % nb_nodes;
     *bank = _rank / (8 * sizeof(uint32_t));
     *bit =  _rank % (8 * sizeof(uint32_t));
+#else
+    (void)rank; (void)root;
+    *bank = 0;
+    *bit = 0;
+#endif
 }
 
 static inline void
 remote_dep_bit_to_rank(int *rank, uint32_t bank, uint32_t bit, int root)
 {
+#if defined(DISTRIBUTED)
     int nb_nodes = parsec_remote_dep_context.max_nodes_number;
     uint32_t _rank = bank * (8 * sizeof(uint32_t)) + bit;
     *rank = (_rank + root) % nb_nodes;
+#else
+    (void)bank; (void)bit; (void)root;
+    *rank = 0;
+#endif
 }
 
 #endif /* __USE_PARSEC_REMOTE_DEP_H__ */

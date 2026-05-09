@@ -22,7 +22,9 @@ parsec_addtest_executable(C dtd_test_global_id_for_dc_assumed SOURCES dtd_test_g
 parsec_addtest_executable(C dtd_test_explicit_task_creation SOURCES dtd_test_explicit_task_creation.c)
 parsec_addtest_executable(C dtd_test_tp_enqueue_dequeue SOURCES dtd_test_tp_enqueue_dequeue.c)
 parsec_addtest_executable(C dtd_test_interleave_actions SOURCES dtd_test_interleave_actions.c)
-parsec_addtest_executable(C dtd_test_ce SOURCES dtd_test_ce.c)
+if( PARSEC_HAVE_MPI )
+  parsec_addtest_executable(C dtd_test_ce SOURCES dtd_test_ce.c)
+endif( PARSEC_HAVE_MPI )
 
 parsec_addtest_executable(C dtd_test_new_tile SOURCES dtd_test_new_tile.c)
 if( PARSEC_HAVE_CUDA )

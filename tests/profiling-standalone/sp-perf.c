@@ -2,7 +2,10 @@
  * Copyright (c) 2017-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
+#include "parsec/parsec_config.h"
+
 #include <stdlib.h>
 #include <pthread.h>
 #ifdef PARSEC_HAVE_PTHREAD_BARRIER_H
@@ -16,6 +19,17 @@
 #include <string.h>
 #include <stdio.h>
 #include "parsec/profiling.h"
+
+#if !defined(timersub)
+#define timersub(a, b, result) do {                \
+        (result)->tv_sec = (a)->tv_sec - (b)->tv_sec;       \
+        (result)->tv_usec = (a)->tv_usec - (b)->tv_usec;    \
+        if( (result)->tv_usec < 0 ) {                       \
+            --(result)->tv_sec;                             \
+            (result)->tv_usec += 1000000;                   \
+        }                                                   \
+    } while(0)
+#endif
 
 #include <mpi.h>
 

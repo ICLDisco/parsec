@@ -2,7 +2,7 @@
  * Copyright (c) 2013-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
- * Copyright (c) 2023-2024 NVIDIA Corporation.  All rights reserved.
+ * Copyright (c) 2023-2026 NVIDIA Corporation.  All rights reserved.
  */
 
 /* **************************************************************************** */
@@ -29,10 +29,11 @@
  * scheduling of kernel routines.
  */
 
+#include "parsec/parsec_config.h"
+
 #include <stdlib.h>
 #include <sys/time.h>
 
-#include "parsec/parsec_config.h"
 #include "parsec/parsec_internal.h"
 #include "parsec/scheduling.h"
 #include "parsec/remote_dep.h"

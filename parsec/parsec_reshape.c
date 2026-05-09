@@ -20,6 +20,13 @@
 #define PARSEC_UNFULFILLED_RESHAPE_PROMISE 0
 #define PARSEC_FULFILLED_RESHAPE_PROMISE   1
 
+#if !defined(PARSEC_HAVE_MPI)
+void parsec_local_reshape_cb(parsec_base_future_t *future, ... )
+{
+    (void)future;
+    parsec_fatal("Data reshaping requires MPI datatype support");
+}
+#endif  /* !defined(PARSEC_HAVE_MPI) */
 
 /**
  *
@@ -451,7 +458,14 @@ parsec_set_up_reshape_promise(parsec_execution_stream_t *es,
             }
             data->local = aux_data.remote;
             data->local.src_datatype = PARSEC_DATATYPE_PACKED;
+#if defined(PARSEC_HAVE_MPI)
             MPI_Pack_size(aux_data.remote.dst_count, aux_data.remote.dst_datatype , MPI_COMM_WORLD, &dsize);
+#else
+            if( PARSEC_SUCCESS != parsec_type_size(aux_data.remote.dst_datatype, &dsize) ) {
+                dsize = 0;
+            }
+            dsize *= aux_data.remote.dst_count;
+#endif
             data->local.src_count = dsize;
 
             /* Check if the previous future set up on iterate successor is tracking the same

@@ -2,6 +2,7 @@
  * Copyright (c) 2021-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec.h"
@@ -13,6 +14,19 @@
 // The file is not compiled if CUDA is not present or CUBLAS is not found
 #include "parsec/mca/device/cuda/device_cuda.h"
 #include "cublas_v2.h"
+
+#include <sys/time.h>
+
+#if !defined(timersub)
+#define timersub(a, b, result) do {                \
+        (result)->tv_sec = (a)->tv_sec - (b)->tv_sec;       \
+        (result)->tv_usec = (a)->tv_usec - (b)->tv_usec;    \
+        if( (result)->tv_usec < 0 ) {                       \
+            --(result)->tv_sec;                             \
+            (result)->tv_usec += 1000000;                   \
+        }                                                   \
+    } while(0)
+#endif
 
 #if defined(HAVE_BLAS)
 // If our CMake finds a BLAS library, it defines HAVE_BLAS

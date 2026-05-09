@@ -11,7 +11,7 @@
 static int TILE_FULL;
 
 int main(int argc, char *argv[]) {
-    int provided, err, world_size, my_rank;
+    int err, world_size = 1, my_rank = 0;
     parsec_taskpool_t *ptg_tp1, *ptg_tp2;
     parsec_taskpool_t *dtd_tp1;
     parsec_arena_datatype_t *adt;
@@ -24,9 +24,12 @@ int main(int argc, char *argv[]) {
     err = 0;
 
     parsec_context_t *parsec;
+#if defined(PARSEC_HAVE_MPI)
+    int provided;
     MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
     MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &world_size);
+#endif
 
     parsec = parsec_init(-1, NULL, NULL);
     parsec_matrix_block_cyclic_init(&A, PARSEC_MATRIX_INTEGER,
@@ -106,6 +109,8 @@ int main(int argc, char *argv[]) {
     parsec_dtd_data_collection_fini(&A.super.super);
 
     parsec_fini(&parsec);
+#if defined(PARSEC_HAVE_MPI)
     MPI_Finalize();
+#endif
     return err;
 }

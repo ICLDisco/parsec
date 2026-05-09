@@ -4,7 +4,9 @@
  *                         reserved.
  */
 #include "parsec.h"
+#if defined(PARSEC_HAVE_MPI)
 #include <mpi.h>
+#endif
 
 int main(int argc, char **argv)
 {

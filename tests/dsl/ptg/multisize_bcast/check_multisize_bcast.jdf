@@ -32,8 +32,8 @@ k = 0 .. NT-1
 // Parameters
 RW T <- (k == 0) ? descA(k, k) : A potrf_diag(k, k-1)
      -> T potrf_diag(k+1..NT-1, k)
-     -> T potrf_col(k+1..NT-1..2, k) [layout = MPI_DOUBLE count = 2]
-     -> T potrf_col(k+2..NT-1..2, k) [layout = MPI_DOUBLE count = 3]
+     -> T potrf_col(k+1..NT-1..2, k) [layout = parsec_datatype_double_t count = 2]
+     -> T potrf_col(k+2..NT-1..2, k) [layout = parsec_datatype_double_t count = 3]
      -> descA(k, k)
 
 BODY
@@ -89,4 +89,3 @@ BODY
     printf("diag %d, iteration %d\n", k, i);
 }
 END
-

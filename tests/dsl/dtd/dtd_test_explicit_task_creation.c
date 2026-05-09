@@ -96,7 +96,7 @@ int main(int argc, char ** argv)
     adt = parsec_dtd_create_arena_datatype(parsec, &TILE_FULL);
     parsec_arena_datatype_construct( adt,
                                      nb*sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
-                                     MPI_INT );
+                                     parsec_datatype_int_t );
 
     dcA = create_and_distribute_data(rank, world, nb, nt);
     parsec_data_collection_set_key((parsec_data_collection_t *)dcA, "A");
