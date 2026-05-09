@@ -46,6 +46,14 @@ static parsec_device_module_t **modules_activated = NULL;
 
 static mca_base_component_t **device_components = NULL;
 
+#if defined(PARSEC_HAVE_DEV_CAPABILITY_BATCH)
+static int parsec_device_cpu_enable_batching = 1;
+static int parsec_device_recursive_enable_batching = 1;
+static int parsec_device_cuda_enable_batching = 1;
+static int parsec_device_hip_enable_batching = 1;
+static int parsec_device_level_zero_enable_batching = 1;
+#endif
+
 /**
  * Load balance skew we are willing to accept to favor RO data reuse
  * on GPU: a value of 20% means that we will schedule tasks on the preferred
@@ -304,6 +312,52 @@ no_valid_device: {
 PARSEC_OBJ_CLASS_INSTANCE(parsec_device_module_t, parsec_object_t,
                           NULL, NULL);
 
+int
+parsec_mca_device_type_supports_batch(uint32_t device_type)
+{
+#if defined(PARSEC_HAVE_DEV_CAPABILITY_BATCH)
+    uint32_t type = device_type & PARSEC_DEV_ANY_TYPE;
+    const uint32_t requested_type = type;
+    int enabled = 1;
+
+    if( type & PARSEC_DEV_CPU ) {
+        enabled &= parsec_device_cpu_enable_batching;
+        type &= ~PARSEC_DEV_CPU;
+    }
+    if( type & PARSEC_DEV_RECURSIVE ) {
+        enabled &= parsec_device_recursive_enable_batching;
+        type &= ~PARSEC_DEV_RECURSIVE;
+    }
+    if( type & PARSEC_DEV_CUDA ) {
+        enabled &= parsec_device_cuda_enable_batching;
+        type &= ~PARSEC_DEV_CUDA;
+    }
+    if( type & PARSEC_DEV_HIP ) {
+        enabled &= parsec_device_hip_enable_batching;
+        type &= ~PARSEC_DEV_HIP;
+    }
+    if( type & PARSEC_DEV_LEVEL_ZERO ) {
+        enabled &= parsec_device_level_zero_enable_batching;
+        type &= ~PARSEC_DEV_LEVEL_ZERO;
+    }
+
+    return (0 != requested_type) && enabled && (0 == type);
+#else
+    (void)device_type;
+    return 0;
+#endif
+}
+
+uint32_t
+parsec_mca_device_type_sanitize_batch(uint32_t device_type)
+{
+    if( (device_type & PARSEC_DEV_CHORE_ALLOW_BATCH) &&
+        !parsec_mca_device_type_supports_batch(device_type) ) {
+        device_type &= ~PARSEC_DEV_CHORE_ALLOW_BATCH;
+    }
+    return device_type;
+}
+
 int parsec_mca_device_init(void)
 {
     char** parsec_device_list = NULL;
@@ -328,6 +382,23 @@ int parsec_mca_device_init(void)
     (void)parsec_mca_param_reg_int_name("device", "load_balance_allow_cpu",
                                         "Allow load balancing tasks with GPU incarnations to CPU cores",
                                         false, false, parsec_device_load_balance_allow_cpu, NULL);
+#if defined(PARSEC_HAVE_DEV_CAPABILITY_BATCH)
+    (void)parsec_mca_param_reg_int_name("device_cpu", "enable_batching",
+                                        "Boolean to allow batched task execution on CPU devices",
+                                        false, false, 1, &parsec_device_cpu_enable_batching);
+    (void)parsec_mca_param_reg_int_name("device_recursive", "enable_batching",
+                                        "Boolean to allow batched task execution on recursive CPU devices",
+                                        false, false, 1, &parsec_device_recursive_enable_batching);
+    (void)parsec_mca_param_reg_int_name("device_cuda", "enable_batching",
+                                        "Boolean to allow batched task execution on CUDA devices",
+                                        false, false, 1, &parsec_device_cuda_enable_batching);
+    (void)parsec_mca_param_reg_int_name("device_hip", "enable_batching",
+                                        "Boolean to allow batched task execution on HIP devices",
+                                        false, false, 1, &parsec_device_hip_enable_batching);
+    (void)parsec_mca_param_reg_int_name("device_level_zero", "enable_batching",
+                                        "Boolean to allow batched task execution on Level Zero devices",
+                                        false, false, 1, &parsec_device_level_zero_enable_batching);
+#endif
     if( 0 < (rc = parsec_mca_param_find("device", NULL, "load_balance_skew")) ) {
         parsec_mca_param_lookup_int(rc, &parsec_device_load_balance_skew);
     }

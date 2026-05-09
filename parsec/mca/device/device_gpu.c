@@ -1944,8 +1944,11 @@ parsec_device_progress_stream( parsec_device_gpu_module_t* gpu_device,
         return PARSEC_HOOK_RETURN_DONE;
     }
     /* Should we allow the tasks to be batched */
+#if defined(PARSEC_HAVE_DEV_CAPABILITY_BATCH)
     if (PARSEC_GPU_TASK_TYPE_KERNEL == task->task_type ) {
-        if( PARSEC_DEV_CHORE_ALLOW_BATCH & task->ec->task_class->incarnations[0].type ) {
+        assert(task->ec->selected_chore >= 0);
+        if( (PARSEC_DEV_CHORE_ALLOW_BATCH & task->ec->task_class->incarnations[task->ec->selected_chore].type) &&
+            parsec_mca_device_type_supports_batch(task->ec->selected_device->type) ) {
             /* Don't singleton the task, allowing the kernel to extract the tasks it wants
              * from the task ring, and singleton it or replace it with the aggregated tasks
              * as necessary.
@@ -1953,6 +1956,7 @@ parsec_device_progress_stream( parsec_device_gpu_module_t* gpu_device,
             goto move_forward_with_this_task;
         }
     }
+#endif
     PARSEC_LIST_ITEM_SINGLETON((parsec_list_item_t *)task);
 
   move_forward_with_this_task:

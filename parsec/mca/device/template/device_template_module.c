@@ -79,7 +79,7 @@ parsec_template_taskpool_register(parsec_device_module_t* device,
         const parsec_task_class_t* tc = tp->task_classes_array[i];
         __parsec_chore_t* chores = (__parsec_chore_t*)tc->incarnations;
         for( j = 0; NULL != chores[j].hook; j++ ) {
-            if( chores[j].type & device->type )
+            if( !(chores[j].type & device->type) )
                 continue;
             if( NULL != chores[j].dyld_fn ) {
                 /* the function has been set for another device of the same type */

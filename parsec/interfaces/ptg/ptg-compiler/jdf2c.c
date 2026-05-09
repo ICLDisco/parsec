@@ -7007,7 +7007,7 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
     coutput("#if defined(PARSEC_HAVE_DEV_%s_SUPPORT)\n", type_upper);
     if( NULL != type_property) {
 
-        if (!strncasecmp(type_property->expr->jdf_var, "cuda", 4)  /* for batched */
+        if (!strcasecmp(type_property->expr->jdf_var, "cuda")
          || !strcasecmp(type_property->expr->jdf_var, "hip")) {
             jdf_generate_code_hook_gpu(jdf, f, body, name);
             goto hook_end_block;

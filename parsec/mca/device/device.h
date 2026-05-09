@@ -66,7 +66,6 @@ typedef struct parsec_device_base_component_2_0_0 parsec_device_base_component_t
 #define PARSEC_DEV_CUDA       ((uint8_t)(1 << 2))
 #define PARSEC_DEV_HIP        ((uint8_t)(1 << 3))
 #define PARSEC_DEV_LEVEL_ZERO ((uint8_t)(1 << 4))
-#define PARSEC_DEV_CUDA_BATCH ((uint8_t)(1 << 5))
 #define PARSEC_DEV_TEMPLATE   ((uint8_t)(1 << 7))
 #define PARSEC_DEV_ANY_TYPE   ((uint8_t)    0x3f)
 #define PARSEC_DEV_ALL        ((uint8_t)    0x3f)
@@ -208,6 +207,18 @@ extern int parsec_device_output;
  * PARSEC_ERROR   - no device could be selected
  */
 PARSEC_DECLSPEC extern int parsec_select_best_device( parsec_task_t* this_task);
+
+/**
+ * Return true if batching is enabled for all concrete device types present
+ * in the provided non-empty mask.
+ */
+PARSEC_DECLSPEC int parsec_mca_device_type_supports_batch(uint32_t device_type);
+
+/**
+ * Drop the batching hint from a chore type if batching is disabled for the
+ * selected device type.
+ */
+PARSEC_DECLSPEC uint32_t parsec_mca_device_type_sanitize_batch(uint32_t device_type);
 
 /**
  * Initialize the internal structures for managing external devices such as
