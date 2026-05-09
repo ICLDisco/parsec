@@ -158,8 +158,8 @@ int main(int argc, char* argv[])
 
     free(descA.mat);
 
-#ifdef PARSEC_HAVE_MPI
     int maxloc[2] = {error_found, rank};
+#ifdef PARSEC_HAVE_MPI
     MPI_Reduce(0 == rank? MPI_IN_PLACE: &maxloc, &maxloc, 1, MPI_2INT, MPI_MAXLOC, 0, MPI_COMM_WORLD);
     MPI_Finalize();
 #endif
@@ -178,4 +178,3 @@ int main(int argc, char* argv[])
 }
 
 %}
-

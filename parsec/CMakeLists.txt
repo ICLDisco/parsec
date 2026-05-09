@@ -116,8 +116,6 @@ set(SOURCES
   private_mempool.c
   remote_dep.c
   parsec_comm_engine.c
-  parsec_mpi_funnelled.c
-  remote_dep_mpi.c
   scheduling.c
   compound.c
   vpmap.c
@@ -128,6 +126,11 @@ set(SOURCES
 if( PARSEC_PROF_TRACE )
   list(APPEND SOURCES dictionary.c)
 endif( PARSEC_PROF_TRACE )
+if( PARSEC_HAVE_MPI )
+  list(APPEND SOURCES
+    parsec_mpi_funnelled.c
+    remote_dep_mpi.c)
+endif( PARSEC_HAVE_MPI )
 if( NOT MPI_C_FOUND )
   list(APPEND SOURCES datatype/datatype.c)
 else( NOT MPI_C_FOUND )
@@ -378,5 +381,4 @@ endif(PARSEC_WITH_DEVEL_HEADERS)
 
 
 endif( BUILD_PARSEC )
-
 

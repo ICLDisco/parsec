@@ -2141,7 +2141,11 @@ void parsec_taskpool_sync_ids_context( intptr_t comm )
  * id at all ranks. */
 void parsec_taskpool_sync_ids( void )
 {
+#if defined(DISTRIBUTED) && defined(PARSEC_HAVE_MPI)
   parsec_taskpool_sync_ids_context( (intptr_t)MPI_COMM_WORLD );
+#else
+  parsec_taskpool_sync_ids_context( (intptr_t)0 );
+#endif
 }
 
 /* Unregister the taskpool with the engine. This make the taskpool_id available for
@@ -2830,4 +2834,3 @@ int parsec_context_query(parsec_context_t *context, parsec_context_query_cmd_t c
     }
     return PARSEC_ERR_NOT_SUPPORTED;  /* unknown command */
 }
-
