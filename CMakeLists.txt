@@ -2,6 +2,7 @@
 # Copyright (c) 2010-2024 The University of Tennessee and The University
 #                         of Tennessee Research Foundation.  All rights
 #                         reserved.
+# Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
 #
 cmake_minimum_required (VERSION 3.21)
 project (PARSEC C)
@@ -413,6 +414,14 @@ endif(NOT PARSEC_HAVE_SCHED_SETAFFINITY)
 
 # timeval, timespec, realtime clocks, etc
 include(CheckStructHasMember)
+check_c_source_compiles("
+#include <sys/time.h>
+int main(int argc, char *argv[]) {
+  struct timeval start, end, diff;
+  (void)argc; (void)argv;
+  timersub(&end, &start, &diff);
+  return 0;
+}" PARSEC_HAVE_TIMERSUB)
 check_struct_has_member("struct timespec" tv_nsec time.h PARSEC_HAVE_TIMESPEC_TV_NSEC)
 if( NOT PARSEC_HAVE_TIMESPEC_TV_NSEC )
   cmake_push_check_state()
@@ -434,6 +443,20 @@ if( NOT PARSEC_HAVE_CLOCK_GETTIME )
     list(APPEND EXTRA_LIBS rt)
   endif(PARSEC_HAVE_CLOCK_GETTIMERT)
 endif( NOT PARSEC_HAVE_CLOCK_GETTIME )
+if( PARSEC_HAVE_CLOCK_GETTIME )
+  cmake_push_check_state()
+  if( PARSEC_HAVE_CLOCK_GETTIMERT )
+    list(APPEND CMAKE_REQUIRED_LIBRARIES rt)
+  endif()
+  check_c_source_compiles("
+#include <time.h>
+int main(int argc, char *argv[]) {
+  struct timespec ts;
+  (void)argc; (void)argv;
+  return clock_gettime(CLOCK_MONOTONIC, &ts);
+}" PARSEC_HAVE_CLOCK_GETTIME_MONOTONIC)
+  cmake_pop_check_state()
+endif()
 
 if(CMAKE_SYSTEM_NAME MATCHES "Windows" OR
    CMAKE_SYSTEM_NAME MATCHES "MSYS" OR
@@ -507,8 +530,20 @@ check_include_files(dlfcn.h PARSEC_HAVE_DLFCN_H)
 check_function_exists(asprintf PARSEC_HAVE_ASPRINTF)
 check_function_exists(vasprintf PARSEC_HAVE_VASPRINTF)
 check_function_exists(getopt_long PARSEC_HAVE_GETOPT_LONG)
-check_function_exists(rand_r PARSEC_HAVE_RAND_R)
+check_symbol_exists(rand_r "stdlib.h" PARSEC_HAVE_RAND_R_WITHOUT_POSIX_C_SOURCE)
+set(PARSEC_HAVE_RAND_R ${PARSEC_HAVE_RAND_R_WITHOUT_POSIX_C_SOURCE})
+if( NOT PARSEC_HAVE_RAND_R )
+  cmake_push_check_state()
+  list(APPEND CMAKE_REQUIRED_DEFINITIONS "-D_POSIX_C_SOURCE=199506L")
+  check_symbol_exists(rand_r "stdlib.h" PARSEC_HAVE_RAND_R_WITH_POSIX_C_SOURCE)
+  cmake_pop_check_state()
+  if( PARSEC_HAVE_RAND_R_WITH_POSIX_C_SOURCE )
+    set(PARSEC_HAVE_RAND_R 1)
+    set(PARSEC_NEED_POSIX_C_SOURCE_FOR_RAND_R 1)
+  endif()
+endif()
 check_function_exists(getline PARSEC_HAVE_GETLINE)
+check_function_exists(readlink PARSEC_HAVE_READLINK)
 check_function_exists(setenv PARSEC_HAVE_SETENV)
 check_function_exists(sysconf PARSEC_HAVE_SYSCONF)
 

@@ -2,7 +2,7 @@
  * Copyright (c) 2017-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
- * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
+ * Copyright (c) 2024-2026 NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/runtime.h"
@@ -22,6 +22,17 @@
 #include "parsec/utils/debug.h"
 
 #include "parsec/class/parsec_hash_table.h"
+
+#if !defined(timersub)
+#define timersub(a, b, result) do {                \
+        (result)->tv_sec = (a)->tv_sec - (b)->tv_sec;       \
+        (result)->tv_usec = (a)->tv_usec - (b)->tv_usec;    \
+        if( (result)->tv_usec < 0 ) {                       \
+            --(result)->tv_sec;                             \
+            (result)->tv_usec += 1000000;                   \
+        }                                                   \
+    } while(0)
+#endif
 
 #define START_BASE 4
 #define START_MASK (0xFFFFFFFF >> (32-START_BASE))
