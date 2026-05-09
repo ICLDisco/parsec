@@ -284,7 +284,7 @@ int parsec_data_get_device_copy(parsec_data_copy_t* source,
 /**
  * Beware: Before calling this function the owner of the data must be
  * saved in order to know where to transfer the data from. Once this
- * function returns, the ownership is transfered based on the access
+ * function returns, the ownership is transferred based on the access
  * mode and the knowledge about the location of the most up-to-date
  * version of the data is lost.
  */
@@ -625,4 +625,3 @@ parsec_arena_datatype_t *parsec_arena_datatype_new(void)
 void parsec_arena_datatype_release(parsec_arena_datatype_t **adt) {
     PARSEC_OBJ_RELEASE(*adt);
 }
-

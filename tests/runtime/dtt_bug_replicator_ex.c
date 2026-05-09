@@ -88,6 +88,9 @@ int main( int argc, char** argv )
     rc = parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
+    PARSEC_OBJ_DESTRUCT(&dtt_tp->arenas_datatypes[PARSEC_dtt_bug_replicator_DTT1_ADT_IDX]);
+    PARSEC_OBJ_DESTRUCT(&dtt_tp->arenas_datatypes[PARSEC_dtt_bug_replicator_DEFAULT_ADT_IDX]);
+    PARSEC_OBJ_DESTRUCT(&dtt_tp->arenas_datatypes[PARSEC_dtt_bug_replicator_DTT2_ADT_IDX]);
     parsec_type_free(&tile_dtt);
     parsec_type_free(&vdtt1);
     parsec_type_free(&vdtt2);

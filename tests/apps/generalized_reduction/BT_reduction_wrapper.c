@@ -23,6 +23,7 @@ static void
 __parsec_taskpool_BT_reduction_destruct(parsec_BT_reduction_taskpool_t *tp)
 {
     parsec_type_free( &(tp->arenas_datatypes[PARSEC_BT_reduction_DEFAULT_ADT_IDX].opaque_dtt) );
+    PARSEC_OBJ_DESTRUCT(&tp->arenas_datatypes[PARSEC_BT_reduction_DEFAULT_ADT_IDX]);
 }
 
 PARSEC_OBJ_CLASS_INSTANCE(parsec_BT_reduction_taskpool_t, parsec_taskpool_t,
@@ -51,4 +52,3 @@ parsec_taskpool_t *BT_reduction_new(parsec_tiled_matrix_t *A, int nb, int nt)
 
     return (parsec_taskpool_t*)tp;
 }
-

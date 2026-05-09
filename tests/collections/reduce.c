@@ -90,8 +90,8 @@ int main( int argc, char* argv[] )
     rc = parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
+    PARSEC_OBJ_DESTRUCT(&((parsec_reduce_taskpool_t*)tp)->arenas_datatypes[PARSEC_reduce_DEFAULT_ADT_IDX]);
     parsec_taskpool_free(tp);
-
     parsec_type_free(&newtype);
 
     parsec_fini(&parsec);

@@ -4883,7 +4883,7 @@ static void jdf_generate_hashfunction_for(const jdf_t *jdf, const jdf_function_e
             string_arena_init(sa_range_multiplier);
             for(vl = f->locals; vl != NULL; vl = vl->next) {
                 if( local_is_parameter(f, vl) != NULL ) {
-                    coutput("  __parsec_id += ((uint64_t)assignment->%s.value - __parsec_tp->%s_%s_min)%s;\n", vl->name, f->fname, vl->name, 
+                    coutput("  __parsec_id += ((uint64_t)assignment->%s.value - __parsec_tp->%s_%s_min)%s;\n", vl->name, f->fname, vl->name,
                             string_arena_get_string(sa_range_multiplier));
                     string_arena_add_string(sa_range_multiplier, " * __parsec_tp->%s_%s_range", f->fname, vl->name);
                 }
@@ -7272,7 +7272,7 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
             coutput("    {\n"
                     "      /* Using Dynamic Termination Detection, the DSL is reponsible of counting the number of tasks scheduled before scheduling them */\n"
                     "      int __nb_tasks = 0;\n"
-                    "      for(__vp_id = 0; __vp_id < es->virtual_process->parsec_context->nb_vp; __vp_id++) {\n"
+                    "      for(int __vp_id = 0; __vp_id < es->virtual_process->parsec_context->nb_vp; __vp_id++) {\n"
                     "        if( NULL == arg.ready_lists[__vp_id] ) continue;\n"
                     "        _LIST_ITEM_ITERATOR(arg.ready_lists[__vp_id], &arg.ready_lists[__vp_id]->super, __item, __nb_tasks++);"
                     "      }\n"
@@ -8650,4 +8650,3 @@ static char* strdup_lower(const char *str) {
     }
     return ret;
 }
-

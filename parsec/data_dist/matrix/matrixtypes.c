@@ -321,4 +321,3 @@ int parsec_matrix_adt_free(parsec_arena_datatype_t **padt)
     *padt = NULL;
     return PARSEC_SUCCESS;
 }
-

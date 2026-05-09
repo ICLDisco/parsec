@@ -175,16 +175,12 @@ parsec_broadcast_New(parsec_data_t **data, int32_t myrank, int32_t world,
     parsec_broadcast_taskpool_t *tp = parsec_broadcast_new( dc );
 
     parsec_type_extent(stype, &lb, &extent);
-    parsec_arena_datatype_construct( &tp->arenas_datatypes[PARSEC_broadcast_STYPE_ARENA],
-                                     extent,
-                                     PARSEC_ARENA_ALIGNMENT_SSE,
-                                     stype);
+    parsec_arena_datatype_set_type(&tp->arenas_datatypes[PARSEC_broadcast_STYPE_ARENA],
+                                   extent, PARSEC_ARENA_ALIGNMENT_SSE, stype);
 
     parsec_type_extent(rtype, &lb, &extent);
-    parsec_arena_datatype_construct( &tp->arenas_datatypes[PARSEC_broadcast_RTYPE_ARENA],
-                                     extent,
-                                     PARSEC_ARENA_ALIGNMENT_SSE,
-                                     rtype);
+    parsec_arena_datatype_set_type(&tp->arenas_datatypes[PARSEC_broadcast_RTYPE_ARENA],
+                                   extent, PARSEC_ARENA_ALIGNMENT_SSE, rtype);
 
     if (NULL != master_tp)
         parsec_taskpool_set_complete_callback( (parsec_taskpool_t*)tp,

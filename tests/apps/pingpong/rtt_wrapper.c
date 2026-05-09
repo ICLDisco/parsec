@@ -24,6 +24,7 @@ __parsec_rtt_taskpool_destructor(parsec_rtt_taskpool_t *rtt_tp)
      * so we need to clean up.
      */
     parsec_type_free( &(rtt_tp->arenas_datatypes[PARSEC_rtt_DEFAULT_ADT_IDX].opaque_dtt) );
+    PARSEC_OBJ_DESTRUCT(&rtt_tp->arenas_datatypes[PARSEC_rtt_DEFAULT_ADT_IDX]);
 }
 
 PARSEC_OBJ_CLASS_INSTANCE(parsec_rtt_taskpool_t, parsec_taskpool_t,

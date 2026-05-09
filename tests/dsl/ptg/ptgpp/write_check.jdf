@@ -156,6 +156,9 @@ int main(int argc, char* argv[])
         }
     }
 
+    PARSEC_OBJ_DESTRUCT(&tp->arenas_datatypes[PARSEC_write_check_DEFAULT_ADT_IDX]);
+    parsec_taskpool_free((parsec_taskpool_t*)tp);
+    parsec_fini(&parsec);
     free(descA.mat);
 
     int maxloc[2] = {error_found, rank};

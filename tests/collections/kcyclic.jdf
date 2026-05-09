@@ -20,6 +20,7 @@ extern "C" %{
 parsec_taskpool_t* kcyclic_taskpool(parsec_matrix_block_cyclic_t* A,
                                     parsec_matrix_block_cyclic_t* VA,
                                     parsec_matrix_block_cyclic_t* CA);
+void kcyclic_taskpool_free(parsec_taskpool_t *tp);
 
 int main( int argc, char** argv )
 {
@@ -89,6 +90,8 @@ int main( int argc, char** argv )
 
     rc = parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
+
+    kcyclic_taskpool_free(tp);
 
     parsec_fini( &parsec);
 
@@ -221,6 +224,12 @@ parsec_taskpool_t* kcyclic_taskpool(parsec_matrix_block_cyclic_t* A,
     return &tp->super;
 }
 
+void kcyclic_taskpool_free(parsec_taskpool_t *tp)
+{
+    parsec_kcyclic_taskpool_t *kcyclic_tp = (parsec_kcyclic_taskpool_t*)tp;
+    parsec_matrix_arena_datatype_destruct_free_type(&kcyclic_tp->arenas_datatypes[PARSEC_kcyclic_DEFAULT_ADT_IDX]);
+    parsec_taskpool_free(tp);
+}
+
 
 %}
-

@@ -40,3 +40,9 @@ parsec_taskpool_t* merge_sort_new(parsec_tiled_matrix_t *A, int nb, int nt)
     return (parsec_taskpool_t*)tp;
 }
 
+void merge_sort_free(parsec_taskpool_t *tp)
+{
+    parsec_merge_sort_taskpool_t *merge_sort_tp = (parsec_merge_sort_taskpool_t*)tp;
+    PARSEC_OBJ_DESTRUCT(&merge_sort_tp->arenas_datatypes[PARSEC_merge_sort_DEFAULT_ADT_IDX]);
+    parsec_taskpool_free(tp);
+}

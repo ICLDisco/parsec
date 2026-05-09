@@ -23,6 +23,7 @@ __parsec_taskpool_choice_destructor(parsec_choice_taskpool_t *tp)
      * so we need to clean up.
      */
     parsec_type_free(&(tp->arenas_datatypes[PARSEC_choice_DEFAULT_ADT_IDX].opaque_dtt));
+    PARSEC_OBJ_DESTRUCT(&tp->arenas_datatypes[PARSEC_choice_DEFAULT_ADT_IDX]);
 }
 
 PARSEC_OBJ_CLASS_INSTANCE(parsec_choice_taskpool_t, parsec_taskpool_t,
@@ -54,4 +55,3 @@ parsec_taskpool_t *choice_new(parsec_data_collection_t *A, int size, int *decisi
 
     return (parsec_taskpool_t*)tp;
 }
-

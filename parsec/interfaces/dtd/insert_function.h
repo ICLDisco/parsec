@@ -93,7 +93,7 @@ typedef struct parsec_dtd_task_class_s  parsec_dtd_task_class_t;
  * @param adt the Arena Datatype to attach, the adt must already be constructed
  * @param id Ignored as input. As output: the unique ID assigned
  *    to this Arena Datatype.
- * @return PARSEC_SUCCESS, or PARSEC_ERR_OUT_OF_RESOUCE if the adt was
+ * @return PARSEC_SUCCESS, or PARSEC_ERR_OUT_OF_RESOURCE if the adt was
  * not attached (e.g. no more memory or too many arena datatypes created
  *    within this context.) id and adt are untouched if an error is returned.
  */

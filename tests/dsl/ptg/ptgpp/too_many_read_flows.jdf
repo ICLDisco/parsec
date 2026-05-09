@@ -105,6 +105,8 @@ int main(int argc, char* argv[])
     rc = parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
+    PARSEC_OBJ_DESTRUCT(&tp->arenas_datatypes[PARSEC_too_many_read_flows_DEFAULT_ADT_IDX]);
+    parsec_taskpool_free((parsec_taskpool_t*)tp);
     free(descA.mat);
 
 #ifdef PARSEC_HAVE_MPI
@@ -114,4 +116,3 @@ int main(int argc, char* argv[])
 }
 
 %}
-

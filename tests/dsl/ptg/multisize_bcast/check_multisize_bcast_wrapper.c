@@ -39,5 +39,11 @@ parsec_taskpool_t* check_multisize_bcast_new(parsec_matrix_block_cyclic_t *A, in
     return (parsec_taskpool_t*)tp;
 }
 
+static void
+__parsec_taskpool_check_multisize_bcast_destructor(parsec_check_multisize_bcast_taskpool_t *tp)
+{
+    PARSEC_OBJ_DESTRUCT(&tp->arenas_datatypes[PARSEC_check_multisize_bcast_DEFAULT_ADT_IDX]);
+}
+
 PARSEC_OBJ_CLASS_INSTANCE(parsec_check_multisize_bcast_taskpool_t, parsec_taskpool_t,
-                          NULL, NULL);
+                          NULL, __parsec_taskpool_check_multisize_bcast_destructor);

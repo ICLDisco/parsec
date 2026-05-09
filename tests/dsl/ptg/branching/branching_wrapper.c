@@ -19,7 +19,8 @@
 static void
 __parsec_taskpool_branching_destructor(parsec_branching_taskpool_t* tp)
 {
-    (void)tp;
+    parsec_type_free(&(tp->arenas_datatypes[PARSEC_branching_DEFAULT_ADT_IDX].opaque_dtt));
+    PARSEC_OBJ_DESTRUCT(&tp->arenas_datatypes[PARSEC_branching_DEFAULT_ADT_IDX]);
 }
 
 PARSEC_OBJ_CLASS_INSTANCE(parsec_branching_taskpool_t, parsec_taskpool_t,

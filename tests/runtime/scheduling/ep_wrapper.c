@@ -50,3 +50,9 @@ parsec_taskpool_t *ep_new(parsec_data_collection_t *A, int nt, int level)
     return (parsec_taskpool_t*)tp;
 }
 
+void ep_free(parsec_taskpool_t *tp)
+{
+    parsec_ep_taskpool_t *ep_tp = (parsec_ep_taskpool_t*)tp;
+    PARSEC_OBJ_DESTRUCT(&ep_tp->arenas_datatypes[PARSEC_ep_DEFAULT_ADT_IDX]);
+    parsec_taskpool_free(tp);
+}

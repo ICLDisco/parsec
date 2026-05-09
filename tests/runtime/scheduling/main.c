@@ -118,7 +118,7 @@ int main(int argc, char *argv[])
                 end = take_time();
                 PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
-                parsec_taskpool_free(ep);
+                ep_free(ep);
 
                 val = (double)diff_time(start, end);
                 sum = sum + val;
