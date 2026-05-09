@@ -1,5 +1,5 @@
 name: MSYS2
-on: [push, pull_request]
+on: workflow_dispatch  # disable for now msys2 is lacking support [push, pull_request]
 
 jobs:
   msys2-ucrt64:
