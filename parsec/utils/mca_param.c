@@ -1865,14 +1865,14 @@ static void param_destructor(parsec_mca_param_t *p)
             if (NULL != p->mbp_file_value.stringval) {
                 free(p->mbp_file_value.stringval);
             }
-            if (NULL != p->mbp_source_file) {
-                free(p->mbp_source_file);
-            }
         }
         if (p->mbp_override_value_set &&
             NULL != p->mbp_override_value.stringval) {
             free(p->mbp_override_value.stringval);
         }
+    }
+    if (NULL != p->mbp_source_file) {
+        free(p->mbp_source_file);
     }
 
     /* Destroy any synonyms that are on the list */

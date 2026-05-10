@@ -520,6 +520,10 @@ __parsec_map_operator_destructor(parsec_map_operator_taskpool_t* tp)
         free(tp->super.taskpool_name);
         tp->super.taskpool_name = NULL;
     }
+    if( NULL != tp->super.task_classes_array ) {
+        free(tp->super.task_classes_array);
+        tp->super.task_classes_array = NULL;
+    }
 }
 
 PARSEC_OBJ_CLASS_INSTANCE(parsec_map_operator_taskpool_t, parsec_taskpool_t,
@@ -553,4 +557,3 @@ parsec_map_operator_New(const parsec_tiled_matrix_t* src,
     (void)parsec_taskpool_reserve_id((parsec_taskpool_t *)tp);
     return (parsec_taskpool_t*)tp;
 }
-

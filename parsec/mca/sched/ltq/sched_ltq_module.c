@@ -68,7 +68,6 @@ static int flow_ltq_init(parsec_execution_stream_t* es, struct parsec_barrier_t*
     es->scheduler_object = sched_obj;
 
     if( es->th_id == 0 ) {
-        sched_obj->system_queue = (parsec_dequeue_t*)malloc(sizeof(parsec_dequeue_t));
         sched_obj->system_queue = PARSEC_OBJ_NEW(parsec_dequeue_t);
     }
 

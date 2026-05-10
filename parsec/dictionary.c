@@ -786,6 +786,7 @@ int parsec_profiling_dictionary_init(parsec_context_t *master_context,
         pr_bucket->counter    = 0;
         pr_bucket->state     |= PROPERTY_REQUESTED;
     }
+    free(user_props);
 
     dict->shmem = NULL;
     int mca_shmem_activate;

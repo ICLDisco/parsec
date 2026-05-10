@@ -345,6 +345,7 @@ int parsec_mca_device_init(void)
     for(i = 0; NULL != device_components[i]; i++); /* nothing just counting */
     if( 0 == i ) {  /* no devices */
         parsec_debug_verbose(10, parsec_device_output, "No devices found on %s\n", parsec_hostname);
+        mca_components_free_user_list(parsec_device_list);
         return PARSEC_ERR_NOT_FOUND;
     }
     modules_activated = (parsec_device_module_t**)malloc(sizeof(parsec_device_module_t*) * i);
@@ -641,6 +642,7 @@ int parsec_mca_device_fini(void)
     }
     num_modules_activated = 0;
     free(modules_activated); modules_activated = NULL;
+    free(device_components); device_components = NULL;
 
     if( NULL != parsec_device_recursive ) {  /* Release recursive device */
         parsec_mca_device_remove(parsec_device_recursive);

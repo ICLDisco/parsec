@@ -83,9 +83,6 @@ static int flow_lhq_init(parsec_execution_stream_t* ces, struct parsec_barrier_t
                 sched_obj->system_queue = PARSEC_MCA_SCHED_LOCAL_QUEUES_OBJECT(vp->execution_streams[0])->system_queue;
             }
 
-            sched_obj->nb_hierarch_queues = vp->nb_cores;
-            sched_obj->hierarch_queues = (parsec_hbbuffer_t **)malloc(sched_obj->nb_hierarch_queues * sizeof(parsec_hbbuffer_t*) );
-
             sched_obj->nb_hierarch_queues = parsec_hwloc_nb_levels();
             sched_obj->hierarch_queues = (parsec_hbbuffer_t **)malloc(sched_obj->nb_hierarch_queues * sizeof(parsec_hbbuffer_t*) );
         }
@@ -251,6 +248,13 @@ static void sched_lhq_remove( parsec_context_t *master )
             }
 
             sched_obj->task_queue = NULL;
+            if( es->th_id == 0 ) {
+                PARSEC_OBJ_DESTRUCT(sched_obj->system_queue);
+                free(sched_obj->system_queue);
+            }
+            sched_obj->system_queue = NULL;
+            free(sched_obj->hierarch_queues);
+            sched_obj->hierarch_queues = NULL;
 
             free(es->scheduler_object);
             es->scheduler_object = NULL;
