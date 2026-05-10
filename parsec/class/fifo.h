@@ -19,9 +19,9 @@
  *
  *  @details Although the current implementation is a pure remap to
  *     the list (see @ref parsec_internal_classes_list "list.h"), it
- *     is not garanteed as such. If you need to use both FIFO and non
+ *     is not guaranteed as such. If you need to use both FIFO and non
  *     FIFO access, list.h contains convenience functions to emulate a
- *     fifo that is garanteed to be compatible with list accessors.
+ *     fifo that is guaranteed to be compatible with list accessors.
  */
 
 BEGIN_C_DECLS

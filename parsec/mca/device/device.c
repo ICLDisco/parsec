@@ -2,7 +2,7 @@
  * Copyright (c) 2013-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
- * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
+ * Copyright (c) 2024-2026 NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/parsec_config.h"
@@ -508,7 +508,7 @@ void parsec_devices_print_statistics(parsec_context_t *parsec_context, uint64_t 
 
     printf("+---------------------------------------------------------------------------------------------------------------------------------------------+\n");
     printf("|         |                    |                       Data In                              |                    Data Out                     |\n");
-    printf("|Rank %3d |  # KERNEL |    %%   |  Required  |    Transfered H2D(%%)  |    Transfered D2D(%%)  |  Required  |      Transfered(%%)  |   Evictions  |\n",
+    printf("|Rank %3d |  # KERNEL |    %%   |  Required  |   Transferred H2D(%%)  |   Transferred D2D(%%)  |  Required  |     Transferred(%%)  |   Evictions  |\n",
            (NULL == parsec_context ? parsec_debug_rank : parsec_context->my_rank));
     printf("|---------|-----------|--------|------------|-----------------------|-----------------------|------------|---------------------|--------------|\n");
     for( i = 0; i < parsec_nb_devices; i++ ) {
@@ -813,7 +813,7 @@ static int cpu_weights(parsec_device_module_t* device, int nstreams)
     float freq = 0.f;
     float fp_ipc = 0.f;
     float dp_ipc = 0.f;
-    char cpu_model[256]="Unkown";
+    char cpu_model[256]="Unknown";
     char *simd = NULL;
 
 #if defined(__linux__)

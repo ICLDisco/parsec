@@ -2,7 +2,7 @@
  * Copyright (c) 2009-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
- * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
+ * Copyright (c) 2024-2026 NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/runtime.h"
@@ -313,7 +313,7 @@ int main(int argc, char *argv[])
         if( elt == NULL ) 
             fatal(" ! Error: list lifo2 is supposed to be non empty, but it is!\n");
         if( elt == p )
-            fatal(" ! I keep poping the same element in the list at element %u... It is now officially a frying pan\n",
+            fatal(" ! I keep popping the same element in the list at element %u... It is now officially a frying pan\n",
                   ch);
         ch++;
         p = elt;

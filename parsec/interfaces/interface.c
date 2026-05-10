@@ -87,7 +87,7 @@ __parsec_generic_startup_make_key(const parsec_taskpool_t *tp, const parsec_assi
 
 /**
  * This function is a stub that we attach at all the critical locations
- * to make sure the user of these objects are setting them up correcty.
+ * to make sure the user of these objects are setting them up correctly.
  * The default action here is to assert.
  */
 static int

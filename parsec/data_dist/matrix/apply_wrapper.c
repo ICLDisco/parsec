@@ -20,7 +20,7 @@
  *          Specifies on which part of matrix A, the operator must be
  *          applied
  *          = PARSEC_MATRIX_FULL:  All matrix is referenced.
- *          = PARSEC_MATRIX_UPPER: Only upper part is refrenced.
+ *          = PARSEC_MATRIX_UPPER: Only upper part is referenced.
  *          = PARSEC_MATRIX_LOWER: Only lower part is referenced.
  *
  * @param[in,out] A
@@ -130,7 +130,7 @@ parsec_apply_Destruct( parsec_taskpool_t *tp )
  *          Specifies on which part of matrix A, the operator must be
  *          applied
  *          = PARSEC_MATRIX_FULL:  All matrix is referenced.
- *          = PARSEC_MATRIX_UPPER: Only upper part is refrenced.
+ *          = PARSEC_MATRIX_UPPER: Only upper part is referenced.
  *          = PARSEC_MATRIX_LOWER: Only lower part is referenced.
  *
  * @param[in,out] A

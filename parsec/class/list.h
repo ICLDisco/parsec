@@ -131,7 +131,7 @@ static inline int parsec_list_nolock_contains( parsec_list_t *list, parsec_list_
  * @brief List iterator macro without taking the lock on the list
  *
  * @details Paste code to iterate on all items in the LIST (front to back)
- *    the CODE_BLOCK code is applied to each item, which can be refered
+ *    the CODE_BLOCK code is applied to each item, which can be referred
  *    to as ITEM_NAME in CODE_BLOCK
  *    the entire loop iteration takes the list mutex, hence
  *      CODE_BLOCK must not jump outside the block; although, break
@@ -151,7 +151,7 @@ static inline int parsec_list_nolock_contains( parsec_list_t *list, parsec_list_
  * @brief Reverse list iterator macro without taking the lock on the list
  *
  * @details Paste code to iterate on all items in the LIST (front to back)
- *    the CODE_BLOCK code is applied to each item, which can be refered
+ *    the CODE_BLOCK code is applied to each item, which can be referred
  *    to as ITEM_NAME in CODE_BLOCK
  *    the entire loop iteration takes the list mutex, hence
  *      CODE_BLOCK must not jump outside the block; although, break
@@ -596,7 +596,7 @@ static inline parsec_list_item_t*
 parsec_list_nolock_pop_front( parsec_list_t* list );
 
 /**
- * @brief Pop the tail of the dequeue, without lokcing it
+ * @brief Pop the tail of the dequeue, without locking it
  *
  * @details consider the list as a dequeue, and pop its tail.
  *

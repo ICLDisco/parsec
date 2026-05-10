@@ -1254,7 +1254,7 @@ parsec_dtd_data_collection_fini(parsec_data_collection_t *dc)
  * @param[in]       key
  *                      The data key of the tile in the matrix
  * @return
- *                  The tile representing the data in specified co-ordinate
+ *                  The tile representing the data in specified coordinate
  *
  * @ingroup         DTD_INTERFACE
  */
@@ -1303,7 +1303,7 @@ parsec_dtd_tile_of(parsec_data_collection_t *dc, parsec_data_key_t key)
  * @param[in]       key
  *                      The data key of the tile in the matrix
  * @return
- *                  The tile representing the data in specified co-ordinate
+ *                  The tile representing the data in specified coordinate
  *
  * @ingroup         DTD_INTERFACE
  */
@@ -2049,7 +2049,7 @@ set_dependencies_for_function(parsec_taskpool_t *tp,
 {
     (void)tp;
     /* In this function we do not create deps between flow's any more. We just
-     * intialize the flow structures of the task classes accordingly.
+     * initialize the flow structures of the task classes accordingly.
      */
 
     if( NULL == desc_tc && NULL != parent_tc ) { /* Data is not going to any other task */
@@ -2884,7 +2884,7 @@ parsec_insert_dtd_task(parsec_task_t *__this_task)
                 if( NULL != last_writer.task ) {
                     if( parsec_dtd_task_is_local(last_writer.task)) {
                         parsec_dtd_remote_task_retain(
-                                this_task); /* everytime we have a remote_task as descendant of a local task */
+                                this_task); /* every time we have a remote_task as descendant of a local task */
                     }
                 }
             }
@@ -3408,7 +3408,7 @@ parsec_dtd_insert_task(parsec_taskpool_t *tp,
     if( NULL != this_task ) {
         parsec_insert_dtd_task(this_task);
     } else {
-        parsec_fatal("Unknow Error! Could not create task\n");
+        parsec_fatal("Unknown Error! Could not create task\n");
     }
 }
 

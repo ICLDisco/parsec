@@ -64,7 +64,7 @@ void print_usage(void)
             " -e --num-runs         : number of runs\n"
             " -f --thread_multiple  : 0/default, init mpi with MPI_THREAD_SERIALIZED; others, MPI_THREAD_MULTIPLE\n"
             " -y --no-optimization  : no_optimization version, send the whole tile to target; default 0, not no_optimization version\n"
-            " -c --cores            : number of concurent threads (default: number of physical hyper-threads)\n"
+            " -c --cores            : number of concurrent threads (default: number of physical hyper-threads)\n"
             " -- -flag              : use parsec 'flag', details -- --help\n"
             "\n");
 }
@@ -131,7 +131,7 @@ static struct option long_options[] =
     {"network-bandwidth",  required_argument,  0, 'u'},
     {"u",                  required_argument,  0, 'u'},
 
-    /* Bandwidth of memcyp */
+    /* Bandwidth of memcpy */
     {"memcpy-bandwidth",   required_argument,  0, 'U'},
     {"U",                  required_argument,  0, 'U'},
 
@@ -194,7 +194,7 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam, double *dpar
     /* Default Not no_optimization version */ 
     iparam[IPARAM_NO_OPTIMIZATION_VERSION] = 0;
 
-    /* Bandwidth 0 by defalut */
+    /* Bandwidth 0 by default */
     dparam[DPARAM_NETWORK_BANDWIDTH] = 0.0;
     dparam[DPARAM_MEMCPY_BANDWIDTH] = 0.0;
 

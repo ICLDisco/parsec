@@ -82,7 +82,7 @@ static int flow_gd_init(parsec_execution_stream_t* es, struct parsec_barrier_t* 
      * a single global dequeue per context, it will be associated with the
      * first execution stream of the first virtual process. Every other
      * execution stream will make reference to the same dequeue (once we
-     * succesfully synchronized all execution streams).
+     * successfully synchronized all execution streams).
      */
     if( es == vp->execution_streams[0] ) {
 #if defined(PARSEC_PAPI_SDE)

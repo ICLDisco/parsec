@@ -276,7 +276,7 @@ int main(int argc, char ** argv)
 
 
         /**** We send data from rank 0 to 1 and flush it back */
-        /* Following the patter: rank:operation
+        /* Following the pattern: rank:operation
          * RW:0
          * RW:1
          * RW:0

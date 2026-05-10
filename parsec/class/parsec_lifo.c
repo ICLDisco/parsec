@@ -21,7 +21,7 @@
 
 static inline void parsec_lifo_construct( parsec_lifo_t* lifo )
 {
-    /* Don't allow strange alignemnts */
+    /* Don't allow strange alignments */
     lifo->alignment = PARSEC_LIFO_ALIGNMENT_DEFAULT;
     lifo->lifo_head.data.item = NULL;
     lifo->lifo_head.data.guard.counter = 0;
@@ -30,4 +30,3 @@ static inline void parsec_lifo_construct( parsec_lifo_t* lifo )
 
 PARSEC_OBJ_CLASS_INSTANCE(parsec_lifo_t, parsec_object_t,
                    parsec_lifo_construct, NULL);
-

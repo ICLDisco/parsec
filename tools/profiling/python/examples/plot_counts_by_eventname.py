@@ -377,7 +377,7 @@ if __name__ == '__main__':
                         help='(Optional) Units that PaRSEC used for timing.  Accepted values: ns (nanoseconds), us (microseconds), and c (cycles).')
     # This argument allows the user to supply the units that they want to be shown in the plots.
     parser.add_argument('-u', '--display-units', default=None,
-                        help='(Optional) Units that you want the plots to use for time. Accepted values: ns (nanoseconds), us (microseconds), ms (miliseconds), and s (seconds).')
+                        help='(Optional) Units that you want the plots to use for time. Accepted values: ns (nanoseconds), us (microseconds), ms (milliseconds), and s (seconds).')
     # This argument allows the user to supply the list of counters they want to be shown in the plots.
     parser.add_argument('-c', '--counters', default=None,
                         help='(Optional) A comma-separated list of the indices of the counters you wish to plot. \'-1\' for all and #-# for a contiguous group.  Ex: 0,2,4-6')
@@ -419,7 +419,7 @@ if __name__ == '__main__':
             unit_modify = convert_units(units, args.display_units)
             units = args.display_units
         elif args.display_units == 'ms':
-            print('Graphs will display time in miliseconds.')
+            print('Graphs will display time in milliseconds.')
             unit_modify = convert_units(units, args.display_units)
             units = args.display_units
         elif args.display_units == 'us':
@@ -432,7 +432,7 @@ if __name__ == '__main__':
             units = args.display_units
         else:
             print('\'' + args.display_units +'\' is not an accepted unit.')
-            print('Accepted units are ns (nanoseconds), us (microseconds), ms (miliseconds), and s (seconds).')
+            print('Accepted units are ns (nanoseconds), us (microseconds), ms (milliseconds), and s (seconds).')
             print('Units will remain \'' + units + '\'.')
     print('Conversion Factor: ' + str(unit_modify))
 

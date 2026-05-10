@@ -10,7 +10,7 @@ static int64_t task_time_estimate(const parsec_task_t *task, parsec_device_modul
 
 %}
 
-%option no_taskpool_instance = true  /* can be aything */
+%option no_taskpool_instance = true  /* can be anything */
 
 descA                [ type = "parsec_tiled_matrix_t*" ]
 info                 [ type = "int*" ]

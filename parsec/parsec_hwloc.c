@@ -465,7 +465,7 @@ int parsec_hwloc_allow_ht(int htnb)
         int pu_per_core = (hwloc_get_nbobjs_by_type(topology, HWLOC_OBJ_PU) /
                            hwloc_get_nbobjs_by_type(topology, HWLOC_OBJ_CORE));
         if( htnb > pu_per_core){
-            parsec_warning("HyperThreading:: There not enought logical processors to consider %i HyperThreads per core (set up to %i)", htnb,  pu_per_core);
+            parsec_warning("HyperThreading:: There are not enough logical processors to consider %i HyperThreads per core (set up to %i)", htnb,  pu_per_core);
             htnb = pu_per_core;
         }
     }
@@ -479,4 +479,3 @@ int parsec_hwloc_get_ht(void)
 {
     return hyperth_per_core;
 }
-

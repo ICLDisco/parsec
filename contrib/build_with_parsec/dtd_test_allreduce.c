@@ -200,7 +200,7 @@ int main(int argc, char **argv)
     }
 
 //Test force data flush back to root; note that other than for the printf below,
-//this would be unecessary, PaRSEC would do the correct thing in bcast anyway
+//this would be unnecessary, PaRSEC would do the correct thing in bcast anyway
 //and merge the reduce/bcast steps
 //*********************
     rc = parsec_dtd_data_flush_all( dtd_tp, A );

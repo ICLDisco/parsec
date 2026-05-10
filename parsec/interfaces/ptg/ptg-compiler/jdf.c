@@ -631,7 +631,7 @@ static int jdf_sanity_check_dataflow_type_consistency(void)
             input_deps = output_deps = type_deps = 0;
             met_complete_in_dep = 0;
             for(dep = flow->deps; dep != NULL; dep = dep->next) {
-                /* Check for datatype definition concistency: if a type and a layout are equal
+                /* Check for datatype definition consistency: if a type and a layout are equal
                  * then the count must be 1 and the displacement must be zero. Generate a warning
                  * and replace the default if it's not the case.
                  */
@@ -971,7 +971,7 @@ static int jdf_sanity_check_call_compatible(const jdf_call_t *c,
             jdf_warn(JDF_OBJECT_LINENO(dep),
                      "Function %s runs on a node depending on data %s%s%s%s, but refers directly (as %s) to data %s%s%s%s, if %s is true.\n"
                      "  This is a potential direct remote memory reference.\n"
-                     "  To remove this warning, %s should be syntaxically equal to %s, or marked as aligned to %s\n"
+                     "  To remove this warning, %s should be syntactically equal to %s, or marked as aligned to %s\n"
                      "  If this is not possible, and data are located on different nodes at runtime, this will result in a fault.\n",
                      f->fname,
                      cstr, ciscanon ? "" : " (aligned with ", ciscanon ? "" : ccanon, ciscanon ? "" : ")",
@@ -985,7 +985,7 @@ static int jdf_sanity_check_call_compatible(const jdf_call_t *c,
             jdf_warn(JDF_OBJECT_LINENO(dep),
                      "Function %s runs on a node depending on data %s%s%s%s, but refers directly (as %s) to data %s%s%s%s.\n"
                      "  This is a potential direct remote memory reference.\n"
-                     "  To remove this warning, %s should be syntaxically equal to %s, or marked as aligned to %s\n"
+                     "  To remove this warning, %s should be syntactically equal to %s, or marked as aligned to %s\n"
                      "  If this is not possible, and data are located on different nodes at runtime, this will result in a fault.\n",
                      f->fname,
                      cstr, ciscanon ? "" : " (aligned with ", ciscanon ? "" : ccanon, ciscanon ? "" : ")",
@@ -1360,7 +1360,7 @@ static void jdf_reorder_dep_list_by_type(jdf_dataflow_t* flow,
         output_end->next = NULL;
     }
 
-    /* Locate non-typed group and put it at the begining. */
+    /* Locate non-typed group and put it at the beginning. */
     if( (NULL != output_begin) && (DEP_UNDEFINED_DATATYPE != jdf_dep_undefined_type(output_begin->datatype_local))) {
         dep = output_begin;
         jdf_dep_t *pre_first_default = dep;
@@ -1408,7 +1408,7 @@ static void jdf_reorder_dep_list_by_type(jdf_dataflow_t* flow,
      * Note, we are not actually reordering by remote type. The only implication of this is messier JDF
      * generated code.
      * The important thing is that we are rearranged by reshape type (we maximize reuse
-     * of futures on output dependencies, thus, minimal number of reshapings) and that
+     * of futures on output dependencies, thus, minimal number of reshape operations) and that
      * dep_datatype_index is different when varying the combination <local type, remote type>
      * (thus, enough space on output to pass to the communication engine when sending data).
      */
@@ -1518,11 +1518,11 @@ void jdf_dump_function_flows(jdf_function_entry_t* function, int expanded)
  * Flatten all the flows of data for the specified function, by creating the
  * indexes and masks used to describe the flow of data and the index of the
  * output dependencies.  For all flows multiple output dependencies sharing the
- * same caracteristics will be merged together. Each one of them will have it's
+ * same characteristics will be merged together. Each one of them will have it's
  * own virtual flow, but they will share the index of the smallest flow with
- * the same caracteristics, index which correspond to the datatype location.
+ * the same characteristics, index which correspond to the datatype location.
  *
- * In same time order the flows to push all flows with an output at the begining
+ * In same time order the flows to push all flows with an output at the beginning
  * of the list of flows. This enables the engine to use a single index for
  * managing the activation mask and the data output location.
  */
@@ -1719,8 +1719,8 @@ int jdf_assign_ldef_index(jdf_function_entry_t *f)
     
     /* Local definitions can appear either in the locals or in the deps/calls.
      *  If they appear in the locals, they need to have a unique position
-     *  If they appear in the dataflow, each dep can re-use the locals of another dep
-     *                                  each call can re-use the locals of another call
+     *  If they appear in the dataflow, each dep can reuse the locals of another dep
+     *                                  each call can reuse the locals of another call
      */
 
     DO_DEBUG_VERBOSE(2, ({fprintf(stderr, "Indexing task class %s\n", f->fname);}) );

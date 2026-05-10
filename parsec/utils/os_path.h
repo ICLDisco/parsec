@@ -68,7 +68,7 @@ PARSEC_DECLSPEC char *parsec_os_path(int relative, ...);
  * Convert the path to be OS friendly. On UNIX this function will
  * be empty, when on Windows it will convert all '/' to '\\' and
  * eventually remove the '/cygdrive/' from the beginning of the
- * path (if the configure was runned under Cygwin).
+ * path (if the configure was run under Cygwin).
  */
 #if defined(__WINDOWS__)
 static inline char* parsec_make_filename_os_friendly( char* filename )

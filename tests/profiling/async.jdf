@@ -12,7 +12,7 @@ extern "C" %{
 
 /**
  * This test creates asynchronous tasks to stress the profiling
- * system and test it is working correcty.
+ * system and test it is working correctly.
  *
  * taskqueue is a shared array of tasks.
  *   In STARTUP(0), taskqueue is initialized to NULL for all tasks

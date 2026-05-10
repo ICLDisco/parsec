@@ -153,7 +153,7 @@ static int tree_dist_key_to_string(parsec_data_collection_t *desc, parsec_data_k
 }
 
 /***********************************************************************************************
- * Utilitiy functions to move on the tree
+ * Utility functions to move on the tree
  ***********************************************************************************************/
 
 void tree_dist_insert_node(tree_dist_t *tree, node_t *node, int n, int l)

@@ -60,7 +60,7 @@ int parsec_redistribute_check(parsec_context_t *parsec,
                               int disi_T, int disj_T);
 
 /**
- * @brief Check result 2: init matrix to specail value
+ * @brief Check result 2: init matrix to special value
  * @details
  * Check whether value of submatrix in dcY correct
  *
@@ -82,7 +82,7 @@ int parsec_redistribute_check2(parsec_context_t *parsec,
  * @brief Redistribute source to target of PTG: no optimization of variable size
  *
  * @details
- * Source and target could be ANY distribuiton with ANY displacement
+ * Source and target could be ANY distribution with ANY displacement
  * in both source and target.
  *
  * @param [in] source: source distribution, already distributed and allocated

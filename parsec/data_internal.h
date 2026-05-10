@@ -63,7 +63,7 @@ struct parsec_data_copy_s {
     parsec_data_t               *original;
     struct parsec_arena_chunk_s *arena_chunk;        /**< If this is an arena-based data, keep
                                                       *   the chunk pointer here, to avoid
-                                                      *   risky pointers arithmetic (pointers mis-alignment
+                                                      *   risky pointers arithmetic (pointers misalignment
                                                       *   depending on many parameters) */
     void                     *device_private;        /**< The pointer to the device-specific data.
                                                       *   Overlay data distributions assume that arithmetic

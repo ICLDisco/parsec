@@ -23,7 +23,7 @@
  *
  * parsec_redistribute_init: init dcY to 0 or numbers based on index
  *
- * @exemple testing_redistribute.c
+ * @example testing_redistribute.c
  */
 int main(int argc, char *argv[])
 {

@@ -2,7 +2,7 @@
  * Copyright (c) 2009-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
- * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
+ * Copyright (c) 2024-2026 NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/parsec_config.h"
@@ -256,7 +256,7 @@ static parsec_data_t* vector_twoDBC_data_of(parsec_data_collection_t *desc, ...)
 
     local_m = m / dc->lcm;
 
-    /* If mat allocatd, set pos to the right position for each tile */
+    /* If mat allocated, set pos to the right position for each tile */
     if( NULL != dc->mat ) {
         pos = local_m * dc->super.mb;
         pos *= parsec_datadist_getsizeoftype(dc->super.mtype);

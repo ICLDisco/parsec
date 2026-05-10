@@ -2,7 +2,7 @@
  * Copyright (c) 2009-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
- * Copyright (c) 2023      NVIDIA CORPORATION. All rights reserved.
+ * Copyright (c) 2023-2026 NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/parsec_config.h"
@@ -242,7 +242,7 @@ void parsec_setup_nested_future(parsec_datacopy_future_t** future, ...)
  *
  * @param[out] setup_repo repo on which the reshape has been set up.
  * @param[out] setup_repo_key key on repo on which the reshape has been set up.
- * @param[inout] ouput_usage counter for the predecessor repo usage.
+ * @param[inout] output_usage counter for the predecessor repo usage.
  *
  * @param[in] promise_type fulfilled or unfulfilled reshape promise.
  */
@@ -285,7 +285,7 @@ parsec_create_reshape_promise(parsec_execution_stream_t *es,
 
     if ( predecessor_repo_entry->data[predecessor_dep_flow_index] != NULL ) {
         if(promise_type == PARSEC_UNFULFILLED_RESHAPE_PROMISE) {
-            /* New unfulfilled reshape promises are set up on the succcessor repo
+            /* New unfulfilled reshape promises are set up on the successor repo
              * in case the predecessor repo is already occupied. */
             *setup_repo = successor_repo;
             *setup_repo_key = successor_repo_key;
@@ -588,7 +588,7 @@ parsec_get_copy_reshape_inline(parsec_execution_stream_t *es,
 
     /* Set up the reshaping promise */
     reshape_repo_entry = data_repo_lookup_entry(reshape_repo, reshape_entry_key);
-    assert( reshape_repo_entry != NULL ); /* repo has been created at the begining of data_lookup*/
+    assert( reshape_repo_entry != NULL ); /* repo has been created at the beginning of data_lookup*/
     if (reshape_repo_entry != NULL){ /* reshape promise already set up on the repo */
         data->data_future = (parsec_datacopy_future_t*)reshape_repo_entry->data[dep_flow_index];
     }

@@ -20,7 +20,7 @@ include(GNUInstallDirs)
 #   When making a backward compatible addition to the API
 #     PARSEC_VERSION_MAJOR does not change
 #     PARSEC_VERSION_MINOR increases by 1
-#   When making a backward incompabilte change to an API (or exposed structure)
+#   When making a backward incompatible change to an API (or exposed structure)
 #     PARSEC_VERSION_MAJOR increases by 1
 #     PARSEC_VERSION_MINOR resets to 0
 # Unlike strict libtool numbering, PARSEC_VERSION_RELEASE is an monotonous 
@@ -655,12 +655,12 @@ if( BUILD_PARSEC )
       check_c_source_compiles("#include <mpi.h>
                                int main(int argc, char* argv[]) {
                                #if (3 == OMPI_MAJOR_VERSION && 1 >= OMPI_MINOR_VERSION && 4 >= OMPI_RELEASE_VERSION) || (4 == OMPI_MAJOR_VERSION && 0 == OMPI_MINOR_VERSION && 1 >= OMPI_RELEASE_VERSION)
-                               #warning \"malfunctionning mpi_assert_enable_overtaking found\"
+                               #warning \"malfunctioning mpi_assert_enable_overtaking found\"
                                #endif
                                return 0;
                                }"
                                PARSEC_HAVE_MPI_OVERTAKE
-                               FAIL_REGEX "malfunctionning mpi_assert_enable_overtaking")
+                               FAIL_REGEX "malfunctioning mpi_assert_enable_overtaking")
     endif(PARSEC_HAVE_MPI_30)
     cmake_pop_check_state()
   endif (MPI_C_FOUND)
@@ -692,12 +692,12 @@ if( BUILD_PARSEC )
         # compiling/linking our own with a different, incompatible ABI hwloc
         # will cause breakage. We try to capture this case ASAP during configure,
         # except if we are cross-compiling: in this case the error will be
-        # mopped-up when runing the user program, late but safe.
+        # mopped-up when running the user program, late but safe.
         #
         # Note that we test the same link-order as in PaRSEC
         # Dependent upon which one links first, either PaRSEC, or MPI will break.
         #
-        # Do not use use targets here becuase CMake consider all imported
+        # Do not use use targets here because CMake consider all imported
         # interfaces as system headers, and instead of using -I (which provide
         # priority during header search) will use -isystem (which does not and
         # might allow to find the header in the standard path).
@@ -783,7 +783,7 @@ int main(int argc, char *argv[]) {
       # the underlying reason is that the generated ptg code cannot include at the same time
       # cuda_runtime.h and hip_runtime.h, so we need to modify the dev_cuda.h to not expose any
       # structure that depends on these headers.
-      message(WARNING "For the time being HIP and CUDA devices cannot be compiled at the same time. Choose one by setting explicitely the options PARSEC_GPU_WITH_{CUDA|HIP}")
+      message(WARNING "For the time being HIP and CUDA devices cannot be compiled at the same time. Choose one by setting explicitly the options PARSEC_GPU_WITH_{CUDA|HIP}")
       set(HIP_NOT_CUDA_FOUND FALSE)
     elseif(HIP_FOUND)
       message(STATUS "Found HIP ${HIP_VERSION} in ${HIP_LIB_INSTALL_DIR}")
@@ -854,7 +854,7 @@ endif(NOT PARSEC_HAVE_SHM_OPEN)
 #
 
 #
-# Using @rpath allows rellocatable libraries:
+# Using @rpath allows relocatable libraries:
 # https://blog.kitware.com/upcoming-in-cmake-2-8-12-osx-rpath-support/
 #
 set(CMAKE_MACOSX_RPATH 1)
@@ -1243,11 +1243,11 @@ foreach(extra_lib IN ITEMS ${PARSEC_ATOMIC_SUPPORT_LIBS} ${PAPI_LIBRARIES})
 endforeach()
 
 # Due to the lack of standardization detecting libraries under CMake leads
-# to unconsistents lists of libraries, where some libraries are using full path,
+# to inconsistent lists of libraries, where some libraries are using full path,
 # other a combination of "-L* and -l*" and others just the library name.
 # Force a coherent EXTRA_LIBS_EXPANDED that can be used for the generation of the
 # pkg-config files: leave all options starting with - as they are, and for
-# everything else add "-l" if they are not an abolute path.
+# everything else add "-l" if they are not an absolute path.
 set(EXTRA_LIBS_EXPANDED)
 foreach(LIB IN ITEMS ${EXTRA_LIBS})
   if( NOT LIB MATCHES "(^|;)-.*" )

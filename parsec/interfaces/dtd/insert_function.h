@@ -246,8 +246,8 @@ parsec_dtd_tile_t * parsec_dtd_tile_new(parsec_taskpool_t *dtd_tp, int rank);
  * 4. The name of the task.
  * 5. Variadic type parameter. User can pass any number of parameters. The runtime will pack the
  *    parameters and attach them to the task they belong to. User can later use unpacking
- *    fuction provided to get access to the parameters.
- *    Each paramater to pass to a task should be expressed in the form of a triplet. e.g
+ *    function provided to get access to the parameters.
+ *    Each parameter to pass to a task should be expressed in the form of a triplet. e.g
  *
  *    1.      sizeof(int),             &uplo,                           VALUE,
  *
@@ -282,7 +282,7 @@ parsec_dtd_tile_t * parsec_dtd_tile_new(parsec_taskpool_t *dtd_tp, int rank);
  *                                                                  with this flag. REGION_INFO states the index
  *                                                                  of parsec_dtd_arenas array this data belongs
  *                                                                  to. AFFINITY flag is a must in distributed
- *                                                                  environemnt. This is the only way for the runtime
+ *                                                                  environment. This is the only way for the runtime
  *                                                                  to place a task in the process grid. It must be
  *                                                                  provided with only one data indicating to place
  *                                                                  the task in the rank the data resides. If

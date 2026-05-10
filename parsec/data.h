@@ -151,7 +151,7 @@ parsec_data_destroy( parsec_data_t *holder );
 /**
  * Set the type of an arena datatype. Because the parameters cannot
  * be known when OBJ_NEW/CONSTRUCT is called, the set_type must be
- * called explicitely by the user.
+ * called explicitly by the user.
  * The opaque_dtt is not freed by the arena datatype destructor.
  * The destructor will take care of cleanup for other internal members
  * and work whether set_type was called or not.

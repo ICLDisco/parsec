@@ -37,7 +37,7 @@ typedef enum parsec_matrix_storage_e {
 } parsec_matrix_storage_t;
 
 /**
- * Put our own definition of Upper/Lower/General values mathing the
+ * Put our own definition of Upper/Lower/General values matching the
  * Cblas/Plasma/... ones to avoid the dependency
  */
 typedef enum parsec_matrix_uplo_e {
@@ -218,7 +218,7 @@ void parsec_redistribute_Destruct(parsec_taskpool_t *taskpool);
  * @brief Redistribute source to target of PTG
  *
  * @details
- * Source and target could be ANY distribuiton with ANY displacement
+ * Source and target could be ANY distribution with ANY displacement
  * in both source and target.
  *
  * @param [in] source: source distribution, already distributed and allocated
@@ -241,7 +241,7 @@ int parsec_redistribute(parsec_context_t *parsec,
  * @brief Non-blocking function of redistribute for DTD
  *
  * @details
- * Source and target could be ANY distribuiton with ANY displacement
+ * Source and target could be ANY distribution with ANY displacement
  * in both source and target.
  *
  * @param [in] source: source distribution, already distributed and allocated
@@ -264,7 +264,7 @@ int parsec_redistribute_dtd_New(parsec_context_t *parsec,
  * @brief Redistribute source to target of DTD
  *
  * @details
- * Source and target could be ANY distribuiton with ANY displacement
+ * Source and target could be ANY distribution with ANY displacement
  * in both source and target.
  *
  * @param [in] source: source distribution, already distributed and allocated

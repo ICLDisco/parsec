@@ -512,7 +512,7 @@ int parsec_argv_insert(char ***target, int start, char **source)
         }
     }
 
-    /* Harder: insertting into the middle */
+    /* Harder: inserting into the middle */
 
     else {
 

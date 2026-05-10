@@ -428,7 +428,7 @@ void parsec_debug_history_add(const char *format, ...) {
  *   debug history.
  *
  * @details
- *   This function is intendend to be called from a debugger or
+ *   This function is intended to be called from a debugger or
  *   when the programmer sees fit. It will atomically swap the double
  *   buffers so other threads can continue adding history information
  *   while the printing happens. The debug history is reordered between

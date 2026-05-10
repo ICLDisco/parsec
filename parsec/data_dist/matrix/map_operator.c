@@ -2,7 +2,7 @@
  * Copyright (c) 2011-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
- * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
+ * Copyright (c) 2024-2026 NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/runtime.h"
@@ -452,7 +452,7 @@ static void parsec_map_operator_startup_fn(parsec_context_t *context,
     /**
      * Generate one local task per core. Each task will then take care of creating all
      * the remaining tasks for the same column of the matrix, and upon completion of
-     * all tasks on the column htey will move to the next row. The row index is marshalled
+     * all tasks on the column they will move to the next row. The row index is marshalled
      * using atomic operations to avoid conflicts between generators for different
      * completed tasks.
      */

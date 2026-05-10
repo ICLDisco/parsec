@@ -3,7 +3,7 @@ extern "C" %{
  * Copyright (c) 2017-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation. All rights
  *                         reserved.
- * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
+ * Copyright (c) 2024-2026 NVIDIA Corporation.  All rights reserved.
  */
 #include "redistribute_test.h"
 
@@ -91,7 +91,7 @@ parsec_redistribute_check2_New(parsec_tiled_matrix_t *dcY,
     taskpool = parsec_redistribute_check2_new(dcY, size_row, size_col, disi_Y, disj_Y, info);
     redistribute_check2_taskpool = (parsec_taskpool_t*)taskpool;
 
-    /* Check distribution, and detarmine batch size: num_col */
+    /* Check distribution, and determine batch size: num_col */
     if( dcY->dtype & parsec_matrix_tabular_type ) {
         taskpool->_g_num_col = parsec_imin( ceil(size_col/dcY->nb), dcY->super.nodes );
     } else if( dcY->dtype & parsec_matrix_block_cyclic_type ) {

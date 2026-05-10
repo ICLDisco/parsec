@@ -38,7 +38,7 @@ void parsec_atomic_wmb(void)
 /* Linked Load / Store Conditional */
 
 #ifdef __xlC__
-/* work-around bizzare xlc bug in which it sign-extends
+/* work-around bizarre xlc bug in which it sign-extends
    a pointer to a 32-bit signed integer */
 #define PARSEC_ASM_ADDR(a) ((uintptr_t)a)
 #else

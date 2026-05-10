@@ -427,7 +427,7 @@ int parsec_mca_param_set_string(int index, char *value)
 
 
 /*
- * Lookup the source of an MCA param's value
+ * Lookup the source of an MCA parameter's value
  */
 int parsec_mca_param_lookup_source(int index, parsec_mca_param_source_t *source, char **source_file)
 {

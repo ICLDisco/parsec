@@ -45,7 +45,7 @@ typedef struct parsec_grid_2Dcyclic {
  * Initialize the description of a  2-D cyclic distribution.o
  * @param rank: sequential rank of the local node (as of mpi rank)
  * @param P: number of row of processes of the process grid
- * @param Q: number of colums of the processes of the process grid
+ * @param Q: number of columns of the processes of the process grid
  * @param kp: number of consecutive tiles along rows held by the same processor
  * @param kq: number of consecutive tiles along columns held by the same processor
  * @param ip: process row over which the first row of the array is distributed.

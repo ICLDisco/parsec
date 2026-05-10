@@ -11,7 +11,7 @@ extern DTYPE *Y_g, *T_g;
 
 %}
 
-%option no_taskpool_instance = true  /* can be aything */
+%option no_taskpool_instance = true  /* can be anything */
 
 /**
  * @brief Check result: copy to a single node
@@ -268,7 +268,7 @@ int parsec_redistribute_check(parsec_context_t *parsec,
     int lnt_Y = n_Y_end - n_Y_start + 1;
     int lnt_T = n_T_end - n_T_start + 1;
 
-    /* Check distribution, and detarmine batch size,
+    /* Check distribution, and determine batch size,
      * how many tile columns exist at the same time */
     if( dcY->dtype & parsec_matrix_tabular_type ) {
         num_col_Y = parsec_imin( ceil(size_col/dcY->nb), dcY->super.nodes );
@@ -359,10 +359,10 @@ int parsec_redistribute_check(parsec_context_t *parsec,
 	for(int j = 0; j < size_col; j++){
 	    for(int i = 0; i < size_row; i++){
 		if(Y_g[j*size_row+i] != T_g[j*size_row+i]){
-		    fprintf(stderr, "ERROR: In Y: (%d, %d) in tile (%d, %d): vaule %lf\n",
+			    fprintf(stderr, "ERROR: In Y: (%d, %d) in tile (%d, %d): value %lf\n",
 		 	    (i+disi_Y)%mb_Y_inner, (j+disj_Y)%nb_Y_inner, (i+disi_Y)/mb_Y_inner,
                             (j+disj_Y)/nb_Y_inner, Y_g[j*size_row+i]);
-		    fprintf(stderr, "ERROR: In T: (%d, %d) in tile (%d, %d): vaule %lf\n",
+			    fprintf(stderr, "ERROR: In T: (%d, %d) in tile (%d, %d): value %lf\n",
 		 	    (i+disi_T)%mb_T_inner, (j+disj_T)%nb_T_inner, (i+disi_T)/mb_T_inner,
                             (j+disj_T)/nb_T_inner, T_g[j*size_row+i]);
 
@@ -386,4 +386,3 @@ int parsec_redistribute_check(parsec_context_t *parsec,
 }
 
 %}
-

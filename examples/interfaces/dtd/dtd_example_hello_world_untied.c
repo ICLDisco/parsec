@@ -33,7 +33,7 @@
 
 /*
  * By this example we are trying to show the capability of the dtd interface to
- * recursively insert task from another task. We esseentially untie which thread
+ * recursively insert task from another task. We essentially untie which thread
  * inserts task using this recursive task insertion.
  */
 

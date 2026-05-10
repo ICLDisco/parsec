@@ -56,7 +56,7 @@ const parsec_sched_base_component_t parsec_sched_gd_component = {
         "", /*< no reserve */
     },
     {
-        /* The component has no metada */
+        /* The component has no metadata */
         MCA_BASE_METADATA_PARAM_NONE,
         "", /*< no reserve */
     }

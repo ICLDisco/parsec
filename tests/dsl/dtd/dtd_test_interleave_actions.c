@@ -164,7 +164,7 @@ int main(int argc, char **argv) {
 
    if( (DELAY_ADD_TASKPOOL & action_mask) && rank != 0) {
       parsec_output( 0, "Node: %d waiting for rank 0 to register the taskpool\n", rank);
-      // The following sleep statememt ensure that rank `0` has enough
+      // The following sleep statement ensure that rank `0` has enough
       // time to send data to other processes before adding the taskpool.
       sleep(1);
    }
@@ -175,7 +175,7 @@ int main(int argc, char **argv) {
 
    if( (DELAY_INSERT_TASK & action_mask) && rank != 0) {
       parsec_output( 0, "Node: %d waiting for rank 0 to insert tasks\n", rank);
-      // The following sleep statememt ensure that rank `0` has enough
+      // The following sleep statement ensure that rank `0` has enough
       // time to send data to other processes before adding the taskpool.
       sleep(1);
    }
@@ -190,7 +190,7 @@ int main(int argc, char **argv) {
 
    if( (DELAY_FLUSH_ALL & action_mask) && rank != 0) {
       parsec_output( 0, "Node: %d waiting for rank 0 to flush\n", rank);
-      // The following sleep statememt ensure that rank `0` has enough
+      // The following sleep statement ensure that rank `0` has enough
       // time to send data to other processes before adding the taskpool.
       sleep(1);
    }
@@ -199,7 +199,7 @@ int main(int argc, char **argv) {
 
     if( (DELAY_TASKPOOL_WAIT & action_mask) && rank != 0) {
         parsec_output( 0, "Node: %d waiting for rank 0 to complete first\n", rank);
-        // The following sleep statememt ensure that rank `0` has enough
+        // The following sleep statement ensure that rank `0` has enough
         // time to send data to other processes before adding the taskpool.
         sleep(1);
     }

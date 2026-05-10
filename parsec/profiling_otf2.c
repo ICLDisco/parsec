@@ -798,7 +798,7 @@ parsec_profiling_trace_flags_info_fn(parsec_profiling_stream_t* context, int key
                     ptr += sizeof(double);
                     break;
                 default:
-                    parsec_warning("PaRSEC Profiling System: internal error, type %d unkown", regions[region].attr_info[t].type);
+                    parsec_warning("PaRSEC Profiling System: internal error, type %d unknown", regions[region].attr_info[t].type);
                     break;
                 }
             } else {

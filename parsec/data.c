@@ -236,7 +236,7 @@ parsec_data_copy_t* parsec_data_copy_new(parsec_data_t* data, uint8_t device,
 
 #if 0
 /*
- * WARNING: Is this function usefull or should it be removed ?
+ * WARNING: Is this function useful or should it be removed ?
  */
 /**
  * Find the corresponding copy of the data on the requested device. If the
@@ -382,7 +382,7 @@ int parsec_data_start_transfer_ownership_to_copy(parsec_data_t* data,
         break;
 
     case PARSEC_DATA_COHERENCY_OWNED:
-        assert( device == data->owner_device ); /* memory is owned, better be me otherwise 2 writters: wrong JDF */
+        assert( device == data->owner_device ); /* memory is owned, better be me otherwise 2 writers: wrong JDF */
 #if defined(PARSEC_DEBUG_PARANOID)
         for( i = 0; i < parsec_nb_devices; i++ ) {
             if( device == i || NULL == data->device_copies[i] ) continue;

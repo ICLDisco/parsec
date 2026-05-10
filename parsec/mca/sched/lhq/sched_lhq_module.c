@@ -2,7 +2,7 @@
  * Copyright (c) 2013-2022 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
- * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
+ * Copyright (c) 2024-2026 NVIDIA Corporation.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -127,7 +127,7 @@ static int flow_lhq_init(parsec_execution_stream_t* ces, struct parsec_barrier_t
             }
         }
         for(t = 0; t < vp->nb_cores; t++) {
-            /* Last, the default task queue is the first hierarch queue of each es */
+            /* Last, the default task queue is the first hierarchical queue of each es */
             es = vp->execution_streams[t];
             sched_obj = (parsec_mca_sched_local_queues_scheduler_object_t*)es->scheduler_object;
             sched_obj->task_queue = sched_obj->hierarch_queues[0];

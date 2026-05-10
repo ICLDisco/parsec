@@ -47,7 +47,7 @@ typedef parsec_matrix_sym_block_cyclic_t sym_two_dim_block_cyclic_t __parsec_att
  * @param i starting row index for the computation on a submatrix
  * @param j starting column index for the computation on a submatrix
  * @param m number of rows of the entire submatrix
- * @param n numbr of column of the entire submatrix
+ * @param n number of columns of the entire submatrix
  * @param p number of row of processes of the process grid the
  *   resulting distribution will be made so that pxq=nodes
  * @param q number of col of processes of the process grid the

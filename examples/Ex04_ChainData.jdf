@@ -80,11 +80,11 @@ data_key(parsec_data_collection_t *desc, ...)
 }
 
 /**
- * The funtion data_of is similar to rank_of instead that it returns the
+ * The function data_of is similar to rank_of instead that it returns the
  * parsec_data_t structure that taskpool the single piece of data corresponding to
  * the given indexes.
  * Each piece of data that will go through the engine needs to have it's own
- * parsec_data_t stucture that stores its status information about it
+ * parsec_data_t structure that stores its status information about it
  * (See further down, how to create the parsec_data_t)
  *
  * In this example, we consider that we have only one area of memory per node,

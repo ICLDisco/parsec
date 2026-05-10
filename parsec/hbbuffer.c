@@ -18,12 +18,12 @@ parsec_hbbuffer_new(size_t size,  size_t ideal_fill,
                     parsec_hbbuffer_parent_push_fct_t parent_push_fct,
                     void *parent_store)
 {
-    /** Must use calloc to ensure that all ites are set to NULL */
+    /** Must use calloc to ensure that all items are set to NULL */
     parsec_hbbuffer_t *n = (parsec_hbbuffer_t*)calloc(1, sizeof(parsec_hbbuffer_t) + (size-1)*sizeof(parsec_list_item_t*));
     assert(NULL != parent_store);
     n->size = size;
     n->ideal_fill = ideal_fill;
-        /** n->nbelt = 0; <not needed because callc */
+        /** n->nbelt = 0; <not needed because calloc */
     n->parent_push_fct = parent_push_fct;
     n->parent_store = parent_store;
     PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "HBB:\tCreated a new hierarchical buffer of %d elements", (int)size);
@@ -125,7 +125,7 @@ parsec_hbbuffer_push_all_by_priority(parsec_hbbuffer_t *b,
 
             /* This cannot segfault as long as the freelist holding candidate
              * is not emptied (which should not happen now). However, this solution
-             * is subject ot a form of ABA that might lead it to expel an element
+             * is subject to a form of ABA that might lead it to expel an element
              * whose priority was higher. But this is considered as a case rare enough
              * to ignore for now.
              * Alternative is to lock the elements, which is not a good idea

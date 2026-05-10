@@ -163,7 +163,7 @@ typedef int (*parsec_termdet_taskpool_load_fn_t)(parsec_taskpool_t *tp, int v);
  *  @param[IN] dst_rank the destination rank
  *  @param[OUT] packed_buffer the packed buffer of the message
  *  @param[INOUT] position an offset in packed_buffer in which the function can
- *                pack informaiton; position is updated by the call to reflect
+ *                pack information; position is updated by the call to reflect
  *                the next available byte in packed_buffer
  *  @param[IN] buffer_size the amount of bytes available from packed_buffer
  *  @return PARSEC_SUCCESS except if a fatal error occurs.

@@ -103,7 +103,7 @@ static inline int parsec_value_array_reserve(parsec_value_array_t* array, size_t
 
 /**
  * @brief
- *   Retreives the number of elements in the array.
+ *   Retrieves the number of elements in the array.
  *
  *  @param[in]   array   The input array.
  *  @return  The number of elements currently in use.
@@ -282,4 +282,3 @@ END_C_DECLS
 /** @} */
 
 #endif
-

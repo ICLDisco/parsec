@@ -2,7 +2,7 @@
  * Copyright (c) 2012-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
- * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
+ * Copyright (c) 2024-2026 NVIDIA Corporation.  All rights reserved.
  */
 
 #if !defined(PARSEC_CONFIG_H_HAS_BEEN_INCLUDED)
@@ -137,7 +137,7 @@ struct parsec_taskpool_s {
                                                     *   so on). Also, its value is increase by one for all the tasks
                                                     *   in the taskpool. This extra reference will be removed upon
                                                     *   completion of all tasks.
-                                                    *   WARNING: thiis field may only be modified through the
+                                                    *   WARNING: this field may only be modified through the
                                                     *   termination detection module API (tdm below). */
     parsec_context_t*           context;   /**< The PaRSEC context on which this taskpool was enqueued */
     parsec_termdet_monitor_t    tdm;       /**< Termination detection structures and pointer to module */
@@ -183,7 +183,7 @@ PARSEC_DECLSPEC PARSEC_OBJ_CLASS_DECLARATION(parsec_taskpool_t);
 #define PARSEC_DEPENDENCIES_FLAG_ALLOCATED  0x04
 
 /* When providing user-defined functions to count the number of tasks,
- * the user can return PARSEC_UNDETERMINED_NB_TASKS to say explicitely
+ * the user can return PARSEC_UNDETERMINED_NB_TASKS to say explicitly
  * that they will call the object termination function themselves.
  */
 #define PARSEC_UNDETERMINED_NB_TASKS (0x0fffffff)

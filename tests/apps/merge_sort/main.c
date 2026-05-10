@@ -39,7 +39,7 @@ int main(int argc, char *argv[])
         }
         nt = (int)val;
         if( 0 == nt ) {
-            printf("Bad value for nt (it canot be zero) !!!\n");
+            printf("Bad value for nt (it cannot be zero) !!!\n");
             exit(-1);
         }
     }

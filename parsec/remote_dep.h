@@ -2,7 +2,7 @@
  * Copyright (c) 2009-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
- * Copyright (c) 2023      NVIDIA CORPORATION. All rights reserved.
+ * Copyright (c) 2023-2026 NVIDIA Corporation.  All rights reserved.
  */
 #ifndef __USE_PARSEC_REMOTE_DEP_H__
 #define __USE_PARSEC_REMOTE_DEP_H__
@@ -72,7 +72,7 @@ struct parsec_dep_type_description_s {
  * where the data is allocated from, or will be allocated from. It also contains the
  * pointer to the buffer involved in the communication (or NULL if the data will be
  * allocated before the reception). Finally, it contains the triplet allowing a correct send
- * or receive operation: the memory layout, the number fo repetitions and the displacement
+ * or receive operation: the memory layout, the number of repetitions and the displacement
  * from the data pointer where the operation will start. If the memory layout is NULL the
  * one attached to the arena must be used instead.
  */

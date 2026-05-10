@@ -354,9 +354,9 @@ extern "C" %{
  * @brief New function for redistribute_no_optimization
  *
  * @param [in] dcY: the data, already distributed and allocated
- * @param [out] dcT: the data, redistribute_no_optimizationd and allocated
- * @param [in] size_row: row size to be redistribute_no_optimizationd
- * @param [in] size_col: column size to be redistribute_no_optimizationd
+ * @param [out] dcT: the data, redistributed and allocated
+ * @param [in] size_row: row size to be redistributed
+ * @param [in] size_col: column size to be redistributed
  * @param [in] disi_Y: row displacement in dcY
  * @param [in] disj_Y: column displacement in dcY
  * @param [in] disi_T: row displacement in dcT
@@ -409,7 +409,7 @@ parsec_redistribute_no_optimization_New(parsec_tiled_matrix_t *dcY,
     taskpool = parsec_redistribute_no_optimization_new(dcY, dcT, size_row, size_col, disi_Y, disj_Y, disi_T, disj_T, 0);
     redistribute_no_optimization_taskpool = (parsec_taskpool_t*)taskpool;
 
-    /* Check distribution, and detarmine batch size: num_col */
+    /* Check distribution, and determine batch size: num_col */
     if( (dcY->dtype & parsec_matrix_tabular_type) && (dcT->dtype & parsec_matrix_tabular_type) ) {
         taskpool->_g_num_col = parsec_imin( ceil(size_col/dcY->nb), dcY->super.nodes );
     } else if( (dcY->dtype & parsec_matrix_tabular_type) && (dcT->dtype & parsec_matrix_block_cyclic_type) ) {
@@ -451,12 +451,12 @@ PARSEC_OBJ_CLASS_INSTANCE(parsec_redistribute_no_optimization_taskpool_t, parsec
                           NULL, __parsec_taskpool_redistribute_no_optimization_destructor);
 
 /**
- * @brief Redistribute dcY to dcT in PTG: no optimization of varible size
+ * @brief Redistribute dcY to dcT in PTG: no optimization of variable size
  *
  * @param [in] dcY: source distribution, already distributed and allocated
- * @param [out] dcT: target distribution, redistribute_no_optimizationd and allocated
- * @param [in] size_row: row size to be redistribute_no_optimizationd
- * @param [in] size_col: column size to be redistribute_no_optimizationd
+ * @param [out] dcT: target distribution, redistributed and allocated
+ * @param [in] size_row: row size to be redistributed
+ * @param [in] size_col: column size to be redistributed
  * @param [in] disi_Y: row displacement in dcY
  * @param [in] disj_Y: column displacement in dcY
  * @param [in] disi_T: row displacement in dcT

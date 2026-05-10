@@ -416,7 +416,7 @@ double* parsec_redistribute_bound(parsec_context_t *parsec,
             total_local_rank[0] = total_local_rank[i];
     }
 
-    /* Check calculate corretness */
+    /* Check calculate correctness */
     assert( (long long int)size_row * size_col == total_remote / 2 + total_local );   
 
     results[0] = 8.0 * total_remote / 2 * sizeof(DTYPE);
