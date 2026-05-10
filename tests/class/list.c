@@ -73,17 +73,14 @@ static void check_lifo_translate_outoforder(parsec_list_t *l1,
                                     const char *l1name,
                                     const char *l2name)
 {
-    static unsigned char *seen = NULL;
+    unsigned char *seen;
     unsigned int e;
     elt_t *elt;
 
     printf(" - pop them from %s, check they are ok, push them back in %s, and check they are all there\n",
            l1name, l2name);
 
-    if( NULL == seen )
-        seen = (unsigned char *)calloc(1, NBELT);
-    else
-        memset(seen, 0, NBELT);
+    seen = (unsigned char *)calloc(1, NBELT);
 
     for(e = 0; e < NBELT; e++) {
         elt = (elt_t *)parsec_list_nolock_pop_front( l1 );
@@ -101,6 +98,7 @@ static void check_lifo_translate_outoforder(parsec_list_t *l1,
     if( (elt = (elt_t*)parsec_list_nolock_pop_front( l1 )) != NULL )
         fatal(" ! Error: unexpected element of base %u in %s: it should be empty\n",
               elt->base, l1name);
+    free(seen);
 }
 
 static void check_lifo_translate_inorder(parsec_list_t *l1,
@@ -385,12 +383,16 @@ int main(int argc, char *argv[])
         free(elt);
     }
 
+    PARSEC_OBJ_DESTRUCT(&l2);
+    PARSEC_OBJ_DESTRUCT(&l1);
+
+    free(times);
     free(threads);
 
     printf(" - all tests passed\n");
 
 #if defined(PARSEC_HAVE_MPI)
-    MPI_Finalized(&ch);
+    MPI_Finalize();
 #endif
     return 0;
 }

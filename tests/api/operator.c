@@ -77,6 +77,9 @@ int main( int argc, char* argv[] )
 
     parsec_taskpool_free(op);
 
+    parsec_data_free(dcA.mat);
+    parsec_tiled_matrix_destroy((parsec_tiled_matrix_t*)&dcA);
+
     parsec_fini(&parsec);
 
 #if defined(PARSEC_HAVE_MPI)

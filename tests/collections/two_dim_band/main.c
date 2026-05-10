@@ -135,8 +135,12 @@ int main(int argc, char *argv[])
     /* Free memory */
     parsec_two_dim_band_free(parsec, (parsec_tiled_matrix_t *)&dcY, full);
     parsec_two_dim_band_free(parsec, (parsec_tiled_matrix_t *)&dcYP, uplo);
-    parsec_tiled_matrix_destroy((parsec_tiled_matrix_t*)&dcY);
-    parsec_tiled_matrix_destroy((parsec_tiled_matrix_t*)&dcYP);
+    parsec_tiled_matrix_destroy(&dcY.super);
+    parsec_tiled_matrix_destroy(&dcY.band.super);
+    parsec_tiled_matrix_destroy(&dcY.off_band.super);
+    parsec_tiled_matrix_destroy(&dcYP.super);
+    parsec_tiled_matrix_destroy(&dcYP.band.super);
+    parsec_tiled_matrix_destroy(&dcYP.off_band.super);
 
     /* Clean up parsec*/
     parsec_fini(&parsec);

@@ -50,7 +50,6 @@ void free_data(parsec_tiled_matrix_t *d)
     if(NULL != m->mat) {
         parsec_data_free(m->mat);
     }
-    parsec_tiled_matrix_destroy_data(d);
-    parsec_data_collection_destroy(&d->super);
+    parsec_tiled_matrix_destroy(d);
     free(d);
 }

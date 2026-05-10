@@ -42,7 +42,7 @@ void cb_fulfill(parsec_base_future_t * future, ...)
 int cb_match(parsec_base_future_t * future, void * t1, void * t2)
 {
     (void)future;
-    return (((int*)t1) == ((int*)t2));
+    return (*((int*)t1) == *((int*)t2));
 }
 
 void cb_cleanup(parsec_base_future_t * future)
@@ -57,12 +57,18 @@ void cb_cleanup(parsec_base_future_t * future)
 void cb_nested(parsec_base_future_t ** future, ...)
 {
     parsec_datacopy_future_t** d_fut = (parsec_datacopy_future_t**)future;
+    parsec_datacopy_future_t* root_fut;
     va_list ap;
+    int* request;
+    int* specs;
+
     va_start(ap, future);
-    int* data = va_arg(ap, int*);
-    int* specs = va_arg(ap, int*);
+    root_fut = va_arg(ap, parsec_datacopy_future_t*);
+    request = va_arg(ap, int*);
     va_end(ap);
-    *specs += *data;
+    (void)root_fut;
+    specs = (int*)malloc(sizeof(int));
+    *specs = *request;
     *d_fut = PARSEC_OBJ_NEW(parsec_datacopy_future_t);
     parsec_future_init( *d_fut, 
                         cb_fulfill, 
@@ -90,7 +96,6 @@ static void *do_test_no_nested(void* _param){
 static void *do_test_nested(void* _param){
     int *param = (int*)_param;
     int id = param[0]; //thread id
-    int *specs; 
     if(id % 2 == 0) {
         for(int i = 0; i < ncopy; i++){
             while( (data_check_out[i][id] = 
@@ -101,11 +106,10 @@ static void *do_test_nested(void* _param){
         }
     }else{
         for(int i = 0; i < ncopy; i++){
-            specs = (int*)malloc(sizeof(int));
-            *specs = ncopy;
+            int specs = data[i] + ncopy;
             while( (data_check_out[i][id] = 
                         parsec_future_get_or_trigger(fut_array[i],
-                                                     cb_nested, specs, /* nested data */
+                                                     cb_nested, &specs, /* nested data */
                                                      NULL, NULL /*callback not using es, tp, task */
                                                      ) ) == NULL ){}
         }
@@ -172,7 +176,7 @@ int main(int argc, char* argv[])
     for(i=0; i< ncopy; i++){
         data_check_out[i] = malloc(cores*sizeof(int*));
         data[i] = i;
-        data_in = malloc(cores*sizeof(int));
+        data_in = malloc(sizeof(int));
         *data_in = data[i];
         fut_array[i] = PARSEC_OBJ_NEW(parsec_datacopy_future_t);
         parsec_future_init( fut_array[i],
@@ -209,7 +213,7 @@ int main(int argc, char* argv[])
 
     for(i=0; i< ncopy; i++){
         data[i] = i;
-        data_in = malloc(cores*sizeof(int));
+        data_in = malloc(sizeof(int));
         *data_in = data[i];
         fut_array[i] = PARSEC_OBJ_NEW(parsec_datacopy_future_t);
         parsec_future_init( fut_array[i],

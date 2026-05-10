@@ -200,7 +200,8 @@ int main( int argc, char** argv )
                priorities[i].message, time_elapsed);
     }
 
-    free(descA.mat);
+    parsec_data_free(descA.mat);
+    parsec_tiled_matrix_destroy((parsec_tiled_matrix_t*)&descA);
     parsec_matrix_adt_free(&adt);
 
     parsec_fini( &parsec);

@@ -109,8 +109,7 @@ int main(int argc, char *argv[])
     MMBR = (int)(ceil((double)MR/MBR));
     NNBR = (int)(ceil((double)NR/NBR));
 
-    /* Allocate memory for results */
-    double *results = (double *)calloc(8, sizeof(double));
+    double *results = NULL;
 
     /* Initializing matrix structure */
     /* Initializing dcY */
@@ -333,6 +332,8 @@ int main(int argc, char *argv[])
                    (time_dtd ? results[6] / 1.0e9 / time_ptg : 0.0),
                    (time_dtd ? (results[2] + results[3]) / 1.0e9 / time_dtd : 0.0));
         }
+        free(results);
+        results = NULL;
 
     }
 

@@ -165,6 +165,9 @@ int main(int argc, char *argv[])
         printf("Rank %d - user function defined for '%s': iterator is called %d times (%g / tile)\n", rank, UDF_TASKTYPE_NAME[i], calls[i], (double)calls[i]/(double)A.super.nb_local_tiles);
     }
 
+    parsec_data_free(A.mat);
+    parsec_tiled_matrix_destroy((parsec_tiled_matrix_t*)&A);
+
     parsec_fini(&parsec);
 
 #ifdef PARSEC_HAVE_MPI

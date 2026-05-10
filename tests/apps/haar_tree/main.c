@@ -237,7 +237,6 @@ int main(int argc, char *argv[])
     rc = parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
-    parsec_taskpool_free(&project->super);
     ret = 0;
 
     if( do_checks ) {
@@ -294,11 +293,12 @@ int main(int argc, char *argv[])
         }
     }
 #endif  /* defined(HAVE_MPI) */
-    parsec_matrix_adt_free( &adt );
+    parsec_tiled_matrix_destroy((parsec_tiled_matrix_t*)&fakeDesc);
+    tree_dist_free(treeA);
 
     parsec_taskpool_free(&walker->super);
-
-    tree_dist_free(treeA);
+    parsec_taskpool_free(&project->super);
+    parsec_matrix_adt_free( &adt );
 
     parsec_fini(&parsec);
 

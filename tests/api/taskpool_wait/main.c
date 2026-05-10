@@ -105,6 +105,7 @@ int main(int argc, char *argv[]) {
 
     parsec_dtd_free_arena_datatype(parsec, TILE_FULL);
     parsec_dtd_data_collection_fini(&A.super.super);
+    parsec_tiled_matrix_destroy((parsec_tiled_matrix_t*)&A);
 
     parsec_fini(&parsec);
 #if defined(PARSEC_HAVE_MPI)

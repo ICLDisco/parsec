@@ -461,8 +461,6 @@ int main(int argc, char **argv)
     rc = parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
-    free(new_tiles);
-
 #if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) && defined(PARSEC_HAVE_CU_COMPILER)
     for(int i = 0; i < nb_gpus; i++) {
         cudaError_t status;
@@ -501,6 +499,11 @@ int main(int argc, char **argv)
         PARSEC_OBJ_RELEASE(tile0);
     }
 
+    for(int r = 0; r < NCASE*world; r++) {
+        parsec_dtd_tile_release(new_tiles[r]);
+    }
+    free(new_tiles);
+
     if(acc != expected) {
         fprintf(stderr, "Rank %d failure: acc = %d, expected %d\n", rank, acc, expected);
         nb_errors++;
@@ -511,6 +514,7 @@ int main(int argc, char **argv)
     parsec_dtd_task_class_release(dtd_tp, first_tc);
     parsec_dtd_task_class_release(dtd_tp, second_tc);
     parsec_dtd_task_class_release(dtd_tp, third_tc);
+    parsec_dtd_task_class_release(dtd_tp, fourth_tc);
 
     parsec_dtd_free_arena_datatype(parsec, TILE_FULL);
 

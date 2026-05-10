@@ -227,8 +227,8 @@ int main(int argc, char **argv)
 
     parsec_dtd_free_arena_datatype(parsec, TILE_FULL);
     parsec_dtd_data_collection_fini( A );
-    parsec_tiled_matrix_destroy_data(dcA);
-    parsec_data_collection_destroy(&dcA->super);
+    parsec_data_free(m->mat);
+    parsec_tiled_matrix_destroy(dcA);
     free(dcA);
 
     parsec_fini(&parsec);

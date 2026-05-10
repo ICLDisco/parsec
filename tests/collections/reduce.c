@@ -93,6 +93,8 @@ int main( int argc, char* argv[] )
     PARSEC_OBJ_DESTRUCT(&((parsec_reduce_taskpool_t*)tp)->arenas_datatypes[PARSEC_reduce_DEFAULT_ADT_IDX]);
     parsec_taskpool_free(tp);
     parsec_type_free(&newtype);
+    parsec_data_free(dcA.mat);
+    parsec_tiled_matrix_destroy((parsec_tiled_matrix_t*)&dcA);
 
     parsec_fini(&parsec);
 
