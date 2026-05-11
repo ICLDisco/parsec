@@ -3969,9 +3969,9 @@ jdf_generate_function_incarnation_list( const jdf_t *jdf,
         string_arena_add_string(sa, "#if defined(PARSEC_HAVE_DEV_%s_SUPPORT)\n", dev_upper);
         string_arena_add_string(sa, "    { .type     = PARSEC_DEV_%s", dev_upper);
         if( NULL != batch_property) {
-#if defined(PARSEC_HAVE_DEV_CAPABILITY_BATCH)
+#if PARSEC_HAVE_DEV_CAPABILITY_BATCH
             string_arena_add_string(sa, " | PARSEC_DEV_CHORE_ALLOW_BATCH");
-#endif
+#endif  /* PARSEC_HAVE_DEV_CAPABILITY_BATCH */
         }
         string_arena_add_string(sa, ",\n");
         if( NULL == dyld_property ) {

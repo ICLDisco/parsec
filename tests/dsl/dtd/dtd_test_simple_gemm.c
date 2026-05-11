@@ -197,64 +197,18 @@ gemm_cuda_task_allows_batch(parsec_gpu_task_t *gpu_task)
 }
 
 static int
-gemm_cuda_complete_batch(parsec_device_gpu_module_t *gpu_device,
-                         parsec_gpu_task_t **gpu_task,
-                         parsec_gpu_exec_stream_t *gpu_stream)
+gemm_cuda_batch_match(parsec_gpu_task_t *candidate,
+                      parsec_gpu_task_t *batch_head,
+                      void *callback_data)
 {
-    parsec_list_item_t *output_stream_ghost = &gpu_device->exec_stream[1]->fifo_pending->ghost_element;
+    (void)callback_data;
 
-    (void)gpu_stream;
-
-    /* The whole ring was submitted on one CUDA stream and completed under one
-     * event. Move every task in the ring to the output stream so the regular
-     * GPU pop/epilog path still handles ownership, pushout, and completion one
-     * task at a time.
-     */
-    parsec_list_item_ring_merge(output_stream_ghost, &(*gpu_task)->list_item);
-    (*gpu_task)->complete_stage = NULL;
-    *gpu_task = NULL;
-
-    return PARSEC_HOOK_RETURN_DONE;
-}
-
-static int
-gemm_cuda_collect_batch(parsec_gpu_task_t *gpu_task,
-                        parsec_gpu_exec_stream_t *gpu_stream)
-{
-    parsec_list_item_t *store_back = NULL;
-    int how_many = 1;
-
-    parsec_list_item_singleton(&gpu_task->list_item);
-    while( !parsec_list_nolock_is_empty(gpu_stream->fifo_pending) ) {
-        parsec_list_item_t *item = parsec_list_pop_front(gpu_stream->fifo_pending);
-        parsec_gpu_task_t *task;
-
-        if( NULL == item ) {
-            break;
-        }
-
-        parsec_list_item_singleton(item);
-        task = (parsec_gpu_task_t *)item;
-
-        if( (gpu_task->ec->task_class == task->ec->task_class) &&
-            (gpu_task->ec->selected_chore == task->ec->selected_chore) &&
-            (gpu_task->ec->selected_device == task->ec->selected_device) ) {
-            (void)parsec_list_item_ring_push(&gpu_task->list_item, item);
-            how_many++;
-        } else {
-            if( NULL == store_back ) {
-                store_back = item;
-            } else {
-                (void)parsec_list_item_ring_push(store_back, item);
-            }
-        }
+    if( (batch_head->ec->task_class == candidate->ec->task_class) &&
+        (batch_head->ec->selected_chore == candidate->ec->selected_chore) &&
+        (batch_head->ec->selected_device == candidate->ec->selected_device) ) {
+        return 0;
     }
-
-    if( NULL != store_back ) {
-        parsec_list_item_ring_merge(&gpu_stream->fifo_pending->ghost_element, store_back);
-    }
-
-    return how_many;
+    return 1;
 }
 
 int gemm_kernel_cuda(parsec_device_gpu_module_t *gpu_device,
@@ -268,9 +222,10 @@ int gemm_kernel_cuda(parsec_device_gpu_module_t *gpu_device,
     int batch_count = 1;
 
     if( gemm_cuda_task_allows_batch(gpu_task) ) {
-        batch_count = gemm_cuda_collect_batch(gpu_task, gpu_stream);
-        if( batch_count > 1 ) {
-            gpu_task->complete_stage = gemm_cuda_complete_batch;
+        batch_count = parsec_gpu_task_collect_batch(gpu_stream, gpu_task,
+                                                    gemm_cuda_batch_match, NULL);
+        if( batch_count < 0 ) {
+            return batch_count;
         }
     }
 

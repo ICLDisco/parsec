@@ -209,14 +209,14 @@ extern int parsec_device_output;
 PARSEC_DECLSPEC extern int parsec_select_best_device( parsec_task_t* this_task);
 
 /**
- * Return true if batching is enabled for all concrete device types present
- * in the provided non-empty mask.
+ * Return true if batching is enabled globally and the provided non-empty
+ * mask contains only batching-capable device types.
  */
 PARSEC_DECLSPEC int parsec_mca_device_type_supports_batch(uint32_t device_type);
 
 /**
- * Drop the batching hint from a chore type if batching is disabled for the
- * selected device type.
+ * Drop the batching hint from a chore type if batching is disabled or the
+ * selected device type cannot batch.
  */
 PARSEC_DECLSPEC uint32_t parsec_mca_device_type_sanitize_batch(uint32_t device_type);
 

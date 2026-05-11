@@ -50,6 +50,19 @@ typedef int (*parsec_advance_task_function_t)(parsec_device_gpu_module_t  *gpu_d
                                               parsec_gpu_task_t           *gpu_task,
                                               parsec_gpu_exec_stream_t    *gpu_stream);
 
+/* Callback used by parsec_gpu_task_collect_batch() to decide whether a
+ * pending task can be appended to the current batched task ring.
+ *
+ * Return values:
+ *   < 0: stop iteration and return this error code to the caller.
+ *     0: extract candidate from the stream pending queue and append it to
+ *        batch_head.
+ *   > 0: leave candidate in the stream pending queue and continue.
+ */
+typedef int (*parsec_gpu_task_batch_cb_t)(parsec_gpu_task_t *candidate,
+                                          parsec_gpu_task_t *batch_head,
+                                          void *callback_data);
+
 /* Function type to transfer data to the GPU device.
  * Transfer transfer the <count> contiguous bytes from
  * task->data[i].data_in to task->data[i].data_out.
@@ -306,6 +319,23 @@ int parsec_device_free_workspace(parsec_device_gpu_module_t * gpu_device);
 int parsec_device_sort_pending_list(parsec_device_module_t *gpu_device);
 parsec_gpu_task_t* parsec_gpu_create_w2r_task(parsec_device_gpu_module_t *gpu_device, parsec_execution_stream_t *es);
 int parsec_gpu_complete_w2r_task(parsec_device_gpu_module_t *gpu_device, parsec_gpu_task_t *w2r_task, parsec_execution_stream_t *es);
+
+/**
+ * Iterate over gpu_stream->fifo_pending and append accepted tasks to
+ * batch_head. The callback receives each pending candidate, the task passed to
+ * the submit function, and user data. The callback should return 0 to append
+ * the candidate to batch_head's ring, a positive value to leave it pending, or
+ * a negative error code to stop the iteration.
+ * The callback must not modify gpu_stream->fifo_pending directly.
+ *
+ * Returns the number of tasks in batch_head's ring on success, or the negative
+ * callback error code. If an error is returned, tasks already accepted remain
+ * attached to batch_head and the remaining candidates stay in fifo_pending.
+ */
+int parsec_gpu_task_collect_batch(parsec_gpu_exec_stream_t *gpu_stream,
+                                  parsec_gpu_task_t *batch_head,
+                                  parsec_gpu_task_batch_cb_t callback,
+                                  void *callback_data);
 
 void parsec_device_enable_debug(void);
 

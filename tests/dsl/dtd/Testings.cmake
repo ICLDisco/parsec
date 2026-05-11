@@ -9,7 +9,7 @@ parsec_addtest_cmd(dsl/dtd/task_insertion ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_test_
 parsec_addtest_cmd(dsl/dtd/war ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_test_war)
 if(PARSEC_HAVE_DEV_CAPABILITY_BATCH)
   parsec_addtest_cmd(dsl/dtd/batch_cpu ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_test_batch_cpu)
-  parsec_addtest_cmd(dsl/dtd/batch_cpu:disabled ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_test_batch_cpu --mca device_cpu_enable_batching 0)
+  parsec_addtest_cmd(dsl/dtd/batch_cpu:disabled ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_test_batch_cpu --mca device_enable_batching 0)
 endif(PARSEC_HAVE_DEV_CAPABILITY_BATCH)
 parsec_addtest_cmd(dsl/dtd/new_tile:cpu ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_test_new_tile --mca device_cuda_enabled 0)
 if(PARSEC_HAVE_CUDA AND CMAKE_CUDA_COMPILER)
