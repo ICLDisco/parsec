@@ -2,6 +2,7 @@
  * Copyright (c) 2013-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
  */
 
 /** @addtogroup parsec_device
@@ -69,6 +70,8 @@ typedef struct parsec_device_base_component_2_0_0 parsec_device_base_component_t
 #define PARSEC_DEV_ANY_TYPE   ((uint8_t)    0x3f)
 #define PARSEC_DEV_ALL        ((uint8_t)    0x3f)
 #define PARSEC_DEV_MAX_NB_TYPE                (7)
+/* The following flags are extensions to the device type */
+#define PARSEC_DEV_CHORE_ALLOW_BATCH  ((uint32_t)0x00000100)
 
 #define PARSEC_DEV_GPU_MASK   (PARSEC_DEV_CUDA|PARSEC_DEV_HIP|PARSEC_DEV_LEVEL_ZERO)
 #define PARSEC_DEV_IS_GPU(t)  (0 != ((t) & PARSEC_DEV_GPU_MASK))
@@ -204,6 +207,18 @@ extern int parsec_device_output;
  * PARSEC_ERROR   - no device could be selected
  */
 PARSEC_DECLSPEC extern int parsec_select_best_device( parsec_task_t* this_task);
+
+/**
+ * Return true if batching is enabled globally and the provided non-empty
+ * mask contains only batching-capable device types.
+ */
+PARSEC_DECLSPEC int parsec_mca_device_type_supports_batch(uint32_t device_type);
+
+/**
+ * Drop the batching hint from a chore type if batching is disabled or the
+ * selected device type cannot batch.
+ */
+PARSEC_DECLSPEC uint32_t parsec_mca_device_type_sanitize_batch(uint32_t device_type);
 
 /**
  * Initialize the internal structures for managing external devices such as

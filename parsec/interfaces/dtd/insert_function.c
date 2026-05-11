@@ -1479,7 +1479,7 @@ parsec_dtd_startup(parsec_context_t *context,
         if( !(tp->devices_index_mask & (1 << device->device_index))) continue;  /* not supported */
         // If CUDA is enabled, let the CUDA device activated for this
         // taskpool.
-        if( PARSEC_DEV_CUDA == device->type ) continue;
+        if( PARSEC_DEV_CUDA & device->type ) continue;
         if( NULL != device->taskpool_register )
             if( PARSEC_SUCCESS !=
                 device->taskpool_register(device, (parsec_taskpool_t *)tp)) {
@@ -2345,6 +2345,12 @@ static parsec_hook_return_t parsec_dtd_cpu_task_submit(parsec_execution_stream_t
     return dtd_tc->cpu_func_ptr(es, this_task);
 }
 
+static inline int
+parsec_dtd_effective_chore_type(int device_type)
+{
+    return (int)parsec_mca_device_type_sanitize_batch((uint32_t)device_type);
+}
+
 int parsec_dtd_task_class_add_chore(parsec_taskpool_t *tp,
                                     parsec_task_class_t *tc,
                                     int device_type,
@@ -2362,11 +2368,13 @@ int parsec_dtd_task_class_add_chore(parsec_taskpool_t *tp,
     parsec_dtd_taskpool_t *dtd_tp = (parsec_dtd_taskpool_t*)tp;
     parsec_dtd_task_class_t *dtd_tc = (parsec_dtd_task_class_t*)tc;
 
+    device_type = parsec_dtd_effective_chore_type(device_type);
+
     /* We assume that incarnations is big enough, because it has been pre-allocated
      * with PARSEC_DEV_MAX_NB_TYPE+1 chores, as this is a DTD task class */
     incarnations = (__parsec_chore_t*)dtd_tc->super.incarnations;
-    for(i = 0; i < PARSEC_DEV_MAX_NB_TYPE && incarnations[i].type != PARSEC_DEV_NONE; i++) {
-        if( incarnations[i].type == device_type ) {
+    for(i = 0; i < PARSEC_DEV_MAX_NB_TYPE && (incarnations[i].type & PARSEC_DEV_ANY_TYPE) != PARSEC_DEV_NONE; i++) {
+        if( (incarnations[i].type & PARSEC_DEV_ANY_TYPE) & (device_type & PARSEC_DEV_ANY_TYPE) ) {
             parsec_warning("A chore for this device type has already been added to task class '%s'\n",
                            tc->name);
             return PARSEC_ERROR;
@@ -2379,7 +2387,7 @@ int parsec_dtd_task_class_add_chore(parsec_taskpool_t *tp,
     }
 
     incarnations[i].type = device_type;
-    if(PARSEC_DEV_CUDA == device_type) {
+    if(PARSEC_DEV_CUDA & device_type) {
         incarnations[i].hook = parsec_dtd_gpu_task_submit;
         dtd_tc->gpu_func_ptr = (parsec_advance_task_function_t)function;
     }
@@ -3136,7 +3144,7 @@ parsec_insert_dtd_task(parsec_task_t *__this_task)
 
 static inline parsec_task_t *
 __parsec_dtd_taskpool_create_task(parsec_taskpool_t *tp,
-                                  void *fpointer, int32_t priority, uint8_t device_type,
+                                  void *fpointer, int32_t priority, int32_t device_type,
                                   const char *name_of_kernel, parsec_task_class_t *tc, va_list args)
 {
     parsec_dtd_taskpool_t *dtd_tp = (parsec_dtd_taskpool_t *)tp;
@@ -3147,6 +3155,8 @@ __parsec_dtd_taskpool_create_task(parsec_taskpool_t *tp,
     parsec_dtd_task_class_t *dtd_tc = (parsec_dtd_task_class_t*)tc;
     int nb_params = 0;
     parsec_dtd_param_t params[PARSEC_DTD_MAX_PARAMS];
+
+    device_type = parsec_dtd_effective_chore_type(device_type);
 
     if( dtd_tp == NULL) {
         parsec_fatal("You need to pass a correct parsec taskpool in order to insert task. "
@@ -3268,19 +3278,20 @@ __parsec_dtd_taskpool_create_task(parsec_taskpool_t *tp,
             dtd_tc = parsec_dtd_create_task_classv(name_of_kernel, nb_params, params);
             tc = &dtd_tc->super;
 
-            __parsec_chore_t **incarnations = (__parsec_chore_t **)&tc->incarnations;
-            (*incarnations)[0].type = device_type;
-            if( device_type == PARSEC_DEV_CUDA ) {
+            __parsec_chore_t *incarnations = (__parsec_chore_t *)tc->incarnations;
+            incarnations[0].type = device_type;
+            if( device_type & PARSEC_DEV_CUDA ) {
                 /* Special case for CUDA: we need an intermediate */
-                (*incarnations)[0].hook = parsec_dtd_gpu_task_submit;
+                incarnations[0].hook = parsec_dtd_gpu_task_submit;
                 dtd_tc->gpu_func_ptr = (parsec_advance_task_function_t)fpointer;
             }
             else {
                 /* Default case: the user-provided function is directly the hook to call */
-                (*incarnations)[0].hook = fpointer; // We can directly call the CPU hook
+                incarnations[0].hook = fpointer; // We can directly call the CPU hook
                 dtd_tc->cpu_func_ptr = fpointer;
             }
-            (*incarnations)[1].type = PARSEC_DEV_NONE;
+            incarnations[1].type = PARSEC_DEV_NONE;
+            incarnations[1].hook = NULL;
 
             /* Bookkeeping of the task class */
             parsec_dtd_register_task_class(&dtd_tp->super, fkey, tc);

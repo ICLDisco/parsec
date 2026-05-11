@@ -1,5 +1,4 @@
 /*
- *
  * Copyright (c) 2021-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
@@ -528,7 +527,7 @@ parsec_device_taskpool_register(parsec_device_module_t* device,
         const parsec_task_class_t* tc = tp->task_classes_array[i];
         __parsec_chore_t* chores = (__parsec_chore_t*)tc->incarnations;
         for( j = 0; NULL != chores[j].hook; j++ ) {
-            if( chores[j].type != device->type )
+            if( !(chores[j].type & device->type) )
                 continue;
             if( NULL != chores[j].dyld_fn ) {
                 /* the function has been set for another device of the same type */
@@ -1203,7 +1202,7 @@ parsec_default_gpu_stage_in(parsec_gpu_task_t        *gtask,
         src_dev = (parsec_device_gpu_module_t*)parsec_mca_device_get(source->device_index);
         dst_dev = (parsec_device_gpu_module_t*)parsec_mca_device_get(dest->device_index);
 
-        if(src_dev->super.type == dst_dev->super.type) {
+        if((src_dev->super.type & PARSEC_DEV_ANY_TYPE) == (dst_dev->super.type & PARSEC_DEV_ANY_TYPE)) {
             assert( src_dev->peer_access_mask & (1 << dst_dev->super.device_index) );
             dir = parsec_device_gpu_transfer_direction_d2d;
         } else {
@@ -1254,7 +1253,7 @@ parsec_default_gpu_stage_out(parsec_gpu_task_t        *gtask,
 
             count = (source->original->nb_elts <= dest->original->nb_elts) ? source->original->nb_elts :
                         dest->original->nb_elts;
-            if( src_dev->super.type == dst_dev->super.type ) {
+            if( (src_dev->super.type & PARSEC_DEV_ANY_TYPE) == (dst_dev->super.type & PARSEC_DEV_ANY_TYPE) ) {
                 assert( src_dev->peer_access_mask & (1 << dst_dev->super.device_index) );
                 dir = parsec_device_gpu_transfer_direction_d2d;
             } else {
@@ -1381,7 +1380,7 @@ parsec_device_data_stage_in( parsec_device_gpu_module_t* gpu_device,
         PARSEC_DEBUG_VERBOSE(30, parsec_gpu_output_stream,
                              "GPU[%d:%s]:\tSelecting candidate data copy %p [ref_count %d] on data %p",
                              gpu_device->super.device_index, gpu_device->super.name, task_data->data_in, task_data->data_in->super.super.obj_reference_count, original);
-        if( gpu_device->super.type == candidate_dev->super.type ) {
+        if( (gpu_device->super.type & PARSEC_DEV_ANY_TYPE) == (candidate_dev->super.type & PARSEC_DEV_ANY_TYPE) ) {
             if( gpu_device->peer_access_mask & (1 << candidate_dev->super.device_index) ) {
                 /* We can directly do D2D, so let's skip the selection */
                 PARSEC_DEBUG_VERBOSE(30, parsec_gpu_output_stream,
@@ -1531,7 +1530,8 @@ parsec_device_data_stage_in( parsec_device_gpu_module_t* gpu_device,
                         gpu_device->super.device_index, gpu_device->super.name, rc, __func__, __LINE__,
                         candidate->device_private, candidate_dev->super.device_index, candidate_dev->super.name,
                         gpu_elem->device_private, gpu_device->super.device_index, gpu_device->super.name,
-                        nb_elts, (candidate_dev->super.type != gpu_device->super.type)? "H2D": "D2D");
+                        nb_elts,
+                        (candidate_dev->super.type & gpu_device->super.type & PARSEC_DEV_ANY_TYPE)? "D2D": "H2D");
         parsec_atomic_unlock( &original->lock );
         assert(0);
         return PARSEC_HOOK_RETURN_ERROR;
@@ -1572,6 +1572,74 @@ static inline parsec_list_item_t* parsec_device_push_task_ordered( parsec_list_t
 #else
 #define PARSEC_PUSH_TASK parsec_list_push_back
 #endif
+
+static inline int
+parsec_gpu_task_is_singleton(parsec_gpu_task_t *task)
+{
+    parsec_list_item_t *item = &task->list_item;
+
+#if defined(PARSEC_DEBUG_PARANOID)
+    if( ((parsec_list_item_t *)(void *)0xdeadbeefL == item->list_next) ||
+        ((parsec_list_item_t *)(void *)0xdeadbeefL == item->list_prev) ) {
+        return 0;
+    }
+#endif
+    return (item->list_next == item) && (item->list_prev == item);
+}
+
+static inline void
+parsec_gpu_stream_push_pending(parsec_gpu_exec_stream_t *stream,
+                               parsec_gpu_task_t *task)
+{
+    /* A completed batched kernel returns a proper task ring. Preserve that
+     * order when feeding the tasks to the next stream.
+     */
+    if( !parsec_gpu_task_is_singleton(task) ) {
+        parsec_list_chain_back(stream->fifo_pending, &task->list_item);
+        return;
+    }
+    PARSEC_PUSH_TASK(stream->fifo_pending, &task->list_item);
+}
+
+int
+parsec_gpu_task_collect_batch(parsec_gpu_exec_stream_t *gpu_stream,
+                              parsec_gpu_task_t *batch_head,
+                              parsec_gpu_task_batch_cb_t callback,
+                              void *callback_data)
+{
+    parsec_list_t *fifo_pending;
+    parsec_list_item_t *item, *next;
+    int nb_tasks = 1;
+    int rc;
+
+    assert(NULL != gpu_stream);
+    assert(NULL != batch_head);
+    assert(NULL != callback);
+
+    fifo_pending = gpu_stream->fifo_pending;
+    assert(NULL != fifo_pending);
+    parsec_list_item_singleton(&batch_head->list_item);
+
+    parsec_list_lock(fifo_pending);
+    for(item = (parsec_list_item_t *)fifo_pending->ghost_element.list_next;
+        item != &fifo_pending->ghost_element;
+        item = next) {
+        next = (parsec_list_item_t *)item->list_next;
+        rc = callback((parsec_gpu_task_t *)item, batch_head, callback_data);
+        if( rc < 0 ) {
+            parsec_list_unlock(fifo_pending);
+            return rc;
+        }
+        if( 0 == rc ) {
+            (void)parsec_list_nolock_remove(fifo_pending, item);
+            (void)parsec_list_item_ring_push(&batch_head->list_item, item);
+            nb_tasks++;
+        }
+    }
+    parsec_list_unlock(fifo_pending);
+
+    return nb_tasks;
+}
 
 static parsec_flow_t parsec_device_d2d_complete_flow = {
     .name = "D2D FLOW",
@@ -1867,8 +1935,9 @@ parsec_device_callback_complete_push(parsec_device_gpu_module_t   *gpu_device,
  * The progress function is either specified by the caller via the
  * upstream_progress_fct input argument or by the next task to be progresses
  * via the submit function associated with the task. In any case, this
- * function progresses a single task, which is then returned as the
- * out_task parameter.
+ * function progresses a task. If a batched submit function returns a task
+ * ring, the ring is returned as the out_task parameter and chained into the
+ * next stream by the caller's next invocation of this helper.
  *
  * Beware: this function does not generate errors by itself, instead
  * it propagates upward the return code of the progress function.
@@ -1891,7 +1960,7 @@ parsec_device_progress_stream( parsec_device_gpu_module_t* gpu_device,
      * local list (possibly by reordering the list). Also, as we can return a single
      * task first try to see if anything completed. */
     if( NULL != task ) {
-        PARSEC_PUSH_TASK(stream->fifo_pending, (parsec_list_item_t*)task);
+        parsec_gpu_stream_push_pending(stream, task);
         task = NULL;
     }
     *out_task = NULL;
@@ -1936,14 +2005,14 @@ parsec_device_progress_stream( parsec_device_gpu_module_t* gpu_device,
         }
     }
 
- grab_a_task:
+  grab_a_task:
     if( NULL == stream->tasks[stream->start] ) {  /* there is room on the stream */
         task = (parsec_gpu_task_t*)parsec_list_pop_front(stream->fifo_pending);  /* get the best task */
     }
     if( NULL == task ) {  /* No tasks, we're done */
         return PARSEC_HOOK_RETURN_DONE;
     }
-    PARSEC_LIST_ITEM_SINGLETON((parsec_list_item_t*)task);
+    PARSEC_LIST_ITEM_SINGLETON((parsec_list_item_t *)task);
 
     assert( NULL == stream->tasks[stream->start] );
 
@@ -1956,7 +2025,7 @@ parsec_device_progress_stream( parsec_device_gpu_module_t* gpu_device,
                  * the resubmission of this task as much as possible, but without losing track of it
                  * (aka. returning it to the upper level).
                  */
-                parsec_list_push_back(stream->fifo_pending, (parsec_list_item_t*)task);
+                parsec_gpu_stream_push_pending(stream, task);
             } else {
                 /* Something else is going on with this task, remove it from the stream queues
                  * and return it to the upper level for final decision on its fate.
@@ -2150,6 +2219,12 @@ parsec_device_kernel_exec( parsec_device_gpu_module_t      *gpu_device,
         assert(this_task->data[i].data_out->data_transfer_status != PARSEC_DATA_STATUS_UNDER_TRANSFER);
     }
 #endif /* defined(PARSEC_DEBUG_PARANOID) */
+
+    /* The submit hook may turn gpu_task into a batch ring. Start from a clean
+     * singleton so stale list links left by release-mode list operations cannot
+     * be mistaken for a preexisting ring.
+     */
+    PARSEC_LIST_ITEM_SINGLETON(&gpu_task->list_item);
 
     (void)this_task;
     return progress_fct( gpu_device, gpu_task, gpu_stream );
@@ -2670,6 +2745,10 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
     gpu_task = (parsec_gpu_task_t*)parsec_fifo_try_pop( &(gpu_device->pending) );
     if( NULL != gpu_task ) {
         pop_null = 0;
+        /* parsec_fifo_try_pop() detaches the task but does not reset list links
+         * in release builds; normalize before the stream FIFO inspects them.
+         */
+        PARSEC_LIST_ITEM_SINGLETON((parsec_list_item_t*)gpu_task);
         gpu_task->last_data_check_epoch = gpu_device->data_avail_epoch - 1;  /* force at least one tour */
         PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,  "GPU[%d:%s]:\tGet from shared queue %s", gpu_device->super.device_index, gpu_device->super.name,
                              parsec_device_describe_gpu_task(tmp, MAX_TASK_STRLEN, gpu_task));

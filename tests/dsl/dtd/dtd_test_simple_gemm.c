@@ -2,7 +2,7 @@
  * Copyright (c) 2021-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
- * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
+ * Copyright (c) 2024-2026 NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec.h"
@@ -10,6 +10,7 @@
 #include "parsec/data_dist/matrix/matrix.h"
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "parsec/interfaces/dtd/insert_function_internal.h"
+#include "parsec/mca/device/device.h"
 
 // The file is not compiled if CUDA is not present or CUBLAS is not found
 #include "parsec/mca/device/cuda/device_cuda.h"
@@ -57,6 +58,7 @@ static parsec_info_id_t CuHI = -1;
 static parsec_info_id_t Cu1 = -1;
 static int verbose = 0;
 static int device = PARSEC_DEV_CUDA;
+static int use_cuda_batch = 0;
 static int P = -1;
 static int Q = -1;
 
@@ -182,55 +184,104 @@ int initialize_matrix(parsec_context_t *parsec_context, int rank, parsec_matrix_
     return 0;
 }
 
+static int
+gemm_cuda_task_allows_batch(parsec_gpu_task_t *gpu_task)
+{
+    parsec_task_t *this_task = gpu_task->ec;
+    int selected_chore = this_task->selected_chore;
+
+    return use_cuda_batch &&
+           (selected_chore >= 0) &&
+           (this_task->task_class->incarnations[selected_chore].type & PARSEC_DEV_CHORE_ALLOW_BATCH) &&
+           parsec_mca_device_type_supports_batch(this_task->selected_device->type);
+}
+
+static int
+gemm_cuda_batch_match(parsec_gpu_task_t *candidate,
+                      parsec_gpu_task_t *batch_head,
+                      void *callback_data)
+{
+    (void)callback_data;
+
+    if( (batch_head->ec->task_class == candidate->ec->task_class) &&
+        (batch_head->ec->selected_chore == candidate->ec->selected_chore) &&
+        (batch_head->ec->selected_device == candidate->ec->selected_device) ) {
+        return 0;
+    }
+    return 1;
+}
+
 int gemm_kernel_cuda(parsec_device_gpu_module_t *gpu_device,
                      parsec_gpu_task_t *gpu_task,
                      parsec_gpu_exec_stream_t *gpu_stream)
 {
-    double *A, *B, *C;
-    int m, n, k, mb, nb, kb;
-    parsec_task_t *this_task = gpu_task->ec;
     cublasStatus_t status;
     cublasHandle_t handle;
     double *one_device = NULL;
-    struct timeval start, end, diff;
-    double delta;
-    double *a_gpu, *b_gpu, *c_gpu;
+    parsec_gpu_task_t *current_gpu_task;
+    int batch_count = 1;
 
-    (void)gpu_stream;
-    (void)gpu_device;
-
-    parsec_dtd_unpack_args(this_task,
-                           &A, &B, &C,
-                           &m, &n, &k,
-                           &mb, &nb, &kb);
-
-    a_gpu = parsec_dtd_get_dev_ptr(this_task, 0);
-    b_gpu = parsec_dtd_get_dev_ptr(this_task, 1);
-    c_gpu = parsec_dtd_get_dev_ptr(this_task, 2);
+    if( gemm_cuda_task_allows_batch(gpu_task) ) {
+        batch_count = parsec_gpu_task_collect_batch(gpu_stream, gpu_task,
+                                                    gemm_cuda_batch_match, NULL);
+        if( batch_count < 0 ) {
+            return batch_count;
+        }
+    }
 
     handle = parsec_info_get(&gpu_stream->infos, CuHI);
     assert(NULL != handle);
     one_device = parsec_info_get(&gpu_device->super.infos, Cu1);
     assert(NULL != one_device);
-    gettimeofday(&start, NULL);
 
-    status = cublasDgemm_v2(handle,
-                            CUBLAS_OP_N, CUBLAS_OP_N,
-                            mb, nb, kb,
-                            one_device, a_gpu, mb,
-                            b_gpu, kb,
-                            one_device, c_gpu, mb);
-    gettimeofday(&end, NULL);
-    timersub(&end, &start, &diff);
-    delta = (double)diff.tv_sec + (double)diff.tv_usec/1e6;
-    if(verbose)
-        fprintf(stderr, "GEMM(%d, %d, %d) with tiles of %dx%d, %dx%d, %dx%d on node %d, GPU %s submitted in %g s\n",
-                m, n, k, mb, kb, kb, nb, mb, kb,
-                this_task->taskpool->context->my_rank,
-                gpu_stream->name, delta);
+    current_gpu_task = gpu_task;
+    do {
+        double *A, *B, *C;
+        int m, n, k, mb, nb, kb;
+        parsec_task_t *this_task = current_gpu_task->ec;
+        struct timeval start, end, diff;
+        double delta;
+        double *a_gpu, *b_gpu, *c_gpu;
 
-    PARSEC_CUDA_CHECK_ERROR("cublasDgemm_v2", status,
-                            { return PARSEC_HOOK_RETURN_ERROR; });
+        parsec_dtd_unpack_args(this_task,
+                               &A, &B, &C,
+                               &m, &n, &k,
+                               &mb, &nb, &kb);
+        (void)A; (void)B; (void)C;
+
+        a_gpu = parsec_dtd_get_dev_ptr(this_task, 0);
+        b_gpu = parsec_dtd_get_dev_ptr(this_task, 1);
+        c_gpu = parsec_dtd_get_dev_ptr(this_task, 2);
+
+        gettimeofday(&start, NULL);
+
+        status = cublasDgemm_v2(handle,
+                                CUBLAS_OP_N, CUBLAS_OP_N,
+                                mb, nb, kb,
+                                one_device, a_gpu, mb,
+                                b_gpu, kb,
+                                one_device, c_gpu, mb);
+        gettimeofday(&end, NULL);
+        timersub(&end, &start, &diff);
+        delta = (double)diff.tv_sec + (double)diff.tv_usec/1e6;
+        if(verbose) {
+            fprintf(stderr, "GEMM(%d, %d, %d) with tiles of %dx%d, %dx%d, %dx%d on node %d, GPU %s submitted in %g s%s\n",
+                    m, n, k, mb, kb, kb, nb, mb, kb,
+                    this_task->taskpool->context->my_rank,
+                    gpu_stream->name, delta,
+                    batch_count > 1 ? " as part of a batch" : "");
+        }
+
+        PARSEC_CUDA_CHECK_ERROR("cublasDgemm_v2", status,
+                                { return PARSEC_HOOK_RETURN_ERROR; });
+
+        current_gpu_task = (parsec_gpu_task_t *)current_gpu_task->list_item.list_next;
+    } while( current_gpu_task != gpu_task );
+
+    if( verbose && batch_count > 1 ) {
+        fprintf(stderr, "Submitted %d batched GEMM tasks on GPU stream %s\n",
+                batch_count, gpu_stream->name);
+    }
 
     return PARSEC_HOOK_RETURN_DONE;
 }
@@ -297,7 +348,9 @@ int simple_gemm(parsec_context_t *parsec_context, parsec_matrix_block_cyclic_t *
                                            sizeof(int), PARSEC_VALUE,               /* nb */
                                            sizeof(int), PARSEC_VALUE,               /* kb */
                                            PARSEC_DTD_ARG_END);
-    parsec_dtd_task_class_add_chore(tp, gemm_tc, PARSEC_DEV_CUDA, gemm_kernel_cuda);
+    parsec_dtd_task_class_add_chore(tp, gemm_tc,
+                                    use_cuda_batch ? (PARSEC_DEV_CUDA | PARSEC_DEV_CHORE_ALLOW_BATCH) : PARSEC_DEV_CUDA,
+                                    gemm_kernel_cuda);
 #if defined(HAVE_BLAS)
     parsec_dtd_task_class_add_chore(tp, gemm_tc, PARSEC_DEV_CPU, gemm_kernel_cpu);
 #endif
@@ -308,7 +361,9 @@ int simple_gemm(parsec_context_t *parsec_context, parsec_matrix_block_cyclic_t *
             for( int k = 0; k < A->super.nt; k++ ) {
                 keyA = A->super.super.data_key(&A->super.super, i, k);
                 keyB = B->super.super.data_key(&B->super.super, k, j);
-                parsec_dtd_insert_task_with_task_class(tp, gemm_tc, C->super.mt*C->super.nt*A->super.nt - i*C->super.nt + j, device,
+                parsec_dtd_insert_task_with_task_class(tp, gemm_tc, C->super.mt*C->super.nt*A->super.nt - i*C->super.nt + j,
+                                                       use_cuda_batch && (PARSEC_DEV_CUDA == device) ?
+                                                       (device | PARSEC_DEV_CHORE_ALLOW_BATCH) : device,
                                                        PARSEC_INPUT, PARSEC_DTD_TILE_OF_KEY(&A->super.super, keyA),
                                                        PARSEC_INPUT, PARSEC_DTD_TILE_OF_KEY(&B->super.super, keyB),
                                                        k == A->super.nt - 1 ? (PARSEC_INOUT | PARSEC_PUSHOUT) : PARSEC_INOUT,
@@ -347,7 +402,7 @@ int get_nb_gpu_devices()
 
     for( int dev = 0; dev < (int)parsec_nb_devices; dev++ ) {
         parsec_device_module_t *device = parsec_mca_device_get(dev);
-        if( PARSEC_DEV_CUDA == device->type ) {
+        if( PARSEC_DEV_CUDA & device->type ) {
             nb++;
         }
     }
@@ -363,7 +418,7 @@ int *get_gpu_device_index()
     int i = 0;
     for( int dev = 0; dev < (int)parsec_nb_devices; dev++ ) {
         parsec_device_module_t *device = parsec_mca_device_get(dev);
-        if( PARSEC_DEV_CUDA == device->type ) {
+        if( PARSEC_DEV_CUDA & device->type ) {
             dev_index[i++] = device->device_index;
         }
     }
@@ -507,13 +562,14 @@ int main(int argc, char **argv)
                 {"device",  required_argument, 0, 'd'},
                 {"nruns",   required_argument, 0, 't'},
                 {"verbose", no_argument,       0, 'v'},
+                {"batch",   no_argument,       0, 'b'},
                 {"Debug",   required_argument, 0, 'D'},
                 {"Alarm",   required_argument, 0, 'A'},
                 {"help",    no_argument,       0, 'h'},
                 {0, 0,                         0, 0}
         };
 
-        int c = getopt_long(argc, argv, "M:N:K:m:n:k:P:Q:t:d:D:A:vh",
+        int c = getopt_long(argc, argv, "M:N:K:m:n:k:P:Q:t:d:D:A:vbh",
                             long_options, &option_index);
         if( c == -1 )
             break;
@@ -548,6 +604,9 @@ int main(int argc, char **argv)
                 break;
             case 'v':
                 verbose = !verbose;
+                break;
+            case 'b':
+                use_cuda_batch = 1;
                 break;
             case 'd':
                 if(strcmp(optarg, "GPU") == 0) {
@@ -587,6 +646,7 @@ int main(int argc, char **argv)
                             "   --mb|-m / --kb/-k / --nb|-n:  set mb, kb and nb (resp.)\n"
                             "   --nruns|-t:                   set the number of runs to do\n"
                             "   --device|-d:                  which device to use (CPU or GPU)\n"
+                            "   --batch|-b:                   enable CUDA batched GEMM chores\n"
                             "   --verbose|-v:                 display which GEMM runs on which GPU\n"
                             "                                 as execution is unfolding\n"
                             "   --help|-h|-?:                 display this help\n"
@@ -602,7 +662,9 @@ int main(int argc, char **argv)
                             "\n",
                             argv[0]);
                 }
+#if defined(PARSEC_HAVE_MPI)
                 MPI_Finalize();
+#endif
                 exit(0);
         }
     }
@@ -636,7 +698,9 @@ int main(int argc, char **argv)
         rc = !(nbgpus >= 1);
         if( rc != 0 ) {
             fprintf(stderr, "Rank %d doesn't have CUDA accelerators\n", rank);
+#if defined(PARSEC_HAVE_MPI)
             MPI_Abort(MPI_COMM_WORLD, 0);
+#endif
             return -1;
         }
         gpu_device_index = get_gpu_device_index();

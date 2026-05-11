@@ -659,6 +659,7 @@ WARN_LOGFILE           =
 
 INPUT                  = @PROJECT_SOURCE_DIR@/docs/doxygen/mainpage.md
 INPUT                 += @PROJECT_SOURCE_DIR@/docs/doxygen/groups.dox
+INPUT                 += @PROJECT_SOURCE_DIR@/docs/doxygen/task-batching.md
 INPUT                 += @PROJECT_SOURCE_DIR@/parsec
 INPUT                 += @PROJECT_BINARY_DIR@/parsec/include
 INPUT                 += @PARSEC_DOX_SRCS@

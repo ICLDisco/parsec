@@ -14,6 +14,11 @@ endif(PARSEC_HAVE_RANDOM)
 parsec_addtest_executable(C complex_deps)
 target_ptg_sources(complex_deps PRIVATE "complex_deps.jdf")
 
+if(PARSEC_HAVE_DEV_CAPABILITY_BATCH)
+  parsec_addtest_executable(C batch_cpu)
+  target_ptg_sources(batch_cpu PRIVATE "batch_cpu.jdf")
+endif(PARSEC_HAVE_DEV_CAPABILITY_BATCH)
+
 add_subdirectory(branching)
 add_subdirectory(choice)
 add_subdirectory(controlgather)

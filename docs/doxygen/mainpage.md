@@ -72,6 +72,9 @@ subdirectory of the source. It is separated in a few modules:
      - [Virtual Processes](@ref parsec_internal_virtualprocess) allow to
    isolate groups of threads and avoid work stealing between threads
    belonging to different virtual processes.
+     - [Device task batching](@ref task_batching) documents how
+   accelerator submit hooks can combine compatible ready tasks into one
+   batched device operation.
     - [The Internal Runtime Module](@ref parsec_internal_runtime) holds
     all other functions and data structures that allow to build the
     PaRSEC runtime system.
@@ -117,4 +120,3 @@ following components have specific documentation:
 
  - [schedulers](@ref parsec/mca/sched/sched.h) in `parsec/mca/sched`
  - [PaRSEC INStrumentation](@ref parsec/mca/pins/pins.h) in `parsec/mca/pins`
-
