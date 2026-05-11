@@ -243,23 +243,67 @@ struct dbp_thread {
 };
 
 #if defined(PARSEC_PROFILING_USE_MMAP)
+static size_t dbp_mmap_page_size(void)
+{
+    long page_size = 4 * 1024;  /* A common fallback for mmap offset alignment. */
+
+#if defined(PARSEC_HAVE_SYSCONF)
+    long sys_page_size = sysconf(_SC_PAGESIZE);
+    if( sys_page_size > 0 ) {
+        page_size = sys_page_size;
+    }
+#endif  /* defined(PARSEC_HAVE_SYSCONF) */
+
+    return (size_t)page_size;
+}
+
+static size_t dbp_mmap_length(size_t delta)
+{
+    size_t page_size = dbp_mmap_page_size();
+    size_t length = (size_t)event_buffer_size + delta;
+
+    return ((length + page_size - 1) / page_size) * page_size;
+}
+
 static void release_events_buffer(parsec_profiling_buffer_t *buffer)
 {
+    size_t page_size, delta, map_length;
+    void *map_base;
+
     if( NULL == buffer )
         return;
-    if( munmap(buffer, event_buffer_size) == -1 ) {
+
+    page_size = dbp_mmap_page_size();
+    delta = (size_t)(buffer->this_buffer_file_offset % (int64_t)page_size);
+    map_length = dbp_mmap_length(delta);
+    map_base = (void*)((char*)buffer - delta);
+
+    if( munmap(map_base, map_length) == -1 ) {
         WARNING("Warning profiling system: unmap of the events backend file at %p failed: %s\n",
-                 buffer, strerror(errno));
+                 map_base, strerror(errno));
     }
 }
 
 static parsec_profiling_buffer_t *refer_events_buffer( const dbp_file_t *file, int64_t offset )
 {
+    int64_t page_size, delta;
+    off_t map_offset;
+    size_t map_length;
     parsec_profiling_buffer_t *res;
-    res = mmap(NULL, event_buffer_size, PROT_READ, MAP_SHARED, file->fd, offset);
+
+    if( offset < 0 ) {
+        return NULL;
+    }
+
+    page_size = (int64_t)dbp_mmap_page_size();
+    delta = offset % page_size;
+    map_offset = (off_t)(offset - delta);
+    map_length = dbp_mmap_length((size_t)delta);
+
+    res = mmap(NULL, map_length, PROT_READ, MAP_SHARED, file->fd, map_offset);
     if( MAP_FAILED == res )
         return NULL;
-    return res;
+    return (parsec_profiling_buffer_t*)((char*)res + delta);
 }
 #else
 static void release_events_buffer(parsec_profiling_buffer_t *buffer)
