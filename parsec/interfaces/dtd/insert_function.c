@@ -1882,9 +1882,16 @@ parsec_hook_return_t
 parsec_release_dtd_task_to_mempool(parsec_execution_stream_t *es,
                                    parsec_task_t *this_task)
 {
+    parsec_taskpool_t *tp = this_task->taskpool;
+    parsec_hook_return_t rc;
+
     (void)es;
-    this_task->taskpool->tdm.module->taskpool_addto_nb_tasks(this_task->taskpool, -1);
-    return parsec_dtd_release_local_task( (parsec_dtd_task_t *)this_task );
+    /* The pending-task decrement can synchronously trigger termination
+     * detection, so finish DTD task cleanup before allowing taskpool teardown.
+     */
+    rc = parsec_dtd_release_local_task( (parsec_dtd_task_t *)this_task );
+    tp->tdm.module->taskpool_addto_nb_tasks(tp, -1);
+    return rc;
 }
 
 void
