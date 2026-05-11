@@ -33,7 +33,9 @@ task runtime system, schedule DAGs of Tasks in it, and expose the user
 data to the task system
 - [A profiling system](@ref parsec_public_profiling) to build traces
 of the execution at runtime, providing performance information
-feedback to the application or to the user
+feedback to the application or to the user. See the
+[profiling how-to](@ref parsec_profiling_howto) for build and runtime
+collection examples for the PaRSEC binary trace format, OTF2, and NVTX.
 
 ## <a name="parsecdev">PaRSEC Developer and Advanced Usage Documentation</a> ###
 [(Return to Table of Contents](#toc)]

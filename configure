@@ -70,6 +70,8 @@ cat <<EOF
 
 --enable-prof-trace
                 produce a trace of the execution that can be analyzed in a trace vizualizer
+--enable-prof-nvtx
+                emit profiling events as NVTX ranges for NVIDIA Nsight Systems
 --enable-prof-calltrace
                 print a message when each task body is executed
 --enable-prof-dryrun=yes|dep|body|no
@@ -89,6 +91,8 @@ cat <<EOF
                 use the PAPI performance counter package [installed in DIR] (default=autodetect)
 --with-ayudame[=DIR]
                 use the Ayudame package [installed in DIR] (optional)
+--with-nvtx[=DIR]
+                use NVTX headers [installed in DIR] for Nsight Systems annotations
 
 --with-hwloc[=DIR]
                 use the HWLoc package [installed in DIR] (default=autodetect)
@@ -209,6 +213,8 @@ while [ "x$1" != x ]; do
         --disable-debug) enable_debug=no; shift;;
         --enable-prof-trace) enable_prof_trace=yes; shift;;
         --disable-prof-trace) enable_prof_trace=no; shift;;
+        --enable-prof-nvtx|--enable-nvtx) enable_prof_nvtx=yes; shift;;
+        --disable-prof-nvtx|--disable-nvtx) enable_prof_nvtx=no; shift;;
         --enable-prof-calltrace) enable_prof_calltrace=yes; shift;;
         --disable-prof-calltrace) enable_prof_calltrace=no; shift;;
         --enable-prof-dryrun=*) enable_prof_dryrun="${1#*=}"; shift;;
@@ -231,6 +237,9 @@ while [ "x$1" != x ]; do
         --with-ayudame=*) with_ayudame="${1#*=}"; shift;;
         --with-ayudame) with_ayudame=yes; shift;;
         --without-ayudame) with_ayudame=no; shift;;
+        --with-nvtx=*) with_nvtx="${1#*=}"; shift;;
+        --with-nvtx) with_nvtx=yes; shift;;
+        --without-nvtx) with_nvtx=no; shift;;
 
 # MPI options
         --with-mpi=*) with_mpi="${1#*=}"; shift;;
@@ -472,6 +481,16 @@ else echo >&2 "Option $enable_debug is invalid (can be yes|paranoid|noisier|hist
 
 [ x$enable_prof_trace = xyes ] && CMAKE_DEFINES+=" -DPARSEC_PROF_TRACE=ON"
 [ x$enable_prof_trace = xno ] && CMAKE_DEFINES+=" -DPARSEC_PROF_TRACE=OFF"
+
+case x$with_nvtx in
+xno) enable_prof_nvtx=no;;
+xyes) enable_prof_nvtx=yes;;
+x) ;;
+*) enable_prof_nvtx=yes
+   CMAKE_DEFINES+=" -DPARSEC_NVTX_ROOT=$(printf %q "$with_nvtx")";;
+esac
+[ x$enable_prof_nvtx = xyes ] && CMAKE_DEFINES+=" -DPARSEC_PROF_TRACE=ON -DPARSEC_PROF_TRACE_NVTX=ON"
+[ x$enable_prof_nvtx = xno ] && CMAKE_DEFINES+=" -DPARSEC_PROF_TRACE_NVTX=OFF"
 [ x$enable_prof_calltrace = xyes ] && CMAKE_DEFINES+=" -DPARSEC_PROF_CALLTRACE=ON"
 [ x$enable_prof_calltrace = xno ] && CMAKE_DEFINES+=" -DPARSEC_PROF_CALLTRACE=OFF"
 [ x$enable_prof_grapher = xyes ] && CMAKE_DEFINES+=" -DPARSEC_PROF_GRAPHER=ON"
@@ -606,4 +625,3 @@ if [ x$nocreate != xyes ]; then
 #
 EOF
 fi
-

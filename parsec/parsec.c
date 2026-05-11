@@ -56,6 +56,9 @@
 #ifdef PARSEC_PROF_TRACE
 #include "parsec/profiling.h"
 #endif
+#if defined(PARSEC_PROF_TRACE_NVTX)
+#include "parsec/profiling_nvtx.h"
+#endif
 
 #include "parsec/parsec_hwloc.h"
 #ifdef PARSEC_HAVE_HWLOC
@@ -389,9 +392,13 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     char *parsec_enable_profiling = NULL;  /* profiling file prefix when PARSEC_PROF_TRACE is on */
     int slow_option_used = 0;
 #if defined(PARSEC_PROF_TRACE)
+    int profiling_file_requested = 0;
     int profiling_id = 0;
-#endif
     int profiling_enabled = 0;
+#if defined(PARSEC_PROF_TRACE_NVTX)
+    int profiling_nvtx_enabled = 0;
+#endif
+#endif
 
     gethostname(parsec_hostname_array, sizeof(parsec_hostname_array));
     parsec_app_name = parsec_process_name();
@@ -675,7 +682,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
 
     parsec_mca_param_reg_string_name("profile", "filename",
 #if defined(PARSEC_PROF_TRACE)
-                                    "Path to the profiling file (<none> to disable, <app> for app name, <*> otherwise)",
+                                    "Path to the profiling file/archive for file-based profiling substrates (<none> to disable, <app> for app name, <*> otherwise). NVTX does not require this.",
                                     false, false,
 #else
                                     "Path to the profiling file (unused due to profiling being turned off during building)",
@@ -683,26 +690,45 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
 #endif  /* defined(PARSEC_PROF_TRACE) */
                                     "<none>", &parsec_enable_profiling);
 #if defined(PARSEC_PROF_TRACE)
-    if( (0 != strncasecmp(parsec_enable_profiling, "<none>", 6)) && (0 == parsec_profiling_init( profiling_id )) ) {
+    profiling_file_requested = (0 != strncasecmp(parsec_enable_profiling, "<none>", 6));
+#if defined(PARSEC_PROF_TRACE_NVTX)
+    profiling_nvtx_enabled = parsec_profiling_nvtx_register_mca();
+#endif
+    if( (profiling_file_requested
+#if defined(PARSEC_PROF_TRACE_NVTX)
+         || profiling_nvtx_enabled
+#endif
+        ) && (0 == parsec_profiling_init( profiling_id )) ) {
         int i, l;
         char *cmdline_info = NULL;
 
-        /* Use either the app name (argv[0]) or the user provided filename */
-        if( 0 == strncmp(parsec_enable_profiling, "<app>", 5) ) {
-            /* Specialize the profiling filename to avoid collision with other instances */
-            ret = asprintf( &cmdline_info, "%s_%d", parsec_app_name, (int)getpid() );
-            if (ret < 0) {
-                cmdline_info = strdup(parsec_app_name);
+        if( profiling_file_requested ) {
+            /* Use either the app name (argv[0]) or the user provided filename */
+            if( 0 == strncmp(parsec_enable_profiling, "<app>", 5) ) {
+                /* Specialize the profiling filename to avoid collision with other instances */
+                ret = asprintf( &cmdline_info, "%s_%d", parsec_app_name, (int)getpid() );
+                if (ret < 0) {
+                    cmdline_info = strdup(parsec_app_name);
+                }
+                ret = parsec_profiling_dbp_start( cmdline_info, parsec_app_name );
+                free(cmdline_info);
+            } else {
+                ret = parsec_profiling_dbp_start( parsec_enable_profiling, parsec_app_name );
             }
-            ret = parsec_profiling_dbp_start( cmdline_info, parsec_app_name );
-            free(cmdline_info);
-        } else {
-            ret = parsec_profiling_dbp_start( parsec_enable_profiling, parsec_app_name );
-        }
-        if( ret != 0 ) {
-            parsec_warning("Profiling framework deactivated because of error %s.", parsec_profiling_strerror());
-        } else {
-            profiling_enabled = 1;
+            if( ret != 0 ) {
+                parsec_warning("Profiling file substrate deactivated because of error %s.", parsec_profiling_strerror());
+#if defined(PARSEC_PROF_TRACE_NVTX)
+                if( !profiling_nvtx_enabled ) {
+                    (void)parsec_profiling_fini();
+                    goto profiling_setup_done;
+                }
+#else
+                (void)parsec_profiling_fini();
+                goto profiling_setup_done;
+#endif
+            } else {
+                profiling_enabled = 1;
+            }
         }
 
         l = strlen(parsec_app_name);  /* use the known application name */
@@ -762,6 +788,8 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
         parsec_profiling_add_dictionary_keyword( "Device delegate", "fill:#EAE7C6",
                                                 0, NULL,
                                                 &device_delegate_begin, &device_delegate_end);
+profiling_setup_done:
+        ;
     }
 #endif  /* PARSEC_PROF_TRACE */
     assert (NULL != parsec_enable_profiling);
