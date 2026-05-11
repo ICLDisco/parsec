@@ -301,6 +301,12 @@ no_valid_device: {
 PARSEC_OBJ_CLASS_INSTANCE(parsec_device_module_t, parsec_object_t,
                           NULL, NULL);
 
+#if defined(PARSEC_HAVE_CUDA) || defined(PARSEC_HAVE_HIP) || defined(PARSEC_HAVE_LEVEL_ZERO)
+/* Defined in transfer_gpu.c; registered here so they apply to all GPU backends. */
+extern int32_t parsec_gpu_mem_evict_upper;
+extern int32_t parsec_gpu_mem_evict_lower;
+#endif
+
 int parsec_mca_device_init(void)
 {
     char** parsec_device_list = NULL;
@@ -313,6 +319,18 @@ int parsec_mca_device_init(void)
     PARSEC_OBJ_CONSTRUCT(&parsec_per_device_infos, parsec_info_t);
     PARSEC_OBJ_CONSTRUCT(&parsec_per_stream_infos, parsec_info_t);
 
+#if defined(PARSEC_HAVE_CUDA) || defined(PARSEC_HAVE_HIP) || defined(PARSEC_HAVE_LEVEL_ZERO)
+    (void)parsec_mca_param_reg_int_name("device", "mem_evict_upper",
+                                        "Upper threshold (percentage of total GPU zone capacity) at which proactive "
+                                        "clean-LRU eviction and D2H writeback begin. When the device is truly stalled "
+                                        "(no in-flight evictions and no dirty pages left to queue), the per-device "
+                                        "threshold is stepped down by 5 points toward device_mem_evict_lower.",
+                                        false, false, 95, &parsec_gpu_mem_evict_upper);
+    (void)parsec_mca_param_reg_int_name("device", "mem_evict_lower",
+                                        "Lower bound (percentage of total GPU zone capacity) to which the adaptive "
+                                        "eviction threshold may be reduced after repeated stalls.",
+                                        false, false, 80, &parsec_gpu_mem_evict_lower);
+#endif  /* PARSEC_HAVE_CUDA || PARSEC_HAVE_HIP || PARSEC_HAVE_LEVEL_ZERO */
     (void)parsec_mca_param_reg_int_name("device", "show_capabilities",
                                         "Show the detailed devices capabilities",
                                         false, false, parsec_debug_verbose >= 4 || (parsec_debug_verbose >= 3 && parsec_debug_rank == 0), NULL);

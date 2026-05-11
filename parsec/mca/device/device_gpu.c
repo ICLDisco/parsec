@@ -957,7 +957,7 @@ parsec_device_data_reserve_space( parsec_device_gpu_module_t* gpu_device,
                (size_t)gpu_device->mem_evict_threshold * total_capacity ) {
             if( !parsec_device_try_evict_lru_one(gpu_device, &cycling) )
                 break;
-            data_avail_epoch = 1;
+            data_avail_epoch++;
         }
     }
 #endif  /* !defined(PARSEC_GPU_ALLOC_PER_TILE) */
@@ -2758,19 +2758,19 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
         }
         assert(NULL == progress_task);
 
-        /* Every task in the pending queue failed to acquire GPU memory on this iteration:
-         * we are truly stalled.  Step the eviction threshold down so tier-1 evicts more
-         * aggressively starting from the next scheduling iteration. */
-        if( PARSEC_HOOK_RETURN_NEXT == rc &&
-            gpu_device->mem_evict_threshold - 5 >= parsec_gpu_mem_evict_lower )
-            gpu_device->mem_evict_threshold -= 5;
-
         /* TODO: check this */
         /* If we can extract data go for it, otherwise try to drain the pending tasks.
-         * Skip if evictions are already in flight to avoid a storm of D2H tasks. */
+         * Skip if evictions are already in flight to avoid a storm of D2H tasks.
+         * If there are no in-flight evictions and nothing left to queue from the dirty
+         * LRU, we are truly stuck: step the eviction threshold down so tier-1 starts
+         * freeing pages earlier on the next attempt. */
         if( 0 == gpu_device->mem_evict_in_flight ) {
             size_t _sel = 0;
             gpu_task = parsec_gpu_create_w2r_task(gpu_device, es, SIZE_MAX, &_sel);
+            if(gpu_device->mem_evict_threshold - 5 >= parsec_gpu_mem_evict_lower) {
+                /* We had to trigger a proactive D2H writeback so reduce the threshold */
+                gpu_device->mem_evict_threshold -= 5;
+            }
         }
         if( NULL != gpu_task )
             goto get_data_out_of_device;
