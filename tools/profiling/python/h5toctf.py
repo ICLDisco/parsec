@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 
+import sys
+
 try:
     import os
     import numpy as np
     import time
     import pandas
-    import sys
 except ModuleNotFoundError:
     print("Did not find a system module, use pip to install it")
 
@@ -18,7 +19,6 @@ except ModuleNotFoundError:
 
 import json
 import re
-import sys
 import math
 import argparse
 

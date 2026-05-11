@@ -20,7 +20,7 @@ def pbt_to_ctf(pbt_files_list, ctf_filename, **kwargs):
     h5toctf.h5_to_ctf(ptt_filename, ctf_filename, **kwargs)
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser( prof='pbt2ctf',
+    parser = argparse.ArgumentParser( prog='pbt2ctf',
                                      description='Convert a set of PaRSEC binary profile files into a Perfetto profiling in JSON format')
     parser.add_argument('pbt_file_prefix', nargs=1, action='store', help='Prefix of the PaRSEC Binary Profile files')
     parser.add_argument('ctf_file_name', nargs=1, action='store', help='Name of the generated JSON file')
@@ -29,14 +29,21 @@ if __name__ == "__main__":
     parser.add_argument('--key-is-part-of-task-name', action='store_const', const='True', default='False', dest='key_is_part_of_task_name', help='Include the key in the task name' )
     args = parser.parse_args()
 
-    # iterate over all files within the directory that start with sys.argv[1]
+    # iterate over all files within the directory that start with the requested prefix
     pbt_files_list=[]
-    dirname = os.path.dirname(args.pbt_file_prefix[0])
-    for file in os.listdir(dirname):
-        file_fullname = os.path.join(dirname,file)
-        if file_fullname.startswith(args.pbt_file_prefix[0]) and file_fullname.endswith(".prof") and file_fullname != args.ctf_file_name[0]:
+    pbt_file_prefix = args.pbt_file_prefix[0]
+    dirname = os.path.dirname(pbt_file_prefix) or "."
+    basename_prefix = os.path.basename(pbt_file_prefix)
+    ctf_filename = os.path.abspath(args.ctf_file_name[0])
+
+    for file in sorted(os.listdir(dirname)):
+        file_fullname = os.path.join(dirname, file)
+        if file.startswith(basename_prefix) and file.endswith(".prof") and os.path.abspath(file_fullname) != ctf_filename:
             print("found file ", file_fullname)
             pbt_files_list.append(file_fullname)
 
+    if len(pbt_files_list) == 0:
+        parser.error(f"No PaRSEC binary profile files found with prefix {pbt_file_prefix}")
+
     # to debug: read_pbt(pbt_files_list[0]), etc.
-    pbt_to_ctf(pbt_files_list[0], args.ctf_file_name[0], **vars(args))
+    pbt_to_ctf(pbt_files_list, args.ctf_file_name[0], **vars(args))
