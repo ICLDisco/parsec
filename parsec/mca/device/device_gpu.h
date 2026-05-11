@@ -250,6 +250,11 @@ struct parsec_device_gpu_module_s {
                                                      *   and is stepped down by 5 points (to
                                                      *   parsec_gpu_mem_evict_lower) each time a task
                                                      *   stalls waiting for zone memory. */
+    size_t                     mem_evict_in_flight; /**< Bytes of dirty GPU data currently selected for
+                                                     *   D2H eviction (queued or executing on
+                                                     *   exec_stream[1]). Incremented by
+                                                     *   parsec_gpu_create_w2r_task, decremented as each
+                                                     *   copy completes in parsec_gpu_complete_w2r_task. */
 #if defined(PARSEC_PROF_TRACE)
     int                        trackable_events;
 #endif /* PARSEC_PROF_TRACE */
@@ -311,7 +316,8 @@ int parsec_device_free_workspace(parsec_device_gpu_module_t * gpu_device);
 
 /* sort pending task list by number of spaces needed */
 int parsec_device_sort_pending_list(parsec_device_module_t *gpu_device);
-parsec_gpu_task_t* parsec_gpu_create_w2r_task(parsec_device_gpu_module_t *gpu_device, parsec_execution_stream_t *es);
+parsec_gpu_task_t* parsec_gpu_create_w2r_task(parsec_device_gpu_module_t *gpu_device, parsec_execution_stream_t *es,
+                                               size_t required_size, size_t *selected_size);
 int parsec_gpu_complete_w2r_task(parsec_device_gpu_module_t *gpu_device, parsec_gpu_task_t *w2r_task, parsec_execution_stream_t *es);
 
 void parsec_device_enable_debug(void);

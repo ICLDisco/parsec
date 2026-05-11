@@ -2695,28 +2695,49 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
      * simple condition of clean LRU being empty. */
     if( !parsec_list_nolock_is_empty(&gpu_device->gpu_mem_owned_lru) &&
          parsec_list_nolock_is_empty(&gpu_device->gpu_mem_lru) ) {
-        int _do_d2h = 0;
 #if !defined(PARSEC_GPU_ALLOC_PER_TILE)
         {
             size_t total_capacity = (size_t)gpu_device->mem_nb_blocks * gpu_device->mem_block_size;
             size_t in_use         = zone_in_use(gpu_device->memory);
-            _do_d2h = in_use * 100 >
-                      (size_t)gpu_device->mem_evict_threshold * total_capacity;
+            size_t threshold_bytes = (size_t)gpu_device->mem_evict_threshold * total_capacity / 100;
+            if( in_use > threshold_bytes ) {
+                /* Compute how many more bytes of dirty-page eviction are needed beyond
+                 * what is already in-flight on exec_stream[1]. */
+                size_t needed = in_use - threshold_bytes;
+                size_t still_needed = (needed > gpu_device->mem_evict_in_flight) ?
+                                      (needed - gpu_device->mem_evict_in_flight) : 0;
+                while( still_needed > 0 ) {
+                    size_t selected = 0;
+                    parsec_gpu_task_t *_w2r = parsec_gpu_create_w2r_task(gpu_device, es,
+                                                                          still_needed, &selected);
+                    if( NULL == _w2r ) break;
+                    PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
+                                         "GPU[%d:%s]: Proactive D2H writeback: clean LRU empty, "
+                                         "zone above %d%% threshold; needed %zu, selected %zu bytes",
+                                         gpu_device->super.device_index, gpu_device->super.name,
+                                         gpu_device->mem_evict_threshold, still_needed, selected);
+                    PARSEC_PUSH_TASK(gpu_device->exec_stream[1]->fifo_pending,
+                                     (parsec_list_item_t*)_w2r);
+                    still_needed = (still_needed > selected) ? (still_needed - selected) : 0;
+                }
+            }
         }
 #else
-        _do_d2h = 1;
-#endif  /* !defined(PARSEC_GPU_ALLOC_PER_TILE) */
-        if( _do_d2h ) {
-            parsec_gpu_task_t *_w2r = parsec_gpu_create_w2r_task(gpu_device, es);
+        {
+            /* No zone allocator in ALLOC_PER_TILE mode: issue one D2H batch whenever
+             * the clean LRU is empty and the dirty LRU is non-empty. */
+            size_t selected = 0;
+            parsec_gpu_task_t *_w2r = parsec_gpu_create_w2r_task(gpu_device, es,
+                                                                   SIZE_MAX, &selected);
             if( NULL != _w2r ) {
                 PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
-                                     "GPU[%d:%s]: Proactive D2H writeback: clean LRU empty, zone usage above %d%% threshold",
-                                     gpu_device->super.device_index, gpu_device->super.name,
-                                     gpu_device->mem_evict_threshold);
+                                     "GPU[%d:%s]: Proactive D2H writeback: clean LRU empty, selected %zu bytes",
+                                     gpu_device->super.device_index, gpu_device->super.name, selected);
                 PARSEC_PUSH_TASK(gpu_device->exec_stream[1]->fifo_pending,
                                  (parsec_list_item_t*)_w2r);
             }
         }
+#endif  /* !defined(PARSEC_GPU_ALLOC_PER_TILE) */
     }
 
     rc = parsec_device_progress_stream( gpu_device,
@@ -2746,7 +2767,7 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
 
         /* TODO: check this */
         /* If we can extract data go for it, otherwise try to drain the pending tasks */
-        gpu_task = parsec_gpu_create_w2r_task(gpu_device, es);
+        { size_t _sel = 0; gpu_task = parsec_gpu_create_w2r_task(gpu_device, es, SIZE_MAX, &_sel); }
         if( NULL != gpu_task )
             goto get_data_out_of_device;
     }

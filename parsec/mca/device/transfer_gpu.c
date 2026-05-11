@@ -233,16 +233,20 @@ static const parsec_task_class_t parsec_gpu_d2h_task_class = {
  */
 parsec_gpu_task_t*
 parsec_gpu_create_w2r_task(parsec_device_gpu_module_t *gpu_device,
-                           parsec_execution_stream_t *es)
+                           parsec_execution_stream_t *es,
+                           size_t required_size,
+                           size_t *selected_size)
 {
     parsec_gpu_task_t *w2r_task = NULL;
     parsec_gpu_d2h_task_t *d2h_task = NULL;
     parsec_gpu_data_copy_t *gpu_copy;
     parsec_list_item_t* item = (parsec_list_item_t*)gpu_device->gpu_mem_owned_lru.ghost_element.list_next;
     int nb_cleaned = 0;
+    size_t _selected = 0;
 
-    /* Find a data copy that has no pending users on the GPU, and can be
-     * safely moved back on the main memory */
+    /* Find data copies with no pending GPU readers that can be safely moved back to
+     * main memory.  Stop once nb_cleaned reaches the max-flows cap or we have
+     * accumulated at least required_size bytes. */
     while(nb_cleaned < parsec_gpu_d2h_max_flows) {
         /* Break at the end of the list */
         if( item == &(gpu_device->gpu_mem_owned_lru.ghost_element) ) {
@@ -257,7 +261,7 @@ parsec_gpu_create_w2r_task(parsec_device_gpu_module_t *gpu_device,
                 d2h_task = (parsec_gpu_d2h_task_t*)parsec_thread_mempool_allocate(es->context_mempool);
                 if( PARSEC_UNLIKELY(NULL == d2h_task) ) { /* we're running out of memory. Bail out. */
                     parsec_atomic_unlock( &gpu_copy->original->lock );
-                    return NULL;
+                    break;
                 }
                 PARSEC_OBJ_CONSTRUCT(d2h_task, parsec_task_t);
             }
@@ -270,16 +274,21 @@ parsec_gpu_create_w2r_task(parsec_device_gpu_module_t *gpu_device,
             PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,  "D2H[%d:%s] task %p:\tdata %d -> %p [%p] readers %d",
                                  gpu_device->super.device_index, gpu_device->super.name, (void*)d2h_task,
                                  nb_cleaned, gpu_copy, gpu_copy->original, gpu_copy->readers);
+            _selected += gpu_copy->original->nb_elts;
             nb_cleaned++;
-            if (MAX_PARAM_COUNT == nb_cleaned)
+            if( MAX_PARAM_COUNT == nb_cleaned || _selected >= required_size )
                 break;
         } else {
             parsec_atomic_unlock( &gpu_copy->original->lock );
         }
     }
 
+    *selected_size = _selected;
+
     if( 0 == nb_cleaned )
         return NULL;
+
+    gpu_device->mem_evict_in_flight += _selected;
 
     d2h_task->priority        = INT32_MAX;
     d2h_task->task_class      = &parsec_gpu_d2h_task_class;
@@ -320,6 +329,7 @@ int parsec_gpu_complete_w2r_task(parsec_device_gpu_module_t *gpu_device,
         gpu_copy->readers--;
         gpu_copy->data_transfer_status = PARSEC_DATA_STATUS_COMPLETE_TRANSFER;
         gpu_device->super.data_out_to_host += gpu_copy->original->nb_elts; /* TODO: not hardcoded, use datatype size */
+        gpu_device->mem_evict_in_flight -= gpu_copy->original->nb_elts;
         assert(gpu_copy->readers >= 0);
 
         original = gpu_copy->original;
