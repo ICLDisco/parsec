@@ -77,14 +77,13 @@ main(int argc, char **argv)
                                          batch_cpu_task);
     PARSEC_CHECK_ERROR(rc, "parsec_dtd_task_class_add_chore");
     assert(tc->incarnations[0].type & PARSEC_DEV_CPU);
-    assert(!!(tc->incarnations[0].type & PARSEC_DEV_CHORE_ALLOW_BATCH) ==
-           !!parsec_mca_device_type_supports_batch(PARSEC_DEV_CPU));
+    assert(tc->incarnations[0].type & PARSEC_DEV_CHORE_ALLOW_BATCH);
 
     for( int i = 0; i < ntasks; i++ ) {
         int value = i + 1;
         expected += value;
         parsec_dtd_insert_task_with_task_class(dtd_tp, tc, 0,
-                                               PARSEC_DEV_CPU | PARSEC_DEV_CHORE_ALLOW_BATCH,
+                                               PARSEC_DEV_CPU,
                                                PARSEC_DTD_EMPTY_FLAG, &value,
                                                PARSEC_DTD_ARG_END);
     }

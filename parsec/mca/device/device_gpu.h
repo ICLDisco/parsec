@@ -327,10 +327,16 @@ int parsec_gpu_complete_w2r_task(parsec_device_gpu_module_t *gpu_device, parsec_
  * the candidate to batch_head's ring, a positive value to leave it pending, or
  * a negative error code to stop the iteration.
  * The callback must not modify gpu_stream->fifo_pending directly.
+ * If batching is disabled, unsupported by the head task's selected device, or
+ * not enabled on batch_head's selected incarnation, no iteration is performed
+ * and batch_head remains a singleton. Pending tasks whose selected incarnation
+ * does not support batching on that same selected device are skipped without
+ * calling the callback.
  *
- * Returns the number of tasks in batch_head's ring on success, or the negative
- * callback error code. If an error is returned, tasks already accepted remain
- * attached to batch_head and the remaining candidates stay in fifo_pending.
+ * Returns the number of additional tasks appended to batch_head's ring on
+ * success, or the negative callback error code. If an error is returned, tasks
+ * already accepted remain attached to batch_head and the remaining candidates
+ * stay in fifo_pending.
  */
 int parsec_gpu_task_collect_batch(parsec_gpu_exec_stream_t *gpu_stream,
                                   parsec_gpu_task_t *batch_head,

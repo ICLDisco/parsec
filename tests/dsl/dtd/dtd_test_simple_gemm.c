@@ -185,18 +185,6 @@ int initialize_matrix(parsec_context_t *parsec_context, int rank, parsec_matrix_
 }
 
 static int
-gemm_cuda_task_allows_batch(parsec_gpu_task_t *gpu_task)
-{
-    parsec_task_t *this_task = gpu_task->ec;
-    int selected_chore = this_task->selected_chore;
-
-    return use_cuda_batch &&
-           (selected_chore >= 0) &&
-           (this_task->task_class->incarnations[selected_chore].type & PARSEC_DEV_CHORE_ALLOW_BATCH) &&
-           parsec_mca_device_type_supports_batch(this_task->selected_device->type);
-}
-
-static int
 gemm_cuda_batch_match(parsec_gpu_task_t *candidate,
                       parsec_gpu_task_t *batch_head,
                       void *callback_data)
@@ -221,12 +209,13 @@ int gemm_kernel_cuda(parsec_device_gpu_module_t *gpu_device,
     parsec_gpu_task_t *current_gpu_task;
     int batch_count = 1;
 
-    if( gemm_cuda_task_allows_batch(gpu_task) ) {
-        batch_count = parsec_gpu_task_collect_batch(gpu_stream, gpu_task,
-                                                    gemm_cuda_batch_match, NULL);
-        if( batch_count < 0 ) {
-            return batch_count;
+    if( use_cuda_batch ) {
+        int nb_batched = parsec_gpu_task_collect_batch(gpu_stream, gpu_task,
+                                                       gemm_cuda_batch_match, NULL);
+        if( nb_batched < 0 ) {
+            return nb_batched;
         }
+        batch_count += nb_batched;
     }
 
     handle = parsec_info_get(&gpu_stream->infos, CuHI);
@@ -362,8 +351,7 @@ int simple_gemm(parsec_context_t *parsec_context, parsec_matrix_block_cyclic_t *
                 keyA = A->super.super.data_key(&A->super.super, i, k);
                 keyB = B->super.super.data_key(&B->super.super, k, j);
                 parsec_dtd_insert_task_with_task_class(tp, gemm_tc, C->super.mt*C->super.nt*A->super.nt - i*C->super.nt + j,
-                                                       use_cuda_batch && (PARSEC_DEV_CUDA == device) ?
-                                                       (device | PARSEC_DEV_CHORE_ALLOW_BATCH) : device,
+                                                       device,
                                                        PARSEC_INPUT, PARSEC_DTD_TILE_OF_KEY(&A->super.super, keyA),
                                                        PARSEC_INPUT, PARSEC_DTD_TILE_OF_KEY(&B->super.super, keyB),
                                                        k == A->super.nt - 1 ? (PARSEC_INOUT | PARSEC_PUSHOUT) : PARSEC_INOUT,

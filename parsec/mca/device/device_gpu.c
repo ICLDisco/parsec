@@ -1601,6 +1601,26 @@ parsec_gpu_stream_push_pending(parsec_gpu_exec_stream_t *stream,
     PARSEC_PUSH_TASK(stream->fifo_pending, &task->list_item);
 }
 
+static inline int
+parsec_gpu_task_selected_chore_allows_batch(parsec_task_t *task,
+                                            parsec_device_module_t *device)
+{
+    const __parsec_chore_t *chore;
+
+    if( (NULL == task) ||
+        (NULL == task->task_class) ||
+        (NULL == device) ||
+        (task->selected_device != device) ||
+        (task->selected_chore < 0) ) {
+        return 0;
+    }
+
+    chore = &task->task_class->incarnations[task->selected_chore];
+    return (PARSEC_DEV_NONE != (chore->type & PARSEC_DEV_ANY_TYPE)) &&
+           (0 != (chore->type & device->type)) &&
+           (0 != (chore->type & PARSEC_DEV_CHORE_ALLOW_BATCH));
+}
+
 int
 parsec_gpu_task_collect_batch(parsec_gpu_exec_stream_t *gpu_stream,
                               parsec_gpu_task_t *batch_head,
@@ -1609,23 +1629,42 @@ parsec_gpu_task_collect_batch(parsec_gpu_exec_stream_t *gpu_stream,
 {
     parsec_list_t *fifo_pending;
     parsec_list_item_t *item, *next;
-    int nb_tasks = 1;
+    parsec_task_t *head_task;
+    parsec_device_module_t *device;
+    int nb_tasks = 0;
     int rc;
 
     assert(NULL != gpu_stream);
     assert(NULL != batch_head);
     assert(NULL != callback);
 
+    parsec_list_item_singleton(&batch_head->list_item);
+
+    head_task = batch_head->ec;
+    if( (NULL == head_task) || (NULL == head_task->selected_device) ) {
+        return nb_tasks;
+    }
+    device = head_task->selected_device;
+    if( !parsec_mca_device_type_supports_batch(device->type) ||
+        !parsec_gpu_task_selected_chore_allows_batch(head_task, device) ) {
+        return nb_tasks;
+    }
+
     fifo_pending = gpu_stream->fifo_pending;
     assert(NULL != fifo_pending);
-    parsec_list_item_singleton(&batch_head->list_item);
 
     parsec_list_lock(fifo_pending);
     for(item = (parsec_list_item_t *)fifo_pending->ghost_element.list_next;
         item != &fifo_pending->ghost_element;
         item = next) {
+        parsec_gpu_task_t *candidate = (parsec_gpu_task_t *)item;
+        parsec_task_t *candidate_task = candidate->ec;
+
         next = (parsec_list_item_t *)item->list_next;
-        rc = callback((parsec_gpu_task_t *)item, batch_head, callback_data);
+        if( !parsec_gpu_task_selected_chore_allows_batch(candidate_task, device) ) {
+            continue;
+        }
+        rc = callback(candidate, batch_head, callback_data);
         if( rc < 0 ) {
             parsec_list_unlock(fifo_pending);
             return rc;

@@ -215,12 +215,6 @@ PARSEC_DECLSPEC extern int parsec_select_best_device( parsec_task_t* this_task);
 PARSEC_DECLSPEC int parsec_mca_device_type_supports_batch(uint32_t device_type);
 
 /**
- * Drop the batching hint from a chore type if batching is disabled or the
- * selected device type cannot batch.
- */
-PARSEC_DECLSPEC uint32_t parsec_mca_device_type_sanitize_batch(uint32_t device_type);
-
-/**
  * Initialize the internal structures for managing external devices such as
  * accelerators and GPU. Memory nodes can as well be managed using the same
  * mechanism.
