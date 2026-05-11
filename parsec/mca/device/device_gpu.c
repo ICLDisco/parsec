@@ -2766,8 +2766,12 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
             gpu_device->mem_evict_threshold -= 5;
 
         /* TODO: check this */
-        /* If we can extract data go for it, otherwise try to drain the pending tasks */
-        { size_t _sel = 0; gpu_task = parsec_gpu_create_w2r_task(gpu_device, es, SIZE_MAX, &_sel); }
+        /* If we can extract data go for it, otherwise try to drain the pending tasks.
+         * Skip if evictions are already in flight to avoid a storm of D2H tasks. */
+        if( 0 == gpu_device->mem_evict_in_flight ) {
+            size_t _sel = 0;
+            gpu_task = parsec_gpu_create_w2r_task(gpu_device, es, SIZE_MAX, &_sel);
+        }
         if( NULL != gpu_task )
             goto get_data_out_of_device;
     }
