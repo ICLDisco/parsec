@@ -161,6 +161,12 @@ static int device_cuda_component_register(void)
     (void)parsec_mca_param_reg_int_name("device_cuda", "max_number_of_ejected_data",
                                         "Sets up the maximum number of blocks that can be ejected from GPU memory",
                                         false, false, MAX_PARAM_COUNT, &parsec_gpu_d2h_max_flows);
+    (void)parsec_mca_param_reg_int_name("device_cuda", "mem_evict_upper",
+                                        "Upper threshold (percentage of total GPU zone capacity) at which proactive clean-LRU eviction and D2H writeback begin. When a task stalls waiting for memory, the per-device threshold is stepped down by 5 points toward mem_evict_lower.",
+                                        false, false, 95, &parsec_gpu_mem_evict_upper);
+    (void)parsec_mca_param_reg_int_name("device_cuda", "mem_evict_lower",
+                                        "Lower bound (percentage of total GPU zone capacity) to which the adaptive eviction threshold may be reduced after repeated stalls.",
+                                        false, false, 80, &parsec_gpu_mem_evict_lower);
     (void)parsec_mca_param_reg_int_name("device_cuda", "max_streams",
                                         "Maximum number of Streams to use for the GPU engine; 2 streams are used for communication between host and device, so the minimum is 3",
                                         false, false, PARSEC_GPU_MAX_STREAMS, &parsec_cuda_max_streams);

@@ -245,6 +245,11 @@ struct parsec_device_gpu_module_s {
     parsec_gpu_exec_stream_t **exec_stream;
     size_t                     mem_block_size;
     int64_t                    mem_nb_blocks;
+    int32_t                    mem_evict_threshold; /**< Current eviction threshold (% of total zone
+                                                     *   capacity). Starts at parsec_gpu_mem_evict_upper
+                                                     *   and is stepped down by 5 points (to
+                                                     *   parsec_gpu_mem_evict_lower) each time a task
+                                                     *   stalls waiting for zone memory. */
 #if defined(PARSEC_PROF_TRACE)
     int                        trackable_events;
 #endif /* PARSEC_PROF_TRACE */
@@ -279,6 +284,8 @@ typedef struct parsec_gpu_workspace_s {
 PARSEC_DECLSPEC extern int parsec_gpu_output_stream;
 PARSEC_DECLSPEC extern int parsec_gpu_verbosity;
 PARSEC_DECLSPEC extern int32_t parsec_gpu_d2h_max_flows;
+PARSEC_DECLSPEC extern int32_t parsec_gpu_mem_evict_upper;
+PARSEC_DECLSPEC extern int32_t parsec_gpu_mem_evict_lower;
 
 /**
  * Debugging functions.

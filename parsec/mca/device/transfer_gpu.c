@@ -180,6 +180,16 @@ static const parsec_symbol_t symb_gpu_d2h_task_param = {
 
 int32_t parsec_gpu_d2h_max_flows = 0;
 
+/* Proactive eviction thresholds (percentage of total zone capacity).
+ * Registered as MCA parameters by each GPU backend component.
+ *   mem_evict_upper: initial percentage at which proactive eviction begins (default 95).
+ *   mem_evict_lower: floor to which the per-device threshold may adapt downwards (default 80).
+ * When a task stalls because no zone memory could be freed, the per-device
+ * mem_evict_threshold is lowered by 5 points (clamped to mem_evict_lower) so
+ * future eviction runs start sooner. */
+int32_t parsec_gpu_mem_evict_upper = 95;
+int32_t parsec_gpu_mem_evict_lower = 80;
+
 static const parsec_task_class_t parsec_gpu_d2h_task_class = {
     .name = "GPU D2H data transfer",
     .task_class_id = 0,
