@@ -2,7 +2,7 @@
  * Copyright (c) 2010-2025 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
- * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
+ * Copyright (c) 2024-2026 NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/parsec_config.h"
@@ -411,9 +411,8 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
     parsec_device_gpu_module_t* gpu_device;
     parsec_device_module_t* device;
     cudaError_t cudastatus;
-    int show_caps_index, show_caps = 0, j, k;
+    int show_caps_index, show_caps = 0, j, k, freqHz;
     char *szName;
-    uint64_t freqHz;
     double fp16, fp32, fp64, tf32;
     struct cudaDeviceProp prop;
 
@@ -431,10 +430,16 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
     szName    = prop.name;
     major     = prop.major;
     minor     = prop.minor;
-    freqHz    = prop.clockRate * 1000;  /* clockRate is in KHz */
+    /* up to CUDA 12.3, clockRate is in KHz */
+#if CUDART_VERSION >= 12030
+    cudaDeviceGetAttribute(&freqHz, cudaDevAttrClockRate, dev_id);
+    computemode = cudaComputeModeDefault;  /* default value until I figure out how to retrieve it */
+#else
+    freqHz    = (int)prop.clockRate * 1000;  /* clockRate is in KHz */
+    computemode = prop.computeMode;
+#endif
     concurrency = prop.concurrentKernels;
     streaming_multiprocessor = prop.multiProcessorCount;
-    computemode = prop.computeMode;
 
     // We use calloc because we need some fields to be zero-initialized to ensure graceful handling of errors
     cuda_device = (parsec_device_cuda_module_t*)calloc(1, sizeof(parsec_device_cuda_module_t));
@@ -587,6 +592,14 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
     }
 
     if( show_caps ) {
+        int memoryClockRateKHz, memoryBusWidth;
+#if CUDART_VERSION >= 12030
+        cudaDeviceGetAttribute(&memoryClockRateKHz, cudaDevAttrMemoryClockRate, dev_id);
+        cudaDeviceGetAttribute(&memoryBusWidth, cudaDevAttrGlobalMemoryBusWidth, dev_id);
+#else
+        memoryClockRateKHz = (int)prop.memoryClockRate;
+        memoryBusWidth = prop.memoryBusWidth;
+#endif
         parsec_inform("Dev GPU %10s : %s %.0fGB [pci %x:%x.%x]\n"
                       "\tFrequency (GHz)    : %.2f\t[SM: %d | Capabilities: %d.%d | Concurency %s | ComputeMode %d]\n"
                       "\tPeak Tflop/s %-5s : fp64: %-8.3f fp32: %-8.3f fp16: %-8.3f tf32: %-8.3f\n"
@@ -595,7 +608,7 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
                       freqHz*1e-9f, streaming_multiprocessor, cuda_device->major, cuda_device->minor,
                       (concurrency == 1)? "yes": "no", computemode,
                       device->gflops_guess? "GUESS": "", fp64*1e-3, fp32*1e-3, fp16*1e-3, tf32*1e-3,
-                      2.0*prop.memoryClockRate*(prop.memoryBusWidth/8)/1.0e6, prop.memoryClockRate*1e-6, prop.memoryBusWidth, gpu_device->mem_block_size*gpu_device->mem_nb_blocks/1024.f/1024.f/1024.f);
+                      2.0*memoryClockRateKHz*(memoryBusWidth/8)/1.0e6, memoryClockRateKHz*1e-6, memoryBusWidth, gpu_device->mem_block_size*gpu_device->mem_nb_blocks/1024.f/1024.f/1024.f);
     }
 
     *module = device;
