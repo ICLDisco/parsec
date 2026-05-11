@@ -180,15 +180,9 @@ static const parsec_symbol_t symb_gpu_d2h_task_param = {
 
 int32_t parsec_gpu_d2h_max_flows = 0;
 
-/* Proactive eviction thresholds (percentage of total zone capacity).
- * Registered as MCA parameters by each GPU backend component.
- *   mem_evict_upper: initial percentage at which proactive eviction begins (default 95).
- *   mem_evict_lower: floor to which the per-device threshold may adapt downwards (default 80).
- * When a task stalls because no zone memory could be freed, the per-device
- * mem_evict_threshold is lowered by 5 points (clamped to mem_evict_lower) so
- * future eviction runs start sooner. */
-int32_t parsec_gpu_mem_evict_upper = 95;
-int32_t parsec_gpu_mem_evict_lower = 80;
+/* parsec_gpu_mem_evict_upper and parsec_gpu_mem_evict_lower are defined in
+ * device.c so they exist even in non-GPU builds and can be registered as MCA
+ * parameters unconditionally. */
 
 static const parsec_task_class_t parsec_gpu_d2h_task_class = {
     .name = "GPU D2H data transfer",
@@ -322,7 +316,8 @@ int parsec_gpu_complete_w2r_task(parsec_device_gpu_module_t *gpu_device,
 
     PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,  "D2H[%d:%s] task %p: %d data transferred to host",
                          gpu_device->super.device_index, gpu_device->super.name, (void*)task, task->locals[0].value);
-    assert(gpu_task->task_type == PARSEC_GPU_TASK_TYPE_D2HTRANSFER);
+    assert(gpu_task->task_type == PARSEC_GPU_TASK_TYPE_D2HTRANSFER ||
+           gpu_task->task_type == PARSEC_GPU_TASK_TYPE_PROACTIVE_D2HTRANSFER);
     for( int i = 0; i < task->locals[0].value; i++ ) {
         gpu_copy = task->data[i].data_out;
         parsec_atomic_lock(&gpu_copy->original->lock);

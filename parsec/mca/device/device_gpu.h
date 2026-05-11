@@ -326,11 +326,12 @@ void parsec_device_enable_debug(void);
 char *parsec_device_describe_gpu_task( char *tmp, size_t len, parsec_gpu_task_t *gpu_task );
 #endif
 
-#define PARSEC_GPU_TASK_TYPE_KERNEL       0x0000
-#define PARSEC_GPU_TASK_TYPE_D2HTRANSFER  0x1000
-#define PARSEC_GPU_TASK_TYPE_PREFETCH     0x2000
-#define PARSEC_GPU_TASK_TYPE_WARMUP       0x4000
-#define PARSEC_GPU_TASK_TYPE_D2D_COMPLETE 0x8000
+#define PARSEC_GPU_TASK_TYPE_KERNEL                0x0000
+#define PARSEC_GPU_TASK_TYPE_D2HTRANSFER           0x1000
+#define PARSEC_GPU_TASK_TYPE_PROACTIVE_D2HTRANSFER 0x1001  /**< Tier-2 proactive D2H: counts in device->mutex */
+#define PARSEC_GPU_TASK_TYPE_PREFETCH              0x2000
+#define PARSEC_GPU_TASK_TYPE_WARMUP                0x4000
+#define PARSEC_GPU_TASK_TYPE_D2D_COMPLETE          0x8000
 
 #if defined(PARSEC_PROF_TRACE)
 #define PARSEC_PROFILE_GPU_TRACK_DATA_IN  0x0001

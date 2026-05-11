@@ -2711,6 +2711,8 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
                     parsec_gpu_task_t *_w2r = parsec_gpu_create_w2r_task(gpu_device, es,
                                                                           still_needed, &selected);
                     if( NULL == _w2r ) break;
+                    _w2r->task_type = PARSEC_GPU_TASK_TYPE_PROACTIVE_D2HTRANSFER;
+                    parsec_atomic_fetch_add_int32(&gpu_device->mutex, 1);
                     PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
                                          "GPU[%d:%s]: Proactive D2H writeback: clean LRU empty, "
                                          "zone above %d%% threshold; needed %zu, selected %zu bytes",
@@ -2730,6 +2732,8 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
             parsec_gpu_task_t *_w2r = parsec_gpu_create_w2r_task(gpu_device, es,
                                                                    SIZE_MAX, &selected);
             if( NULL != _w2r ) {
+                _w2r->task_type = PARSEC_GPU_TASK_TYPE_PROACTIVE_D2HTRANSFER;
+                parsec_atomic_fetch_add_int32(&gpu_device->mutex, 1);
                 PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
                                      "GPU[%d:%s]: Proactive D2H writeback: clean LRU empty, selected %zu bytes",
                                      gpu_device->super.device_index, gpu_device->super.name, selected);
@@ -2867,9 +2871,26 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
                          parsec_task_snprintf(tmp, MAX_TASK_STRLEN, gpu_task->ec));
     /* Everything went fine so far, the result is correct and back in the main memory */
     PARSEC_LIST_ITEM_SINGLETON(gpu_task);
-    if (gpu_task->task_type == PARSEC_GPU_TASK_TYPE_D2HTRANSFER) {
+    if (gpu_task->task_type == PARSEC_GPU_TASK_TYPE_D2HTRANSFER ||
+        gpu_task->task_type == PARSEC_GPU_TASK_TYPE_PROACTIVE_D2HTRANSFER) {
+        int _proactive = (gpu_task->task_type == PARSEC_GPU_TASK_TYPE_PROACTIVE_D2HTRANSFER);
         parsec_gpu_complete_w2r_task(gpu_device, gpu_task, es);
+        /* gpu_task freed inside parsec_gpu_complete_w2r_task */
         gpu_task = progress_task;
+        if( _proactive ) {
+            /* Proactive task owned a mutex count; release it now. */
+            rc = parsec_atomic_fetch_dec_int32( &(gpu_device->mutex) );
+            if( 1 == rc ) {  /* I was the last one */
+#if defined(PARSEC_PROF_TRACE)
+                if( gpu_device->trackable_events & PARSEC_PROFILE_GPU_TRACK_OWN )
+                    PARSEC_PROFILING_TRACE( es->es_profile, parsec_gpu_own_GPU_key_end,
+                                            (unsigned long)es, PROFILE_OBJECT_ID_NULL, NULL );
+#endif
+                PARSEC_DEBUG_VERBOSE(5, parsec_gpu_output_stream, "GPU[%d:%s]: Leaving GPU management",
+                                     gpu_device->super.device_index, gpu_device->super.name);
+                return PARSEC_HOOK_RETURN_ASYNC;
+            }
+        }
         goto fetch_task_from_shared_queue;
     }
     if (gpu_task->task_type == PARSEC_GPU_TASK_TYPE_D2D_COMPLETE) {
