@@ -175,7 +175,7 @@ static void __parsec_taskpool_constructor(parsec_taskpool_t* tp)
     tp->nb_task_classes = 0;
     tp->priority = 0;
     tp->nb_pending_actions = 0;
-    tp->context = NULL;  /* not atached to any context */
+    tp->context = NULL;  /* not attached to any context */
     tp->startup_hook = NULL;
     tp->task_classes_array = NULL;
     tp->on_enqueue = NULL;
@@ -209,8 +209,8 @@ PARSEC_OBJ_CLASS_INSTANCE(parsec_taskpool_t, parsec_list_item_t,
                           __parsec_taskpool_constructor, __parsec_taskpool_destructor);
 
 static void __parsec_task_constructor(parsec_task_t* task) {
-    /* no allocation here, only initalizations: the task_t will be constructed
-     * multiple times when push-poped from the mempool */
+    /* no allocation here, only initializations: the task_t will be constructed
+     * multiple times when push-popped from the mempool */
     task->selected_device = NULL;
     task->selected_chore = -1;
     task->load = 0;
@@ -775,6 +775,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     (void)parsec_remote_dep_init(context);
 
     PARSEC_PINS_INIT(context);
+#if defined(PARSEC_PROF_TRACE)
     if(profiling_enabled && (0 == parsec_pins_nb_modules_enabled())) {
         if(parsec_debug_rank == 0)
             parsec_warning("*** PaRSEC Profiling warning: creating profile file as requested,\n"
@@ -782,6 +783,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
                            "*** Activate the MCA PINS Module task_profiler to get the previous behavior\n"
                            "***   ( --mca mca_pins task_profiler )\n");
     }
+#endif  /* defined(PARSEC_PROF_TRACE) */
 
 #if defined(PARSEC_PROF_GRAPHER)
     if(parsec_dot_file) {
@@ -1799,7 +1801,7 @@ parsec_release_dep_fct(parsec_execution_stream_t *es,
      * Check that we don't forward a NULL data to someone else. This
      * can be done only on the src node, since the dst node can
      * check for datatypes without knowing the data yet.
-     * By checking now, we allow for the data to be created any time bfore we
+     * By checking now, we allow for the data to be created any time before we
      * actually try to transfer it.
      */
     if( PARSEC_UNLIKELY((data->data == NULL) &&
@@ -1888,7 +1890,7 @@ parsec_release_dep_fct(parsec_execution_stream_t *es,
     if( (arg->action_mask & PARSEC_ACTION_RELEASE_LOCAL_DEPS) &&
         (es->virtual_process->parsec_context->my_rank == dst_rank) ) {
         /* Copying data in data-repo if there is data .
-         * We are doing this in order for dtd to be able to track control dependences.
+         * We are doing this in order for dtd to be able to track control dependencies.
          * Usage count of the repo is dealt with when setting up reshape promises.
          */
         parsec_release_local_OUT_dependencies(es,
@@ -2785,8 +2787,8 @@ int parsec_context_query(parsec_context_t *context, parsec_context_query_cmd_t c
     switch(cmd) {
         case PARSEC_CONTEXT_QUERY_NODES:
             switch (parsec_communication_engine_up) {
-                case 0: return 0;  /* context not ready for distributed runs, and lacking datatype chandling capabilities */
-                case 1: return 1;  /* single node runs, but the context has datatype management capabilties */
+                case 0: return 0;  /* context not ready for distributed runs, and lacking datatype handling capabilities */
+                case 1: return 1;  /* single node runs, but the context has datatype management capabilities */
                 case 2: return PARSEC_ERR_NOT_FOUND; /* we are in a distributed run, but the MPI engine is not yet ready, so the nb_nodes might not be accurate */
                 case 3: return context->nb_nodes;
             }

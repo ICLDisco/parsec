@@ -114,13 +114,13 @@ int main(int argc, char* argv[])
     parsec_taskpool_free(tp2);
     parsec_taskpool_free(tp3);
 
-    parsec_fini(&parsec);
+    parsec_data_free(dcA.mat);
+    parsec_tiled_matrix_destroy((parsec_tiled_matrix_t*)&dcA);
 
-    free(dcA.mat);
+    parsec_fini(&parsec);
 
 #ifdef PARSEC_HAVE_MPI
     MPI_Finalize();
 #endif
     return 0;
 }
-

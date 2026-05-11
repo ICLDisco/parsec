@@ -56,7 +56,7 @@ static parsec_task_t* array_of_async_tasks[100];
  * This test check the correct handling of the PARSEC_HOOK_RETURN_ASYNC and
  * PARSEC_HOOK_RETURN_AGAIN. The cuda_task_async will atomically save the task 
  * onto a predefined array, and the cuda_task_again will repeat itself until
- * the async task appears on the array. At that point it reenable the async task
+ * the async task appears on the array. At that point it re-enables the async task
  * and continue it's execution until a predefined number of iteration have been
  * reached. If more iterations have been already done it will return asap.
  */

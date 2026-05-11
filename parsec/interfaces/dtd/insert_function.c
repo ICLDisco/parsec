@@ -1254,7 +1254,7 @@ parsec_dtd_data_collection_fini(parsec_data_collection_t *dc)
  * @param[in]       key
  *                      The data key of the tile in the matrix
  * @return
- *                  The tile representing the data in specified co-ordinate
+ *                  The tile representing the data in specified coordinate
  *
  * @ingroup         DTD_INTERFACE
  */
@@ -1303,7 +1303,7 @@ parsec_dtd_tile_of(parsec_data_collection_t *dc, parsec_data_key_t key)
  * @param[in]       key
  *                      The data key of the tile in the matrix
  * @return
- *                  The tile representing the data in specified co-ordinate
+ *                  The tile representing the data in specified coordinate
  *
  * @ingroup         DTD_INTERFACE
  */
@@ -2056,7 +2056,7 @@ set_dependencies_for_function(parsec_taskpool_t *tp,
 {
     (void)tp;
     /* In this function we do not create deps between flow's any more. We just
-     * intialize the flow structures of the task classes accordingly.
+     * initialize the flow structures of the task classes accordingly.
      */
 
     if( NULL == desc_tc && NULL != parent_tc ) { /* Data is not going to any other task */
@@ -2891,7 +2891,7 @@ parsec_insert_dtd_task(parsec_task_t *__this_task)
                 if( NULL != last_writer.task ) {
                     if( parsec_dtd_task_is_local(last_writer.task)) {
                         parsec_dtd_remote_task_retain(
-                                this_task); /* everytime we have a remote_task as descendant of a local task */
+                                this_task); /* every time we have a remote_task as descendant of a local task */
                     }
                 }
             }
@@ -3415,7 +3415,7 @@ parsec_dtd_insert_task(parsec_taskpool_t *tp,
     if( NULL != this_task ) {
         parsec_insert_dtd_task(this_task);
     } else {
-        parsec_fatal("Unknow Error! Could not create task\n");
+        parsec_fatal("Unknown Error! Could not create task\n");
     }
 }
 
@@ -3461,40 +3461,36 @@ parsec_dtd_get_taskpool(parsec_task_t *this_task)
     return this_task->taskpool;
 }
 
-parsec_arena_datatype_t *parsec_dtd_create_arena_datatype(parsec_context_t *ctx, int *id)
-{
-    parsec_arena_datatype_t *new_adt;
+int parsec_dtd_attach_arena_datatype(parsec_context_t *ctx, parsec_arena_datatype_t *adt, int *id) {
     int my_id = parsec_atomic_fetch_inc_int32(&ctx->dtd_arena_datatypes_next_id);
     if( (my_id & PARSEC_GET_REGION_INFO) != my_id) {
-        return NULL;
+        return PARSEC_ERR_OUT_OF_RESOURCE;
     }
 #if defined(PARSEC_DEBUG_PARANOID)
-    new_adt = parsec_hash_table_nolock_find(&ctx->dtd_arena_datatypes_hash_table, my_id);
-    if(NULL != new_adt)
-        return NULL;
+    assert(NULL == parsec_hash_table_nolock_find(&ctx->dtd_arena_datatypes_hash_table, my_id));
 #endif
-    new_adt = calloc(1, sizeof(parsec_arena_datatype_t));
-    if(NULL == new_adt)
-        return NULL;
-    new_adt->ht_item.key = my_id;
-    parsec_hash_table_nolock_insert(&ctx->dtd_arena_datatypes_hash_table, &new_adt->ht_item);
-    *id = my_id;
-    return new_adt;
+    adt->ht_item.key = *id = my_id;
+    parsec_hash_table_nolock_insert(&ctx->dtd_arena_datatypes_hash_table, &adt->ht_item);
+    return PARSEC_SUCCESS;
 }
 
-parsec_arena_datatype_t *parsec_dtd_get_arena_datatype(parsec_context_t *ctx, int id)
-{
+parsec_arena_datatype_t *parsec_dtd_detach_arena_datatype(parsec_context_t *ctx, int id) {
+    return parsec_hash_table_nolock_remove(&ctx->dtd_arena_datatypes_hash_table, id);
+}
+
+parsec_arena_datatype_t *parsec_dtd_get_arena_datatype(parsec_context_t *ctx, int id) {
     return parsec_hash_table_nolock_find(&ctx->dtd_arena_datatypes_hash_table, id);
 }
 
-int parsec_dtd_destroy_arena_datatype(parsec_context_t *ctx, int id)
-{
-    parsec_arena_datatype_t *adt = parsec_hash_table_nolock_remove(&ctx->dtd_arena_datatypes_hash_table, id);
-    if(NULL == adt)
-        return PARSEC_ERR_VALUE_OUT_OF_BOUNDS;
-    free(adt);
+int parsec_dtd_free_arena_datatype(parsec_context_t *ctx, int id) {
+    parsec_arena_datatype_t *adt = parsec_dtd_detach_arena_datatype(ctx, id);
+    if(NULL == adt) return PARSEC_ERR_VALUE_OUT_OF_BOUNDS;
+
+    if(PARSEC_DATATYPE_NULL != adt->opaque_dtt) parsec_type_free(&adt->opaque_dtt);
+    PARSEC_OBJ_RELEASE(adt);
     return PARSEC_SUCCESS;
 }
+
 
 /**
  * Return pointer on the device pointer associated with the i-th flow

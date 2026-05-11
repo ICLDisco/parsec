@@ -166,7 +166,7 @@ parsec_insert_dtd_flush_task(parsec_dtd_task_t *this_task, parsec_dtd_tile_t *ti
 
     if( parsec_dtd_task_is_remote( this_task ) ) {
         if( parsec_dtd_task_is_local( last_writer.task ) ) {
-            /* everytime we have a remote_task as descendant of a local task */
+            /* every time we have a remote_task as descendant of a local task */
             parsec_dtd_remote_task_retain( this_task );
         }
     }

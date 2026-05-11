@@ -71,9 +71,9 @@ struct parsec_arena_chunk_s {
      *  This chunk is chained when it resides inside an arena's free list
      *  It is SINGLETON when ( (not in a free list) and (in debug mode) ) */
     parsec_list_item_t item;
-    uint32_t           count;    /**< Number of basic elements pointed by param in this chunck */
-    parsec_arena_t    *origin;   /**< Arena in which this chunck should be released */
-    void              *data;     /**< Actual data pointed by this chunck */
+    uint32_t           count;    /**< Number of basic elements pointed by param in this chunk */
+    parsec_arena_t    *origin;   /**< Arena in which this chunk should be released */
+    void              *data;     /**< Actual data pointed by this chunk */
 };
 
 /* for SSE, 16 is mandatory, most cache are 64 bit aligned */
@@ -148,7 +148,7 @@ parsec_data_copy_t *parsec_arena_get_copy(parsec_arena_t *arena,
  * @param arena the arena used for the allocation
  * @param count the number of elements to allocate
  * @param device the device of the data copy. Note: the current implementation
- *   of arenas only work for CPU mmeory, and that device must be a CPU device.
+ *   of arenas only work for CPU memory, and that device must be a CPU device.
  * @param dtt the datatype associated with each element of the memory allocated
  * @return int PARSEC_SUCCESS in case of success, or an error code if there
  *   was not enough resource to satisfy the allocation request.
@@ -165,4 +165,3 @@ END_C_DECLS
 /** @} */
 
 #endif /* __USE_ARENA_H__ */
-

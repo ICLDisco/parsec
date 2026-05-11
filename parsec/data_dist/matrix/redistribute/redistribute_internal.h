@@ -96,8 +96,8 @@ getsize(const int index, const int index_start, const int index_end,
  * @param [in] j_end: column end index of submatrix
  * @param [in] mb_T_inner: row size, not including ghost region
  * @param [in] R: radius of ghost region
- * @param [in] i_start_T: row displacememnt in T
- * @param [in] j_start_T: column displacememnt in T
+ * @param [in] i_start_T: row displacement in T
+ * @param [in] j_start_T: column displacement in T
  */
 void CORE_redistribute_dtd(DTYPE* T, DTYPE* Y, int mb_Y, int nb_Y, int m_Y, int n_Y,
                            int m_Y_start, int m_Y_end, int n_Y_start, int n_Y_end,
@@ -120,4 +120,3 @@ CORE_redistribute_reshuffle_copy(DTYPE *T, DTYPE *Y, const int mb,
 {
     MOVE_SUBMATRIX(mb, nb, Y, 0, 0, Y_LDA, T, 0, 0, T_LDA);
 }
-

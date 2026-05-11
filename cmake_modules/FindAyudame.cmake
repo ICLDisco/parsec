@@ -1,5 +1,5 @@
 # - Find the Ayudame library
-# This module finds an installed  lirary that implements the
+# This module finds an installed  library that implements the
 # Ayudame http://www.hlrs.de/organization/av/spmt/research/temanejo/
 #
 # This module sets the following variables:
@@ -33,4 +33,3 @@ if(AYUDAME_FOUND)
   set(AYUDAME_INCLUDE_DIRS ${AYUDAME_INCLUDE_DIR})
   set(AYUDAME_LIBRARIES ${AYUDAME_LIBRARY})
 endif(AYUDAME_FOUND)
-

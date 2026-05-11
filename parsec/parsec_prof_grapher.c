@@ -64,7 +64,7 @@ static char *grapher_data_id_key_print(char *buffer, size_t buffer_size, parsec_
     else if( NULL != id->dc->key_base )
         snprintf(buffer, buffer_size, "DC(%s) key %"PRIuPTR, id->dc->key_base, (uintptr_t)id->data_key);
     else
-        snprintf(buffer, buffer_size, "Uknown DC(%p) key %"PRIuPTR, id->dc, (uintptr_t)id->data_key);
+        snprintf(buffer, buffer_size, "Unknown DC(%p) key %"PRIuPTR, id->dc, (uintptr_t)id->data_key);
     return buffer;
 }
 

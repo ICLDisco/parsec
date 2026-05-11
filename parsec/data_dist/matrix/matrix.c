@@ -132,7 +132,7 @@ void parsec_tiled_matrix_init( parsec_tiled_matrix_t *tdesc,
         o->key_dim = NULL;
     }
 
-    /* Define the default datatye of the datacollection */
+    /* Define the default datatype of the datacollection */
     parsec_datatype_t elem_dt = PARSEC_DATATYPE_NULL;
     ptrdiff_t extent;
     parsec_translate_matrix_type( tdesc->mtype, &elem_dt );

@@ -29,7 +29,7 @@ void vpmap_fini(void);
 /* VPMAP_INIT_*
  *  Different ways of initializing the vpmap.
  * Forall XXX, YYY,
- *     vpmap_init_XXX cannot be called after a succesful call to vpmap_init_YYY
+ *     vpmap_init_XXX cannot be called after a successful call to vpmap_init_YYY
  */
 
 /**

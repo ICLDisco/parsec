@@ -2,7 +2,7 @@
  * Copyright (c) 2021-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
- * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
+ * Copyright (c) 2024-2026 NVIDIA Corporation.  All rights reserved.
  */
 
 #ifndef PARSEC_DEVICE_GPU_H
@@ -182,7 +182,7 @@ typedef int (*parsec_device_event_query_fn_t)(struct parsec_device_gpu_module_s 
  * 
  * @details typically maps to cudaMemGetInfo or equivalent. 
  * 
- * @return PARSEC_SUCCESS if succesfull, a PARSEC error otherwise (in which case the parameters are undefined)
+ * @return PARSEC_SUCCESS if successful, a PARSEC error otherwise (in which case the parameters are undefined)
  */
 typedef int (*parsec_device_memory_info_fn_t)(struct parsec_device_gpu_module_s *gpu, size_t *free_mem, size_t *total_mem);
 
@@ -191,7 +191,7 @@ typedef int (*parsec_device_memory_info_fn_t)(struct parsec_device_gpu_module_s 
  * 
  * @details typically maps to cudaMalloc or equivalent. 
  * 
- * @return PARSEC_SUCCESS if succesfull, a PARSEC error otherwise (in which case @p addr is undefined)
+ * @return PARSEC_SUCCESS if successful, a PARSEC error otherwise (in which case @p addr is undefined)
  */
 typedef int (*parsec_device_memory_allocate_fn_t)(struct parsec_device_gpu_module_s *gpu, size_t bytes, void **addr);
 
@@ -200,7 +200,7 @@ typedef int (*parsec_device_memory_allocate_fn_t)(struct parsec_device_gpu_modul
  * 
  * @details typically maps to cudaFree or equivalent. 
  * 
- * @return PARSEC_SUCCESS if succesfull, a PARSEC error otherwise
+ * @return PARSEC_SUCCESS if successful, a PARSEC error otherwise
  */
 typedef int (*parsec_device_memory_free_fn_t)(struct parsec_device_gpu_module_s *gpu, void *addr);
 

@@ -36,7 +36,7 @@ typedef struct parsec_matrix_tabular_s {
 } parsec_matrix_tabular_t;
 
 /**
- * Initialize the description of a tabular abribtrary distribution
+ * Initialize the description of a tabular arbitrary distribution
  * @param dc matrix description structure, already allocated, that will be initialize
  * @param nodes number of nodes
  * @param myrank rank of the local node (as of mpi rank)
@@ -47,7 +47,7 @@ typedef struct parsec_matrix_tabular_s {
  * @param i starting row index for the computation on a submatrix
  * @param j starting column index for the computation on a submatrix
  * @param m number of rows of the entire submatrix
- * @param n numbr of column of the entire submatrix
+ * @param n number of columns of the entire submatrix
  * @param table associative table to assign tiles to all ranks. Can be NULL.
  *        In that case, you need to call set_table or set_random_table before
  *        using that descriptor.

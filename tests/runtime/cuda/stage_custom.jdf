@@ -3,7 +3,7 @@ extern "C" %{
  * Copyright (c) 2019-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
- * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
+ * Copyright (c) 2024-2026 NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/parsec_config.h"
@@ -46,7 +46,7 @@ stage_stride_in(parsec_gpu_task_t *gtask,
             elem_sz = parsec_datadist_getsizeoftype(dc->mtype);
             in_elem_dev = (parsec_device_gpu_module_t*)parsec_mca_device_get( copy_in->device_index);
             if(in_elem_dev->super.type != PARSEC_DEV_CUDA ){
-                /* copy width bytes heigth times, skipping pitch - width bytes every time */
+                /* copy width bytes height times, skipping pitch - width bytes every time */
                 size_t dpitch = dc->mb * elem_sz;
                 size_t spitch = dc->llm * elem_sz;
                 size_t width  = dc->mb * elem_sz;
@@ -91,7 +91,7 @@ stage_stride_out(parsec_gpu_task_t *gtask,
             copy_out = copy_in->original->device_copies[0];
             dc = (parsec_tiled_matrix_t*)gtask->flow_dc[i];
             elem_sz = parsec_datadist_getsizeoftype(dc->mtype);
-            /* copy width bytes heigth times, skipping pitch - width bytes every time */
+            /* copy width bytes height times, skipping pitch - width bytes every time */
             size_t dpitch = dc->llm * elem_sz;
             size_t spitch = dc->mb * elem_sz;
             size_t width  = dc->mb * elem_sz;

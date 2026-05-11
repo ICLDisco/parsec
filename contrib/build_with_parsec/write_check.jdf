@@ -154,10 +154,10 @@ int main(int argc, char* argv[])
 #endif
     /* This test generates no communications between processes, so the datatype
      * associated with the arena are insignificant. */
-    parsec_arena_datatype_construct( &wc_tp->arenas_datatypes[PARSEC_write_check_DEFAULT_ADT_IDX],
-                                     descA.super.mb * descA.super.nb * parsec_datadist_getsizeoftype(TYPE),
-                                     PARSEC_ARENA_ALIGNMENT_SSE,
-                                     PARSEC_DATATYPE_NULL);  /* change for distributed cases */
+    parsec_arena_datatype_set_type(&wc_tp->arenas_datatypes[PARSEC_write_check_DEFAULT_ADT_IDX],
+                                   descA.super.mb * descA.super.nb * parsec_datadist_getsizeoftype(TYPE),
+                                   PARSEC_ARENA_ALIGNMENT_SSE,
+                                   PARSEC_DATATYPE_NULL);  /* change for distributed cases */
 
     rc = parsec_context_start(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_start");
@@ -177,7 +177,7 @@ int main(int argc, char* argv[])
     for( int i = 0; i < n; i++ ) {
         if( (2+i) != ((int*)descA.mat)[i] ) {
             error_found = i;
-            printf("position %d extected %d found %d\n",
+            printf("position %d expected %d found %d\n",
                    i, (2+i), ((int*)descA.mat)[i]);
         }
     }

@@ -6,7 +6,7 @@
 #include "stencil_internal.h"
 #include "tests/tests_timing.h"
 
-/* Timming */
+/* Timing */
 double sync_time_elapsed = 0.0;
 
 /* Global array of weight */

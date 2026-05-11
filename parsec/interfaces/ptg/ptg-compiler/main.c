@@ -56,7 +56,7 @@ static void usage(void)
             "  --debug|-d         Enable debug output\n"
             "  --input|-i         Input File (JDF) (default '%s')\n"
             "  --output|-o        Set the BASE name for .c, .h, .o and function name (no default).\n"
-            "                     Changing this value has precendence over the defaults of\n"
+            "                     Changing this value has precedence over the defaults of\n"
             "                     --output-c, --output-h, and --function-name\n"
             "  --output-c|-C      Set the name of the .c output file (default '%s' or BASE.c)\n"
             "  --output-h|-H      Set the name of the .h output file (default '%s' or BASE.h)\n"

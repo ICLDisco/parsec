@@ -22,7 +22,7 @@
 #include "parsec/papi_sde.h"
 
 /* Whether we check for the provided ring to be sorted and handle unsorted
- * rings properly. Otherwise, we expect decending ordering and insert the
+ * rings properly. Otherwise, we expect descending ordering and insert the
  * ring after the position where the first task fits in. */
 #define CHECK_RING_SORTED 0
 

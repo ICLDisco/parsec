@@ -171,7 +171,7 @@ int pins_papi_init(parsec_context_t * master_context)
 
 /**
  * finalization function to be called once per application. It is the
- * counterpart fo pins_papi_init.
+ * counterpart of pins_papi_init.
  */
 int pins_papi_fini(parsec_context_t * master_context)
 {
@@ -215,11 +215,11 @@ int pins_papi_thread_fini(parsec_execution_stream_t* es)
  * Insert a new event into an already existing list of events. If the compact argument
  * is set, then the event will be matched with all the existing events in order to find
  * a similar class of event (same PAPI component) and a frequency group within that class.
- * If the matching is succesful the new event will be chained to the previous events of
+ * If the matching is successful the new event will be chained to the previous events of
  * the same class. Otherwise, and this is also true when the compact argument is not
  * set, a new entry in the array will be created.
  *
- * Returns: 0 if the event has been succesfully inserted
+ * Returns: 0 if the event has been successfully inserted
  *         -1 in all other cases. The events have been left untouched.
  */
 static int insert_event(parsec_pins_papi_events_t* events_array,

@@ -188,8 +188,8 @@ struct parsec_object_t {
     volatile int32_t obj_reference_count;   /**< reference count */
     parsec_release_t obj_release;           /**< destruct and release */
 #if defined(PARSEC_DEBUG_PARANOID)
-    const char* cls_init_file_name;        /**< In debug mode store the file where the object get contructed */
-    int   cls_init_lineno;           /**< In debug mode store the line number where the object get contructed */
+    const char* cls_init_file_name;        /**< In debug mode store the file where the object get constructed */
+    int   cls_init_lineno;           /**< In debug mode store the line number where the object get constructed */
 #endif  /* defined(PARSEC_DEBUG_PARANOID) */
 };
 

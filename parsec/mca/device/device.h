@@ -93,7 +93,7 @@ typedef int   (*parsec_device_memory_release_f)(parsec_device_module_t*);
  *    @param[INOUT] data: a parsec data
  *    @param[IN]    cmd: an advice command
  *
- *  All advices can be ignored by any device. They are used to optimize
+ *  All advice can be ignored by any device. They are used to optimize
  *   usage and performance.
  *
  *  cmd can be 
@@ -208,7 +208,7 @@ PARSEC_DECLSPEC extern int parsec_select_best_device( parsec_task_t* this_task);
 /**
  * Initialize the internal structures for managing external devices such as
  * accelerators and GPU. Memory nodes can as well be managed using the same
- * mechnism.
+ * mechanism.
  */
 extern int parsec_mca_device_init(void);
 
@@ -218,7 +218,7 @@ extern int parsec_mca_device_init(void);
 extern int parsec_mca_device_fini(void);
 
 /**
- * Parse the list of potential devices and see which one would succesfully load
+ * Parse the list of potential devices and see which one would successfully load
  * and initialize in the current environment.
  */
 extern int parsec_mca_device_attach(parsec_context_t*);
@@ -293,7 +293,7 @@ PARSEC_DECLSPEC void parsec_devices_free_statistics(uint64_t **pstats);
 
 /**
  * Print the current devices statistics; if start_stats is not NULL, the
- * procedure will substract start_stats before printing.
+ * procedure will subtract start_stats before printing.
  */
 PARSEC_DECLSPEC void parsec_devices_print_statistics(parsec_context_t *parsec_context, uint64_t *start_stats);
 
@@ -325,7 +325,7 @@ PARSEC_DECLSPEC int parsec_devices_release_memory(void);
 /**
  * Provides hints to a device about data
  *
- * Possible advices are PARSEC_DEV_DATA_ADVICE_*
+ * Possible advice values are PARSEC_DEV_DATA_ADVICE_*
  *   PREFETCH: a copy corresponding to the data should be prefetch
  *             on the device
  *   PREFERRED_DEVICE: this device is the preferred device to own

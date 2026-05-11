@@ -135,7 +135,7 @@ struct parsec_output_stream_t {
      * sent to the syslog.
      *
      * This value should be set as per the syslog(3) man page.  It is
-     * typically the OR value of "facilty" and "level" values described
+     * typically the OR value of "facility" and "level" values described
      * in the man page.
      */
     int lds_syslog_priority;
@@ -351,7 +351,7 @@ PARSEC_DECLSPEC void parsec_output_reopen_all(void);
  *
  * Close an output stream.  No output will be sent to the stream
  * after it is closed.  Be aware that output handles tend to be
- * re-used; it is possible that after a stream is closed, if another
+ * reused; it is possible that after a stream is closed, if another
  * stream is opened, it will get the same handle value.
  */
 PARSEC_DECLSPEC void parsec_output_close(int output_id);

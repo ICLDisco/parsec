@@ -553,7 +553,7 @@ void parsec_hash_table_insert_impl(parsec_hash_table_t *ht, parsec_hash_table_it
              * Good enough hint that it's our role to do so */
             parsec_hash_table_resize(ht);
         }
-        /* Otherwise, let's asssume somebody resized already */
+            /* Otherwise, let's assume somebody resized already */
         parsec_atomic_rwlock_wrunlock(&ht->rw_lock);
     }
 }

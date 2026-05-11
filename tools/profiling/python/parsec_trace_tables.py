@@ -67,7 +67,7 @@ class ParsecTraceTables(object):
     The PTT object will automatically search the core "information" dictionary
     for any attribute names that are not found in itself.
     Therefore, even though the "GFLOPS" attribute exists in the information
-    dictionary, the following reference styles will work interchangably:
+    dictionary, the following reference styles will work interchangeably:
 
     trace.information['GFLOPS']
     trace.GFLOPS

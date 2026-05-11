@@ -46,7 +46,7 @@ subtile_desc_t *subtile_desc_create( const parsec_tiled_matrix_t *tdesc,
     o->vpid_of_key  = subtile_vpid_of_key;
     o->data_of_key  = subtile_data_of_key;
 
-    /* Memory is allready registered at direct upper level */
+    /* Memory is already registered at direct upper level */
     o->register_memory   = NULL;
     o->unregister_memory = NULL;
 
@@ -113,7 +113,7 @@ static parsec_data_t* subtile_data_of(parsec_data_collection_t *desc, ...)
 
     position = sdesc->super.lmt * n + m;
 
-    /* If mat allocatd, set pos to the right position for each tile */
+    /* If mat allocated, set pos to the right position for each tile */
     if( NULL != sdesc->mat ) {
         pos = (n * sdesc->super.nb) * sdesc->super.lm
             +  m * sdesc->super.mb;

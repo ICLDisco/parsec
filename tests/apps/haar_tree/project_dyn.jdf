@@ -31,7 +31,7 @@ static int my_project_dyn_startup(parsec_execution_stream_t * es,
 
 %option dynamic = ON
 
-// These are global variables that are instanciated in the main.c
+// These are global variables that are instantiated in the main.c
 treeA               [type = "tree_dist_t *"]
 // The only type known to parsec is parsec_data_collection_t
 NP                  [type = "int"]

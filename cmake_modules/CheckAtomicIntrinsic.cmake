@@ -141,7 +141,7 @@ endif( SUPPORT_C11 AND PARSEC_ATOMIC_USE_C11_ATOMICS )
 # Check if the compiler supports __sync_bool_compare_and_swap.
 #
 if(NOT PARSEC_ATOMIC_USE_C11_32 OR NOT PARSEC_ATOMIC_USE_C11_64 OR NOT PARSEC_ATOMIC_USE_C11_128)
-  # Dont rely on the compiler support for C11 atomics
+  # Don't rely on the compiler support for C11 atomics
   unset(PARSEC_ATOMIC_USE_C11_ATOMICS CACHE)
   include(CheckCSourceRuns)
 
@@ -443,4 +443,3 @@ if( CMAKE_SIZEOF_VOID_P MATCHES "8" )
     message( STATUS "\n128 bit atomics not found but pointers are 64 bits. Some list operations will not be optimized\n")
   endif( NOT PARSEC_HAVE_COMPARE_AND_SWAP_128 AND NOT PARSEC_HAVE_LLSC_PTR)
 endif( CMAKE_SIZEOF_VOID_P MATCHES "8" )
-

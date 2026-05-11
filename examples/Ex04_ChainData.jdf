@@ -80,11 +80,11 @@ data_key(parsec_data_collection_t *desc, ...)
 }
 
 /**
- * The funtion data_of is similar to rank_of instead that it returns the
+ * The function data_of is similar to rank_of instead that it returns the
  * parsec_data_t structure that taskpool the single piece of data corresponding to
  * the given indexes.
  * Each piece of data that will go through the engine needs to have it's own
- * parsec_data_t stucture that stores its status information about it
+ * parsec_data_t structure that stores its status information about it
  * (See further down, how to create the parsec_data_t)
  *
  * In this example, we consider that we have only one area of memory per node,
@@ -108,7 +108,6 @@ int main(int argc, char *argv[])
     parsec_data_collection_t mydata;
     parsec_Ex04_ChainData_taskpool_t *tp;
     int mycounter;
-    parsec_arena_datatype_t adt;
 
 #if defined(PARSEC_HAVE_MPI)
     {
@@ -134,10 +133,6 @@ int main(int argc, char *argv[])
     mydata.vpid_of = vpid_of;
     mydata.data_key = data_key;
 
-    parsec_arena_datatype_construct( &adt,
-                                     sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
-                                     parsec_datatype_int_t );
-
     ddata_mycounter = parsec_data_create( &ddata_mycounter, /* The parsec_data_t taskpool value   */
                                          &mydata,          /* The descriptor associated to it */
                                          0,                /* The data key (see later)        */
@@ -153,7 +148,9 @@ int main(int argc, char *argv[])
 
     tp = parsec_Ex04_ChainData_new(&mydata, 20);
 
-    tp->arenas_datatypes[PARSEC_Ex04_ChainData_DEFAULT_ADT_IDX] = adt; 
+    parsec_arena_datatype_set_type( &tp->arenas_datatypes[PARSEC_Ex04_ChainData_DEFAULT_ADT_IDX],
+                                    sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
+                                    parsec_datatype_int_t );
 
     rc = parsec_context_add_taskpool( parsec, (parsec_taskpool_t*)tp );
     PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
@@ -162,6 +159,7 @@ int main(int argc, char *argv[])
     rc = parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
+    PARSEC_OBJ_DESTRUCT(&tp->arenas_datatypes[PARSEC_Ex04_ChainData_DEFAULT_ADT_IDX]);
     parsec_taskpool_free((parsec_taskpool_t*)tp);
 
     parsec_data_destroy( ddata_mycounter );

@@ -2,7 +2,7 @@
  * Copyright (c) 2009-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
- * Copyright (c) 2025      NVIDIA Corporation.  All rights reserved.
+ * Copyright (c) 2025-2026 NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/runtime.h"
@@ -926,7 +926,7 @@ __parsec_context_cas_or_flag(parsec_context_t* context,
 /*
  * If there are enqueued taskpools waiting to be executed launch the other threads
  * and then return. Mark the internal structures in such a way that we can't
- * start the context mutiple times without completions.
+ * start the context multiple times without completions.
  *
  * @returns: 0 if the other threads in this context have been started, 1 if the
  * context was already active, 2 if there was nothing to do and no threads have

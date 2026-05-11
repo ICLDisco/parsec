@@ -105,7 +105,6 @@ parsec_data_collection_t *create_and_distribute_data(int rank, int world, int si
       int len = asprintf(&d->key_dim, "(%d)", size);
       if( -1 == len )
 	d->key_dim = NULL;
-      d->key_base = strdup("A");
       d->data_key = data_key;
     }
 #endif
@@ -126,6 +125,7 @@ void free_data(parsec_data_collection_t *d)
         PARSEC_DATA_COPY_RELEASE(m->data);
     }
     free(m->ptr);
+    parsec_type_free(&d->default_dtt);
     parsec_data_collection_destroy(d);
     free(d);
 }

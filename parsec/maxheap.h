@@ -13,7 +13,7 @@
 BEGIN_C_DECLS
 
 /**
- * The structure implemented here is not thread safe. All concurent
+ * The structure implemented here is not thread safe. All concurrent
  * accesses should be protected by the upper level.
  */
 

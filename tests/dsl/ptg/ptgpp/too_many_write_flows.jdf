@@ -95,7 +95,7 @@ int main(int argc, char* argv[])
 
     /* This test generates no communications between processes, so the datatype
      * associated with the arena are insignificant. */
-    parsec_arena_datatype_construct( &tp->arenas_datatypes[PARSEC_too_many_write_flows_DEFAULT_ADT_IDX],
+    parsec_arena_datatype_set_type( &tp->arenas_datatypes[PARSEC_too_many_write_flows_DEFAULT_ADT_IDX],
                                      descA.super.mb * descA.super.nb * parsec_datadist_getsizeoftype(TYPE),
                                      PARSEC_ARENA_ALIGNMENT_SSE,
                                      PARSEC_DATATYPE_NULL);  /* change for distributed cases */
@@ -109,6 +109,8 @@ int main(int argc, char* argv[])
     rc = parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
+    PARSEC_OBJ_DESTRUCT(&tp->arenas_datatypes[PARSEC_too_many_write_flows_DEFAULT_ADT_IDX]);
+    parsec_taskpool_free((parsec_taskpool_t*)tp);
     free(descA.mat);
 
 #ifdef PARSEC_HAVE_MPI
@@ -118,4 +120,3 @@ int main(int argc, char* argv[])
 }
 
 %}
-

@@ -254,7 +254,7 @@ process_datatype(jdf_datatransfer_type_t *datatype,
     datatype->count = expr;
 
     /**
-     * The displacement from the begining of the type.
+     * The displacement from the beginning of the type.
      */
     expr = jdf_find_property( d->guard->properties, displ, &property );
     if( NULL == expr ) {
@@ -1362,4 +1362,3 @@ expr_simple:  expr_simple EQUAL expr_simple
         ;
 
 %%
-

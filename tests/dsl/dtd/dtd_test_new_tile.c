@@ -327,9 +327,9 @@ int main(int argc, char **argv)
 
     parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new();
 
-    adt = parsec_dtd_create_arena_datatype(parsec, &TILE_FULL);
-    parsec_add2arena( adt, parsec_datatype_int32_t,PARSEC_MATRIX_FULL, 0,
-                      nb, 1, nb, PARSEC_ARENA_ALIGNMENT_SSE, -1);
+    adt = parsec_matrix_adt_new_rect(
+            parsec_datatype_int32_t, nb, 1, nb);
+    parsec_dtd_attach_arena_datatype(parsec, adt, &TILE_FULL);
 
     /* Registering the dtd_handle with PARSEC context */
     rc = parsec_context_add_taskpool( parsec, dtd_tp );
@@ -461,8 +461,6 @@ int main(int argc, char **argv)
     rc = parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
-    free(new_tiles);
-
 #if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) && defined(PARSEC_HAVE_CU_COMPILER)
     for(int i = 0; i < nb_gpus; i++) {
         cudaError_t status;
@@ -501,6 +499,11 @@ int main(int argc, char **argv)
         PARSEC_OBJ_RELEASE(tile0);
     }
 
+    for(int r = 0; r < NCASE*world; r++) {
+        parsec_dtd_tile_release(new_tiles[r]);
+    }
+    free(new_tiles);
+
     if(acc != expected) {
         fprintf(stderr, "Rank %d failure: acc = %d, expected %d\n", rank, acc, expected);
         nb_errors++;
@@ -511,10 +514,9 @@ int main(int argc, char **argv)
     parsec_dtd_task_class_release(dtd_tp, first_tc);
     parsec_dtd_task_class_release(dtd_tp, second_tc);
     parsec_dtd_task_class_release(dtd_tp, third_tc);
+    parsec_dtd_task_class_release(dtd_tp, fourth_tc);
 
-    parsec_del2arena(adt);
-    PARSEC_OBJ_RELEASE(adt->arena);
-    parsec_dtd_destroy_arena_datatype(parsec, TILE_FULL);
+    parsec_dtd_free_arena_datatype(parsec, TILE_FULL);
 
     parsec_taskpool_free( dtd_tp );
     parsec_fini(&parsec);

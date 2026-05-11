@@ -218,10 +218,10 @@ typedef struct parsec_cmd_line_init_t parsec_cmd_line_init_t;
  *
  * This handle is used for accessing all command line functionality
  * (i.e., all parsec_cmd_line*() functions).  Multiple handles can be
- * created and simultaneously processed; each handle is independant
+ * created and simultaneously processed; each handle is independent
  * from others.
  *
- * The parsec_cmd_line_t handles are [simplisticly] thread safe;
+ * The parsec_cmd_line_t handles are [simplistically] thread safe;
  * processing is guaranteed to be mutually exclusive if multiple
  * threads invoke functions on the same handle at the same time --
  * access will be serialized in an unspecified order.
@@ -367,7 +367,7 @@ PARSEC_DECLSPEC int parsec_cmd_line_make_opt3(parsec_cmd_line_t *cmd,
  * - an unrecognized token is found
  * - a parameter registered with an integer type option finds a
  *   non-integer option token
- * - a parameted registered N option tokens, but finds less then
+ * - a parameter registered N option tokens, but finds less than
  *   <N tokens available
  *
  * Upon any of these conditions, any remaining tokens will be placed

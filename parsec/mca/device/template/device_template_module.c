@@ -56,7 +56,7 @@ parsec_template_memory_unregister(parsec_device_module_t* device,
 /**
  * Register a taskpool with a device by checking that the device
  * supports the dynamic function required by the different incarnations.
- * If multiple devices of the same type exists we assume thay all have
+ * If multiple devices of the same type exists we assume they all have
  * the same capabilities.
  */
 static int
@@ -192,4 +192,3 @@ parsec_device_template_module_fini(parsec_device_module_t* device)
     (void)dev; (void)device;
     return PARSEC_SUCCESS;
 }
-

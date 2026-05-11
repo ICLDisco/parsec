@@ -306,7 +306,7 @@ free_to_freelist(tl_freelist_t *fl, parsec_profiling_buffer_t *b)
  *   if buffer == IO_CMD_FLUSH, the helper thread will increment
  *       the io_cmd_flush_counter, and signal this on the
  *       io_cmd_flush_cond. This means that all I/O operations
- *       enqueued prior to that command have been exectued.
+ *       enqueued prior to that command have been executed.
  *   For all other values of buffer:
  *       buffer should be unmapped
  *       a new buffer should be mapped into the backend file
@@ -1392,7 +1392,7 @@ int parsec_profiling_dbp_dump( void )
 
 #if defined(PARSEC_PROFILING_USE_MMAP)
     tl_freelist_buffer_t *b;
-    /* Buffers that were unecessarily pre-maped need to be released */
+    /* Buffers that were unnecessarily pre-mapped need to be released */
     for(it = PARSEC_LIST_ITERATOR_FIRST( &threads );
         it != PARSEC_LIST_ITERATOR_END( &threads );
         it = PARSEC_LIST_ITERATOR_NEXT( it ) ) {
@@ -1499,7 +1499,7 @@ int parsec_profiling_dbp_start( const char *basefile, const char *hr_info )
     }
 
     /* We reserve the keys 0/1 in order to capture cases where a trace is called with
-     * an unitialized key */
+     * an uninitialized key */
     parsec_profiling_add_dictionary_keyword( "N/A", "fill:#000000", 0, "", &na_s, &na_e);
     assert(na_s == 0 && na_e==1);
     (void)na_s; (void)na_e;

@@ -195,7 +195,7 @@ parsec_cuda_memory_register(parsec_device_module_t* device, parsec_data_collecti
 
     /*
      * We rely on the thread-safety of the CUDA interface to register the memory
-     * as another thread might be submiting tasks at the same time
+     * as another thread might be submitting tasks at the same time
      * (cuda_scheduling.h), and we do not set a device since we register it for
      * all devices.
      */
@@ -601,7 +601,7 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
         memoryBusWidth = prop.memoryBusWidth;
 #endif
         parsec_inform("Dev GPU %10s : %s %.0fGB [pci %x:%x.%x]\n"
-                      "\tFrequency (GHz)    : %.2f\t[SM: %d | Capabilities: %d.%d | Concurency %s | ComputeMode %d]\n"
+                      "\tFrequency (GHz)    : %.2f\t[SM: %d | Capabilities: %d.%d | Concurrency %s | ComputeMode %d]\n"
                       "\tPeak Tflop/s %-5s : fp64: %-8.3f fp32: %-8.3f fp16: %-8.3f tf32: %-8.3f\n"
                       "\tPeak Mem Bw (GB/s) : %.2f\t[Clock Rate (Ghz) %.2f | Bus Width (bits) %d]\tReserved Pool (GB): %.1f\n",
                       device->name, szName, prop.totalGlobalMem/1024.f/1024.f/1024.f, prop.pciBusID, prop.pciDeviceID, prop.pciDomainID,

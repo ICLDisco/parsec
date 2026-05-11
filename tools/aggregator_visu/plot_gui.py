@@ -55,7 +55,7 @@ def agregator_thread(conn, params, Data, sem):
         elif 'diff' in key:
             tkey = key
             tkey = tkey.split('_')
-            Data.setTitle(key, '{0} differenciated over time'.format(tkey[0]))
+            Data.setTitle(key, '{0} differentiated over time'.format(tkey[0]))
             Data.setPlotTitles(key, 'Mpi process ')
             Data.setLegends(key, 'ARGO stream ')
         else:

@@ -242,9 +242,9 @@ int main(int argc, char *argv[])
         }
     }
 
-    threads = calloc(nb_tests, sizeof(pthread_t));
-    params = calloc(nb_tests, sizeof(param_t));
-    values = calloc(nb_tests+2, sizeof(values_t));
+    threads = calloc(nb_threads, sizeof(pthread_t));
+    params = calloc(nb_threads, sizeof(param_t));
+    values = calloc(nb_threads+2, sizeof(values_t));
 
     gettimeofday(&now, NULL);
     srand48(now.tv_usec ^ getpid());
@@ -404,6 +404,12 @@ int main(int argc, char *argv[])
                 int128_to_str_base16(values[nb_threads+1].ma128, v128a));
     }
 #endif
+
+    parsec_barrier_destroy(&barrier1);
+    parsec_hwloc_fini();
+    free(values);
+    free(params);
+    free(threads);
 
     return ret;
 }

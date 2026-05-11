@@ -39,7 +39,7 @@
 
 /*
  * Merge two environ-like char arrays, ensuring that there are no
- * duplicate entires
+ * duplicate entries
  */
 char **parsec_environ_merge(char **minor, char **major)
 {
@@ -76,7 +76,7 @@ char **parsec_environ_merge(char **minor, char **major)
             parsec_setenv(minor[i], NULL, false, &ret);
         } else {
 
-            /* strdup minor[i] in case it's a constat string */
+            /* strdup minor[i] in case it's a constant string */
 
             name = strdup(minor[i]);
             value = name + (value - minor[i]);

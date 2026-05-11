@@ -161,7 +161,7 @@ int main(int argc, char *argv[])
      *
      *  First parameter Event A is the human readable name
      *  Then there is an HTML suggested color for tracing that state
-     *  The size (number of bytes) of additional informations related to this event when there is one
+     *  The size (number of bytes) of additional information related to this event when there is one
      *  A converter string. In this case, the structure has an int, i and a double, d, so the string
      *   is "i{int};d{double}"
      *  The call returns the startkey and the endkey corresponding to the new event

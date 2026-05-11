@@ -88,8 +88,6 @@ int main(int argc, char *argv[])
 
       ctp->arenas_datatypes[PARSEC_local_no_reshape_DEFAULT_ADT_IDX]    = adt_default;
       ctp->arenas_datatypes[PARSEC_local_no_reshape_LOWER_TILE_ADT_IDX] = adt_lower;
-      PARSEC_OBJ_RETAIN(adt_default.arena);
-      PARSEC_OBJ_RETAIN(adt_lower.arena);
 
       DO_RUN(ctp);
       DO_CHECK(local_no_reshape, dcA, dcA_check);
@@ -115,8 +113,6 @@ int main(int argc, char *argv[])
 
       ctp->arenas_datatypes[PARSEC_local_read_reshape_DEFAULT_ADT_IDX]    = adt_default;
       ctp->arenas_datatypes[PARSEC_local_read_reshape_LOWER_TILE_ADT_IDX] = adt_lower;
-      PARSEC_OBJ_RETAIN(adt_default.arena);
-      PARSEC_OBJ_RETAIN(adt_lower.arena);
 
       DO_RUN(ctp);
       DO_CHECK(local_read_reshape, dcA, dcA_check);
@@ -143,8 +139,6 @@ int main(int argc, char *argv[])
 
       ctp->arenas_datatypes[PARSEC_local_output_reshape_DEFAULT_ADT_IDX]    = adt_default;
       ctp->arenas_datatypes[PARSEC_local_output_reshape_LOWER_TILE_ADT_IDX] = adt_lower;
-      PARSEC_OBJ_RETAIN(adt_default.arena);
-      PARSEC_OBJ_RETAIN(adt_lower.arena);
 
       DO_RUN(ctp);
       DO_CHECK(local_output_reshape, dcA, dcA_check);
@@ -171,8 +165,6 @@ int main(int argc, char *argv[])
 
       ctp->arenas_datatypes[PARSEC_local_input_reshape_DEFAULT_ADT_IDX]    = adt_default;
       ctp->arenas_datatypes[PARSEC_local_input_reshape_LOWER_TILE_ADT_IDX] = adt_lower;
-      PARSEC_OBJ_RETAIN(adt_default.arena);
-      PARSEC_OBJ_RETAIN(adt_lower.arena);
 
       DO_RUN(ctp);
       DO_CHECK(local_input_reshape, dcA, dcA_check);
@@ -198,8 +190,6 @@ int main(int argc, char *argv[])
 
       ctp->arenas_datatypes[PARSEC_remote_read_reshape_DEFAULT_ADT_IDX]    = adt_default;
       ctp->arenas_datatypes[PARSEC_remote_read_reshape_LOWER_TILE_ADT_IDX] = adt_lower;
-      PARSEC_OBJ_RETAIN(adt_default.arena);
-      PARSEC_OBJ_RETAIN(adt_lower.arena);
 
       DO_RUN(ctp);
       DO_CHECK(remote_read_reshape, dcA, dcA_check);
@@ -223,8 +213,6 @@ int main(int argc, char *argv[])
 
       ctp->arenas_datatypes[PARSEC_remote_no_re_reshape_DEFAULT_ADT_IDX]    = adt_default;
       ctp->arenas_datatypes[PARSEC_remote_no_re_reshape_LOWER_TILE_ADT_IDX] = adt_lower;
-      PARSEC_OBJ_RETAIN(adt_default.arena);
-      PARSEC_OBJ_RETAIN(adt_lower.arena);
 
       DO_RUN(ctp);
       DO_CHECK(remote_no_re_reshape, dcA, dcA_check);

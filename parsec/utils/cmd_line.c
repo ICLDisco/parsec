@@ -82,7 +82,7 @@ struct cmd_line_param_t {
     parsec_list_item_t super;
 
     /* Note that clp_arg points to storage "owned" by someone else; it
-       has the original option string by referene, not by value.
+       has the original option string by reference, not by value.
        Hence, it should not be free()'ed. */
 
     char *clp_arg;
@@ -272,7 +272,7 @@ int parsec_cmd_line_parse(parsec_cmd_line_t *cmd, bool ignore_unknown,
     }
 
     /* Now traverse the easy-to-parse sequence of tokens.  Note that
-       incrementing i must happen elsehwere; it can't be the third
+       incrementing i must happen elsewhere; it can't be the third
        clause in the "if" statement. */
 
     param = NULL;
@@ -614,7 +614,7 @@ char *parsec_cmd_line_get_usage_msg(parsec_cmd_line_t *cmd)
 
             /* Loop over adding the description to the array, breaking
                the string at most at MAX_WIDTH characters.  We need a
-               modifyable description (for simplicity), so strdup the
+               modifiable description (for simplicity), so strdup the
                clo_description (because it's likely a compiler
                constant, and may barf if we write temporary \0's in
                the middle). */
@@ -1080,7 +1080,7 @@ static int split_shorts(parsec_cmd_line_t *cmd, char *token, char **args,
         }
 
         /* If we do find the option, copy it and all of its parameters
-           to the output args.  If we run out of paramters (i.e., no
+           to the output args.  If we run out of parameters (i.e., no
            more tokens in the original argv), that error will be
            handled at a higher level) */
 

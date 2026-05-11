@@ -69,7 +69,7 @@ int main(int argc, char ** argv)
     /* Creating parsec context and initializing dtd environment */
     parsec = parsec_init( cores, &argc, &argv );
 
-    /****** Checking Dont track flag ******/
+    /****** Checking Don't track flag ******/
     parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new(  );
 
     int i, total_tasks = 20;

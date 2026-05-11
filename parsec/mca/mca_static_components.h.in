@@ -36,7 +36,7 @@ static void register_base_component(const char *cname)
                                           help,
                                           false, false,
                                           NULL, &ignored);
-    if( 0 < rc ) {  /* parameter succesfully registered */
+    if( 0 < rc ) {  /* parameter successfully registered */
         /* Create a synonym to facilitate the MCA params */
         (void)parsec_mca_param_reg_syn_name(rc, NULL, cname, false);
     }

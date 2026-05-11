@@ -41,7 +41,7 @@ parsec_taskpool_t *ep_new(parsec_data_collection_t *A, int nt, int level)
         MPI_Type_extent(MPI_BYTE, &extent);
 #endif  /* defined(PARSEC_HAVE_MPI_20) */
         /* The datatype is irrelevant as the example does not do communications between nodes */
-        parsec_arena_datatype_construct( &tp->arenas_datatypes[PARSEC_ep_DEFAULT_ADT_IDX],
+        parsec_arena_datatype_set_type( &tp->arenas_datatypes[PARSEC_ep_DEFAULT_ADT_IDX],
                                          extent, PARSEC_ARENA_ALIGNMENT_SSE,
                                          MPI_BYTE );
     }
@@ -50,3 +50,9 @@ parsec_taskpool_t *ep_new(parsec_data_collection_t *A, int nt, int level)
     return (parsec_taskpool_t*)tp;
 }
 
+void ep_free(parsec_taskpool_t *tp)
+{
+    parsec_ep_taskpool_t *ep_tp = (parsec_ep_taskpool_t*)tp;
+    PARSEC_OBJ_DESTRUCT(&ep_tp->arenas_datatypes[PARSEC_ep_DEFAULT_ADT_IDX]);
+    parsec_taskpool_free(tp);
+}

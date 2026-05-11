@@ -333,11 +333,9 @@ char *parsec_argv_join(char **argv, int delimiter)
  */
 char *parsec_argv_join_range(char **argv, size_t start, size_t end, int delimiter)
 {
+    char *pp, *str;
     char **p;
-    char *pp;
-    char *str;
-    size_t str_len = 0;
-    size_t i;
+    size_t i, str_len = 0;
 
     /* Bozo case */
 
@@ -350,6 +348,9 @@ char *parsec_argv_join_range(char **argv, size_t start, size_t end, int delimite
 
     for (p = &argv[start], i=start; *p && i < end; ++p, ++i) {
         str_len += strlen(*p) + 1;
+    }
+    if (0 == str_len) {
+        return strdup("");
     }
 
     /* Allocate the string. */
@@ -511,7 +512,7 @@ int parsec_argv_insert(char ***target, int start, char **source)
         }
     }
 
-    /* Harder: insertting into the middle */
+    /* Harder: inserting into the middle */
 
     else {
 

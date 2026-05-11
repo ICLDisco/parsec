@@ -242,7 +242,7 @@ static parsec_profiling_property_t *find_or_insert_pr(parsec_hash_table_t *ht, c
     char *str = NULL;
     parsec_profiling_property_t *pr_bucket = NULL;
     if (NULL == (pr_bucket = parsec_hash_table_nolock_find(ht, (parsec_key_t)pr))) {
-        /* Namespace doesn't exist, therfore create everything */
+        /* Namespace doesn't exist, therefore create everything */
         pr_bucket = calloc(1, sizeof(parsec_profiling_property_t));
         str = (char*)calloc(strlen(pr)+1, sizeof(char));
         sprintf(str, "%s", pr);
@@ -472,7 +472,7 @@ struct param_s {
  * @brief XML header string is written into the shared memory region.
  * @details String is offset by three integers. Those 3 integers are
  *          the size of the region in pages, the running state of the
- *          dictionnary, and the version of the dictionnary
+ *          dictionary, and the version of the dictionary
  */
 static int parsec_profiling_dump_header_shmem(void)
 {
@@ -786,6 +786,7 @@ int parsec_profiling_dictionary_init(parsec_context_t *master_context,
         pr_bucket->counter    = 0;
         pr_bucket->state     |= PROPERTY_REQUESTED;
     }
+    free(user_props);
 
     dict->shmem = NULL;
     int mca_shmem_activate;
@@ -812,7 +813,7 @@ int parsec_profiling_dictionary_init(parsec_context_t *master_context,
 #endif
     }
 
-    /* Dictionary and shmem are initalized, let's see if modules have something to say */
+    /* Dictionary and shmem are initialized, let's see if modules have something to say */
     /* int m; */
     /* for (m = 0; m < num_modules; ++m) */
     /*     if (modules[m]->init_profiling.register_properties) */

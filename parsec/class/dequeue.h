@@ -22,9 +22,9 @@
  *
  *  @details Although the current implementation is a pure remap to
  * the list (see @ref parsec_internal_classes_list "list.h"), it is
- * not garanteed as such. If one needs to use both DEQUEUE and non
+ * not guaranteed as such. If one needs to use both DEQUEUE and non
  * DEQUEUE access, list.h contains convenience functions to emulate a
- * dequeue, that is garanteed to be compatible with list accessors.
+ * dequeue, that is guaranteed to be compatible with list accessors.
  */
 
 BEGIN_C_DECLS
@@ -67,9 +67,9 @@ parsec_dequeue_pop_back( parsec_dequeue_t* dequeue ) {
 }
 
 /**
- * @brief Try poping the tail of the dequeue
+ * @brief Try popping the tail of the dequeue
  *
- * @details consider the list as a dequeue, and try poping its tail.
+ * @details consider the list as a dequeue, and try popping its tail.
  *
  * @param[inout] dequeue the dequeue from which to pop the tail element
  * @return the element, if one was removed from the dequeue (NULL if
@@ -104,9 +104,9 @@ parsec_dequeue_pop_front( parsec_dequeue_t* dequeue ) {
 }
 
 /**
- * @brief Try poping the head of the dequeue
+ * @brief Try popping the head of the dequeue
  *
- * @details consider the list as a dequeue, and try poping its head.
+ * @details consider the list as a dequeue, and try popping its head.
  *
  * @param[inout] dequeue the dequeue from which to pop the front element
  * @return the element, if one was removed from the dequeue (NULL if
@@ -226,7 +226,7 @@ parsec_dequeue_nolock_pop_front( parsec_dequeue_t* dequeue ) {
 }
 
 /**
- * @brief Pop the tail of the dequeue, without lokcing it
+ * @brief Pop the tail of the dequeue, without locking it
  *
  * @details consider the list as a dequeue, and pop its tail.
  *

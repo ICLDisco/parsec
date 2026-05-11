@@ -55,7 +55,7 @@ const parsec_sched_base_component_t parsec_sched_ll_component = {
         "", /*< no reserve */
     },
     {
-        /* The component has no metada */
+        /* The component has no metadata */
         MCA_BASE_METADATA_PARAM_NONE,
         "", /*< no reserve */
     }
@@ -67,7 +67,7 @@ mca_base_component_t *sched_ll_static_component(void)
 
 static int sched_ll_component_query(mca_base_module_t **module, int *priority)
 {
-    /* module type shoull be: const mca_base_module_t ** */
+    /* module type should be: const mca_base_module_t ** */
     void *ptr = (void*)&parsec_sched_ll_module;
     *priority = 2;
     *module = (mca_base_module_t *)ptr;

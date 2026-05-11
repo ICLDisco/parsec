@@ -2,7 +2,7 @@
  * Copyright (c) 2013-2022 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
- * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
+ * Copyright (c) 2024-2026 NVIDIA Corporation.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -68,7 +68,6 @@ static int flow_ltq_init(parsec_execution_stream_t* es, struct parsec_barrier_t*
     es->scheduler_object = sched_obj;
 
     if( es->th_id == 0 ) {
-        sched_obj->system_queue = (parsec_dequeue_t*)malloc(sizeof(parsec_dequeue_t));
         sched_obj->system_queue = PARSEC_OBJ_NEW(parsec_dequeue_t);
     }
 
@@ -260,7 +259,7 @@ static int sched_ltq_schedule(parsec_execution_stream_t* es,
          * Count how many common inputs are shared by 2 consecutive tasks. If we found
          * at least one identical input we group the 2 tasks in the same heap. Otherwise
          * the task create a new heap. In both cases the new task become the base task
-         * for further comparaison.
+         * for further comparison.
          */
         for( matches = i = 0; i < cur->task_class->nb_flows; i++) {
             for (j = 0; j < next->task_class->nb_flows; j++) {

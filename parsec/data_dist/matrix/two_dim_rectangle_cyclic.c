@@ -175,7 +175,7 @@ void parsec_matrix_block_cyclic_init(parsec_matrix_block_cyclic_t * dc,
         break;
     }
 
-    /* If rows or cols are 0, then no elemns, set
+    /* If rows or cols are 0, then no elements, set
      * both to 0.
      * */
     if(dc->nb_elem_r == 0) dc->nb_elem_c = 0;
@@ -393,7 +393,7 @@ static parsec_data_t* twoDBC_data_of(parsec_data_collection_t *desc, ...)
 
     position = twoDBC_coordinates_to_position(dc, m, n);
 
-    /* If mat allocatd, set pos to the right position for each tile */
+    /* If mat allocated, set pos to the right position for each tile */
     if( NULL != dc->mat ) {
         if( dc->super.storage == PARSEC_MATRIX_TILE ) {
             pos = position;
@@ -667,7 +667,7 @@ static parsec_data_t* twoDBC_kcyclic_data_of(parsec_data_collection_t *desc, ...
 
     position = dc->nb_elem_r * local_n + local_m;;
 
-    /* If mat allocatd, set pos to the right position for each tile */
+    /* If mat allocated, set pos to the right position for each tile */
     if( NULL != dc->mat ) {
         if( dc->super.storage == PARSEC_MATRIX_TILE ) {
             pos = position;

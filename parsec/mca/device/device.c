@@ -2,7 +2,7 @@
  * Copyright (c) 2013-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
- * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
+ * Copyright (c) 2024-2026 NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/parsec_config.h"
@@ -345,6 +345,7 @@ int parsec_mca_device_init(void)
     for(i = 0; NULL != device_components[i]; i++); /* nothing just counting */
     if( 0 == i ) {  /* no devices */
         parsec_debug_verbose(10, parsec_device_output, "No devices found on %s\n", parsec_hostname);
+        mca_components_free_user_list(parsec_device_list);
         return PARSEC_ERR_NOT_FOUND;
     }
     modules_activated = (parsec_device_module_t**)malloc(sizeof(parsec_device_module_t*) * i);
@@ -507,7 +508,7 @@ void parsec_devices_print_statistics(parsec_context_t *parsec_context, uint64_t 
 
     printf("+---------------------------------------------------------------------------------------------------------------------------------------------+\n");
     printf("|         |                    |                       Data In                              |                    Data Out                     |\n");
-    printf("|Rank %3d |  # KERNEL |    %%   |  Required  |    Transfered H2D(%%)  |    Transfered D2D(%%)  |  Required  |      Transfered(%%)  |   Evictions  |\n",
+    printf("|Rank %3d |  # KERNEL |    %%   |  Required  |   Transferred H2D(%%)  |   Transferred D2D(%%)  |  Required  |     Transferred(%%)  |   Evictions  |\n",
            (NULL == parsec_context ? parsec_debug_rank : parsec_context->my_rank));
     printf("|---------|-----------|--------|------------|-----------------------|-----------------------|------------|---------------------|--------------|\n");
     for( i = 0; i < parsec_nb_devices; i++ ) {
@@ -641,6 +642,7 @@ int parsec_mca_device_fini(void)
     }
     num_modules_activated = 0;
     free(modules_activated); modules_activated = NULL;
+    free(device_components); device_components = NULL;
 
     if( NULL != parsec_device_recursive ) {  /* Release recursive device */
         parsec_mca_device_remove(parsec_device_recursive);
@@ -811,7 +813,7 @@ static int cpu_weights(parsec_device_module_t* device, int nstreams)
     float freq = 0.f;
     float fp_ipc = 0.f;
     float dp_ipc = 0.f;
-    char cpu_model[256]="Unkown";
+    char cpu_model[256]="Unknown";
     char *simd = NULL;
 
 #if defined(__linux__)

@@ -21,7 +21,7 @@ if(PARSEC_HAVE_CUDA)
 
   endif( NOT TARGET CUDA::cublas )
 
-  # Testing for geting best device
+  # Testing for getting best device
   parsec_addtest_executable(C testing_get_best_device SOURCES "testing_get_best_device.c")
   target_include_directories(testing_get_best_device PRIVATE $<$<NOT:${PARSEC_BUILD_INPLACE}>:${CMAKE_CURRENT_SOURCE_DIR}>)
   target_ptg_sources(testing_get_best_device PRIVATE "get_best_device_check.jdf")

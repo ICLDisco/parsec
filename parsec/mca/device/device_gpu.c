@@ -3,7 +3,7 @@
  * Copyright (c) 2021-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
- * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
+ * Copyright (c) 2024-2026 NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/parsec_config.h"
@@ -934,7 +934,7 @@ parsec_device_data_reserve_space( parsec_device_gpu_module_t* gpu_device,
             /* Look for a data_copy to free */
             lru_gpu_elem = (parsec_gpu_data_copy_t*)parsec_list_pop_front(&gpu_device->gpu_mem_lru);
             if( NULL == lru_gpu_elem ) {
-                /* We can't find enough room on the GPU. Insert the tiles in the begining of
+                /* We can't find enough room on the GPU. Insert the tiles in the beginning of
                  * the LRU (in order to be reused asap) and return with error.
                  */
             release_temp_and_return:
@@ -1437,7 +1437,7 @@ parsec_device_data_stage_in( parsec_device_gpu_module_t* gpu_device,
             if( readers >= 0 ) {
                 parsec_atomic_rmb();
                 /* Coordination protocol with the owner of the candidate. If the owner had repurposed the copy, by the
-                 * time we succesfully increase the readers, the device copy will be associated with a different data.
+                 * time we successfully increase the readers, the device copy will be associated with a different data.
                  */
                 if( (candidate->original == original) && (candidate->version == task_data->data_in->version) ) {
                     PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
@@ -1628,7 +1628,7 @@ parsec_device_send_transfercomplete_cmd_to_device(parsec_data_copy_t *copy,
     gpu_task->stage_in  = parsec_default_gpu_stage_in;
     gpu_task->stage_out = parsec_default_gpu_stage_out;
     gpu_task->ec->data[0].data_in = copy;  /* We need to set not-null in data_in, so that the fake flow is
-                                            * not ignored when poping the data from the fake task */
+                                            * not ignored when popping the data from the fake task */
     gpu_task->ec->data[0].data_out = copy; /* We "free" data[i].data_out if its readers reaches 0 */
     gpu_task->ec->data[0].source_repo_entry = NULL;
     gpu_task->ec->data[0].source_repo = NULL;
@@ -1952,8 +1952,8 @@ parsec_device_progress_stream( parsec_device_gpu_module_t* gpu_device,
     if( 0 > rc ) {
         if( PARSEC_HOOK_RETURN_AGAIN != rc ) {
             if( PARSEC_HOOK_RETURN_NEXT == rc ) {
-                /* Dont reorder the push_back, we are running into physical contraints and need to delay
-                 * the resubmission of this task as much as possible, but without loosing track of it
+                /* Don't reorder the push_back, we are running into physical constraints and need to delay
+                 * the resubmission of this task as much as possible, but without losing track of it
                  * (aka. returning it to the upper level).
                  */
                 parsec_list_push_back(stream->fifo_pending, (parsec_list_item_t*)task);
@@ -2023,7 +2023,7 @@ parsec_device_kernel_push( parsec_device_gpu_module_t      *gpu_device,
     char tmp[MAX_TASK_STRLEN];
 #endif
 
-    /* if no changes were made to the available memory dont waste time */
+    /* if no changes were made to the available memory don't waste time */
     if( gpu_task->last_data_check_epoch == gpu_device->data_avail_epoch )
         return PARSEC_HOOK_RETURN_AGAIN;
     PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
@@ -2679,7 +2679,7 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
     } else {
         pop_null++;
         if( pop_null % 1024 == 1023 ) {
-            PARSEC_DEBUG_VERBOSE(30, parsec_gpu_output_stream,  "GPU[%d:%s]:\tStill waiting for %d tasks to execute, but poped NULL the last %d times I tried to pop something...",
+            PARSEC_DEBUG_VERBOSE(30, parsec_gpu_output_stream,  "GPU[%d:%s]:\tStill waiting for %d tasks to execute, but popped NULL the last %d times I tried to pop something...",
                                  gpu_device->super.device_index, gpu_device->super.name, gpu_device->mutex, pop_null);
         }
     }

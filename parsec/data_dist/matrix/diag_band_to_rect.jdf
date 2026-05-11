@@ -14,7 +14,7 @@ extern "C" %{
 #include <string.h>
 
 /***********************************************************
- * Convert a tiled 2D cyclic symetric band diagonal matrix *
+ * Convert a tiled 2D cyclic symmetric band diagonal matrix *
  * into a 1D cyclic rectangle                              *
  ***********************************************************/
 
@@ -119,4 +119,3 @@ RO  A <- descA(k+1,k)
 BODY
     /*nothing*/
 END
-

@@ -55,7 +55,7 @@ const parsec_sched_base_component_t parsec_sched_pbq_component = {
         "", /*< no reserve */
     },
     {
-        /* The component has no metada */
+        /* The component has no metadata */
         MCA_BASE_METADATA_PARAM_NONE,
         "", /*< no reserve */
     }
@@ -82,4 +82,3 @@ static int sched_pbq_component_register(void)
                               "the number of pending tasks that end up in the virtual process <VPID> queue at level <QID> for the PBQ scheduler");
     return MCA_SUCCESS;
 }
-

@@ -44,8 +44,8 @@ class ParsecDAG:
         """
         node = re.compile(r'''
            (?P<name>[^ ]+)                       #Group name is all the characters to the first space
-           .*label=".(?P<thid>[0-9]+)            #Group thid is the first integer in "<a/b>" at the begining of the label
-           .(?P<vpid>[0-9]+)                     #Group vpid is the second integer in "<a/b>" at the begining of the label
+           .*label=".(?P<thid>[0-9]+)            #Group thid is the first integer in "<a/b>" at the beginning of the label
+           .(?P<vpid>[0-9]+)                     #Group vpid is the second integer in "<a/b>" at the beginning of the label
            [^a-zA-Z_]*                           #Skip until the first letter
            (?P<label>[^(]+)                      #Group label is everything until the '(' 
            .(?P<param>[^)]+)                     #Group param follows the '(', it's all the things until ')' 

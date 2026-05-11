@@ -6,7 +6,7 @@
 
 #include "cuda_test_internal.h"
 
-/* Timming */
+/* Timing */
 double sync_time_elapsed = 0.0;
 
 /**

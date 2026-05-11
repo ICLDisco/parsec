@@ -22,10 +22,10 @@
  * predecessor repo not being overwrite during reception.
  *
  * Note this test doesn't work with runtime_comm_short_limit != 0.
- * This test sends two ouput flows on a task with different shapes,
+ * This test sends two output flows on a task with different shapes,
  * and received then on a remote successor with two different shapes.
  * Currently, PaRSEC doesn't support this scenario using SHORT.
- * In this case, two datas are included on the activation message, and
+ * In this case, two data are included on the activation message, and
  * after reception on the receiver, the predecessor task is faked and
  * iterate_successors of the predecessor task is run only ONCE, therefore,
  * for one successors the flow will contain incorrect data.
@@ -114,9 +114,6 @@ int main(int argc, char *argv[])
       ctp->arenas_datatypes[PARSEC_remote_multiple_outs_same_pred_flow_DEFAULT_ADT_IDX]    = adt_default;
       ctp->arenas_datatypes[PARSEC_remote_multiple_outs_same_pred_flow_LOWER_TILE_ADT_IDX] = adt_lower;
       ctp->arenas_datatypes[PARSEC_remote_multiple_outs_same_pred_flow_UPPER_TILE_ADT_IDX] = adt_upper;
-      PARSEC_OBJ_RETAIN(adt_default.arena);
-      PARSEC_OBJ_RETAIN(adt_lower.arena);
-      PARSEC_OBJ_RETAIN(adt_upper.arena);
 
       DO_RUN(ctp);
       DO_CHECK(remote_multiple_outs_same_pred_flow, dcA, dcA_check);

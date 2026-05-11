@@ -51,7 +51,7 @@ const parsec_termdet_base_component_t parsec_termdet_local_component = {
         "", /*< no reserve */
     },
     {
-        /* The component has no metada */
+        /* The component has no metadata */
         MCA_BASE_METADATA_PARAM_NONE,
         "", /*< no reserve */
     }
@@ -70,4 +70,3 @@ static int termdet_local_component_query(mca_base_module_t **module, int *priori
     *module = (mca_base_module_t *)ptr;
     return MCA_SUCCESS;
 }
-

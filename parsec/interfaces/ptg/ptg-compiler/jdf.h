@@ -341,7 +341,7 @@ typedef struct jdf_guarded_call {
 
 typedef struct jdf_call {
     struct jdf_object_t       super;
-    struct jdf_expr          *local_defs;     /**< Each call can have some local indicies, allowing to define sets of deps */
+    struct jdf_expr          *local_defs;     /**< Each call can have some local indices, allowing to define sets of deps */
     char                     *var;             /**< If func_or_mem is a function, var is the name of the flow on that function */
     char                     *func_or_mem;     /**< string of the function (task class) or data collection referred to in this call */
     struct jdf_expr          *parameters;      /**< list of parameters for that task class / data collection */

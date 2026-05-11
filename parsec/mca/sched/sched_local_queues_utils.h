@@ -24,7 +24,7 @@
 typedef struct {
     parsec_dequeue_t   *system_queue;               /* The overflow queue itself. */
 #if defined(PARSEC_PAPI_SDE)
-    int                 local_system_queue_balance; /* A local sum of how many elements have been pushed / poped
+    int                 local_system_queue_balance; /* A local sum of how many elements have been pushed / popped
                                                      * out of the system queue -- used for lockfree statistics and
                                                      * maintained by each algorithm in push / pop */
 #endif

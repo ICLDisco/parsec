@@ -139,7 +139,7 @@ static int process_arg(const char *param, const char *value,
     char *new_str;
 
     /* Look to see if we've already got an --mca argument for the same
-       param.  Check against the list of MCA param's that we've
+       param.  Check against the list of MCA parameters that we've
        already saved arguments for. */
 
     for (i = 0; NULL != *params && NULL != (*params)[i]; ++i) {

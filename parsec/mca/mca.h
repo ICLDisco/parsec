@@ -142,7 +142,7 @@ typedef struct mca_base_module_2_0_0_t mca_base_module_2_0_0_t;
  *
  * If the component a) has no MCA parameters to register, b) no
  * resources to allocate, and c) can always be used in a process
- * (albiet perhaps not selected), it may provide NULL for this
+ * (albeit perhaps not selected), it may provide NULL for this
  * function.  In this cause, the MCA will act as if it called the open
  * function and it returned MCA_SUCCESS.
  */
@@ -185,7 +185,7 @@ typedef int (*mca_base_close_component_1_0_0_fn_t)(void);
  *
  * This function is used by the mca_base_select function to find the
  * highest priority component to select. Frameworks are free to
- * implement their own query function, but must also implment their
+ * implement their own query function, but must also implement their
  * own select function as a result.
  */
 typedef int (*mca_base_query_component_2_0_0_fn_t)(mca_base_module_2_0_0_t **module, int *priority);
@@ -222,7 +222,7 @@ typedef int (*mca_base_query_component_2_0_0_fn_t)(mca_base_module_2_0_0_t **mod
  *
  * If the component a) has no MCA parameters to register, b) no
  * resources to allocate, and c) can always be used in a process
- * (albiet perhaps not selected), it may provide NULL for this
+ * (albeit perhaps not selected), it may provide NULL for this
  * function.  In this cause, the MCA will act as if it called the
  * registration function and it returned MCA_SUCCESS.
  */
@@ -268,7 +268,7 @@ struct mca_base_component_2_0_0_t {
      belongs to. */
 
   char mca_component_name[MCA_BASE_MAX_COMPONENT_NAME_LEN + 1];
-  /**< This comopnent's string name. */
+  /**< This component's string name. */
   char mca_options_name[MCA_BASE_MAX_COMPONENT_NAME_LEN + 1];
   /**< This component's compile-time options string (e.g.,
    * +peer_access when CUDA supports peer_access). */

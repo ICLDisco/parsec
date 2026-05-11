@@ -236,7 +236,7 @@ parsec_data_copy_t* parsec_data_copy_new(parsec_data_t* data, uint8_t device,
 
 #if 0
 /*
- * WARNING: Is this function usefull or should it be removed ?
+ * WARNING: Is this function useful or should it be removed ?
  */
 /**
  * Find the corresponding copy of the data on the requested device. If the
@@ -284,7 +284,7 @@ int parsec_data_get_device_copy(parsec_data_copy_t* source,
 /**
  * Beware: Before calling this function the owner of the data must be
  * saved in order to know where to transfer the data from. Once this
- * function returns, the ownership is transfered based on the access
+ * function returns, the ownership is transferred based on the access
  * mode and the knowledge about the location of the most up-to-date
  * version of the data is lost.
  */
@@ -382,7 +382,7 @@ int parsec_data_start_transfer_ownership_to_copy(parsec_data_t* data,
         break;
 
     case PARSEC_DATA_COHERENCY_OWNED:
-        assert( device == data->owner_device ); /* memory is owned, better be me otherwise 2 writters: wrong JDF */
+        assert( device == data->owner_device ); /* memory is owned, better be me otherwise 2 writers: wrong JDF */
 #if defined(PARSEC_DEBUG_PARANOID)
         for( i = 0; i < parsec_nb_devices; i++ ) {
             if( device == i || NULL == data->device_copies[i] ) continue;
@@ -564,4 +564,64 @@ parsec_data_destroy( parsec_data_t *data )
     ((parsec_object_t *)(data))->obj_magic_id = PARSEC_OBJ_MAGIC_ID;
 #endif
     PARSEC_OBJ_RELEASE(data);
+}
+
+
+/**
+ * Arena-datatype management.
+ */
+
+/* adt constructor is split in two stages: when the adt is constructed
+ * with OBJ_CONSTRUCT (or allocated with OBJ_NEW), we initialize the
+ * adt object with static zero values.
+ * The user code must then call the parameterized constructor
+ * (init, below) that attaches the datatype and creates the associated arena.
+ *
+ * When the adt object is destructed (or released), the implicit destructor
+ * releases all resources created by both split constructor stages.
+ *
+ * Freeing the type is not part of the implicit destructor.
+ */
+int parsec_arena_datatype_set_type(parsec_arena_datatype_t *adt,
+                                   size_t elem_size,
+                                   size_t alignment,
+                                   parsec_datatype_t opaque_dtt) {
+    adt->arena = PARSEC_OBJ_NEW(parsec_arena_t);
+    parsec_arena_construct(adt->arena, elem_size,
+                           alignment);
+    adt->opaque_dtt = opaque_dtt;
+    return PARSEC_SUCCESS;
+}
+
+/* This constructor must only initialize fields with static values.
+ * When the user is using a persistent adt, the PTG generator will
+ * construct the static arenas, and the user will overwrite them
+ * without calling destruct, which is valid only if this function does
+ * not allocate memory.
+ */
+static void parsec_arena_datatype_construct(parsec_object_t *obj) {
+    parsec_arena_datatype_t *adt = (parsec_arena_datatype_t *)obj;
+    adt->arena              = NULL;
+    adt->ht_item.next_item  = NULL; /* keep Coverity happy */
+    adt->ht_item.hash64     = 0;    /* keep Coverity happy */
+    adt->ht_item.key        = 0;    /* keep Coverity happy */
+    adt->opaque_dtt         = NULL;
+}
+
+static void parsec_arena_datatype_destruct(parsec_object_t *obj) {
+    parsec_arena_datatype_t *adt = (parsec_arena_datatype_t *)obj;
+    if(NULL != adt->arena) PARSEC_OBJ_RELEASE(adt->arena);
+}
+
+PARSEC_OBJ_CLASS_INSTANCE(parsec_arena_datatype_t, parsec_object_t,
+                          parsec_arena_datatype_construct,
+                          parsec_arena_datatype_destruct);
+
+parsec_arena_datatype_t *parsec_arena_datatype_new(void)
+{
+    return PARSEC_OBJ_NEW(parsec_arena_datatype_t);
+}
+
+void parsec_arena_datatype_release(parsec_arena_datatype_t **adt) {
+    PARSEC_OBJ_RELEASE(*adt);
 }

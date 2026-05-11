@@ -62,6 +62,8 @@ char **mca_components_get_user_selection(char *type)
     nb++;
     list[nb] = NULL;
 
+    free(param);
+
     return list;
 }
 

@@ -79,7 +79,7 @@
  * this set of tasks should be pushed.
  *
  * This concept is a hint: it needs not be followed or computed exactly;
- * However this hint is mandatory: a fair scheduler cannot repetedly select
+ * However this hint is mandatory: a fair scheduler cannot repeatedly select
  * a task that was scheduled at distance X if there are still tasks scheduled
  * at distance Y<X. A task that cannot execute now will kept being scheduled
  * with a distance larger than its selection distance.
@@ -133,7 +133,7 @@
  *  - If there is a task in this second-level list, remember what
  *    distance was used, and return the found context
  *  - If there is no task, continue searching
- *  - Evenutally return the found task, or NULL, afte having released
+ *  - Eventually return the found task, or NULL, after having released
  *    the lock on the lists.
  *
  * The Scheduling function (@ref parsec_sched_base_module_schedule_fn_t) is
@@ -146,7 +146,7 @@
  *
  *  - it takes the lock on the lists
  *  - iterate over the distance-sorted list heads, finding one with
- *    the apprioriate priority (the distance provided by the runtime)
+ *    the appropriate priority (the distance provided by the runtime)
  *  - if it did not find one, stop the iteration before we consider higher
  *    distances, so that the new list head can be inserted in the right
  *    position

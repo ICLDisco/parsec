@@ -152,7 +152,7 @@ static parsec_data_t* sym_twoDBC_data_of(parsec_data_collection_t *desc, ...)
 
     position = parsec_matrix_sym_block_cyclic_coord2pos(dc, m, n);
 
-    /* If mat allocatd, set pos to the right position for each tile */
+    /* If mat allocated, set pos to the right position for each tile */
     if( NULL != dc->mat )
         pos = position;
 
@@ -350,4 +350,3 @@ size_t parsec_matrix_sym_block_cyclic_coord2pos(
     }
     return pos;
 }
-

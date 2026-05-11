@@ -128,10 +128,10 @@ release_ownership_of_data(parsec_dtd_task_t *current_task, int flow_index)
  * @param[in]   es
  *                  Execution unit
  * @param[in]   this_task
- *                  We will iterate thorugh the successors of this task
+ *                  We will iterate through the successors of this task
  * @param[in]   action_mask,ontask_arg
  * @param[in]   ontask
- *                  Function pointer to function that activates successsor
+ *                  Function pointer to function that activates successor
  *
  ******************************************************************************/
 void
@@ -199,7 +199,7 @@ parsec_dtd_ordering_correctly( parsec_execution_stream_t *es,
                     PARSEC_OUTPUT == op_type_on_current_flow ) {
                     if(action_mask & PARSEC_ACTION_RELEASE_LOCAL_DEPS) {
                         if(release_ownership_of_data(current_task, current_dep)) { /* trying to release ownership */
-                            continue;  /* no descendent for this data */
+                            continue;  /* no descendant for this data */
                         } else {
                             current_desc = (DESC_OF(current_task, current_dep))->task;
                         } /* Current task has a descendant hence we must activate her */

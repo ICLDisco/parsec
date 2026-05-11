@@ -89,7 +89,7 @@ struct parsec_mca_param_t {
     /** Whether this is internal (not meant to be seen / modified by
         users) or not */
     bool mbp_internal;
-    /** Whether this value is changable from the default value that
+    /** Whether this value is changeable from the default value that
         was registered (e.g., when true, useful for reporting values,
         like the value of the GM library that was linked against) */
     bool mbp_read_only;
@@ -130,7 +130,7 @@ typedef struct parsec_mca_param_t parsec_mca_param_t;
 /**
  * \internal
  *
- * Object delcataion for parsec_mca_param_t
+ * Object declaration for parsec_mca_param_t
  */
 PARSEC_DECLSPEC PARSEC_OBJ_CLASS_DECLARATION(parsec_mca_param_t);
 

@@ -7,7 +7,7 @@ Copyright (c) 2015-2020 The University of Tennessee and The University
 
 This python script is the source code for the iParam class. This class
 is used to parse and store command line parameters. It provides accessors
-and mutators to the stored fileds.
+and mutators to the stored fields.
 
 @author Damien Genet
 @email parsec-users@icl.utk.edu
@@ -167,7 +167,7 @@ class iParam(object):
 
     def printHelp(self, bin):
         if 'aggregator' in bin:
-            print '{0} -p <listenning port number> -N <nb MPI processes> -M <nb Argo streams> -P <proc grid nb rows> -Q <proc grid nb cols> -v <debug level> -d <db name>'.format(bin)
+            print '{0} -p <listening port number> -N <nb MPI processes> -M <nb Argo streams> -P <proc grid nb rows> -Q <proc grid nb cols> -v <debug level> -d <db name>'.format(bin)
         elif 'plot' in bin:
             print '{0} -g <aggregator address> -a <aggregator port number> -k <key to plot> -v <debug level>'.format(bin)
         else:
@@ -213,4 +213,3 @@ class iParam(object):
         if self.P * self.Q is not self.N:
             self.Q = 1
             self.P = self.N
-

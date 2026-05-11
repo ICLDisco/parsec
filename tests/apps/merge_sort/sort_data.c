@@ -35,6 +35,10 @@ parsec_tiled_matrix_t *create_and_distribute_data(int rank, int world, int mb, i
 
 void free_data(parsec_tiled_matrix_t *d)
 {
-    parsec_data_collection_destroy(&d->super);
+    parsec_matrix_block_cyclic_t *m = (parsec_matrix_block_cyclic_t*)d;
+    if(NULL != m->mat) {
+        parsec_data_free(m->mat);
+    }
+    parsec_tiled_matrix_destroy(d);
     free(d);
 }

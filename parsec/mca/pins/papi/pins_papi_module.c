@@ -409,7 +409,7 @@ static void pins_thread_init_papi(parsec_execution_stream_t* es)
 }
 
 /**
- * This function breaks down the event_cb and frees up thread-specific data.  This funciton also
+ * This function breaks down the event_cb and frees up thread-specific data.  This function also
  * performs the final traces for each frequency group within the event_cb.
  */
 static void pins_thread_fini_papi(parsec_execution_stream_t* es)

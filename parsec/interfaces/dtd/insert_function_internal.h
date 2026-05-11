@@ -2,7 +2,7 @@
  * Copyright (c) 2013-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
- * Copyright (c) 2023      NVIDIA Corporation.  All rights reserved.
+ * Copyright (c) 2023-2026 NVIDIA Corporation.  All rights reserved.
  */
 /**
  *
@@ -45,7 +45,7 @@ extern int parsec_dtd_dump_traversal_info; /**< For printing traversal info */
 /* To flag the task we are trying to complete as a local one */
 #define PARSEC_ACTION_COMPLETE_LOCAL_TASK 0x08000000
 
-/* Macros to figure out offset of paramters attached to a task */
+/* Macros to figure out offset of parameters attached to a task */
 #define GET_HEAD_OF_PARAM_LIST(TASK) (parsec_dtd_task_param_t *) ( ((char *)TASK) + sizeof(parsec_dtd_task_t) + (TASK->super.task_class->nb_flows * sizeof(parsec_dtd_parent_info_t)) + (TASK->super.task_class->nb_flows * sizeof(parsec_dtd_descendant_info_t))  + (TASK->super.task_class->nb_flows * sizeof(parsec_dtd_flow_info_t)) )
 
 #define GET_VALUE_BLOCK(HEAD, PARAM_COUNT) ((char *)HEAD) + PARAM_COUNT * sizeof(parsec_dtd_task_param_t)
@@ -96,7 +96,7 @@ typedef void (parsec_taskpool_wait_t)( parsec_taskpool_t *tp );
 #define RELEASE_REMOTE_DATA (1<<3)
 /* This flag is used to mark flow of a task specially. There might be cases,
  * where one task uses same data in multiple flow, in the order W->...->R.
- * In this special case the task does not release the ownserhip of the data
+ * In this special case the task does not release the ownership of the data
  * for the "W" flow, but it needs to. We mark the last "R" flow as special
  * and make sure we release the ownership of the data when we are going
  * through the last "R" flow.
