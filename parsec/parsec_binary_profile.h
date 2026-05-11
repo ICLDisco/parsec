@@ -24,6 +24,10 @@
 
 BEGIN_C_DECLS
 
+#if defined(PARSEC_PROF_TRACE_NVTX)
+struct parsec_profiling_nvtx_range_s;
+#endif
+
 typedef struct parsec_profiling_output_base_event_s {
     uint16_t  key;
     uint16_t  flags;
@@ -143,6 +147,10 @@ struct parsec_profiling_stream_s {
     pthread_t                  thread_owner;
     off_t                      current_events_buffer_offset;
     parsec_profiling_buffer_t *current_events_buffer;     /* points to the events buffer in which we are writing. */
+#if defined(PARSEC_PROF_TRACE_NVTX)
+    struct parsec_profiling_nvtx_range_s *nvtx_ranges;
+    struct parsec_profiling_nvtx_range_s *nvtx_freelist;
+#endif
 };
 
 typedef struct {

@@ -24,6 +24,9 @@
 
 #include "parsec/profiling.h"
 #include "parsec/parsec_binary_profile.h"
+#if defined(PARSEC_PROF_TRACE_NVTX)
+#include "parsec/profiling_nvtx.h"
+#endif
 #include "parsec/data_distribution.h"
 #include "parsec/utils/debug.h"
 #include "parsec/class/list.h"
@@ -106,6 +109,15 @@ static PARSEC_TLS_DECLARE(tls_profiling);
 
 static int parsec_profiling_show_profiling_performance = 0;
 static parsec_profiling_perf_t parsec_profiling_global_perf[PERF_MAX];
+
+static int parsec_profiling_has_active_substrate(void)
+{
+#if defined(PARSEC_PROF_TRACE_NVTX)
+    return (-1 != file_backend_fd) || parsec_profiling_nvtx_is_enabled();
+#else
+    return (-1 != file_backend_fd);
+#endif
+}
 
 #define do_and_measure_perf( perf_counter, code ) do {                  \
         parsec_time_t start, end;                                       \
@@ -295,8 +307,56 @@ free_to_freelist(tl_freelist_t *fl, parsec_profiling_buffer_t *b)
     pthread_mutex_unlock(&fl->lock);
 }
 
-
 #if defined(PARSEC_PROFILING_USE_HELPER_THREAD)
+static void set_last_error(const char *format, ...);
+
+static void profiling_release_buffer_memory(parsec_profiling_buffer_t *buffer)
+{
+    if( NULL == buffer ) {
+        return;
+    }
+
+#if defined(PARSEC_PROFILING_USE_MMAP)
+    do_and_measure_perf(PERF_MUNMAP,
+      if( munmap(buffer, event_buffer_size) == -1 ) {
+          fprintf(stderr, "Warning profiling system: unmap of the events backend file at %p failed: %s\n",
+                  (void*)buffer, strerror(errno));
+      });
+#else
+    do_and_measure_perf(PERF_FREE,
+      free(buffer));
+#endif
+}
+
+static void profiling_cleanup_file_backend(void)
+{
+    tl_freelist_buffer_t *b;
+
+    profiling_release_buffer_memory((parsec_profiling_buffer_t*)profile_head);
+    profile_head = NULL;
+
+    if( NULL != default_freelist ) {
+        while(default_freelist->first != NULL) {
+            b = default_freelist->first;
+            default_freelist->first = b->next;
+            profiling_release_buffer_memory((parsec_profiling_buffer_t*)b);
+        }
+        pthread_mutex_destroy(&default_freelist->lock);
+        free(default_freelist);
+        default_freelist = NULL;
+    }
+
+    if( -1 != file_backend_fd ) {
+        close(file_backend_fd);
+        file_backend_fd = -1;
+    }
+    free(bpf_filename);
+    bpf_filename = NULL;
+    file_backend_extendable = 0;
+    file_backend_size = 0;
+    file_backend_next_offset = 0;
+}
+
 /**
  * Profiling I/O command structure
  *
@@ -329,6 +389,7 @@ typedef struct io_cmd_queue_s {
 static io_cmd_queue_t cmd_queue;
 static io_cmd_queue_t free_cmd_queue;
 static pthread_t io_helper_thread_id;
+static int io_helper_thread_started = 0;
 
 static int             io_cmd_flush_counter;
 static pthread_mutex_t io_cmd_flush_mutex;
@@ -418,15 +479,31 @@ static void *io_helper_thread_fct(void *_)
     return NULL;
 }
 
-static void io_helper_thread_init(void)
+static int io_helper_thread_init(void)
 {
+    int rc;
+
+    if( io_helper_thread_started ) {
+        return 0;
+    }
+
     io_cmd_queue_init(&cmd_queue);
     io_cmd_queue_init(&free_cmd_queue);
     io_cmd_flush_counter = 0;
     pthread_mutex_init(&io_cmd_flush_mutex, NULL);
     pthread_cond_init(&io_cmd_flush_cond, NULL);
 
-    pthread_create(&io_helper_thread_id, NULL, io_helper_thread_fct, NULL);
+    rc = pthread_create(&io_helper_thread_id, NULL, io_helper_thread_fct, NULL);
+    if( 0 != rc ) {
+        set_last_error("Profiling system: unable to create I/O helper thread: %s\n", strerror(rc));
+        pthread_mutex_destroy(&io_cmd_flush_mutex);
+        pthread_cond_destroy(&io_cmd_flush_cond);
+        io_cmd_queue_destroy(&cmd_queue);
+        io_cmd_queue_destroy(&free_cmd_queue);
+        return PARSEC_ERROR;
+    }
+    io_helper_thread_started = 1;
+    return 0;
 }
 #endif /* PARSEC_PROFILING_USE_HELPER_THREAD */
 
@@ -475,6 +552,7 @@ int parsec_profiling_init( int process_id )
     parsec_profiling_buffer_t dummy_events_buffer;
     long ps = (16 * 1024);  /* a sane default value */
     int parsec_profiling_minimal_ebs;
+    int na_s, na_e;
 
     if( __profile_initialized ) return PARSEC_ERR_NOT_SUPPORTED;
 
@@ -505,6 +583,9 @@ int parsec_profiling_init( int process_id )
     parsec_mca_param_reg_int_name("profile", "show_profiling_performance", "Print profiling performance at the end of the execution"
                                       " (default is no/0)",
                                       false, false, parsec_profiling_show_profiling_performance, &parsec_profiling_show_profiling_performance);
+#if defined(PARSEC_PROF_TRACE_NVTX)
+    parsec_profiling_nvtx_init(process_id);
+#endif
     if( parsec_profiling_minimal_ebs <= 0 )
         parsec_profiling_minimal_ebs = 10;
     if( parsec_profiling_file_multiplier <= 0 )
@@ -560,17 +641,19 @@ int parsec_profiling_init( int process_id )
     } else
         parsec_profiling_add_information("cwd", "");
 
-#if defined(PARSEC_PROFILING_USE_HELPER_THREAD)
-    io_helper_thread_init();
-#endif
-    
     __profile_initialized = 1; //* confirmed */
+    /* Reserve keys 0/1 to catch traces that use an uninitialized key. */
+    parsec_profiling_add_dictionary_keyword( "N/A", "fill:#000000", 0, "", &na_s, &na_e);
+    assert(na_s == 0 && na_e == 1);
+    (void)na_s; (void)na_e;
     return 0;
 }
 
 void parsec_profiling_start(void)
 {
     if(start_called)
+        return;
+    if( !__profile_initialized || !parsec_profiling_has_active_substrate() )
         return;
 
     start_called = 1;
@@ -582,43 +665,52 @@ parsec_profiling_stream_t* parsec_profiling_stream_init( size_t length, const ch
     parsec_profiling_stream_t *sprof;
     va_list ap;
     int rc;
+    int file_backend_enabled = (-1 != file_backend_fd);
 
     if( !__profile_initialized ) return NULL;
-    if( -1 == file_backend_fd ) {
-        set_last_error("Profiling system: parsec_profiling_stream_init: call before parsec_profiling_dbp_start");
+#if defined(PARSEC_PROF_TRACE_NVTX)
+    if( !file_backend_enabled && !parsec_profiling_nvtx_is_enabled() ) {
+#else
+    if( !file_backend_enabled ) {
+#endif
+        set_last_error("Profiling system: parsec_profiling_stream_init: call before a profiling substrate was started");
         return NULL;
     }
-    if( 0 == file_backend_extendable ) {
+    if( file_backend_enabled && (0 == file_backend_extendable) ) {
         set_last_error("Profiling system: parsec_profiling_stream_init called on a blocked backend");
         return NULL;
     }
 
-    sprof = (parsec_profiling_stream_t*)malloc( sizeof(parsec_profiling_stream_t) + length );
+    sprof = (parsec_profiling_stream_t*)malloc( sizeof(parsec_profiling_stream_t) +
+                                                (file_backend_enabled ? length : 0) );
     if( NULL == sprof ) {
         set_last_error("Profiling system: parsec_profiling_stream_init: unable to allocate %u bytes", length);
         fprintf(stderr, "*** %s\n", parsec_profiling_strerror());
         return NULL;
     }
 
-    sprof->buffers_freelist = (tl_freelist_t*)malloc(sizeof(tl_freelist_t));
-    tl_freelist_t *t_fl = sprof->buffers_freelist;
-    tl_freelist_buffer_t *e;
-    pthread_mutex_init(&t_fl->lock, NULL);
-    e = (tl_freelist_buffer_t*)profiling_allocate_new_buffer();
-    if( NULL == e ) {
-        free(sprof->buffers_freelist);
-        free(sprof);
-        return NULL;
-    }
-    e->next = NULL;
-    t_fl->first = e;
-    t_fl->nb_allocated = 1;
-    for(rc = 1; rc < parsec_profiling_per_thread_buffer_freelist_min; rc++) {
-        e->next = (tl_freelist_buffer_t*)profiling_allocate_new_buffer();
-        assert(NULL != e->next);
-        e = e->next;
+    sprof->buffers_freelist = NULL;
+    if( file_backend_enabled ) {
+        sprof->buffers_freelist = (tl_freelist_t*)malloc(sizeof(tl_freelist_t));
+        tl_freelist_t *t_fl = sprof->buffers_freelist;
+        tl_freelist_buffer_t *e;
+        pthread_mutex_init(&t_fl->lock, NULL);
+        e = (tl_freelist_buffer_t*)profiling_allocate_new_buffer();
+        if( NULL == e ) {
+            free(sprof->buffers_freelist);
+            free(sprof);
+            return NULL;
+        }
         e->next = NULL;
-        t_fl->nb_allocated++;
+        t_fl->first = e;
+        t_fl->nb_allocated = 1;
+        for(rc = 1; rc < parsec_profiling_per_thread_buffer_freelist_min; rc++) {
+            e->next = (tl_freelist_buffer_t*)profiling_allocate_new_buffer();
+            assert(NULL != e->next);
+            e = e->next;
+            e->next = NULL;
+            t_fl->nb_allocated++;
+        }
     }
 
     PARSEC_OBJ_CONSTRUCT(sprof, parsec_list_item_t);
@@ -626,20 +718,30 @@ parsec_profiling_stream_t* parsec_profiling_stream_init( size_t length, const ch
     rc = vasprintf(&sprof->hr_id, format, ap); assert(rc!=-1); (void)rc;
     va_end(ap);
 
-    assert( event_buffer_size != 0 );
-    /* To trigger a buffer allocation at first creation of an event */
-    sprof->next_event_position = event_buffer_size;
+    if( file_backend_enabled ) {
+        assert( event_buffer_size != 0 );
+        /* To trigger a buffer allocation at first creation of an event */
+        sprof->next_event_position = event_buffer_size;
+    } else {
+        sprof->next_event_position = 0;
+    }
     sprof->nb_events = 0;
 
     sprof->infos = NULL;
 
     sprof->first_events_buffer_offset = (off_t)-1;
     sprof->current_events_buffer = NULL;
+#if defined(PARSEC_PROF_TRACE_NVTX)
+    sprof->nvtx_ranges = NULL;
+    sprof->nvtx_freelist = NULL;
+#endif
 
     parsec_list_push_back( &threads, (parsec_list_item_t*)sprof );
 
-    /* Allocate the first page to save time on the first event tracing */
-    switch_event_buffer(sprof);
+    if( file_backend_enabled ) {
+        /* Allocate the first page to save time on the first event tracing */
+        switch_event_buffer(sprof);
+    }
 
     memset(sprof->thread_perf, 0, sizeof(parsec_profiling_perf_t)*PERF_MAX);
 
@@ -670,10 +772,12 @@ int parsec_profiling_fini( void )
     while( (t = (parsec_profiling_stream_t*)parsec_list_nolock_pop_front(&threads)) ) {
         tl_freelist_t *fl = t->buffers_freelist;
         tl_freelist_buffer_t *b;
-        while(fl->first != NULL) {
-            b = fl->first;
-            fl->first = b->next;
-            free(b);
+        if( NULL != fl ) {
+            while(fl->first != NULL) {
+                b = fl->first;
+                fl->first = b->next;
+                free(b);
+            }
         }
         if( parsec_profiling_show_profiling_performance ) {
             for(i = 0; i < PERF_MAX; i++) {
@@ -682,8 +786,14 @@ int parsec_profiling_fini( void )
             }
         }
 
-        pthread_mutex_destroy(&fl->lock);
-        free(fl);
+#if defined(PARSEC_PROF_TRACE_NVTX)
+        parsec_profiling_nvtx_release_stream(&t->nvtx_ranges,
+                                             &t->nvtx_freelist);
+#endif
+        if( NULL != fl ) {
+            pthread_mutex_destroy(&fl->lock);
+            free(fl);
+        }
         free(t->hr_id);
         free(t);
     }
@@ -691,20 +801,25 @@ int parsec_profiling_fini( void )
     PARSEC_OBJ_DESTRUCT(&threads);
 
 #if defined(PARSEC_PROFILING_USE_HELPER_THREAD)
-    io_cmd_t *cmd = io_cmd_allocate();
-    cmd->buffer = IO_CMD_STOP;
-    cmd->fl = NULL;
-    cmd->next = NULL;
-    pthread_mutex_lock(&cmd_queue.lock);
-    if( NULL == cmd_queue.last ) {
-        cmd_queue.last = cmd_queue.next = cmd;
-    } else {
-        cmd_queue.last->next = cmd;
-        cmd_queue.last = cmd;
+    if( io_helper_thread_started ) {
+        io_cmd_t *cmd = io_cmd_allocate();
+        cmd->buffer = IO_CMD_STOP;
+        cmd->fl = NULL;
+        cmd->next = NULL;
+        pthread_mutex_lock(&cmd_queue.lock);
+        if( NULL == cmd_queue.last ) {
+            cmd_queue.last = cmd_queue.next = cmd;
+        } else {
+            cmd_queue.last->next = cmd;
+            cmd_queue.last = cmd;
+        }
+        pthread_cond_signal(&cmd_queue.cond);
+        pthread_mutex_unlock(&cmd_queue.lock);
+        pthread_join(io_helper_thread_id, NULL);
+        pthread_mutex_destroy(&io_cmd_flush_mutex);
+        pthread_cond_destroy(&io_cmd_flush_cond);
+        io_helper_thread_started = 0;
     }
-    pthread_cond_signal(&cmd_queue.cond);
-    pthread_mutex_unlock(&cmd_queue.lock);
-    pthread_join(io_helper_thread_id, NULL);
 #endif
     
     if( parsec_profiling_show_profiling_performance ) {
@@ -755,16 +870,22 @@ int parsec_profiling_fini( void )
     }
     memset(parsec_profiling_global_perf, 0, sizeof(parsec_profiling_perf_t)*PERF_MAX);
 
-    while(default_freelist->first != NULL) {
-        tl_freelist_buffer_t *b = default_freelist->first;
-        default_freelist->first = b->next;
-        free(b);
+    if( NULL != default_freelist ) {
+        while(default_freelist->first != NULL) {
+            tl_freelist_buffer_t *b = default_freelist->first;
+            default_freelist->first = b->next;
+            free(b);
+        }
+        pthread_mutex_destroy(&default_freelist->lock);
+        free(default_freelist);
+        default_freelist = NULL;
     }
-    pthread_mutex_destroy(&default_freelist->lock);
-    free(default_freelist);
 
     parsec_profiling_dictionary_flush();
     free(parsec_prof_keys);
+#if defined(PARSEC_PROF_TRACE_NVTX)
+    parsec_profiling_nvtx_fini();
+#endif
     parsec_prof_keys_number = 0;
     start_called = 0;            /* Allow the profiling to be reinitialized */
     parsec_profile_enabled = 0;  /* turn off the profiling */
@@ -781,6 +902,10 @@ int parsec_profiling_reset( void )
     PARSEC_LIST_ITERATOR(&threads, it, {
         t = (parsec_profiling_stream_t*)it;
         t->next_event_position = 0;
+#if defined(PARSEC_PROF_TRACE_NVTX)
+        parsec_profiling_nvtx_release_stream(&t->nvtx_ranges,
+                                             &t->nvtx_freelist);
+#endif
         /* TODO: should reset the backend file / recreate it */
     });
 
@@ -832,6 +957,9 @@ int parsec_profiling_add_dictionary_keyword( const char* key_name, const char* a
 
     *key_start = START_KEY(pos);
     *key_end = END_KEY(pos);
+#if defined(PARSEC_PROF_TRACE_NVTX)
+    parsec_profiling_nvtx_register_key(pos, key_name, attributes);
+#endif
 profiling_keyword_out:
     pthread_mutex_unlock(&profiling_keyword_lock);
     return ret;
@@ -852,6 +980,9 @@ int parsec_profiling_dictionary_flush( void )
         }
     }
     parsec_prof_keys_count = 0;
+#if defined(PARSEC_PROF_TRACE_NVTX)
+    parsec_profiling_nvtx_dictionary_flush();
+#endif
 
     return 0;
 }
@@ -961,7 +1092,9 @@ int parsec_profiling_ts_trace_flags_info_fn(int key, uint64_t event_id, uint32_t
 {
     parsec_profiling_stream_t* ctx;
 
-    if( (-1 == file_backend_fd) || (!start_called) ) {
+    if( !__profile_initialized ||
+        !start_called ||
+        !parsec_profiling_has_active_substrate() ) {
         return PARSEC_ERR_NOT_SUPPORTED;
     }
 
@@ -991,12 +1124,14 @@ parsec_profiling_trace_flags_info_fn(parsec_profiling_stream_t* context, int key
     size_t this_event_length;
     parsec_time_t now;
 
-    if(flags & PARSEC_PROFILING_EVENT_TIME_AT_START) {
-        now = take_time();
+    if( !__profile_initialized ||
+        !start_called ||
+        !parsec_profiling_has_active_substrate() ) {
+        return PARSEC_ERR_NOT_SUPPORTED;
     }
 
-    if( (-1 == file_backend_fd) || (!start_called) ) {
-        return PARSEC_ERR_NOT_SUPPORTED;
+    if(flags & PARSEC_PROFILING_EVENT_TIME_AT_START) {
+        now = take_time();
     }
 
     if( key < 2 || key >= 2*parsec_prof_keys_count ) {
@@ -1007,6 +1142,17 @@ parsec_profiling_trace_flags_info_fn(parsec_profiling_stream_t* context, int key
             parsec_prof_warning_issued = 1;
         }
         assert(0); /* In DEBUG mode, we provide a catch point here to find what task issued this profiling */
+    }
+
+#if defined(PARSEC_PROF_TRACE_NVTX)
+    parsec_profiling_nvtx_trace(&context->nvtx_ranges,
+                                &context->nvtx_freelist,
+                                BASE_KEY(key), KEY_IS_START(key),
+                                event_id, taskpool_id);
+#endif
+
+    if( -1 == file_backend_fd ) {
+        return 0;
     }
 
     this_event_length = EVENT_LENGTH( key, ((NULL != info_fn) && (NULL != info_data)) );
@@ -1484,6 +1630,13 @@ int parsec_profiling_dbp_start( const char *basefile, const char *hr_info )
     profile_head->profile_buffer_size = event_buffer_size;
     strncpy(profile_head->hr_id, hr_info, 127); /* We copy only up to 127 bytes to leave room for the '\0' */
     profile_head->rank = parsec_profiling_process_id;
+
+#if defined(PARSEC_PROFILING_USE_HELPER_THREAD)
+    if( 0 != io_helper_thread_init() ) {
+        profiling_cleanup_file_backend();
+        return PARSEC_ERROR;
+    }
+#endif
 
     /* Reset the error system without printing it on stderr */
     snprintf(parsec_profiling_last_error, MAX_PROFILING_ERROR_STRING_LEN, "Profiling system: success");

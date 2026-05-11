@@ -231,6 +231,8 @@ option(PARSEC_PROF_TRACE
   set(PARSEC_PROF_TRACE_SYSTEM "PaRSEC Binary Tracing Format" CACHE STRING "Select the profiling system, if PARSEC_PROF_TRACE is ON")
 #This enforces that only valid values are available in ccmake or cmake-gui
 set_property(CACHE PARSEC_PROF_TRACE_SYSTEM PROPERTY STRINGS "OTF2" "PaRSEC Binary Tracing Format")
+option(PARSEC_PROF_TRACE_NVTX
+  "Mirror PaRSEC profiling events as NVIDIA NVTX ranges for Nsight Systems" OFF)
 option(PARSEC_PROF_TRACE_PTG_INTERNAL_INIT
   "Generate Profiling traces for the internal_init tasks in the PTG interface (expert mode only)" OFF)
 mark_as_advanced(PARSEC_PROF_TRACE_PTG_INTERNAL_INIT) #This is available in export mode only
@@ -931,6 +933,28 @@ if(PARSEC_PROF_TRACE AND PARSEC_DIST_WITH_MPI)
     endif(OTF2_FOUND AND MPI_C_FOUND)
   endif(PARSEC_PROF_TRACE_SYSTEM STREQUAL "OTF2" OR PARSEC_PROF_TRACE_SYSTEM STREQUAL "Auto")
 endif(PARSEC_PROF_TRACE AND PARSEC_DIST_WITH_MPI)
+
+if(PARSEC_PROF_TRACE_NVTX)
+  if(NOT PARSEC_PROF_TRACE)
+    message(FATAL_ERROR "PARSEC_PROF_TRACE_NVTX requires PARSEC_PROF_TRACE=ON")
+  endif()
+  find_path(PARSEC_NVTX_INCLUDE_DIR
+            NAMES nvtx3/nvToolsExt.h
+            HINTS ${PARSEC_NVTX_ROOT}
+                  ${NVTX_ROOT}
+                  ${CUDAToolkit_INCLUDE_DIRS}
+                  ${CUDAToolkit_ROOT}
+                  ${CUDA_TOOLKIT_ROOT_DIR}
+                  ENV NVTX_ROOT
+                  ENV CUDAToolkit_ROOT
+                  ENV CUDA_PATH
+            PATH_SUFFIXES include)
+  if(NOT PARSEC_NVTX_INCLUDE_DIR)
+    message(FATAL_ERROR "PARSEC_PROF_TRACE_NVTX was requested, but nvtx3/nvToolsExt.h was not found. Set NVTX_ROOT or PARSEC_NVTX_INCLUDE_DIR.")
+  endif()
+  message(STATUS "Profiling will emit NVTX annotations using ${PARSEC_NVTX_INCLUDE_DIR}")
+endif()
+mark_as_advanced(PARSEC_NVTX_INCLUDE_DIR)
 
 #
 # First go for the tools.
