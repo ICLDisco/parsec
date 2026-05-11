@@ -14,6 +14,12 @@ endif(PARSEC_HAVE_RANDOM)
 parsec_addtest_executable(C complex_deps)
 target_ptg_sources(complex_deps PRIVATE "complex_deps.jdf")
 
+parsec_addtest_executable(C receive_auto)
+target_ptg_sources(receive_auto PRIVATE "receive_auto.jdf")
+
+parsec_addtest_executable(C receive_auto_mixed)
+target_ptg_sources(receive_auto_mixed PRIVATE "receive_auto_mixed.jdf")
+
 add_subdirectory(branching)
 add_subdirectory(choice)
 add_subdirectory(controlgather)

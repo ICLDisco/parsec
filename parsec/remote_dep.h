@@ -59,6 +59,7 @@ typedef struct remote_dep_wire_get_s {
 
 struct parsec_dep_type_description_s {
     struct parsec_arena_s     *arena;
+    int16_t                    device_index;
     parsec_datatype_t          src_datatype;
     uint64_t                   src_count;
     int64_t                    src_displ;
@@ -263,6 +264,9 @@ int parsec_remote_dep_propagate(parsec_execution_stream_t* es,
 /* set this data description to CTL dependency */
 #define parsec_set_CTL_dep(PDEP_DATA_DESC)\
     { (PDEP_DATA_DESC)->data = NULL; (PDEP_DATA_DESC)->remote.src_datatype = PARSEC_DATATYPE_NULL; (PDEP_DATA_DESC)->remote.src_count=0; }
+
+/* Marker used by jdf2c for type_remote=AUTO */
+#define PARSEC_REMOTE_DEP_AUTO_ALLOC ((struct parsec_arena_s*)(intptr_t)-1)
 
 
 /** @} */

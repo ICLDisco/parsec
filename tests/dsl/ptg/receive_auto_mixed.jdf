@@ -1,0 +1,259 @@
+extern "C" %{
+/*
+ * Copyright (c) 2026
+ */
+
+#include <assert.h>
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
+#include <cuda_runtime.h>
+#endif
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "parsec.h"
+#include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include "parsec/mca/device/device.h"
+
+static int g_errors = 0;
+static int g_gpu_hits = 0;
+static unsigned long long g_gpu_mask = 0ULL;
+
+static int count_bits_ull(unsigned long long x)
+{
+    int c = 0;
+    while( x ) {
+        c += (int)(x & 1ULL);
+        x >>= 1;
+    }
+    return c;
+}
+
+static int count_visible_cuda_devices(void)
+{
+    int nb = 0;
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
+    for(uint32_t i = 0; i < parsec_nb_devices; i++) {
+        parsec_device_module_t *device = parsec_mca_device_get(i);
+        if( NULL != device && PARSEC_DEV_CUDA == device->type ) {
+            nb++;
+        }
+    }
+#endif
+    return nb;
+}
+%}
+
+descA      [type = "parsec_matrix_block_cyclic_t*"]
+NT         [type = int]
+MAX_BYTES  [type = int]
+
+SEND(k)
+k = 0 .. NT-2
+next = %{ return k + 1; %}
+msg_bytes = %{ return 8 + (k % (MAX_BYTES-8)); %}
+
+: descA(k, 0)
+
+RW A <- descA(k, 0)
+     -> A RECV_AUTO(next) [ type_remote   = DEFAULT
+                            layout_remote = parsec_datatype_int8_t
+                            count_remote  = %{ return msg_bytes; %}
+                            displ_remote  = 0 ]
+     -> A RECV_FIXED(next) [ type_remote   = DEFAULT
+                             layout_remote = parsec_datatype_int8_t
+                             count_remote  = %{ return msg_bytes; %}
+                             displ_remote  = 0 ]
+BODY [type=CUDA]
+{
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
+    if( k < 2 ) {
+        fprintf(stderr, "receive_auto_mixed SEND CUDA BODY: k=%d msg_bytes=%d gpu=%d\n",
+                k, msg_bytes, cuda_device->cuda_index);
+    }
+    cudaMemset(A, (int)(k & 0xff), (size_t)msg_bytes);
+#endif
+}
+END
+
+BODY
+{
+    uint8_t *p = (uint8_t*)A;
+    memset(p, (int)(k & 0xff), (size_t)msg_bytes);
+}
+END
+
+RECV_AUTO(k)
+k = 1 .. NT-1
+prev = %{ return k - 1; %}
+expected = %{ return 8 + (prev % (MAX_BYTES-8)); %}
+
+: descA(k, 0)
+
+READ A <- A SEND(prev) [ type_remote = AUTO ]
+BODY [type=CUDA]
+{
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
+    if( prev < 2 ) {
+        fprintf(stderr, "receive_auto_mixed CUDA BODY: rank task prev=%d expected=%d gpu=%d\n",
+                prev, expected, cuda_device->cuda_index);
+    }
+    if( cuda_device->cuda_index < 64 ) {
+        __sync_fetch_and_or(&g_gpu_mask, (1ULL << cuda_device->cuda_index));
+    }
+    uint8_t first = 0, last = 0;
+    cudaMemcpy(&first, A, 1, cudaMemcpyDeviceToHost);
+    cudaMemcpy(&last, ((uint8_t*)A) + expected - 1, 1, cudaMemcpyDeviceToHost);
+    if( first != (uint8_t)(prev & 0xff) ||
+        last != (uint8_t)(prev & 0xff) ) {
+        g_errors++;
+    }
+    g_gpu_hits++;
+#endif
+}
+END
+
+BODY
+{
+    uint8_t *p = (uint8_t*)A;
+    for(int i = 0; i < expected; i++) {
+        if( p[i] != (uint8_t)(prev & 0xff) ) {
+            g_errors++;
+            break;
+        }
+    }
+}
+END
+
+RECV_FIXED(k)
+k = 1 .. NT-1
+prev = %{ return k - 1; %}
+expected = %{ return 8 + (prev % (MAX_BYTES-8)); %}
+
+: descA(k, 0)
+
+READ A <- A SEND(prev) [ type_remote   = DEFAULT
+                         layout_remote = parsec_datatype_int8_t
+                         count_remote  = %{ return expected; %}
+                         displ_remote  = 0 ]
+BODY
+{
+    uint8_t *p = (uint8_t*)A;
+    for(int i = 0; i < expected; i++) {
+        if( p[i] != (uint8_t)(prev & 0xff) ) {
+            g_errors++;
+            break;
+        }
+    }
+}
+END
+
+extern "C" %{
+int main(int argc, char **argv)
+{
+    parsec_context_t *parsec;
+    parsec_receive_auto_mixed_taskpool_t *tp;
+    parsec_matrix_block_cyclic_t descA;
+    int rank = 0, world = 1;
+    int nt = 64;
+    int max_bytes = 256;
+    int rc;
+    int global_errors = 0;
+    int global_gpu_hits = 0;
+    int local_visible_cuda = 0;
+    int global_visible_cuda = 0;
+    int global_distinct_gpus = 0;
+    unsigned long long global_gpu_mask = 0ULL;
+
+    int pargc = 0;
+    char **pargv = NULL;
+    for(int i = 1; i < argc; i++) {
+        if( 0 == strncmp(argv[i], "--", 2) ) {
+            pargc = argc - i;
+            pargv = argv + i;
+            break;
+        }
+        if( 0 == strncmp(argv[i], "-n=", 3) ) {
+            nt = strtol(argv[i] + 3, NULL, 10);
+            continue;
+        }
+        if( 0 == strncmp(argv[i], "-b=", 3) ) {
+            max_bytes = strtol(argv[i] + 3, NULL, 10);
+            continue;
+        }
+    }
+    if( nt < 2 ) nt = 2;
+    if( max_bytes < 16 ) max_bytes = 16;
+
+#ifdef PARSEC_HAVE_MPI
+    {
+        int provided;
+        MPI_Init_thread(NULL, NULL, MPI_THREAD_SERIALIZED, &provided);
+    }
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &world);
+#endif
+
+    parsec = parsec_init(-1, &pargc, &pargv);
+    assert(NULL != parsec);
+    local_visible_cuda = count_visible_cuda_devices();
+
+    parsec_matrix_block_cyclic_init(&descA, PARSEC_MATRIX_BYTE, PARSEC_MATRIX_TILE,
+                                    rank, max_bytes, 1, nt * max_bytes, 1,
+                                    0, 0, nt * max_bytes, 1,
+                                    1, world, 1, 1, 0, 0);
+    descA.mat = parsec_data_allocate(descA.super.nb_local_tiles *
+                                     descA.super.bsiz *
+                                     parsec_datadist_getsizeoftype(PARSEC_MATRIX_BYTE));
+    assert(NULL != descA.mat);
+
+    tp = parsec_receive_auto_mixed_new(&descA, nt, max_bytes);
+    assert(NULL != tp);
+    parsec_add2arena_rect(&tp->arenas_datatypes[PARSEC_receive_auto_mixed_DEFAULT_ADT_IDX],
+                          parsec_datatype_int8_t,
+                          descA.super.mb, descA.super.nb, descA.super.mb);
+
+    rc = parsec_context_add_taskpool(parsec, &tp->super);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
+    rc = parsec_context_start(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_start");
+    rc = parsec_context_wait(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
+
+    global_errors = g_errors;
+#ifdef PARSEC_HAVE_MPI
+    MPI_Allreduce(&g_errors, &global_errors, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(&g_gpu_hits, &global_gpu_hits, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(&g_gpu_mask, &global_gpu_mask, 1, MPI_UNSIGNED_LONG_LONG, MPI_BOR, MPI_COMM_WORLD);
+    MPI_Allreduce(&local_visible_cuda, &global_visible_cuda, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+#else
+    global_gpu_hits = g_gpu_hits;
+    global_gpu_mask = g_gpu_mask;
+    global_visible_cuda = local_visible_cuda;
+#endif
+    global_distinct_gpus = count_bits_ull(global_gpu_mask);
+
+    parsec_taskpool_free(&tp->super);
+    free(descA.mat);
+    parsec_fini(&parsec);
+
+#ifdef PARSEC_HAVE_MPI
+    MPI_Finalize();
+#endif
+    if( global_errors ) {
+        fprintf(stderr, "receive_auto_mixed: data validation failed (%d global errors)\n", global_errors);
+        return EXIT_FAILURE;
+    }
+    if( global_visible_cuda >= 2 && global_distinct_gpus < 2 ) {
+        fprintf(stderr, "receive_auto_mixed: multi-GPU validation failed (visible_cuda=%d distinct_used=%d mask=0x%llx)\n",
+                global_visible_cuda, global_distinct_gpus, (unsigned long long)global_gpu_mask);
+        return EXIT_FAILURE;
+    }
+    if( rank == 0 ) {
+        printf("receive_auto_mixed: PASS (nt=%d, max_bytes=%d, gpu_hits=%d, distinct_gpus=%d, visible_cuda=%d)\n",
+               nt, max_bytes, global_gpu_hits, global_distinct_gpus, global_visible_cuda);
+    }
+    return EXIT_SUCCESS;
+}
+%}

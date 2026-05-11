@@ -15,10 +15,13 @@
 #include "parsec/utils/debug.h"
 #include "parsec/debug_marks.h"
 #include "parsec/data.h"
+#include "parsec/data_internal.h"
 #include "parsec/papi_sde.h"
 #include "parsec/interfaces/dtd/insert_function_internal.h"
 #include "parsec/remote_dep.h"
 #include "parsec/class/dequeue.h"
+#include "parsec/mca/device/device.h"
+#include "parsec/mca/device/device_gpu.h"
 
 #include "parsec/parsec_binary_profile.h"
 
@@ -50,6 +53,14 @@ static size_t parsec_param_short_limit = RDEP_MSG_SHORT_LIMIT;
 static int parsec_param_enable_aggregate = 0;
 
 parsec_mempool_t *parsec_remote_dep_cb_data_mempool = NULL;
+#define PARSEC_REMOTE_DEP_AUTO_BUCKET_MIN_SHIFT_LIMIT 3   /* 8 bytes */
+#define PARSEC_REMOTE_DEP_AUTO_BUCKET_MAX_SHIFT_LIMIT 24  /* 16 MiB */
+#define PARSEC_REMOTE_DEP_AUTO_BUCKET_COUNT (PARSEC_REMOTE_DEP_AUTO_BUCKET_MAX_SHIFT_LIMIT - PARSEC_REMOTE_DEP_AUTO_BUCKET_MIN_SHIFT_LIMIT + 1)
+static parsec_arena_datatype_t parsec_remote_dep_auto_adts[PARSEC_REMOTE_DEP_AUTO_BUCKET_COUNT];
+static int parsec_remote_dep_auto_adts_initialized = 0;
+static int parsec_param_auto_bucket_min_shift = 3;
+static int parsec_param_auto_bucket_max_shift = 20;
+static int parsec_param_auto_gpu_enable = 0;
 
 typedef struct remote_dep_cb_data_s {
     parsec_list_item_t        super;
@@ -187,6 +198,9 @@ static void remote_dep_mpi_release_delayed_deps(parsec_execution_stream_t* es,
 /* Perform a memcpy with datatypes by doing a local sendrecv */
 static int remote_dep_nothread_memcpy(parsec_execution_stream_t* es,
                                       dep_cmd_item_t *item);
+static void remote_dep_auto_fallback_copy_release(parsec_data_copy_t *copy, int device);
+static void remote_dep_auto_gpu_memory_release(parsec_data_copy_t *copy, int device);
+static int remote_dep_auto_pick_gpu_device(const parsec_task_t *task);
 
 int remote_dep_ce_reconfigure(parsec_context_t* context);
 
@@ -209,6 +223,38 @@ static void remote_dep_mpi_params(parsec_context_t* context) {
 #endif
     parsec_mca_param_reg_int_name("runtime", "comm_aggregate", "Aggregate multiple dependencies in the same short message (1=true,0=false).",
                                   false, false, parsec_param_enable_aggregate, &parsec_param_enable_aggregate);
+    parsec_mca_param_reg_int_name("runtime", "comm_auto_bucket_min_shift",
+                                  "Minimum log2 bucket size for type_remote=AUTO receive pooling.",
+                                  false, false,
+                                  parsec_param_auto_bucket_min_shift,
+                                  &parsec_param_auto_bucket_min_shift);
+    parsec_mca_param_reg_int_name("runtime", "comm_auto_bucket_max_shift",
+                                  "Maximum log2 bucket size for type_remote=AUTO receive pooling.",
+                                  false, false,
+                                  parsec_param_auto_bucket_max_shift,
+                                  &parsec_param_auto_bucket_max_shift);
+    parsec_mca_param_reg_int_name("runtime", "comm_auto_gpu_enable",
+                                  "Enable GPU-device allocation for type_remote=AUTO rendezvous receives (1=true,0=false).",
+                                  false, false,
+                                  parsec_param_auto_gpu_enable,
+                                  &parsec_param_auto_gpu_enable);
+
+    if( parsec_param_auto_bucket_min_shift < PARSEC_REMOTE_DEP_AUTO_BUCKET_MIN_SHIFT_LIMIT ) {
+        parsec_warning("runtime_comm_auto_bucket_min_shift=%d is too small, clamped to %d",
+                       parsec_param_auto_bucket_min_shift, PARSEC_REMOTE_DEP_AUTO_BUCKET_MIN_SHIFT_LIMIT);
+        parsec_param_auto_bucket_min_shift = PARSEC_REMOTE_DEP_AUTO_BUCKET_MIN_SHIFT_LIMIT;
+    }
+    if( parsec_param_auto_bucket_max_shift > PARSEC_REMOTE_DEP_AUTO_BUCKET_MAX_SHIFT_LIMIT ) {
+        parsec_warning("runtime_comm_auto_bucket_max_shift=%d is too large, clamped to %d",
+                       parsec_param_auto_bucket_max_shift, PARSEC_REMOTE_DEP_AUTO_BUCKET_MAX_SHIFT_LIMIT);
+        parsec_param_auto_bucket_max_shift = PARSEC_REMOTE_DEP_AUTO_BUCKET_MAX_SHIFT_LIMIT;
+    }
+    if( parsec_param_auto_bucket_min_shift > parsec_param_auto_bucket_max_shift ) {
+        parsec_warning("Invalid AUTO bucket range min=%d max=%d, resetting to defaults min=3 max=20",
+                       parsec_param_auto_bucket_min_shift, parsec_param_auto_bucket_max_shift);
+        parsec_param_auto_bucket_min_shift = 3;
+        parsec_param_auto_bucket_max_shift = 20;
+    }
 }
 
 int
@@ -571,10 +617,174 @@ void parsec_remote_dep_memcpy(parsec_execution_stream_t* es,
     parsec_dequeue_push_back(&dep_cmd_queue, (parsec_list_item_t*) item);
 }
 
+static void remote_dep_auto_fallback_copy_release(parsec_data_copy_t *copy, int device)
+{
+    (void)device;
+    free(copy->device_private);
+    copy->device_private = NULL;
+}
+
+static void remote_dep_auto_gpu_memory_release(parsec_data_copy_t *copy, int device)
+{
+    parsec_device_module_t *dev = parsec_mca_device_get((uint32_t)copy->device_index);
+    if( NULL != dev && PARSEC_DEV_IS_GPU(dev->type) ) {
+        parsec_device_gpu_module_t *gpu = (parsec_device_gpu_module_t*)dev;
+        (void)gpu->set_device(gpu);
+        (void)gpu->memory_free(gpu, copy->device_private);
+    }
+    (void)device;
+    copy->device_private = NULL;
+}
+
+static int remote_dep_auto_pick_gpu_device(const parsec_task_t *task)
+{
+    parsec_data_ref_t ref;
+    parsec_data_t *data = NULL;
+    parsec_device_module_t *dev = NULL;
+
+    if( 0 == parsec_param_auto_gpu_enable ) {
+        return 0;
+    }
+    if( NULL == task || NULL == task->task_class || NULL == task->task_class->data_affinity ) {
+        return 0;
+    }
+    if( 0 == task->task_class->data_affinity(task, &ref) ) {
+        return 0;
+    }
+    if( NULL == ref.dc || NULL == ref.dc->data_of_key ) {
+        return 0;
+    }
+    data = ref.dc->data_of_key(ref.dc, ref.key);
+    if( NULL == data ) {
+        return 0;
+    }
+    if( data->preferred_device >= 0 ) {
+        dev = parsec_mca_device_get((uint32_t)data->preferred_device);
+        if( NULL != dev && PARSEC_DEV_IS_GPU(dev->type) ) {
+            return dev->device_index;
+        }
+    }
+    if( data->owner_device >= 0 ) {
+        dev = parsec_mca_device_get((uint32_t)data->owner_device);
+        if( NULL != dev && PARSEC_DEV_IS_GPU(dev->type) ) {
+            return dev->device_index;
+        }
+    }
+    return 0;
+}
+
+static inline parsec_data_copy_t*
+remote_dep_auto_copy_allocate_fallback(parsec_dep_type_description_t* data)
+{
+    parsec_data_t* original = parsec_data_new();
+    parsec_data_copy_t* dc;
+    size_t buffer_size = (size_t)data->dst_count;
+    if( NULL == original || 0 == buffer_size ) {
+        if( NULL != original ) PARSEC_OBJ_RELEASE(original);
+        return NULL;
+    }
+
+    dc = parsec_data_copy_new(original, 0, parsec_datatype_int8_t,
+                              PARSEC_DATA_FLAG_PARSEC_MANAGED | PARSEC_DATA_FLAG_PARSEC_OWNED);
+    PARSEC_OBJ_RELEASE(original);
+    if( NULL == dc ) {
+        return NULL;
+    }
+
+    dc->device_private = malloc(buffer_size);
+    if( NULL == dc->device_private ) {
+        PARSEC_OBJ_RELEASE(dc);
+        return NULL;
+    }
+    dc->coherency_state = PARSEC_DATA_COHERENCY_EXCLUSIVE;
+    dc->release_cb = remote_dep_auto_fallback_copy_release;
+    dc->original->nb_elts = buffer_size;
+    return dc;
+}
+
+static inline parsec_data_copy_t*
+remote_dep_auto_copy_allocate_gpu(parsec_dep_type_description_t* data)
+{
+    parsec_data_t* original = parsec_data_new();
+    parsec_data_copy_t* dc;
+    parsec_device_module_t *dev = parsec_mca_device_get((uint32_t)data->device_index);
+    size_t bytes = (size_t)data->dst_count;
+
+    if( NULL == original || NULL == dev || !PARSEC_DEV_IS_GPU(dev->type) || 0 == bytes ) {
+        if( NULL != original ) PARSEC_OBJ_RELEASE(original);
+        return NULL;
+    }
+
+    parsec_device_gpu_module_t *gpu = (parsec_device_gpu_module_t*)dev;
+    dc = parsec_data_copy_new(original, (uint8_t)data->device_index, parsec_datatype_int8_t,
+                              PARSEC_DATA_FLAG_PARSEC_MANAGED | PARSEC_DATA_FLAG_PARSEC_OWNED);
+    PARSEC_OBJ_RELEASE(original);
+    if( NULL == dc ) {
+        return NULL;
+    }
+    if( PARSEC_SUCCESS != gpu->set_device(gpu) ||
+        PARSEC_SUCCESS != gpu->memory_allocate(gpu, bytes, &dc->device_private) ) {
+        PARSEC_OBJ_RELEASE(dc);
+        return NULL;
+    }
+    dc->coherency_state = PARSEC_DATA_COHERENCY_EXCLUSIVE;
+    dc->release_cb = remote_dep_auto_gpu_memory_release;
+    dc->original->nb_elts = bytes;
+    return dc;
+}
+
+static inline parsec_data_copy_t*
+remote_dep_auto_copy_allocate(parsec_dep_type_description_t* data)
+{
+    parsec_data_copy_t* dc;
+    size_t needed = (size_t)data->dst_count;
+    int shift = 0;
+    int idx = -1;
+
+    if( !parsec_remote_dep_auto_adts_initialized || 0 == needed ) {
+        return NULL;
+    }
+    if( data->device_index > 0 ) {
+        dc = remote_dep_auto_copy_allocate_gpu(data);
+        if( NULL != dc ) {
+            return dc;
+        }
+    }
+
+    shift = parsec_param_auto_bucket_min_shift;
+    while( shift <= parsec_param_auto_bucket_max_shift ) {
+        if( needed <= (((size_t)1) << shift) ) {
+            idx = shift - PARSEC_REMOTE_DEP_AUTO_BUCKET_MIN_SHIFT_LIMIT;
+            break;
+        }
+        shift++;
+    }
+
+    if( idx < 0 || idx >= PARSEC_REMOTE_DEP_AUTO_BUCKET_COUNT ||
+        NULL == parsec_remote_dep_auto_adts[idx].arena ) {
+        return remote_dep_auto_copy_allocate_fallback(data);
+    }
+
+    dc = parsec_arena_get_copy(parsec_remote_dep_auto_adts[idx].arena,
+                               1, 0, parsec_datatype_int8_t);
+    if( NULL == dc ) {
+        return remote_dep_auto_copy_allocate_fallback(data);
+    }
+    dc->coherency_state = PARSEC_DATA_COHERENCY_EXCLUSIVE;
+
+    PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream,
+                         "MPI:\tMalloc AUTO remote tile %p need %zu bucket %zu displ = %" PRIi64,
+                         dc, needed, ((size_t)1) << shift, data->dst_displ);
+    return dc;
+}
+
 static inline parsec_data_copy_t*
 remote_dep_copy_allocate(parsec_dep_type_description_t* data)
 {
     parsec_data_copy_t* dc;
+    if( PARSEC_REMOTE_DEP_AUTO_ALLOC == data->arena ) {
+        return remote_dep_auto_copy_allocate(data);
+    }
     if( NULL == data->arena ) {
         assert(0 == data->dst_count);
         return NULL;
@@ -760,6 +970,16 @@ remote_dep_mpi_retrieve_datatype(parsec_execution_stream_t *eu,
 //         output->data = *out_data;
 //    }
 
+    if( PARSEC_REMOTE_DEP_AUTO_ALLOC == output->data.remote.arena ) {
+        uint64_t remote_size = output->data.remote.src_count;
+        output->data.remote.src_count = remote_size;
+        output->data.remote.dst_count = remote_size;
+        output->data.remote.src_displ = 0;
+        output->data.remote.dst_displ = 0;
+        output->data.remote.device_index = remote_dep_auto_pick_gpu_device(newcontext);
+    } else {
+        output->data.remote.device_index = 0;
+    }
 
     parsec_data_t* data_arena = is_read_only(oldcontext, dep);
     if(NULL == data_arena) {
@@ -1852,9 +2072,11 @@ static void remote_dep_mpi_recv_activate(parsec_execution_stream_t* es,
 
             /* Check if the data is short-embedded in the activate */
             if((length - (*position)) >= (int)data_sizes[ds_idx]) {
+                parsec_dep_type_description_t host_desc = *type_desc;
+                host_desc.device_index = 0;  /* eager unpack targets host memory */
                 assert(NULL == data_desc->data); /* we do not support in-place tiles now, make sure it doesn't happen yet */
                 if(NULL == data_desc->data) {
-                    data_desc->data = remote_dep_copy_allocate(type_desc);
+                    data_desc->data = remote_dep_copy_allocate(&host_desc);
                 }
 #ifndef PARSEC_PROF_DRY_DEP
                 PARSEC_DEBUG_VERBOSE(10, parsec_comm_output_stream,
@@ -2091,23 +2313,54 @@ static void remote_dep_mpi_get_start(parsec_execution_stream_t* es,
          */
         parsec_ce_mem_reg_handle_t receiver_memory_handle;
         size_t receiver_memory_handle_size;
+        int rc;
 
         if(parsec_ce.capabilites.supports_noncontiguous_datatype) {
-            parsec_ce.mem_register(PARSEC_DATA_COPY_GET_PTR(deps->output[k].data.data), PARSEC_MEM_TYPE_NONCONTIGUOUS,
-                                   nbdtt, dtt,
-                                   -1,
-                                   &receiver_memory_handle, &receiver_memory_handle_size);
+            rc = parsec_ce.mem_register(PARSEC_DATA_COPY_GET_PTR(deps->output[k].data.data), PARSEC_MEM_TYPE_NONCONTIGUOUS,
+                                        nbdtt, dtt,
+                                        -1,
+                                        &receiver_memory_handle, &receiver_memory_handle_size);
         } else {
             /* TODO: Implement converter to pack and unpack
              * register the whole region including the holes because we don't support sparse
              * registration. */
             ptrdiff_t extent, lb;
             parsec_type_extent(dtt, &lb, &extent); (void)lb;
-            parsec_ce.mem_register(PARSEC_DATA_COPY_GET_PTR(deps->output[k].data.data), PARSEC_MEM_TYPE_CONTIGUOUS,
-                                   -1, parsec_datatype_uint8_t,
-                                   nbdtt * extent,
-                                   &receiver_memory_handle, &receiver_memory_handle_size);
+            rc = parsec_ce.mem_register(PARSEC_DATA_COPY_GET_PTR(deps->output[k].data.data), PARSEC_MEM_TYPE_CONTIGUOUS,
+                                        -1, parsec_datatype_uint8_t,
+                                        nbdtt * extent,
+                                        &receiver_memory_handle, &receiver_memory_handle_size);
 
+        }
+        if( PARSEC_SUCCESS != rc ) {
+            if( PARSEC_REMOTE_DEP_AUTO_ALLOC == deps->output[k].data.remote.arena ) {
+                /* Some comm engines cannot register GPU pointers for this path.
+                 * For AUTO receives only, fallback to host allocation and retry. */
+                PARSEC_DATA_COPY_RELEASE(deps->output[k].data.data);
+                deps->output[k].data.data = NULL;
+                parsec_dep_type_description_t host_desc = deps->output[k].data.remote;
+                host_desc.device_index = 0;
+                deps->output[k].data.data = remote_dep_copy_allocate(&host_desc);
+                assert(NULL != deps->output[k].data.data);
+                if(parsec_ce.capabilites.supports_noncontiguous_datatype) {
+                    rc = parsec_ce.mem_register(PARSEC_DATA_COPY_GET_PTR(deps->output[k].data.data), PARSEC_MEM_TYPE_NONCONTIGUOUS,
+                                                nbdtt, dtt,
+                                                -1,
+                                                &receiver_memory_handle, &receiver_memory_handle_size);
+                } else {
+                    ptrdiff_t extent, lb;
+                    parsec_type_extent(dtt, &lb, &extent); (void)lb;
+                    rc = parsec_ce.mem_register(PARSEC_DATA_COPY_GET_PTR(deps->output[k].data.data), PARSEC_MEM_TYPE_CONTIGUOUS,
+                                                -1, parsec_datatype_uint8_t,
+                                                nbdtt * extent,
+                                                &receiver_memory_handle, &receiver_memory_handle_size);
+                }
+                if( PARSEC_SUCCESS != rc ) {
+                    parsec_fatal("Failed to register AUTO receive buffer (k=%d rc=%d)", k, rc);
+                }
+            }
+            /* For non-AUTO receives, preserve previous behavior and let the
+             * comm engine deal with the registration return code. */
         }
 
 #  if defined(PARSEC_DEBUG_NOISIER)
@@ -2275,6 +2528,36 @@ remote_dep_ce_init(parsec_context_t* context)
                              PARSEC_OBJ_CLASS(remote_dep_cb_data_t), sizeof(remote_dep_cb_data_t),
                              offsetof(remote_dep_cb_data_t, mempool_owner),
                              1);
+    if( !parsec_remote_dep_auto_adts_initialized ) {
+        for(int shift = parsec_param_auto_bucket_min_shift;
+            shift <= parsec_param_auto_bucket_max_shift;
+            shift++) {
+            int i = shift - PARSEC_REMOTE_DEP_AUTO_BUCKET_MIN_SHIFT_LIMIT;
+            size_t bucket_size = ((size_t)1) << shift;
+            rc = parsec_arena_datatype_construct(&parsec_remote_dep_auto_adts[i],
+                                                 bucket_size,
+                                                 PARSEC_ARENA_ALIGNMENT_SSE,
+                                                 parsec_datatype_int8_t);
+            if( PARSEC_SUCCESS != rc ) {
+                parsec_warning("[CE] Failed to initialize AUTO receive arena bucket %zu (error %d)\n",
+                               bucket_size, rc);
+                for(int j = 0; j < PARSEC_REMOTE_DEP_AUTO_BUCKET_COUNT; j++) {
+                    if( NULL != parsec_remote_dep_auto_adts[j].arena ) {
+                        PARSEC_OBJ_RELEASE(parsec_remote_dep_auto_adts[j].arena);
+                        parsec_remote_dep_auto_adts[j].arena = NULL;
+                        parsec_remote_dep_auto_adts[j].opaque_dtt = PARSEC_DATATYPE_NULL;
+                    }
+                }
+                parsec_mempool_destruct(parsec_remote_dep_cb_data_mempool);
+                free(parsec_remote_dep_cb_data_mempool); parsec_remote_dep_cb_data_mempool = NULL;
+                parsec_ce.tag_unregister(PARSEC_CE_REMOTE_DEP_GET_DATA_TAG);
+                parsec_ce.tag_unregister(PARSEC_CE_REMOTE_DEP_ACTIVATE_TAG);
+                parsec_comm_engine_fini(&parsec_ce);
+                return rc;
+            }
+        }
+        parsec_remote_dep_auto_adts_initialized = 1;
+    }
     /* Lazy or delayed initializations */
     remote_dep_mpi_initialize_execution_stream(context);
     return PARSEC_SUCCESS;
@@ -2297,6 +2580,16 @@ int remote_dep_ce_fini(parsec_context_t* context)
     if( NULL != parsec_mpi_same_pos_items ) {
         free(parsec_mpi_same_pos_items); parsec_mpi_same_pos_items = NULL;
         parsec_mpi_same_pos_items_size = 0;
+    }
+    if( parsec_remote_dep_auto_adts_initialized ) {
+        for(int i = 0; i < PARSEC_REMOTE_DEP_AUTO_BUCKET_COUNT; i++) {
+            if( NULL != parsec_remote_dep_auto_adts[i].arena ) {
+                PARSEC_OBJ_RELEASE(parsec_remote_dep_auto_adts[i].arena);
+                parsec_remote_dep_auto_adts[i].arena = NULL;
+                parsec_remote_dep_auto_adts[i].opaque_dtt = PARSEC_DATATYPE_NULL;
+            }
+        }
+        parsec_remote_dep_auto_adts_initialized = 0;
     }
 
     PARSEC_OBJ_DESTRUCT(&dep_activates_fifo);
