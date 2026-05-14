@@ -6,25 +6,37 @@ into one device operation. The runtime still owns dependency management, data
 movement, completion, and release; the submit hook only decides which pending
 tasks are compatible with the task it was asked to submit.
 
-Batching is opt-in at the chore level. A task that does not advertise batching
-is always delivered to the submit hook as a singleton task.
+Batching is opt-in at the incarnation level and in the device submit hook. A
+batch-capable incarnation may call `parsec_gpu_task_collect_batch()` from its
+submit hook; a hook that does not call the collector always submits the
+singleton task it was given.
 
 Enabling batching
 -----------------
 
-For PTG-generated tasks, use the `batch = true` body property on a device body:
+For PTG-generated tasks, mark the body with `batch = true` and call the
+collector from the device body that can use a batch. The `batch` property marks
+that generated incarnation as batch-capable; it does not force the runtime to
+batch tasks.
 
 ```c
 BODY [type=CUDA
       batch = true
       dyld=cublasDgemm dyldtype=cublas_dgemm_t]
 {
-    /* GPU submit body. */
+    int nb_batched = parsec_gpu_task_collect_batch(gpu_stream, gpu_task,
+                                                   gemm_batch_match, NULL);
+    if( nb_batched < 0 ) {
+        return nb_batched;
+    }
+
+    /* Submit gpu_task, whose ring may now contain 1 + nb_batched tasks. */
 }
 ```
 
 For DTD tasks, add `PARSEC_DEV_CHORE_ALLOW_BATCH` to the device type when
-registering or selecting the chore:
+registering the chore that can batch, then use the same collection approach
+inside the registered device hook:
 
 ```c
 parsec_dtd_task_class_add_chore(tp, tc,
@@ -32,13 +44,17 @@ parsec_dtd_task_class_add_chore(tp, tc,
                                 kernel_cuda);
 ```
 
-The selected device type must also support batching at runtime. The device layer
-uses `parsec_mca_device_type_supports_batch()` to check this and
-`parsec_mca_device_type_sanitize_batch()` to drop the batching hint when the
-selected device cannot batch. The MCA parameter `device_enable_batching`
-defaults to the compile-time batching capability and can be used to disable
-batching globally at runtime.
-It is read-only when batching support is not compiled in.
+The head task's selected device type must support batching at runtime, and the
+selected incarnation of the task passed to the submit hook must be marked
+batch-capable. The collector checks these conditions before iterating over
+pending work. If either condition fails, it leaves `gpu_task` as a singleton and
+returns 0. While scanning the stream, it skips pending tasks whose selected
+incarnation is not batch-capable on that same selected device before calling the
+user callback.
+
+The MCA parameter `device_enable_batching` defaults to the compile-time batching
+capability and can be used to disable batching globally at runtime. It is
+read-only when batching support is not compiled in.
 
 Recommended collection helper
 -----------------------------
@@ -87,15 +103,15 @@ gemm_kernel_cuda(parsec_device_gpu_module_t *gpu_device,
                  parsec_gpu_task_t *gpu_task,
                  parsec_gpu_exec_stream_t *gpu_stream)
 {
-    int batch_count;
+    int nb_batched;
     parsec_gpu_task_t *current;
 
     (void)gpu_device;
 
-    batch_count = parsec_gpu_task_collect_batch(gpu_stream, gpu_task,
-                                                gemm_batch_match, NULL);
-    if( batch_count < 0 ) {
-        return batch_count;
+    nb_batched = parsec_gpu_task_collect_batch(gpu_stream, gpu_task,
+                                               gemm_batch_match, NULL);
+    if( nb_batched < 0 ) {
+        return nb_batched;
     }
 
     current = gpu_task;
@@ -113,9 +129,12 @@ gemm_kernel_cuda(parsec_device_gpu_module_t *gpu_device,
 }
 ```
 
-`parsec_gpu_task_collect_batch()` returns the number of tasks in the ring on
-success, including the original `gpu_task`, or the negative callback error.
-Tasks accepted before an error remain attached to `gpu_task`; tasks not accepted
+`parsec_gpu_task_collect_batch()` returns the number of additional tasks appended
+to the ring on success, or the negative callback error. A return value of 0
+means no task was batched, either because no compatible pending task was found,
+because batching is disabled or unsupported by the head task's selected device,
+or because the head task's selected incarnation is not batch-capable. Tasks
+accepted before an error remain attached to `gpu_task`; tasks not accepted
 remain in `gpu_stream->fifo_pending`.
 
 The submit hook does not need a completion callback merely to return the ring to
@@ -186,4 +205,3 @@ The direct style avoids the generic iterator and callback dispatch, and it can
 fold the compatibility test into a tight kernel-specific loop. The cost is that
 the submit hook now depends on internal list and stream details and must be
 updated if the GPU stream internals change.
-

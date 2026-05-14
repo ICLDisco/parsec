@@ -321,16 +321,6 @@ parsec_mca_device_type_supports_batch(uint32_t device_type)
 #endif  /* PARSEC_HAVE_DEV_CAPABILITY_BATCH */
 }
 
-uint32_t
-parsec_mca_device_type_sanitize_batch(uint32_t device_type)
-{
-    if( (device_type & PARSEC_DEV_CHORE_ALLOW_BATCH) &&
-        !parsec_mca_device_type_supports_batch(device_type) ) {
-        device_type &= ~PARSEC_DEV_CHORE_ALLOW_BATCH;
-    }
-    return device_type;
-}
-
 int parsec_mca_device_init(void)
 {
     char** parsec_device_list = NULL;

@@ -167,13 +167,13 @@ BODY [type=CUDA
       dyld=cublasDgemm dyldtype=cublas_dgemm_t]
 {
     int how_many = 1;
-    how_many = parsec_gpu_task_collect_batch(gpu_stream, gpu_task,
-                                             stage_custom_batch_match,
-                                             &how_many);
-    if( how_many < 0 ) {
-        return how_many;
+    int nb_batched = parsec_gpu_task_collect_batch(gpu_stream, gpu_task,
+                                                   stage_custom_batch_match,
+                                                   &how_many);
+    if( nb_batched < 0 ) {
+        return nb_batched;
     }
-    if( how_many > 1 ) {
+    if( nb_batched > 0 ) {
         PARSEC_DEBUG_VERBOSE(10, parsec_debug_output,
                              "submit multiple tasks into one %p on stream %s{%p}\n",
                              gpu_task, gpu_stream->name, (void*)gpu_stream);

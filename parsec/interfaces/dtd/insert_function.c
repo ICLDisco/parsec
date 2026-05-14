@@ -2346,9 +2346,45 @@ static parsec_hook_return_t parsec_dtd_cpu_task_submit(parsec_execution_stream_t
 }
 
 static inline int
-parsec_dtd_effective_chore_type(int device_type)
+parsec_dtd_concrete_device_type(int device_type)
 {
-    return (int)parsec_mca_device_type_sanitize_batch((uint32_t)device_type);
+    return device_type & PARSEC_DEV_ANY_TYPE;
+}
+
+static inline int
+parsec_dtd_is_exact_chore_device_type(int device_type)
+{
+    int concrete_type = parsec_dtd_concrete_device_type(device_type);
+
+    return (0 != concrete_type) && (0 == (concrete_type & (concrete_type - 1)));
+}
+
+static int
+parsec_dtd_taskpool_supports_device_type(parsec_taskpool_t *tp,
+                                         int device_type,
+                                         int require_exact)
+{
+    int concrete_type = parsec_dtd_concrete_device_type(device_type);
+
+    if( (0 == concrete_type) ||
+        (require_exact && !parsec_dtd_is_exact_chore_device_type(device_type)) ) {
+        return 0;
+    }
+
+    for( uint32_t i = 0; i < parsec_nb_devices; i++ ) {
+        parsec_device_module_t *device = parsec_mca_device_get(i);
+
+        if( NULL == device ) {
+            continue;
+        }
+        if( !(tp->devices_index_mask & (1 << device->device_index)) ) {
+            continue;
+        }
+        if( device->type & concrete_type ) {
+            return 1;
+        }
+    }
+    return 0;
 }
 
 int parsec_dtd_task_class_add_chore(parsec_taskpool_t *tp,
@@ -2364,11 +2400,20 @@ int parsec_dtd_task_class_add_chore(parsec_taskpool_t *tp,
                        tc->name);
         return PARSEC_ERR_BAD_PARAM;
     }
+    if( !parsec_dtd_is_exact_chore_device_type(device_type) ) {
+        parsec_warning("DTD task class '%s' cannot add a chore for device mask %#x; "
+                       "chores must use exactly one concrete CPU/GPU device type\n",
+                       (NULL == tc->name) ? "<unnamed>" : tc->name, device_type);
+        return PARSEC_ERR_BAD_PARAM;
+    }
+    if( !parsec_dtd_taskpool_supports_device_type(tp, device_type, 1) ) {
+        parsec_warning("DTD task class '%s' cannot add a chore for unsupported device type %#x\n",
+                       (NULL == tc->name) ? "<unnamed>" : tc->name, device_type);
+        return PARSEC_ERR_NOT_SUPPORTED;
+    }
 
     parsec_dtd_taskpool_t *dtd_tp = (parsec_dtd_taskpool_t*)tp;
     parsec_dtd_task_class_t *dtd_tc = (parsec_dtd_task_class_t*)tc;
-
-    device_type = parsec_dtd_effective_chore_type(device_type);
 
     /* We assume that incarnations is big enough, because it has been pre-allocated
      * with PARSEC_DEV_MAX_NB_TYPE+1 chores, as this is a DTD task class */
@@ -3156,8 +3201,6 @@ __parsec_dtd_taskpool_create_task(parsec_taskpool_t *tp,
     int nb_params = 0;
     parsec_dtd_param_t params[PARSEC_DTD_MAX_PARAMS];
 
-    device_type = parsec_dtd_effective_chore_type(device_type);
-
     if( dtd_tp == NULL) {
         parsec_fatal("You need to pass a correct parsec taskpool in order to insert task. "
                      "Please use \"parsec_dtd_taskpool_new()\" to create new taskpool"
@@ -3168,6 +3211,15 @@ __parsec_dtd_taskpool_create_task(parsec_taskpool_t *tp,
         parsec_fatal("Sorry! You can not insert task without enqueuing the taskpool to parsec_context"
                      " first. Please make sure you call parsec_context_add_taskpool(parsec_context, taskpool) before"
                      " you try inserting task in PaRSEC\n");
+    }
+
+    if( NULL != fpointer && !parsec_dtd_is_exact_chore_device_type(device_type) ) {
+        parsec_fatal("Direct DTD task creation for '%s' requires exactly one concrete CPU/GPU device type, got %#x\n",
+                     name_of_kernel, device_type);
+    }
+    if( !parsec_dtd_taskpool_supports_device_type(tp, device_type, NULL != fpointer) ) {
+        parsec_fatal("Direct DTD task creation for '%s' requested unsupported device type %#x\n",
+                     name_of_kernel, device_type);
     }
 
 #if defined(PARSEC_PROF_TRACE)
@@ -3304,10 +3356,12 @@ __parsec_dtd_taskpool_create_task(parsec_taskpool_t *tp,
     this_task->super.priority = priority;
 
     if( NULL == fpointer ) {
+        int concrete_device_type = parsec_dtd_concrete_device_type(device_type);
+
         this_task->super.chore_mask = 0;
         /* We take only the chores that are defined and that allowed by the user */
         for( int i = 0; NULL != tc->incarnations[i].hook; i++ ) {
-            if( tc->incarnations[i].type & device_type ) {
+            if( tc->incarnations[i].type & concrete_device_type ) {
                 this_task->super.chore_mask |= (1<<i);
             }
         }

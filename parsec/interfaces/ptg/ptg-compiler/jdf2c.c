@@ -3968,10 +3968,8 @@ jdf_generate_function_incarnation_list( const jdf_t *jdf,
         }
         string_arena_add_string(sa, "#if defined(PARSEC_HAVE_DEV_%s_SUPPORT)\n", dev_upper);
         string_arena_add_string(sa, "    { .type     = PARSEC_DEV_%s", dev_upper);
-        if( NULL != batch_property) {
-#if PARSEC_HAVE_DEV_CAPABILITY_BATCH
+        if( NULL != batch_property ) {
             string_arena_add_string(sa, " | PARSEC_DEV_CHORE_ALLOW_BATCH");
-#endif  /* PARSEC_HAVE_DEV_CAPABILITY_BATCH */
         }
         string_arena_add_string(sa, ",\n");
         if( NULL == dyld_property ) {
@@ -4224,7 +4222,6 @@ static void jdf_generate_one_function( const jdf_t *jdf, jdf_function_entry_t *f
     }
 
     jdf_generate_function_properties( jdf, f, sa );
-
 #if defined(PARSEC_SCHED_DEPS_MASK)
     use_mask = 1;
 #else
