@@ -4497,6 +4497,7 @@ static void jdf_generate_startup_hook( const jdf_t *jdf )
             "      idx++;\n"
             "    }\n"
             "    chores[idx].type     = PARSEC_DEV_NONE;\n"
+            "    chores[idx].flags    = PARSEC_CHORE_FLAG_NONE;\n"
             "    chores[idx].evaluate = NULL;\n"
             "    chores[idx].hook     = NULL;\n"
             "    /* Create the initialization tasks for each taskclass */\n"

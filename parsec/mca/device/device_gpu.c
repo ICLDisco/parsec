@@ -2499,6 +2499,16 @@ parsec_device_kernel_cleanout( parsec_device_gpu_module_t *gpu_device,
 }
 
 /**
+ * Returns true if the task's completion should be shifted to worker threads.
+ */
+static bool shift_completed_task(parsec_device_gpu_module_t* gpu_device, parsec_gpu_task_t* gpu_task)
+{
+    parsec_task_t* this_task = gpu_task->ec;
+    const __parsec_chore_t *chore = &this_task->task_class->incarnations[gpu_device->super.device_index];
+    return (bool)(chore->flags & PARSEC_CHORE_FLAG_SHIFT_COMPLETION);
+}
+
+/**
  * This version is based on 4 streams: one for transfers from the memory to
  * the GPU, 2 for kernel executions and one for transfers from the GPU into
  * the main memory. The synchronization on each stream is based on GPU events,
@@ -2703,11 +2713,17 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
         goto remove_gpu_task;
     }
     parsec_device_kernel_epilog( gpu_device, gpu_task );
-    // ship the task to other threads to complete its execution
-    gpu_task->ec->status = PARSEC_TASK_STATUS_COMPLETE;
-    PARSEC_LIST_ITEM_SINGLETON(gpu_task->ec);
-    __parsec_schedule(es, gpu_task->ec, 1);
+
+    if (shift_completed_task(gpu_device, gpu_task)) {
+        // ship the task to other threads to complete its execution
+        gpu_task->ec->status = PARSEC_TASK_STATUS_COMPLETE;
+        PARSEC_LIST_ITEM_SINGLETON(gpu_task->ec);
+        __parsec_schedule(es, gpu_task->ec, 1);
+    } else {
+        __parsec_complete_execution( es, gpu_task->ec );
+    }
     gpu_device->super.executed_tasks++;
+
  remove_gpu_task:
     PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream, "GPU[%d:%s]: gpu_task %p freed",
                          gpu_device->super.device_index, gpu_device->super.name,
