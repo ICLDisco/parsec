@@ -2607,6 +2607,20 @@ parsec_device_kernel_cleanout( parsec_device_gpu_module_t *gpu_device,
 }
 
 /**
+ * Returns false if at least one of the execution stream fifos has pending tasks.
+ * Otherwise, returns true, meaning that the GPU has no new work to schedule into the stream.
+ */
+static bool gpu_device_exec_streams_fifo_empty( parsec_device_gpu_module_t *gpu_device )
+{
+    for (int i = 2; i < gpu_device->nb_exec_streams; i++) {
+        if( !parsec_list_nolock_is_empty(gpu_device->exec_streams[i].fifo_pending) ) {
+            return false;
+        }
+    }
+    return true;
+}
+
+/**
  * This version is based on 4 streams: one for transfers from the memory to
  * the GPU, 2 for kernel executions and one for transfers from the GPU into
  * the main memory. The synchronization on each stream is based on GPU events,
@@ -2767,12 +2781,16 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
          * Skip if evictions are already in flight to avoid a storm of D2H tasks.
          * If there are no in-flight evictions and nothing left to queue from the dirty
          * LRU, we are truly stuck: step the eviction threshold down so tier-1 starts
-         * freeing pages earlier on the next attempt. */
-        if( 0 == gpu_device->mem_evict_in_flight ) {
+         * freeing pages earlier on the next attempt.
+         * We don't evict from the dirty LRU if there are pending tasks in the execution streams.
+         * There is a good chance that memory will become available once the active tasks complete and we still
+         * have more tasks to execute. */
+        if( 0 == gpu_device->mem_evict_in_flight && gpu_device_exec_streams_fifo_empty(gpu_device) ) {
             size_t _sel = 0;
             gpu_task = parsec_gpu_create_w2r_task(gpu_device, es, SIZE_MAX, &_sel);
             if(gpu_device->mem_evict_threshold - 5 >= parsec_gpu_mem_evict_lower) {
-                /* We had to trigger a proactive D2H writeback so reduce the threshold */
+                /* We had to trigger a reactive D2H writeback so reduce the threshold to
+                 * be more aggressive in the proactive part. */
                 gpu_device->mem_evict_threshold -= 5;
             }
         }
