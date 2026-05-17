@@ -2,6 +2,7 @@
  * Copyright (c) 2012-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/parsec_config.h"
@@ -166,8 +167,8 @@ void parsec_data_delete(parsec_data_t* data)
 
 inline int
 parsec_data_copy_attach(parsec_data_t* data,
-                       parsec_data_copy_t* copy,
-                       uint8_t device)
+                        parsec_data_copy_t* copy,
+                        uint8_t device)
 {
     assert(NULL == copy->original);
     assert(NULL == copy->older);
@@ -177,7 +178,8 @@ parsec_data_copy_attach(parsec_data_t* data,
     /* Atomically set the device copy */
     copy->older = data->device_copies[device];
     if( !parsec_atomic_cas_ptr(&data->device_copies[device], copy->older, copy) ) {
-        copy->older = NULL;
+        copy->older    = NULL;
+        copy->original = NULL;  /* reset the original if the CAS fails */
         return PARSEC_ERROR;
     }
     PARSEC_OBJ_RETAIN(data);
@@ -423,7 +425,7 @@ int parsec_data_start_transfer_ownership_to_copy(parsec_data_t* data,
     }
 
     if( PARSEC_FLOW_ACCESS_READ & access_mode ) {
-        copy->readers++;
+        (void)parsec_atomic_fetch_inc_int32(&copy->readers);
     }
     if( PARSEC_FLOW_ACCESS_WRITE & access_mode ) {
         data->owner_device = (uint8_t)device;

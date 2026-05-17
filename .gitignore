@@ -1,5 +1,8 @@
 *~
 
+# IDE / editor local configuration (keep team-shared settings in-repo explicitly if needed)
+.vscode/
+
 # Cmake and configure generated files
 config.log
 config.status
@@ -20,6 +23,9 @@ parsec/include/parsec_config.h
 parsec/include/dplasma.pc
 parsec/include/parsec.pc
 parsec/mca/mca_static_components.h
+
+# LLVM/clang instrumentation profiling data (--coverage, -fprofile-instr-generate)
+*.profraw
 
 # And all Makefiles
 ^Makefile$

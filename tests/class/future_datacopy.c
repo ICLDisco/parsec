@@ -39,9 +39,14 @@ void cb_fulfill(parsec_base_future_t * future, ...)
     parsec_future_set(future, data);
 }
 
-int cb_match(parsec_base_future_t * future, void * t1, void * t2)
+int cb_match(parsec_base_future_t * future, ...)
 {
-    (void)future;
+    va_list ap;
+    va_start(ap, future);
+    void *t1 = va_arg(ap, void*);
+    void *t2 = va_arg(ap, void*);
+    va_end(ap);
+
     return (*((int*)t1) == *((int*)t2));
 }
 

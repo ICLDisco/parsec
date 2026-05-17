@@ -2,6 +2,7 @@
  * Copyright (c) 2013-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
 
 /* **************************************************************************** */
@@ -46,6 +47,11 @@ parsec_dtd_data_flush_sndrcv(parsec_execution_stream_t *es,
             parsec_dep_data_description_t data;
             data.data   = current_task->super.data[0].data_in;
             adt = parsec_dtd_get_arena_datatype(this_task->taskpool->context, index);
+            if( NULL == adt ) {
+                parsec_fatal("DTD data flush flow requires arena datatype id %d, "
+                             "but this arena datatype is not registered in the context\n",
+                             index);
+            }
             data.local.arena = adt->arena;
             data.local.src_datatype = data.local.dst_datatype = adt->opaque_dtt;
             data.local.src_count = data.local.dst_count = 1;
@@ -115,12 +121,11 @@ set_deps_for_flush_task(const parsec_task_class_t *tc)
 int
 parsec_insert_dtd_flush_task(parsec_dtd_task_t *this_task, parsec_dtd_tile_t *tile)
 {
-    const parsec_task_class_t *tc          =  this_task->super.task_class;
     parsec_dtd_taskpool_t *dtd_tp = (parsec_dtd_taskpool_t *)this_task->super.taskpool;
 
     int flow_index = 0;
     int satisfied_flow = 0, tile_op_type = PARSEC_INOUT;
-    static int vpid = 0;
+    int should_block = 0;
 
     if( NULL == tile ) {
         assert(0);
@@ -132,11 +137,6 @@ parsec_insert_dtd_flush_task(parsec_dtd_task_t *this_task, parsec_dtd_tile_t *ti
     }
 
     parsec_dtd_tile_user_t last_user, last_writer;
-    if(0 == dtd_tp->flow_set_flag[tc->task_class_id]) {
-        /* Setting flow in function structure */
-        parsec_dtd_set_flow_in_function(dtd_tp, this_task, tile_op_type, flow_index);
-        set_deps_for_flush_task(tc);
-    }
 
     (FLOW_OF(this_task, flow_index))->arena_index = tile->arena_index;
 
@@ -149,7 +149,7 @@ parsec_insert_dtd_flush_task(parsec_dtd_task_t *this_task, parsec_dtd_tile_t *ti
     this_task->super.prof_info.desc = NULL;
     this_task->super.prof_info.priority = 0;
     this_task->super.prof_info.data_id = tile->key;
-    this_task->super.prof_info.task_class_id = tc->task_class_id;
+    this_task->super.prof_info.task_class_id = this_task->super.task_class->task_class_id;
 #endif
 
     /* Setting the last_user info with info of this_task */
@@ -176,20 +176,16 @@ parsec_insert_dtd_flush_task(parsec_dtd_task_t *this_task, parsec_dtd_tile_t *ti
     if(TASK_IS_ALIVE == last_user.alive) {
             assert( NULL != last_user.task );
             parsec_dtd_set_parent(last_writer.task, last_writer.flow_index,
-                                  this_task, flow_index, last_writer.op_type,
-                                  tile_op_type);
+                                  this_task, flow_index);
 
             parsec_dtd_set_descendant(last_user.task, last_user.flow_index,
-                                      this_task, flow_index, last_user.op_type,
-                                      tile_op_type, last_user.alive);
+                                      this_task, flow_index, last_user.alive);
 
     } else {
         parsec_dtd_set_parent(last_writer.task, last_writer.flow_index,
-                              this_task, flow_index, last_writer.op_type,
-                              tile_op_type);
+                              this_task, flow_index);
         parsec_dtd_set_descendant((PARENT_OF(this_task, flow_index))->task, (PARENT_OF(this_task, flow_index))->flow_index,
-                                  this_task, flow_index, (PARENT_OF(this_task, flow_index))->op_type,
-                                  tile_op_type, last_user.alive);
+                                  this_task, flow_index, last_user.alive);
 
 
         parsec_dtd_task_t *parent_task = (PARENT_OF(this_task, flow_index))->task;
@@ -222,11 +218,9 @@ parsec_insert_dtd_flush_task(parsec_dtd_task_t *this_task, parsec_dtd_tile_t *ti
         parsec_dtd_remote_task_release( last_writer.task );
     }
 
-    dtd_tp->flow_set_flag[tc->task_class_id] = 1;
-
     if( parsec_dtd_task_is_local(this_task) ) {/* Task is local */
         dtd_tp->super.tdm.module->taskpool_addto_nb_tasks(&dtd_tp->super, 1);
-        dtd_tp->local_task_inserted++;
+        should_block = parsec_dtd_record_local_task_inserted(dtd_tp);
         PARSEC_DEBUG_VERBOSE(parsec_dtd_dump_traversal_info, parsec_dtd_debug_output,
                              "Task generated -> %s %d rank %d\n", this_task->super.task_class->name, this_task->ht_item.key, this_task->rank);
     }
@@ -242,11 +236,12 @@ parsec_insert_dtd_flush_task(parsec_dtd_task_t *this_task, parsec_dtd_tile_t *ti
     satisfied_flow++;
 
     if( parsec_dtd_task_is_local(this_task) ) {
-        parsec_dtd_schedule_task_if_ready(satisfied_flow, this_task,
-                                          dtd_tp, &vpid);
+        parsec_dtd_schedule_task_if_ready(satisfied_flow, this_task);
     }
 
-    parsec_dtd_block_if_threshold_reached(dtd_tp, parsec_dtd_threshold_size);
+    if( should_block ) {
+        parsec_execute_and_come_back(&dtd_tp->super, parsec_dtd_threshold_size);
+    }
 
     return 1;
 }

@@ -1,3 +1,5 @@
+# Copyright (c) 2026 NVIDIA Corporation.  All rights reserved.
+#
 # Doxyfile 1.8.4
 
 # This file describes the settings to be used by the documentation system
@@ -661,6 +663,7 @@ INPUT                  = @PROJECT_SOURCE_DIR@/docs/doxygen/mainpage.md
 INPUT                 += @PROJECT_SOURCE_DIR@/docs/doxygen/profiling.md
 INPUT                 += @PROJECT_SOURCE_DIR@/docs/doxygen/groups.dox
 INPUT                 += @PROJECT_SOURCE_DIR@/docs/doxygen/task-batching.md
+INPUT                 += @PROJECT_SOURCE_DIR@/docs/doxygen/dtd.md
 INPUT                 += @PROJECT_SOURCE_DIR@/parsec
 INPUT                 += @PROJECT_BINARY_DIR@/parsec/include
 INPUT                 += @PARSEC_DOX_SRCS@

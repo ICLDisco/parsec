@@ -100,7 +100,8 @@ int main(int argc, char **argv)
                          parsec_datadist_getsizeoftype(TYPE));
 
     parsec_translate_matrix_type(TYPE, &dt);
-    parsec_add2arena_rect(&adt, dt, 1, 1, 1);
+    PARSEC_OBJ_CONSTRUCT(&adt, parsec_arena_datatype_t);
+    parsec_matrix_adt_define_rect(&adt, dt, 1, 1, 1);
 
     tp = parsec_batch_cpu_new((parsec_data_collection_t*)&descA, n);
     assert(NULL != tp);
@@ -134,7 +135,7 @@ int main(int argc, char **argv)
     parsec_taskpool_free(&tp->super);
     free(descA.mat);
     PARSEC_OBJ_RELEASE(adt.arena);
-    parsec_del2arena(&adt);
+    parsec_matrix_arena_datatype_destruct_free_type(&adt);
     parsec_fini(&parsec);
 
 #if defined(PARSEC_HAVE_MPI)

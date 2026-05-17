@@ -1,3 +1,7 @@
+<!--
+Copyright (c) 2026 NVIDIA Corporation.  All rights reserved.
+-->
+
 PaRSEC Documentation {#mainpage}
 ================================
 
@@ -23,7 +27,8 @@ PaRSEC exposes a [public API](@ref parsec_public), that feature:
 - a set of programming interfaces:
 
   - [Dynamic Tasks Discovery (DTD)](@ref DTD_INTERFACE), that uses an
-  inspector/executor model to build the DAG of tasks at runtime
+  inspector/executor model to build the DAG of tasks at runtime. See the
+  [DTD model guide](@ref dtd_model) for the application-level workflow.
   - [Parameterized Task Graphs (PTG)](https://bitbucket.org/icldistcomp/parsec/wiki/writejdf), that
   provides an intermediate representation of the DAG of tasks at
   compile time

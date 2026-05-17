@@ -164,10 +164,10 @@ int main(int argc, char ** argv)
 
     parsec_output( 0, "Successfully executed %d tasks in rank %d\n", count, parsec->my_rank );
 
-    SYNC_TIME_PRINT(rank, ("\n") );
-
     rc = parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
+
+    SYNC_TIME_PRINT(rank, ("\n") );
 
     parsec_dtd_free_arena_datatype(parsec, TILE_FULL);
     parsec_dtd_data_collection_fini( A );

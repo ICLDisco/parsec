@@ -2,6 +2,7 @@
  * Copyright (c) 2017-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
 
 /* parsec things */
@@ -97,7 +98,6 @@ int main(int argc, char ** argv)
 #if defined(PARSEC_HAVE_MPI)
     {
         int provided;
-        MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
         MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
         if(MPI_THREAD_MULTIPLE > provided) {
             parsec_fatal( "This benchmark requires MPI_THREAD_MULTIPLE because it uses simultaneously MPI within the PaRSEC runtime, and in the main program loop (in SYNC_TIME_START)");

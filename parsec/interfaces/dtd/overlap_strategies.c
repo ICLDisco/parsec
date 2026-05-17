@@ -2,6 +2,7 @@
  * Copyright (c) 2009-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
 /* **************************************************************************** */
 /**
@@ -175,7 +176,7 @@ parsec_dtd_ordering_correctly( parsec_execution_stream_t *es,
             if(action_mask & PARSEC_ACTION_RELEASE_LOCAL_DEPS) {
                 if( PARSEC_INPUT == op_type_on_current_flow ) {
                     if(parsec_dtd_task_is_local(current_task)){
-                       (void)parsec_atomic_fetch_dec_int32( &current_task->super.data[current_dep].data_out->readers );
+                       parsec_dtd_data_copy_reader_release(current_task->super.data[current_dep].data_out);
                     }
                 }
             }
@@ -235,8 +236,8 @@ parsec_dtd_ordering_correctly( parsec_execution_stream_t *es,
             data.local.src_datatype = data.local.dst_datatype = PARSEC_DATATYPE_NULL;
             data.local.src_count = data.local.dst_count = data.local.src_displ = data.local.dst_displ = 0;
 
-            desc_op_type = ((DESC_OF(current_task, current_dep))->op_type & PARSEC_GET_OP_TYPE);
             desc_flow_index = (DESC_OF(current_task, current_dep))->flow_index;
+            desc_op_type = (FLOW_OF(current_desc, desc_flow_index)->op_type & PARSEC_GET_OP_TYPE);
 
             int get_out = 0, tmp_desc_flow_index, release_parent = 0;
             parsec_dtd_task_t *nextinline = current_desc;
@@ -261,8 +262,8 @@ parsec_dtd_ordering_correctly( parsec_execution_stream_t *es,
                   look_for_next:
                     nextinline = (DESC_OF(current_desc, desc_flow_index))->task;
                     if( NULL != nextinline ) {
-                        desc_op_type    = ((DESC_OF(current_desc, desc_flow_index))->op_type & PARSEC_GET_OP_TYPE);
                         desc_flow_index =  (DESC_OF(current_desc, desc_flow_index))->flow_index;
+                        desc_op_type    = (FLOW_OF(nextinline, desc_flow_index)->op_type & PARSEC_GET_OP_TYPE);
                         get_out = 0;  /* We have a successor, keep going */
                         if( nextinline == current_desc ) {
                             /* We have same descendant using same data in multiple flows
@@ -290,13 +291,9 @@ parsec_dtd_ordering_correctly( parsec_execution_stream_t *es,
 
                     if(action_mask & PARSEC_ACTION_RELEASE_LOCAL_DEPS) {
                         if(parsec_dtd_task_is_local(current_desc)){
-                           (void)parsec_atomic_fetch_inc_int32( &current_task->super.data[current_dep].data_out->readers );
+                           parsec_dtd_data_copy_reader_retain(current_task->super.data[current_dep].data_out);
                         }
                     }
-                    /* Each reader increments the ref count of the data_copy
-                     * We should have a function to retain data copies like
-                     * PARSEC_DATA_COPY_RELEASE
-                     */
                 } else {
                     if(action_mask & PARSEC_ACTION_RELEASE_LOCAL_DEPS) {
                         if( !(FLOW_OF(current_task, current_dep)->flags & SUCCESSOR_ITERATED) ){
@@ -346,7 +343,7 @@ parsec_dtd_ordering_correctly( parsec_execution_stream_t *es,
 
 #if defined(DISTRIBUTED)
             if( (action_mask & PARSEC_ACTION_COMPLETE_LOCAL_TASK) && (NULL != arg->remote_deps) ) {
-                (void)parsec_atomic_fetch_inc_int32(&current_task->super.data[current_dep].data_out->readers);
+                parsec_dtd_data_copy_reader_retain(current_task->super.data[current_dep].data_out);
                 parsec_remote_dep_activate(es, (parsec_task_t *)current_task, arg->remote_deps, arg->remote_deps->outgoing_mask);
                 arg->remote_deps = NULL;
             }
