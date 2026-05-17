@@ -2183,6 +2183,11 @@ parsec_device_progress_stream( parsec_device_gpu_module_t* gpu_device,
      * too early, it might get executed before the data is available on the GPU.
      * Obviously, this lead to incorrect results.
      */
+    /* Keep the progress result with the task while it is parked behind the
+     * event. In particular, AGAIN is not an error: it means the event
+     * completion path must retry this same stage instead of advancing the task.
+     */
+    task->last_status = rc;
     rc = gpu_device->event_record(gpu_device, stream, stream->start);
     assert(PARSEC_SUCCESS == rc);
     stream->tasks[stream->start] = task;
@@ -2360,6 +2365,12 @@ parsec_device_kernel_exec( parsec_device_gpu_module_t      *gpu_device,
     (void)this_task;
     rc = progress_fct( gpu_device, gpu_task, gpu_stream );
     gpu_task->last_status = rc;
+    /* Negative hook returns are scheduler control flow and must be propagated
+     * immediately. Non-negative returns mean the submit hook queued GPU work,
+     * so ask the stream progress engine to record an execution event.
+     */
+    if( rc < 0 )
+        return rc;
     return 1;
 }
 

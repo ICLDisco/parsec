@@ -62,8 +62,8 @@ static float load_balance_skew;
 static int parsec_device_load_balance_allow_cpu = 0;
 
 /**
- * Whether to skip events on input, output, and execution streams that
- * are not strictly necessary (enabled by default).
+ * Whether to skip input and output stream events that are not strictly
+ * necessary (enabled by default).
  */
 int parsec_device_skip_empty_events = 1;
 

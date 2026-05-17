@@ -2,7 +2,7 @@
  * Copyright (c) 2013-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
- * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
+ * Copyright (c) 2024-2026 NVIDIA Corporation.  All rights reserved.
  */
 
 /** @addtogroup parsec_device
@@ -194,8 +194,8 @@ extern uint32_t parsec_nb_devices;
 extern int parsec_device_output;
 
 /**
- * Whether to skip events on input, output, and execution streams that
- * are not strictly necessary (enabled by default).
+ * Whether to skip input and output stream events that are not strictly
+ * necessary (enabled by default).
  */
 extern int parsec_device_skip_empty_events;
 
