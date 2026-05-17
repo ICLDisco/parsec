@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024 The University of Tennessee and The University
+ * Copyright (c) 2021-2026 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * Copyright (c) 2024-2026 NVIDIA Corporation.  All rights reserved.
@@ -1315,9 +1315,13 @@ parsec_gpu_data_copy_release_reader(parsec_device_gpu_module_t *gpu_device,
 {
     int readers = parsec_atomic_fetch_sub_int32(&copy->readers, 1) - 1;
     if( (0 == readers) && make_available ) {
-        parsec_list_item_ring_chop((parsec_list_item_t*)copy);
-        PARSEC_LIST_ITEM_SINGLETON(copy);
-        parsec_list_push_back(&gpu_device->gpu_mem_lru, (parsec_list_item_t*)copy);
+        /* D2D readers do not change ownership; keep dirty GPU-only data on the
+         * owned LRU so it cannot be reused before the W2R backup path sees it. */
+        if( PARSEC_DATA_COHERENCY_OWNED != copy->coherency_state ) {
+            parsec_list_item_ring_chop((parsec_list_item_t*)copy);
+            PARSEC_LIST_ITEM_SINGLETON(copy);
+            parsec_list_push_back(&gpu_device->gpu_mem_lru, (parsec_list_item_t*)copy);
+        }
     }
     return readers;
 }
@@ -1404,17 +1408,26 @@ parsec_device_data_stage_in( parsec_device_gpu_module_t* gpu_device,
                              gpu_device->super.device_index, gpu_device->super.name, task_data->data_in, task_data->data_in->super.super.obj_reference_count, original);
         if( (gpu_device->super.type & PARSEC_DEV_ANY_TYPE) == (candidate_dev->super.type & PARSEC_DEV_ANY_TYPE) ) {
             if( gpu_device->peer_access_mask & (1 << candidate_dev->super.device_index) ) {
-                if( parsec_gpu_data_copy_acquire_reader(candidate, original, task_data->data_in->version) ) {
-                    source_acquired = 1;
-                    /* We can directly do D2D, so let's skip the selection */
+                /* The fast path bypasses the full source scan below, so it must
+                 * enforce the same readiness checks before acquiring a reader. */
+                if( (PARSEC_DATA_COHERENCY_INVALID != candidate->coherency_state) &&
+                    (PARSEC_DATA_STATUS_UNDER_TRANSFER != candidate->data_transfer_status) ) {
+                    if( parsec_gpu_data_copy_acquire_reader(candidate, original, task_data->data_in->version) ) {
+                        source_acquired = 1;
+                        /* We can directly do D2D, so let's skip the selection */
+                        PARSEC_DEBUG_VERBOSE(30, parsec_gpu_output_stream,
+                                             "GPU[%d:%s]:\tskipping candidate lookup: data_in copy %p on %s has PEER ACCESS",
+                                             gpu_device->super.device_index, gpu_device->super.name, task_data->data_in, candidate_dev->super.name);
+                        goto src_selected;
+                    }
                     PARSEC_DEBUG_VERBOSE(30, parsec_gpu_output_stream,
-                                         "GPU[%d:%s]:\tskipping candidate lookup: data_in copy %p on %s has PEER ACCESS",
+                                         "GPU[%d:%s]:\tdata_in copy %p on %s has PEER ACCESS but is being repurposed; looking for another source",
                                          gpu_device->super.device_index, gpu_device->super.name, task_data->data_in, candidate_dev->super.name);
-                    goto src_selected;
+                } else {
+                    PARSEC_DEBUG_VERBOSE(30, parsec_gpu_output_stream,
+                                         "GPU[%d:%s]:\tdata_in copy %p on %s has PEER ACCESS but is not ready; looking for another source",
+                                         gpu_device->super.device_index, gpu_device->super.name, task_data->data_in, candidate_dev->super.name);
                 }
-                PARSEC_DEBUG_VERBOSE(30, parsec_gpu_output_stream,
-                                     "GPU[%d:%s]:\tdata_in copy %p on %s has PEER ACCESS but is being repurposed; looking for another source",
-                                     gpu_device->super.device_index, gpu_device->super.name, task_data->data_in, candidate_dev->super.name);
             }
         }
 
@@ -1470,18 +1483,37 @@ parsec_device_data_stage_in( parsec_device_gpu_module_t* gpu_device,
                                  gpu_device->super.device_index, gpu_device->super.name, candidate, candidate->super.super.obj_reference_count, target->super.name);
         }
         if( potential_alt_src ) {
-            /* We found a potential alternative source, but it's not ready now,
-             * we delay the scheduling of this task. */
+            parsec_data_copy_t *cpu_copy = original->device_copies[0];
+
+            /* We found a potential GPU source, but it is not ready now. The
+             * CPU fallback is safe only if the host copy is a ready copy of the
+             * version this task expects; otherwise, retry the task later. */
+            if( (NULL == cpu_copy) ||
+                (cpu_copy->version != task_data->data_in->version) ||
+                (PARSEC_DATA_COHERENCY_INVALID == cpu_copy->coherency_state) ||
+                (PARSEC_DATA_STATUS_UNDER_TRANSFER == cpu_copy->data_transfer_status) ||
+                (NULL == cpu_copy->device_private) ) {
+                PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
+                                     "GPU[%d:%s]:\tThere is a potential alternative source for data_in %p [ref_count %d] in original %p to go in copy %p [ref_count %d], but neither the GPU nor the CPU copy is ready; retry later",
+                                     gpu_device->super.device_index, gpu_device->super.name, task_data->data_in, task_data->data_in->super.super.obj_reference_count, original, gpu_elem, gpu_elem->super.super.obj_reference_count);
+                /* No ownership/coherency state has been changed yet, so it is
+                 * safe to defer this task until a valid source copy is ready. */
+                parsec_atomic_unlock( &original->lock );
+                return PARSEC_HOOK_RETURN_AGAIN;
+            }
+
+            /* We found a potential alternative source, but it's not ready now.
+             * Use the CPU copy because it has the expected version. */
             /** TODO: when considering RW accesses, don't forget to chop gpu_elem
              *        from its queue... */
             PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
                                  "GPU[%d:%s]:\tThere is a potential alternative source for data_in %p [ref_count %d] in original %p to go in copy %p [ref_count %d], but it is not ready, falling back on CPU source",
                                  gpu_device->super.device_index, gpu_device->super.name, task_data->data_in, task_data->data_in->super.super.obj_reference_count, original, gpu_elem, gpu_elem->super.super.obj_reference_count);
-            //return PARSEC_HOOK_RETURN_AGAIN;
         }
 
         /* We fall back on the CPU copy */
-        candidate = task_data->data_in;
+        candidate = original->device_copies[0];
+        candidate_dev = (parsec_device_gpu_module_t*)parsec_mca_device_get( candidate->device_index );
     }
 
  src_selected:
