@@ -1389,3 +1389,24 @@ foreach( pattern_file ${pattern_files} )
   list( APPEND pattern_files_dest "${pattern_file}" )
 endforeach( pattern_file )
 add_custom_target(build_with_parsec ALL DEPENDS ${pattern_files_dest})
+
+#
+# Optional Python bindings (py-parsec)
+#
+# The python/ subdirectory contains Cython-based Python bindings.
+# They are built via pip/setuptools, not CMake, but we provide a
+# convenience target that runs the pip install after the C library
+# is built and installed.
+#
+option(PARSEC_PYTHON_BINDINGS "Build Python bindings (py-parsec)" OFF)
+if(PARSEC_PYTHON_BINDINGS)
+  find_package(Python3 COMPONENTS Interpreter REQUIRED)
+  add_custom_target(python_bindings ALL
+    COMMAND ${CMAKE_COMMAND} -E env
+      "PARSEC_ROOT=${CMAKE_INSTALL_PREFIX}"
+      ${Python3_EXECUTABLE} -m pip install -e "${CMAKE_CURRENT_SOURCE_DIR}/python"
+      --no-build-isolation -v
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/python"
+    COMMENT "Building Python bindings (py-parsec)"
+  )
+endif()
