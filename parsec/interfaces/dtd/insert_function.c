@@ -1617,9 +1617,8 @@ parsec_dtd_startup(parsec_context_t *context,
         parsec_device_module_t *device = parsec_mca_device_get(_i);
         if( NULL == device ) continue;
         if( !(tp->devices_index_mask & (1 << device->device_index))) continue;  /* not supported */
-        // If CUDA is enabled, let the CUDA device activated for this
-        // taskpool.
-        if( PARSEC_DEV_CUDA & device->type ) continue;
+        /* If a GPU is enabled, let the device be activated for this taskpool. */
+        if( PARSEC_DEV_IS_GPU(device->type) ) continue;
         if( NULL != device->taskpool_register )
             if( PARSEC_SUCCESS !=
                 device->taskpool_register(device, (parsec_taskpool_t *)tp)) {
