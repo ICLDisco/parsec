@@ -90,6 +90,102 @@ static void parsec_device_dsl_task_t_constructor(parsec_gpu_dsl_task_t *gpu_dsl_
 PARSEC_OBJ_CLASS_INSTANCE(parsec_gpu_dsl_task_t, parsec_gpu_task_t,
                           parsec_device_dsl_task_t_constructor, NULL);
 
+#if defined(DISTRIBUTED)
+typedef struct parsec_gpu_pushout_plan_s {
+    parsec_gpu_task_t *gpu_task;
+    uint32_t remaining_flows;
+} parsec_gpu_pushout_plan_t;
+
+static parsec_ontask_iterate_t
+parsec_gpu_pushout_remote_successor(parsec_execution_stream_t *es,
+                                    const parsec_task_t *newcontext,
+                                    const parsec_task_t *oldcontext,
+                                    const parsec_dep_t *dep,
+                                    parsec_dep_data_description_t *data,
+                                    int rank_src, int rank_dst, int vpid_dst,
+                                    data_repo_t *successor_repo, parsec_key_t successor_repo_key,
+                                    void *param)
+{
+    parsec_gpu_pushout_plan_t *plan = (parsec_gpu_pushout_plan_t*)param;
+    uint32_t flow_bit;
+
+    (void)es; (void)newcontext; (void)oldcontext; (void)data; (void)vpid_dst;
+    (void)successor_repo; (void)successor_repo_key;
+
+    if( (NULL == dep) || (NULL == dep->belongs_to) ) {
+        return PARSEC_ITERATE_CONTINUE;
+    }
+    flow_bit = (1U << dep->belongs_to->flow_index);
+    if( 0 == (plan->remaining_flows & flow_bit) ) {
+        return (0 == plan->remaining_flows) ? PARSEC_ITERATE_STOP : PARSEC_ITERATE_CONTINUE;
+    }
+    if( rank_src != rank_dst ) {
+        /* The communication engine is not allowed to send from GPU memory. A
+         * remote successor must therefore observe the CPU copy after stage_out.
+         */
+        plan->gpu_task->pushout |= flow_bit;
+        plan->remaining_flows &= ~flow_bit;
+    }
+    return (0 == plan->remaining_flows) ? PARSEC_ITERATE_STOP : PARSEC_ITERATE_CONTINUE;
+}
+#endif  /* defined(DISTRIBUTED) */
+
+static void
+parsec_gpu_task_update_pushout(parsec_execution_stream_t *es,
+                               parsec_gpu_task_t *gpu_task)
+{
+#if defined(DISTRIBUTED)
+    const parsec_task_t *this_task = gpu_task->ec;
+    const parsec_task_class_t *tc = this_task->task_class;
+    parsec_gpu_pushout_plan_t plan;
+    uint32_t action_mask = 0;
+    int i, j;
+
+    /* This extra successor walk is only needed in degraded GPU-aware modes:
+     * mpi_gpu_aware=0 or 1 both disable direct sends from GPU memory.
+     */
+    if( (parsec_mpi_allow_gpu_memory_communications & PARSEC_RUNTIME_SEND_GPU_MEMORY) ||
+        (NULL == tc->iterate_successors) ) {
+        return;
+    }
+
+    plan.gpu_task = gpu_task;
+    plan.remaining_flows = 0;
+    /* Keep pushout bits already set by upper layers, notably final writes back
+     * to data collections. This pass only discovers remote task successors that
+     * cannot consume a GPU pointer when GPU sends are disabled.
+     */
+    for( i = 0; i < tc->nb_flows; i++ ) {
+        const parsec_flow_t *flow = gpu_task->flow_info[i].flow;
+        if( NULL == flow ) {
+            continue;
+        }
+        if( !(flow->flow_flags & PARSEC_FLOW_ACCESS_WRITE) ) {
+            continue;
+        }
+        if( gpu_task->pushout & (1U << flow->flow_index) ) {
+            continue;
+        }
+        plan.remaining_flows |= (1U << flow->flow_index);
+        if( PARSEC_TASKPOOL_TYPE_DTD == this_task->taskpool->taskpool_type ) {
+            action_mask |= (1U << flow->flow_index);
+        } else {
+            for( j = 0; (j < MAX_DEP_OUT_COUNT) && (NULL != flow->dep_out[j]); j++ ) {
+                action_mask |= (1U << flow->dep_out[j]->dep_index);
+            }
+        }
+    }
+
+    if( (0 == action_mask) || (0 == plan.remaining_flows) ) {
+        return;
+    }
+    tc->iterate_successors(es, this_task, action_mask,
+                           parsec_gpu_pushout_remote_successor, &plan);
+#else
+    (void)es; (void)gpu_task;
+#endif
+}
+
 static inline int
 parsec_gpu_has_protected_cpu_mirror(parsec_data_t *data)
 {
@@ -3181,7 +3277,10 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
     gpu_task = progress_task;
     out_task_submit = progress_task;
 
- get_data_out_of_device:
+  get_data_out_of_device:
+    if( (NULL != gpu_task) && (PARSEC_GPU_TASK_TYPE_KERNEL == gpu_task->task_type) ) {
+        parsec_gpu_task_update_pushout(es, gpu_task);
+    }
     if( NULL != gpu_task ) {  /* This task has completed its execution */
         PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,  "GPU[%d:%s]:\tRetrieve data (if any) for %s", gpu_device->super.device_index, gpu_device->super.name,
                             parsec_task_snprintf(tmp, MAX_TASK_STRLEN, gpu_task->ec));
