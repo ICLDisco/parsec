@@ -2504,7 +2504,7 @@ parsec_device_kernel_cleanout( parsec_device_gpu_module_t *gpu_device,
 static bool shift_completed_task(parsec_device_gpu_module_t* gpu_device, parsec_gpu_task_t* gpu_task)
 {
     parsec_task_t* this_task = gpu_task->ec;
-    const __parsec_chore_t *chore = &this_task->task_class->incarnations[gpu_device->super.device_index];
+    const __parsec_chore_t *chore = &this_task->task_class->incarnations[this_task->selected_chore];
     return (bool)(chore->flags & PARSEC_CHORE_FLAG_SHIFT_COMPLETION);
 }
 
