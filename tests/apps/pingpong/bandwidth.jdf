@@ -6,6 +6,12 @@ extern "C" %{
  * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
 
+/*
+ * Bandwidth test: run frags independent PING/PONG streams per loop, using
+ * SYNC tasks to advance all fragments together.  This keeps multiple messages
+ * in flight and measures aggregate throughput.
+ */
+
 /* includes parsec headers */
 #include <parsec.h>
 #include <parsec/data_dist/matrix/two_dim_rectangle_cyclic.h>

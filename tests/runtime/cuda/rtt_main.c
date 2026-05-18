@@ -2,6 +2,7 @@
  * Copyright (c) 2019-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec.h"
@@ -10,6 +11,7 @@
 #include "parsec/data_dist/matrix/matrix.h"
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "parsec/include/parsec/execution_stream.h"
+#include "parsec/mca/device/device.h"
 #include "parsec/utils/mca_param.h"
 
 #include "rtt.h"
@@ -21,6 +23,7 @@
 
 static int nb_gpus = 1, gpu_mask = 0xff;
 static int cuda_device_index_len = 0, *cuda_device_index = NULL;
+extern int rtt_verbose;
 
 /**
  * @brief init operator
@@ -63,12 +66,13 @@ PARSEC_OBJ_CLASS_INSTANCE(parsec_rtt_taskpool_t, parsec_taskpool_t,
                           NULL, __parsec_rtt_destructor);
 
 parsec_taskpool_t *rtt_New(parsec_context_t *ctx, parsec_matrix_block_cyclic_t *dcA,
-                           parsec_datatype_t block, int roundtrips)
+                           parsec_datatype_t block, int roundtrips, int frags)
 {
     parsec_rtt_taskpool_t *tp = NULL;
     ptrdiff_t lb, extent;
 
-    tp = parsec_rtt_new((parsec_data_collection_t*)dcA, roundtrips, ctx->nb_nodes);
+    tp = parsec_rtt_new((parsec_data_collection_t*)dcA, roundtrips, frags, ctx->nb_nodes);
+    parsec_mca_device_taskpool_restrict((parsec_taskpool_t*)tp, PARSEC_DEV_CUDA);
     parsec_type_extent(block, &lb, &extent);
     (void)lb;
     parsec_arena_datatype_set_type(&tp->arenas_datatypes[PARSEC_rtt_DEFAULT_ADT_IDX],
@@ -87,7 +91,7 @@ int main(int argc, char *argv[])
     size_t msg_size = 8*1024;
     double t, bw;
 
-    while ((ch = getopt(argc, argv, "c:g:G:l:f:m:n:s:")) != -1) {
+    while ((ch = getopt(argc, argv, "c:g:G:l:f:m:n:s:v")) != -1) {
         switch (ch) {
             case 'c': cores = atoi(optarg); use_opt += 2; break;
             case 'g': nb_gpus = atoi(optarg); use_opt += 2; break;
@@ -97,6 +101,7 @@ int main(int argc, char *argv[])
             case 'm': msg_size = (size_t)atoi(optarg); use_opt += 2; break;
             case 'n': nb_runs = atoi(optarg); use_opt += 2; break;
             case 's': do_sleep = atoi(optarg); use_opt += 2; break;
+            case 'v': rtt_verbose = 1; use_opt += 1; break;
             default:
                 fprintf(stderr,
                         "-c : number of cores to use (default 2)\n"
@@ -107,6 +112,7 @@ int main(int argc, char *argv[])
                         "-m : size, size of message (default: 1024 * 8)\n"
                         "-n : number of runs (default: 1)\n"
                         "-s : number of seconds to sleep before running the tests\n"
+                        "-v : enable verbose task body output\n"
                         "\n");
                  exit(1);
         }
@@ -149,8 +155,8 @@ int main(int argc, char *argv[])
 #endif
 #endif /* DISTRIBUTED */
     if( 0 == rank ) {
-        printf("Running %d tests of %d steps RTT with a data of size %zu\n",
-               nb_runs, loops, msg_size);
+        printf("Running %d tests of %d steps RTT with %d fragments of size %zu\n",
+               nb_runs, loops, frags, msg_size);
     }
     parsec = parsec_init(cores, &argc, &argv);
 
@@ -176,14 +182,18 @@ int main(int argc, char *argv[])
         fprintf(stderr, "To work, RTT must do at least one round time trip of at least one byte\n");
         exit(-1);
     }
+    if (frags <= 0) {
+        fprintf(stderr, "To work, RTT must have at least one fragment\n");
+        exit(-1);
+    }
 
     parsec_matrix_block_cyclic_t* dcA = (parsec_matrix_block_cyclic_t *)calloc(1, sizeof(parsec_matrix_block_cyclic_t));
     parsec_matrix_block_cyclic_init(dcA, PARSEC_MATRIX_BYTE, PARSEC_MATRIX_TILE,
                                     parsec->my_rank,
                                     mb, nb,
-                                    mb, parsec->nb_nodes * nb,
+                                    frags * mb, parsec->nb_nodes * nb,
                                     0, 0,
-                                    mb, parsec->nb_nodes * nb,
+                                    frags * mb, parsec->nb_nodes * nb,
                                     1, parsec->nb_nodes, 1, 1,
                                     0, 0);
     dcA->mat = parsec_data_allocate((size_t)dcA->super.nb_local_tiles *
@@ -207,7 +217,7 @@ int main(int argc, char *argv[])
 #endif  /* defined(PARSEC_HAVE_MPI) */
     gettimeofday(&tstart, NULL);
     for( int test_id = 0; test_id < nb_runs; test_id++ ) {
-        tp = rtt_New(parsec, dcA, block, loops);
+        tp = rtt_New(parsec, dcA, block, loops, frags);
         if( NULL != tp ) {
             parsec_context_add_taskpool(parsec, tp);
             parsec_context_start(parsec);
@@ -222,9 +232,14 @@ int main(int argc, char *argv[])
 
     if( 0 == rank ) {
         t = ((tend.tv_sec - tstart.tv_sec) * 1000000.0 + (tend.tv_usec - tstart.tv_usec)) / 1000000.0;  /* in seconds */
-        double total_payload = (double)nb_runs * (double)loops * (double)msg_size / 1024.0 / 1024.0 / 1024.0;
+        /* PING(0, f) starts from A and PING(NT-1, f) writes back to A, so
+         * only the NT-1 edges between PING tasks contribute remote payload.
+         * Keep the binary unit explicit in the printed bandwidth.
+         */
+        double transfer_steps = (loops > 0) ? (double)(loops - 1) : 0.0;
+        double total_payload = (double)nb_runs * transfer_steps * (double)frags * (double)msg_size / 1024.0 / 1024.0 / 1024.0;
         bw = total_payload / t;
-        printf("%d\t%d\t%d\t%zu\t%08.4g s\t%4.8g GB/s\n", nb_runs, frags, loops, msg_size*sizeof(uint8_t), t, bw);
+        printf("%d\t%d\t%d\t%zu\t%08.4g s\t%4.8g GiB/s\n", nb_runs, frags, loops, msg_size*sizeof(uint8_t), t, bw);
     }
 
     parsec_data_free(dcA->mat);

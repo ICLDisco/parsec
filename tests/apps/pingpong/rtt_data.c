@@ -2,6 +2,7 @@
  * Copyright (c) 2014-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/runtime.h"
@@ -22,14 +23,16 @@ typedef struct {
 
 static uint32_t rank_of(parsec_data_collection_t *desc, ...)
 {
-    int k;
+    int f, k;
     va_list ap;
     my_datatype_t *dat = (my_datatype_t*)desc;
 
     va_start(ap, desc);
+    f = va_arg(ap, int);
     k = va_arg(ap, int);
     va_end(ap);
 
+    assert(0 == f);
     assert( (unsigned int)k < dat->super.nodes && k >= 0 );
     (void)dat; (void)f;
     return k;
@@ -64,14 +67,16 @@ static int32_t vpid_of_key(parsec_data_collection_t *desc, parsec_data_key_t key
 
 static parsec_data_t* data_of(parsec_data_collection_t *desc, ...)
 {
-    int k;
+    int f, k;
     va_list ap;
     my_datatype_t *dat = (my_datatype_t*)desc;
 
     va_start(ap, desc);
+    f = va_arg(ap, int);
     k = va_arg(ap, int);
     va_end(ap);
 
+    assert(0 == f);
     assert( (unsigned int)k < dat->super.nodes && k >= 0 );
     (void)k; (void)f;
     return parsec_data_create( &dat->data, desc, k, dat->ptr, dat->size, PARSEC_DATA_FLAG_PARSEC_MANAGED );
@@ -85,14 +90,16 @@ static parsec_data_t* data_of_key(parsec_data_collection_t *desc, parsec_data_ke
 
 static parsec_data_key_t data_key(parsec_data_collection_t *desc, ...)
 {
-    int k;
+    int f, k;
     va_list ap;
     my_datatype_t *dat = (my_datatype_t*)desc;
 
     va_start(ap, desc);
+    f = va_arg(ap, int);
     k = va_arg(ap, int);
     va_end(ap);
 
+    assert(0 == f);
     assert( (unsigned int)k < dat->super.nodes && k >= 0 );
     (void)dat; (void)f;
 
@@ -115,7 +122,7 @@ parsec_data_collection_t *create_and_distribute_data(int rank, int world, int si
     d->data_key     = data_key;
 #if defined(PARSEC_PROF_TRACE)
     {
-      int len = asprintf(&d->key_dim, "(%d)", world);
+      int len = asprintf(&d->key_dim, "(1, %d)", world);
       if( -1 == len )
 	d->key_dim = NULL;
     }
