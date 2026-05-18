@@ -50,7 +50,7 @@ static void parsec_data_copy_destruct(parsec_data_copy_t* obj)
         assert( NULL == obj->original );
     }
 
-    if( obj->flags & PARSEC_DATA_FLAG_ARENA ) {
+    if( (obj->flags & PARSEC_DATA_FLAG_ARENA) && (NULL != obj->arena_chunk) ) {
         /* It is an arena that is now unused.
          * give the chunk back to the arena memory management.
          * obj is already detached from obj->original, but this frees the arena chunk */
@@ -456,7 +456,7 @@ int parsec_data_start_transfer_ownership_to_copy(parsec_data_t* data,
 
 void parsec_data_copy_dump(parsec_data_copy_t* copy)
 {
-    char *transfer = "---", flags[] = "----", *coherency = "undef";
+    char *transfer = "---", flags[] = "-----", *coherency = "undef";
     switch(copy->data_transfer_status) {
         case PARSEC_DATA_STATUS_NOT_TRANSFER: transfer = "no"; break;
         case PARSEC_DATA_STATUS_UNDER_TRANSFER: transfer = "yes"; break;
@@ -464,8 +464,9 @@ void parsec_data_copy_dump(parsec_data_copy_t* copy)
     }
     if (copy->flags & PARSEC_DATA_FLAG_ARENA) flags[0] = 'A';
     if (copy->flags & PARSEC_DATA_FLAG_TRANSIT) flags[1] = 'T';
-    if (copy->flags & PARSEC_DATA_FLAG_PARSEC_MANAGED) flags[2] = 'M';
-    if (copy->flags & PARSEC_DATA_FLAG_PARSEC_OWNED) flags[3] = 'O';
+    if (copy->flags & PARSEC_DATA_FLAG_CPU_MIRROR_PROTECTED) flags[2] = 'P';
+    if (copy->flags & PARSEC_DATA_FLAG_PARSEC_MANAGED) flags[3] = 'M';
+    if (copy->flags & PARSEC_DATA_FLAG_PARSEC_OWNED) flags[4] = 'O';
 
     if( PARSEC_DATA_COHERENCY_INVALID   == copy->coherency_state ) coherency = "invalid";
     if( PARSEC_DATA_COHERENCY_OWNED     == copy->coherency_state ) coherency = "owned";
@@ -652,6 +653,23 @@ void parsec_arena_datatype_release(parsec_arena_datatype_t **adt) {
     PARSEC_OBJ_RELEASE(*adt);
 }
 
+void parsec_data_protect_cpu_mirror(parsec_data_t *data)
+{
+    parsec_data_copy_t *copy;
+
+    if( NULL == data || NULL != data->dc ) {
+        return;
+    }
+
+    parsec_atomic_lock(&data->lock);
+    copy = data->device_copies[0];
+    if( NULL != copy ) {
+        assert(0 == copy->device_index);
+        copy->flags |= PARSEC_DATA_FLAG_CPU_MIRROR_PROTECTED;
+    }
+    parsec_atomic_unlock(&data->lock);
+}
+
 int parsec_data_release_self_contained_data(parsec_data_t *data)
 {
     int32_t nb_copies = data->nb_copies;
@@ -669,6 +687,7 @@ int parsec_data_release_self_contained_data(parsec_data_t *data)
     for( uint32_t i = 0; i < parsec_nb_devices; i++) {
         if (NULL == (copy = data->device_copies[i])) continue;
         assert(1 == copy->super.super.obj_reference_count && 0 == copy->readers);
+        copy->flags &= ~PARSEC_DATA_FLAG_CPU_MIRROR_PROTECTED;
         if (!parsec_mca_device_is_gpu(copy->device_index)) {
             PARSEC_OBJ_RELEASE(copy);
             assert(NULL == copy);

@@ -91,6 +91,19 @@ PARSEC_OBJ_CLASS_INSTANCE(parsec_gpu_dsl_task_t, parsec_gpu_task_t,
                           parsec_device_dsl_task_t_constructor, NULL);
 
 static inline int
+parsec_gpu_has_protected_cpu_mirror(parsec_data_t *data)
+{
+    parsec_data_copy_t *cpu_copy;
+
+    if( (NULL == data) || (NULL != data->dc) ) {
+        return 0;
+    }
+    cpu_copy = data->device_copies[0];
+    return (NULL != cpu_copy) &&
+           (0 != (cpu_copy->flags & PARSEC_DATA_FLAG_CPU_MIRROR_PROTECTED));
+}
+
+static inline int
 parsec_device_check_space_needed(parsec_device_gpu_module_t *gpu_device,
                                  parsec_gpu_task_t *gpu_task)
 {
@@ -962,10 +975,14 @@ parsec_device_get_copy( parsec_device_gpu_module_t* gpu_device, parsec_data_copy
         parsec_atomic_unlock(&master->lock);
         goto find_another_data;
     }
+    int release_protected_cpu_mirror = parsec_gpu_has_protected_cpu_mirror(master);
     parsec_data_copy_detach(master, lru_gpu_elem, gpu_device->super.device_index);
     parsec_atomic_wmb();
     *dc = lru_gpu_elem;
     parsec_atomic_unlock(&master->lock);
+    if( release_protected_cpu_mirror ) {
+        parsec_data_release_self_contained_data(master);
+    }
     return PARSEC_SUCCESS;
 }
 
@@ -1226,12 +1243,16 @@ parsec_device_data_reserve_space( parsec_device_gpu_module_t* gpu_device,
                 }
                 copy_readers_update = PARSEC_DEVICE_DATA_COPY_ATOMIC_SENTINEL;
                 /* Check if this copy is the last dangling reference to the oldmaster. This is safe to do as we own one of the data refcounts. */
+                int release_protected_cpu_mirror = parsec_gpu_has_protected_cpu_mirror(oldmaster);
                 int do_unlock = oldmaster->super.obj_reference_count != 1;
                 parsec_data_copy_detach(oldmaster, lru_gpu_elem, gpu_device->super.device_index);
                 parsec_atomic_wmb();
                 /* detach could have released the oldmaster if it only had a single refcount */
                 if( do_unlock )
                     parsec_atomic_unlock( &oldmaster->lock );
+                if( release_protected_cpu_mirror ) {
+                    parsec_data_release_self_contained_data(oldmaster);
+                }
 
                 /* The data is not used, it's not one of ours, and it has been detached from the device
                  * so no other device can use it as a source for their copy : we can free it or reuse it */
@@ -2841,12 +2862,11 @@ parsec_device_kernel_epilog( parsec_device_gpu_module_t *gpu_device,
             gpu_copy->coherency_state = PARSEC_DATA_COHERENCY_SHARED;
             assert(PARSEC_DATA_STATUS_UNDER_TRANSFER == cpu_copy->data_transfer_status);
             cpu_copy->data_transfer_status = PARSEC_DATA_STATUS_COMPLETE_TRANSFER;
-            /* This condition should be checked more strictly. It is one thing to be able to send the
-             * data directly from the GPU via the communication engine, but if we have local successors
-             * that are not executing on the GPU (aka. the pushout has been set) we need to propagate
-             * the CPU copy instead.
+            /* If the communication engine cannot send directly from GPU memory,
+             * report the CPU copy as the task output. Otherwise, keep the GPU copy
+             * as the output so remote successors can use the GPU-aware send path.
              */
-            if( 1 || (0 == (parsec_mpi_allow_gpu_memory_communications & PARSEC_RUNTIME_SEND_GPU_MEMORY)) ) {
+            if( 0 == (parsec_mpi_allow_gpu_memory_communications & PARSEC_RUNTIME_SEND_GPU_MEMORY) ) {
                 /* Report the CPU copy as the output of the task. */
                 this_task->data[i].data_out = cpu_copy;
                 PARSEC_DEBUG_VERBOSE(100, parsec_gpu_output_stream,
@@ -2854,6 +2874,11 @@ parsec_device_kernel_epilog( parsec_device_gpu_module_t *gpu_device,
                                  gpu_device->super.device_index, gpu_device->super.name, task_str,
                                  gpu_copy, gpu_copy->super.super.obj_reference_count,
                                  cpu_copy, cpu_copy->super.super.obj_reference_count, __func__);
+            } else {
+                /* Self-contained temporaries still need their CPU mirror while
+                 * GPU copies are propagated through GPU-aware remote deps.
+                 */
+                parsec_data_protect_cpu_mirror(original);
             }
             PARSEC_DEBUG_VERBOSE(20, parsec_gpu_output_stream,
                                  "GPU[%d:%s]: %s: GPU copy %p [ref_count %d] moved to the read LRU in %s",

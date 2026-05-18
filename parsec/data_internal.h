@@ -2,6 +2,7 @@
  * Copyright (c) 2015-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
 
 #if !defined(PARSEC_CONFIG_H_HAS_BEEN_INCLUDED)
@@ -91,6 +92,7 @@ PARSEC_DECLSPEC PARSEC_OBJ_CLASS_DECLARATION(parsec_data_copy_t);
     ((DATA)->device_copies[(DEVID)])
 
 int parsec_data_release_self_contained_data(parsec_data_t* data);
+void parsec_data_protect_cpu_mirror(parsec_data_t* data);
 /**
  * Decrease the refcount of this copy of the data. If the refcount reach
  * 0 the upper level is in charge of cleaning up and releasing all content
@@ -112,8 +114,38 @@ int parsec_data_release_self_contained_data(parsec_data_t* data);
 #else
 static inline void __parsec_data_copy_release(parsec_data_copy_t** copy)
 {
+    parsec_data_copy_t *data_copy = *copy;
+    parsec_data_t *original = (NULL != data_copy) ? data_copy->original : NULL;
+    int release_protected_cpu_mirror =
+        (NULL != original) &&
+        (NULL == original->dc) &&
+        (NULL != original->device_copies[0]) &&
+        (0 != (original->device_copies[0]->flags & PARSEC_DATA_FLAG_CPU_MIRROR_PROTECTED));
+    int releasing_protected_cpu_mirror =
+        release_protected_cpu_mirror && (data_copy == original->device_copies[0]);
+
     PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "Release data copy %p at %s:%d", *copy, __FILE__, __LINE__);
+    /* A self-contained CPU mirror can be the last host-side handle for GPU
+     * propagated data. Keep that final reference until the GPU copies can be
+     * released with the rest of the self-contained data.
+     */
+    if( (NULL != data_copy) &&
+        (0 != (data_copy->flags & PARSEC_DATA_FLAG_CPU_MIRROR_PROTECTED)) &&
+        (1 == data_copy->super.super.obj_reference_count) &&
+        (NULL != original) &&
+        (NULL == original->dc) ) {
+        if( parsec_data_release_self_contained_data(original) ) {
+            *copy = NULL;
+        }
+        return;
+    }
     PARSEC_OBJ_RELEASE(*copy);
+    if( release_protected_cpu_mirror ) {
+        if( parsec_data_release_self_contained_data(original) && releasing_protected_cpu_mirror ) {
+            *copy = NULL;
+        }
+        return;
+    }
     if ((NULL != *copy) && (NULL != (*copy)->original) && (1 == (*copy)->super.super.obj_reference_count))
         parsec_data_release_self_contained_data((*copy)->original);
 }
