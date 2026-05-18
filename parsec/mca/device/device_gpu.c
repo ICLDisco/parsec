@@ -1490,9 +1490,12 @@ parsec_gpu_data_copy_release_reader(parsec_device_gpu_module_t *gpu_device,
 {
     int readers = parsec_atomic_fetch_sub_int32(&copy->readers, 1) - 1;
     if( (0 == readers) && make_available ) {
-        /* D2D readers do not change ownership; keep dirty GPU-only data on the
-         * owned LRU so it cannot be reused before the W2R backup path sees it. */
-        if( PARSEC_DATA_COHERENCY_OWNED != copy->coherency_state ) {
+        /* Only PaRSEC-owned copies can be reclaimed through the device LRU.
+         * D2D readers do not change ownership, so dirty GPU-only data must
+         * also stay off the clean LRU until the W2R backup path sees it.
+         */
+        if( (0 != (copy->flags & PARSEC_DATA_FLAG_PARSEC_OWNED)) &&
+            (PARSEC_DATA_COHERENCY_OWNED != copy->coherency_state) ) {
             parsec_list_item_ring_chop((parsec_list_item_t*)copy);
             PARSEC_LIST_ITEM_SINGLETON(copy);
             parsec_list_push_back(&gpu_device->gpu_mem_lru, (parsec_list_item_t*)copy);
@@ -2499,9 +2502,16 @@ parsec_device_kernel_push( parsec_device_gpu_module_t      *gpu_device,
         if( NULL == this_task->data[i].data_in ) continue;
 
         /* If there is already a GPU data copy (set by reserve_device_space), and this copy
-         * is not parsec-owned, don't stage in */
+         * is not parsec-owned, don't stage in. We still record read uses so the pop
+         * path can balance readers without handing the copy to PaRSEC's LRU.
+         */
         if( NULL != this_task->data[i].data_out &&
-            (0 == (this_task->data[i].data_out->flags & PARSEC_DATA_FLAG_PARSEC_OWNED) ) ) continue;
+            (0 == (this_task->data[i].data_out->flags & PARSEC_DATA_FLAG_PARSEC_OWNED) ) ) {
+            if( flow->flow_flags & PARSEC_FLOW_ACCESS_READ ) {
+                parsec_atomic_fetch_add_int32(&this_task->data[i].data_out->readers, 1);
+            }
+            continue;
+        }
 
         assert( NULL != parsec_data_copy_get_ptr(this_task->data[i].data_in)
              || NULL != this_task->data[i].data_in->alloc_cb );
@@ -2656,9 +2666,6 @@ parsec_device_kernel_pop( parsec_device_gpu_module_t   *gpu_device,
 
         gpu_copy = this_task->data[i].data_out;
 
-        /* If the gpu copy is not owned by parsec, we don't manage it at all */
-        if( 0 == (gpu_copy->flags & PARSEC_DATA_FLAG_PARSEC_OWNED) ) continue;
-
         original = gpu_copy->original;
         span = gpu_task->flow_info[i].flow_span;
 
@@ -2690,6 +2697,14 @@ parsec_device_kernel_pop( parsec_device_gpu_module_t   *gpu_device,
                                      i, original, current_readers);
             }
             assert(current_readers >= 0);
+            /* Non-owned copies may be used as GPU inputs, but their lifetime is
+             * not managed through PaRSEC's device LRUs. After balancing readers,
+             * leave ownership, availability, and reclamation to the external owner.
+             */
+            if( 0 == (gpu_copy->flags & PARSEC_DATA_FLAG_PARSEC_OWNED) ) {
+                parsec_atomic_unlock(&original->lock);
+                continue;
+            }
             if( (0 == current_readers) && !(flow->flow_flags & PARSEC_FLOW_ACCESS_WRITE) ) {
                 PARSEC_DEBUG_VERBOSE(20, parsec_gpu_output_stream,
                                      "GPU[%d:%s]:\tMake read-only copy %p [ref_count %d] available on flow %s",
@@ -2701,6 +2716,15 @@ parsec_device_kernel_pop( parsec_device_gpu_module_t   *gpu_device,
             PARSEC_DEBUG_VERBOSE(20, parsec_gpu_output_stream,
                                  "GPU[%d:%s]:\tread copy %p [ref_count %d] on flow %s has readers (%i)",
                                  gpu_device->super.device_index, gpu_device->super.name, gpu_copy, gpu_copy->super.super.obj_reference_count, flow->name, current_readers);
+        }
+        /* Non-owned copies may be used as GPU inputs, but their lifetime is not
+         * managed through PaRSEC's device LRUs. Write-only users did not acquire
+         * a reader above, so leave ownership, write-back, and reclamation to the
+         * external owner.
+         */
+        if( 0 == (gpu_copy->flags & PARSEC_DATA_FLAG_PARSEC_OWNED) ) {
+            parsec_atomic_unlock(&original->lock);
+            continue;
         }
         if( flow->flow_flags & PARSEC_FLOW_ACCESS_WRITE ) {
             assert( gpu_copy == parsec_data_get_copy(gpu_copy->original, gpu_device->super.device_index) );
