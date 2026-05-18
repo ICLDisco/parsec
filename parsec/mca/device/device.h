@@ -2,7 +2,7 @@
  * Copyright (c) 2013-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
- * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
+ * Copyright (c) 2024-2026 NVIDIA Corporation.  All rights reserved.
  */
 
 /** @addtogroup parsec_device
@@ -192,6 +192,12 @@ PARSEC_OBJ_CLASS_DECLARATION(parsec_device_module_t);
 
 extern uint32_t parsec_nb_devices;
 extern int parsec_device_output;
+
+/**
+ * Whether to skip input and output stream events that are not strictly
+ * necessary (enabled by default).
+ */
+extern int parsec_device_skip_empty_events;
 
 /**
  * @brief Find the best device to execute the kernel based on the compute

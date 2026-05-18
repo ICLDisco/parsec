@@ -62,6 +62,12 @@ static float load_balance_skew;
 static int parsec_device_load_balance_allow_cpu = 0;
 
 /**
+ * Whether to skip input and output stream events that are not strictly
+ * necessary (enabled by default).
+ */
+int parsec_device_skip_empty_events = 1;
+
+/**
  * @brief Estimates how many nanoseconds this_task will run on devid
  *
  * @param this_task the task to run
@@ -342,6 +348,11 @@ int parsec_mca_device_init(void)
     (void)parsec_mca_param_reg_int_name("device", "load_balance_skew",
                                         "Allow load balancing to skew by x%% to favor data reuse",
                                         false, false, parsec_device_load_balance_skew, NULL);
+    (void)parsec_mca_param_reg_int_name("device", "skip_empty_events",
+                                        "Skip recording events on input and output streams "
+                                        "that are not strictly necessary (enabled)",
+                                        false, false, parsec_device_skip_empty_events,
+                                        &parsec_device_skip_empty_events);
     (void)parsec_mca_param_reg_int_name("device", "load_balance_allow_cpu",
                                         "Allow load balancing tasks with GPU incarnations to CPU cores",
                                         false, false, parsec_device_load_balance_allow_cpu, NULL);
