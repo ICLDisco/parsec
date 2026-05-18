@@ -25,12 +25,12 @@ if( NOT CYTHON_EXECUTABLE )
   return()
 endif( NOT CYTHON_EXECUTABLE )
 execute_process(
-        COMMAND ${Python_EXECUTABLE} -c "import pandas"
+        COMMAND ${Python_EXECUTABLE} -c "import Cython; import pandas; import setuptools"
         RESULT_VARIABLE PARSEC_PYTHON_CAN_LOAD_PREREQUISITE_MODULES_IF_THIS_IS_ZERO
         ERROR_QUIET
 )
 if ( NOT (PARSEC_PYTHON_CAN_LOAD_PREREQUISITE_MODULES_IF_THIS_IS_ZERO EQUAL 0) )
-  message(WARNING "Prerequisite Python modules (pandas) not found. Disabling the profiling tools")
+  message(WARNING "Prerequisite Python modules (Cython, pandas, setuptools) not found. Disabling the profiling tools")
   set(PARSEC_PYTHON_TOOLS OFF CACHE BOOL "True iff Python tools are enabled in PaRSEC")
   return()
 endif ( NOT (PARSEC_PYTHON_CAN_LOAD_PREREQUISITE_MODULES_IF_THIS_IS_ZERO EQUAL 0) )
@@ -53,6 +53,8 @@ endif(Python_VERSION_MAJOR EQUAL 2)
 # if necessary
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/setup.py.in
                ${CMAKE_CURRENT_BINARY_DIR}/setup.py @ONLY )
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/pyproject.toml.in
+               ${CMAKE_CURRENT_BINARY_DIR}/pyproject.toml @ONLY )
 
 # Move the files into the build directory (to prevent the pollution of the source directory
 # due to cython compilation) and compile the python module
@@ -61,16 +63,24 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/setup.py.in
 # location and import the pbt2ptt module.
 add_custom_command(OUTPUT ${OUTPUT}
                    COMMAND ${CMAKE_COMMAND} -E copy_if_different ${SRC_PYTHON_SUPPORT} ${CMAKE_CURRENT_BINARY_DIR}
-                   COMMAND ${Python_EXECUTABLE} -m pip install --quiet --upgrade --target=${CMAKE_CURRENT_BINARY_DIR}/python.test .
+                   COMMAND ${Python_EXECUTABLE} -m pip install --quiet --upgrade --use-pep517 --no-build-isolation --no-deps --target=${CMAKE_CURRENT_BINARY_DIR}/python.test .
                    COMMAND ${CMAKE_COMMAND} -E touch ${OUTPUT}
-                   DEPENDS parsec-base ${SRC_PYTHON_SUPPORT})
+                   DEPENDS parsec-base ${SRC_PYTHON_SUPPORT}
+                           ${CMAKE_CURRENT_BINARY_DIR}/setup.py
+                           ${CMAKE_CURRENT_BINARY_DIR}/pyproject.toml)
 add_custom_target(pbt2ptt ALL DEPENDS ${OUTPUT})
 
-# Call python distutils to install all python support in the right location
+# Ask pip to install all python support in the right location
 # (aka. according to the OS demands). Prepare to reconfigure the shell
 # helper scripts to point to the right location
-install(CODE "execute_process(COMMAND ${Python_EXECUTABLE} -m pip install --quiet --prefix=\$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX} .
-        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})")
+install(CODE "
+set(_parsec_python_pip_args --quiet --upgrade --use-pep517 --no-build-isolation --no-deps --prefix=${CMAKE_INSTALL_PREFIX})
+if(DEFINED ENV{DESTDIR} AND NOT \"\$ENV{DESTDIR}\" STREQUAL \"\")
+  list(APPEND _parsec_python_pip_args --root=\$ENV{DESTDIR})
+endif()
+execute_process(COMMAND ${Python_EXECUTABLE} -m pip install \${_parsec_python_pip_args} .
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+        COMMAND_ERROR_IS_FATAL ANY)")
 
 # Create bash environment PaRSEC python support
 configure_file(utilities/bash.env.in
@@ -93,5 +103,4 @@ foreach(file ${pyfiles})
 endforeach()
 
 set(PARSEC_PYTHON_TOOLS ON CACHE BOOL "True if Python tools are enabled in PaRSEC")
-
 

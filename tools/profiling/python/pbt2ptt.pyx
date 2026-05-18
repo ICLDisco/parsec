@@ -1,6 +1,6 @@
 """ DBPreader Python interface
 
-run 'python setup.py build_ext --inplace' to compile
+run 'python -m pip install .' from the configured build directory to compile
 The preferred nomenclature for the Python Binary Trace is "PBT",
 
 REQUIREMENTS:
