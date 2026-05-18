@@ -388,9 +388,12 @@ int parsec_update_deps_with_counter_count_task(parsec_taskpool_t *tp,
                                                const parsec_task_t* PARSEC_RESTRICT origin,
                                                const parsec_flow_t* PARSEC_RESTRICT origin_flow,
                                                const parsec_flow_t* PARSEC_RESTRICT dest_flow);
-    
+
+#define PARSEC_CHORE_FLAG_NONE                  0x00
+#define PARSEC_CHORE_FLAG_SHIFT_COMPLETION      0x01
 typedef struct __parsec_internal_incarnation_s {
     int32_t                     type;
+    int32_t                     flags;
     parsec_evaluate_function_t *evaluate;
     parsec_hook_t              *hook;
     char                       *dyld;
