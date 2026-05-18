@@ -3,6 +3,7 @@ extern "C" %{
  * Copyright (c) 2019-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation. All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
 
 /* includes parsec headers */
@@ -15,6 +16,7 @@ extern "C" %{
 #include <stdio.h>
 #include <string.h>
 #include <sys/time.h>
+#include <unistd.h>
 
 #if defined(PARSEC_HAVE_MPI)
 #include <mpi.h>
@@ -72,6 +74,27 @@ END
 
 extern "C" %{
 
+static int next_message_size(int current, int upper)
+{
+    int base = 1, next;
+
+    if( current >= upper ) {
+        return upper;
+    }
+    if( current < 4 ) {
+        next = current + 1;
+    } else {
+        while( base <= current / 2 ) {
+            base <<= 1;
+        }
+        next = (current == base) ? current + base / 2 : base << 1;
+    }
+    if( next <= current ) {
+        next = current + 1;
+    }
+    return (next > upper) ? upper : next;
+}
+
 /**
  * @brief bandwidth,  no-blocking 
  *
@@ -80,7 +103,7 @@ extern "C" %{
  * @param [in] loops: loops of bandwidth 
  * @param [in] frags: fragments
  * @param [in] ws: number of process
- * @param [in] size: number of doubles
+ * @param [in] size: message size in bytes
  */
 parsec_taskpool_t*
 parsec_bandwidth_New(parsec_tiled_matrix_t *dcA,
@@ -99,7 +122,7 @@ parsec_bandwidth_New(parsec_tiled_matrix_t *dcA,
   bandwidth_taskpool = (parsec_taskpool_t*)taskpool;
 
   parsec_matrix_adt_define_rect( &taskpool->arenas_datatypes[PARSEC_bandwidth_DEFAULT_ADT_IDX],
-                           parsec_datatype_double_t, 1, size, 1);
+                           parsec_datatype_uint8_t, 1, size, 1);
 
   return bandwidth_taskpool;
 }
@@ -122,7 +145,7 @@ void parsec_bandwidth_Destruct(parsec_taskpool_t *taskpool)
  * @param [in] loops: loops of bandwidth
  * @param [in] frags: fragments
  * @param [in] ws: number of process 
- * @param [in] size: number of doubles
+ * @param [in] size: message size in bytes
  */
 int parsec_bandwidth(parsec_context_t *parsec,
                     parsec_tiled_matrix_t *dcA,
@@ -152,12 +175,13 @@ int main(int argc, char *argv[])
     int pargc = 0;
     char **pargv = NULL;
     struct timeval tstart, tend;
-    double t, bw;
+    double t, bw, messages;
 
     /* Default */
     int loops = 100;
     int frags = 60;
-    int size = 1024;
+    int size, idx;
+    int start_length = 1, end_length = 8 * 1024 * 1024;
     int cores = 1;
     int nb_runs = 1;
 
@@ -173,23 +197,31 @@ int main(int argc, char *argv[])
     rank = 0;
 #endif
 
-    while ((ch = getopt(argc, argv, "n:f:l:c:h:e:")) != -1) {
+    while ((ch = getopt(argc, argv, "n:f:l:u:c:h:e:")) != -1) {
         switch (ch) {
             case 'n': loops = atoi(optarg); break;
             case 'f': frags = atoi(optarg); break;
-            case 'l': size = atoi(optarg) / sizeof(double); break;
+            case 'l': start_length = atoi(optarg); break;
+            case 'u': end_length = atoi(optarg); break;
             case 'e': nb_runs = atoi(optarg); break;
             case 'c': cores = atoi(optarg); break;
             case '?': case 'h': default:
                 fprintf(stderr,
                         "-n : loops of bandwidth(default: 100)\n"
                         "-f : frags, number of fragments (default: 60)\n"
-                        "-l : size, size of message (default: 1024 * sizeof(double))\n"
+                        "-l : lower message size in bytes (default: 1)\n"
+                        "-u : upper message size in bytes (default: 8MB)\n"
                         "-c : number of cores used (default: 1)\n"
                         "-e : number of runs (default: 1)\n"
                         "\n");
                  exit(1);
         }
+    }
+    if( start_length < 1 ) {
+        start_length = 1;
+    }
+    if( end_length < start_length ) {
+        end_length = start_length;
     }
 
     for(i = 1; i < argc; i++) {
@@ -220,17 +252,6 @@ int main(int argc, char *argv[])
         cores = nb_total_comp_threads;
     }
 
-    /* initializing matrix structure */
-    parsec_matrix_block_cyclic_t dcA;
-    parsec_matrix_block_cyclic_init(&dcA, PARSEC_MATRIX_DOUBLE, PARSEC_MATRIX_TILE,
-                              rank, 1, size, frags, size, 0, 0,
-                              frags, size,
-                              1, nodes, 1, 1, 0, 0);
-    dcA.mat = parsec_data_allocate((size_t)dcA.super.nb_local_tiles *
-                                   (size_t)dcA.super.bsiz *
-                                   (size_t)parsec_datadist_getsizeoftype(dcA.super.mtype));
-    parsec_data_collection_set_key((parsec_data_collection_t*)&dcA, "dcA");
-
     parsec_matrix_block_cyclic_t Disk;
     parsec_matrix_block_cyclic_init(&Disk, PARSEC_MATRIX_DOUBLE, PARSEC_MATRIX_TILE,
                               rank, 1, 1, 1, nodes, 0, 0,
@@ -239,42 +260,64 @@ int main(int argc, char *argv[])
     parsec_data_collection_set_key((parsec_data_collection_t*)&Disk, "Disk");
 
     for(i = 0; i < nb_runs; i++) {
-        /* bandwidth */
-        taskpool = parsec_bandwidth_new((parsec_tiled_matrix_t *)&dcA,
-                                       (parsec_tiled_matrix_t *)&Disk,
-                                       loops, frags, nodes);
+        for(idx = 0, size = start_length; ; idx++) {
+            /* Keep the collection datatype in sync with the arena datatype.
+             * Otherwise the receiver initially expects the upper-bound tile
+             * shape and has to fall back to a byte receive for smaller sizes.
+             */
+            parsec_matrix_block_cyclic_t dcA;
+            parsec_matrix_block_cyclic_init(&dcA, PARSEC_MATRIX_BYTE, PARSEC_MATRIX_TILE,
+                                      rank, 1, size, frags, size, 0, 0,
+                                      frags, size,
+                                      1, nodes, 1, 1, 0, 0);
+            dcA.mat = parsec_data_allocate((size_t)dcA.super.nb_local_tiles *
+                                           (size_t)dcA.super.bsiz *
+                                           (size_t)parsec_datadist_getsizeoftype(dcA.super.mtype));
+            parsec_data_collection_set_key((parsec_data_collection_t*)&dcA, "dcA");
 
-        bandwidth_taskpool = (parsec_taskpool_t*)taskpool;
+            /* bandwidth */
+            taskpool = parsec_bandwidth_new((parsec_tiled_matrix_t *)&dcA,
+                                           (parsec_tiled_matrix_t *)&Disk,
+                                           loops, frags, nodes);
 
-        parsec_matrix_adt_define_rect( &taskpool->arenas_datatypes[PARSEC_bandwidth_DEFAULT_ADT_IDX],
-                                 parsec_datatype_double_t, 1, size, 1);
+            bandwidth_taskpool = (parsec_taskpool_t*)taskpool;
 
-        /* Time start */
+            parsec_matrix_adt_define_rect( &taskpool->arenas_datatypes[PARSEC_bandwidth_DEFAULT_ADT_IDX],
+                                     parsec_datatype_uint8_t, 1, size, 1);
+
+            /* Time start */
 #if defined(PARSEC_HAVE_MPI)
-        MPI_Barrier(MPI_COMM_WORLD);
+            MPI_Barrier(MPI_COMM_WORLD);
 #endif  /* defined(PARSEC_HAVE_MPI) */
-        gettimeofday(&tstart, NULL);
+            gettimeofday(&tstart, NULL);
 
-        parsec_context_add_taskpool(parsec, bandwidth_taskpool);
-        parsec_context_start(parsec);
-        parsec_context_wait(parsec);
+            parsec_context_add_taskpool(parsec, bandwidth_taskpool);
+            parsec_context_start(parsec);
+            parsec_context_wait(parsec);
 
-        /* Time end */
+            /* Time end */
 #if defined(PARSEC_HAVE_MPI)
-        MPI_Barrier(MPI_COMM_WORLD);
+            MPI_Barrier(MPI_COMM_WORLD);
 #endif  /* defined(PARSEC_HAVE_MPI) */
-        gettimeofday(&tend, NULL);
+            gettimeofday(&tend, NULL);
 
-        if( 0 == rank ) {
-            t = (tend.tv_sec - tstart.tv_sec) * 1000000.0 + (tend.tv_usec - tstart.tv_usec);
-            bw = ((double)loops * (double)frags * (double)size) / t * 1000.0 * 1000.0 / (1000.0 * 1000.0 * 1000.0) * sizeof(double) * 8;
-            printf("%d %d %zu %08.4g %4.8g GB/s\n", loops, frags, size*sizeof(double), t / 1000000.0, bw);
+            if( 0 == rank ) {
+                t = (tend.tv_sec - tstart.tv_sec) * 1000000.0 + (tend.tv_usec - tstart.tv_usec);
+                messages = (double)loops * (double)frags;
+                bw = (0.0 == t) ? 0.0 : messages * (double)size * 8.0 * 1000000.0 / (t * 1024.0 * 1024.0);
+                printf("%3d: %8d bytes %d times --> %10.2f Mib/s in %10.2f usec\n",
+                       idx, size, loops * frags, bw, t / messages);
+            }
+
+            parsec_bandwidth_Destruct(bandwidth_taskpool);
+            parsec_tiled_matrix_destroy((parsec_tiled_matrix_t*)&dcA);
+            if( size == end_length ) {
+                break;
+            }
+            size = next_message_size(size, end_length);
         }
-
-        parsec_bandwidth_Destruct(bandwidth_taskpool);
     }
 
-    parsec_tiled_matrix_destroy((parsec_tiled_matrix_t*)&dcA);
     parsec_tiled_matrix_destroy((parsec_tiled_matrix_t*)&Disk);
 
     /* Clean up parsec*/
