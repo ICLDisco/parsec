@@ -17,6 +17,9 @@
 #include "parsec/remote_dep.h"
 #include "parsec/parsec_internal.h"
 #include "parsec/utils/zone_malloc.h"
+#if defined(PARSEC_GPU_ALLOC_PER_TILE)
+#include "parsec/mca/device/device_gpu.h"
+#endif
 
 static parsec_lifo_t parsec_data_lifo;
 static parsec_lifo_t parsec_data_copies_lifo;
@@ -692,14 +695,34 @@ int parsec_data_release_self_contained_data(parsec_data_t *data)
             PARSEC_OBJ_RELEASE(copy);
             assert(NULL == copy);
         } else {
-            /* Do not release data copies that do not belong to the CPU or really bad things will happen.
-             * Only the device manager can release these copies, the best we can do here is to detach them
-             * from the data and eventually release their memory.
+            /* These self-contained GPU copies are no longer managed through a
+             * device LRU after this point. GPU-aware propagation can return them
+             * to a device LRU before the protected CPU mirror is released, so
+             * unlink the list item before freeing the backing allocation.
              */
+            parsec_list_item_ring_chop((parsec_list_item_t*)copy);
+            PARSEC_LIST_ITEM_SINGLETON(copy);
             parsec_data_copy_detach(data, copy, copy->device_index);
-            zone_free((zone_malloc_t *)copy->arena_chunk, copy->device_private);
+            if( NULL != copy->device_private ) {
+#if defined(PARSEC_GPU_ALLOC_PER_TILE)
+                parsec_device_gpu_module_t *gpu_device =
+                    (parsec_device_gpu_module_t*)parsec_mca_device_get(copy->device_index);
+                assert(NULL != gpu_device);
+                if( NULL != gpu_device ) {
+                    gpu_device->memory_free(gpu_device, copy->device_private);
+                }
+#else
+                zone_free((zone_malloc_t *)copy->arena_chunk, copy->device_private);
+#endif
+            }
             copy->device_private = NULL;
             copy->arena_chunk = NULL;
+            /* Detaching removes the copy from the data_t ownership map but
+             * does not release the copy object itself. Drop that final local
+             * reference now that the device allocation has been returned.
+             */
+            PARSEC_DATA_COPY_RELEASE(copy);
+            assert(NULL == copy);
         }
         if (0 == --nb_copies) return 1; /* we deallocate the data_t during the copy_release/detach of the last copy, so we need to stop now */
     }

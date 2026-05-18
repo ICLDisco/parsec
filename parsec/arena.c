@@ -308,33 +308,56 @@ parsec_arena_internal_copy_new(parsec_arena_t *arena,
      * is that once the GPU memory is full, this will fail, so the software will fall back to the
      * prior behavior, going through the CPU memory.
      *
-     * The zone deallocation is not symmetric, it will happen in the GPU management, when the data copies
-     * are released from the different LRU lists.
+     * The deallocation is not symmetric: regular GPU task copies are released
+     * by the GPU management code, while self-contained temporaries are released
+     * with their owning parsec_data_t.
      */
     parsec_device_gpu_module_t *gpu_device = (parsec_device_gpu_module_t *)parsec_mca_device_get(device);
     if (NULL == gpu_device) {
-        return NULL;
+        goto free_and_return;
     }
     size_t size = count * arena->elem_size;
-    void* device_private = zone_malloc(gpu_device->memory, size);
+    void *device_private;
+#if defined(PARSEC_GPU_ALLOC_PER_TILE)
+    int rc = gpu_device->memory_allocate(gpu_device, size, &device_private);
+    if( PARSEC_SUCCESS != rc ) {
+        PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Arena:\tallocate data copy on device %d of size %zu failed (out of memory)\n",
+                             device, size);
+        goto free_and_return;
+    }
+#else
+    device_private = zone_malloc(gpu_device->memory, size);
     if( NULL == device_private ) {
         PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Arena:\tallocate data copy on device %d of size %zu from zone %p failed (out of memory)\n",
                              device, size, (void *)gpu_device->memory);
         goto free_and_return;
     }
+#endif
     copy = parsec_data_copy_new(ldata, device, dtt,
                                 PARSEC_DATA_FLAG_PARSEC_OWNED | PARSEC_DATA_FLAG_PARSEC_MANAGED);
     if (NULL == copy) {
+#if defined(PARSEC_GPU_ALLOC_PER_TILE)
+        gpu_device->memory_free(gpu_device, device_private);
+        PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Arena:\tallocate data copy on device %d of size %zu failed to allocate copy (out of memory)\n",
+                             device, size);
+#else
         PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Arena:\tallocate data copy on device %d of size %zu from zone %p failed to allocate copy (out of memory)\n",
                              device, size, (void *)gpu_device->memory);
         zone_free(gpu_device->memory, device_private);
+#endif
         goto free_and_return;
     }
     copy->dtt = dtt;
     copy->device_private = device_private;
+#if defined(PARSEC_GPU_ALLOC_PER_TILE)
+    copy->arena_chunk = NULL;
+    PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Arena:\tallocate data copy on device %d of size %zu, data ptr %p",
+                         device, size, (void*)copy->device_private);
+#else
     copy->arena_chunk = (parsec_arena_chunk_t*)gpu_device->memory;
     PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Arena:\tallocate data copy on device %d of size %zu from zone %p, data ptr %p",
                          device, size, (void*)copy->arena_chunk, (void*)copy->device_private);
+#endif
     copy->version = 0;
     copy->coherency_state = PARSEC_DATA_COHERENCY_INVALID;
     copy->original->owner_device = device;
