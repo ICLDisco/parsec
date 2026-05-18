@@ -2,6 +2,7 @@
  * Copyright (c) 2010-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/parsec_config.h"
@@ -125,6 +126,7 @@ parsec_arena_get_chunk( parsec_arena_t *arena, size_t size, parsec_data_allocate
 {
     parsec_lifo_t *list = &arena->area_lifo;
     parsec_list_item_t *item;
+    const char *allocation_error = "out of resource";
     item = parsec_lifo_pop(list);
     if( NULL != item ) {
         if( arena->max_released != INT32_MAX )
@@ -134,21 +136,33 @@ parsec_arena_get_chunk( parsec_arena_t *arena, size_t size, parsec_data_allocate
         if(arena->max_used != INT32_MAX) {
             int32_t current = parsec_atomic_fetch_inc_int32(&arena->used) + 1;
             if(current > arena->max_used) {
-                (void)parsec_atomic_fetch_dec_int32(&arena->used);
-                return NULL;
+                allocation_error = "maximum allocation count reached";
+                goto allocation_failed;
             }
         }
         if( size < sizeof( parsec_list_item_t ) )
             size = sizeof( parsec_list_item_t );
         item = (parsec_list_item_t *)alloc( size );
+        if( NULL == item ) {
+            allocation_error = "allocator returned NULL";
+            goto allocation_failed;
+        }
         TRACE_MALLOC(arena_memory_alloc_key, size, item);
         PARSEC_OBJ_CONSTRUCT(item, parsec_list_item_t);
-        assert(NULL != item);
     }
     PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Arena:\tpop a data of size %zu from arena %p, aligned by %zu, base ptr %p, data ptr %p, sizeof prefix %zu(%zd)",
                 arena->elem_size, arena, arena->alignment, item, ((parsec_arena_chunk_t*)item)->data, sizeof(parsec_arena_chunk_t),
                 PARSEC_ARENA_MIN_ALIGNMENT(arena->alignment));
     return item;
+
+  allocation_failed:
+    PARSEC_DEBUG_VERBOSE(10, parsec_debug_output,
+                         "Arena:\tfailed to allocate data of size %zu from arena %p, aligned by %zu: %s (used %d max %d)",
+                         arena->elem_size, arena, arena->alignment, allocation_error, arena->used, arena->max_used);
+    if(arena->max_used != INT32_MAX) {
+        (void)parsec_atomic_fetch_dec_int32(&arena->used);
+    }
+    return NULL;
 }
 
 static void
@@ -184,6 +198,7 @@ int  parsec_arena_allocate_device_private(parsec_data_copy_t *copy,
     parsec_arena_chunk_t *chunk;
     parsec_data_t *data = copy->original;
     size_t size;
+    const char *allocation_error = "out of resource";
 
     assert(device == copy->device_index);
     (void)device;
@@ -197,13 +212,17 @@ int  parsec_arena_allocate_device_private(parsec_data_copy_t *copy,
         if(arena->max_used != INT32_MAX) {
             int32_t current = parsec_atomic_fetch_add_int32(&arena->used, count) + count;
             if(current > arena->max_used) {
-                (void)parsec_atomic_fetch_sub_int32(&arena->used, count);
-                return PARSEC_ERR_OUT_OF_RESOURCE;
+                allocation_error = "maximum allocation count reached";
+                goto allocation_failed;
             }
         }
         size = PARSEC_ALIGN(arena->elem_size * count + arena->alignment + sizeof(parsec_arena_chunk_t),
                             arena->alignment, size_t);
         chunk = (parsec_arena_chunk_t*)arena->data_malloc(size);
+        if(NULL == chunk) {
+            allocation_error = "allocator returned NULL";
+            goto allocation_failed;
+        }
         PARSEC_OBJ_CONSTRUCT(&chunk->item, parsec_list_item_t);
 
         TRACE_MALLOC(arena_memory_alloc_key, size, chunk);
@@ -233,6 +252,15 @@ int  parsec_arena_allocate_device_private(parsec_data_copy_t *copy,
     copy->arena_chunk = chunk;
 
     return PARSEC_SUCCESS;
+
+  allocation_failed:
+    PARSEC_DEBUG_VERBOSE(10, parsec_debug_output,
+                         "Arena:\tfailed to allocate %zu data items of size %zu from arena %p, aligned by %zu: %s (used %d max %d)",
+                         count, arena->elem_size, arena, arena->alignment, allocation_error, arena->used, arena->max_used);
+    if(arena->max_used != INT32_MAX) {
+        (void)parsec_atomic_fetch_sub_int32(&arena->used, count);
+    }
+    return PARSEC_ERR_OUT_OF_RESOURCE;
 }
 
 #include "parsec/utils/zone_malloc.h"
