@@ -162,6 +162,7 @@ parsec_arena_get_chunk( parsec_arena_t *arena, size_t size, parsec_data_allocate
     if(arena->max_used != INT32_MAX) {
         (void)parsec_atomic_fetch_dec_int32(&arena->used);
     }
+    (void)allocation_error;
     return NULL;
 }
 
@@ -198,7 +199,7 @@ int  parsec_arena_allocate_device_private(parsec_data_copy_t *copy,
     parsec_arena_chunk_t *chunk;
     parsec_data_t *data = copy->original;
     size_t size;
-    const char *allocation_error = "out of resource";
+    const char *allocation_error = "out of resource"; (void)allocation_error;
 
     assert(device == copy->device_index);
     (void)device;

@@ -31,7 +31,7 @@ static uint32_t rank_of(parsec_data_collection_t *desc, ...)
     va_end(ap);
 
     assert( (unsigned int)k < dat->super.nodes && k >= 0 );
-    (void)dat;
+    (void)dat; (void)f;
     return k;
 }
 
@@ -73,6 +73,7 @@ static parsec_data_t* data_of(parsec_data_collection_t *desc, ...)
     va_end(ap);
 
     assert( (unsigned int)k < dat->super.nodes && k >= 0 );
+    (void)k; (void)f;
     return parsec_data_create( &dat->data, desc, k, dat->ptr, dat->size, PARSEC_DATA_FLAG_PARSEC_MANAGED );
 }
 
@@ -93,7 +94,7 @@ static parsec_data_key_t data_key(parsec_data_collection_t *desc, ...)
     va_end(ap);
 
     assert( (unsigned int)k < dat->super.nodes && k >= 0 );
-    (void)dat;
+    (void)dat; (void)f;
 
     return (uint32_t)k;
 }

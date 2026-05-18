@@ -732,9 +732,8 @@ parsec_device_memory_reserve( parsec_device_gpu_module_t* gpu_device,
         gpu_elem->flags |= PARSEC_DATA_FLAG_PARSEC_OWNED;
         gpu_elem->device_index = gpu_device->super.device_index;
         mem_elem_per_gpu++;
-        PARSEC_DATA_COPY_RETAIN(gpu_elem);
         PARSEC_DEBUG_VERBOSE(20, parsec_gpu_output_stream,
-                            "GPU[%d:%s] Retain and insert GPU copy %p [ref_count %d] in LRU",
+                            "GPU[%d:%s] Insert GPU copy %p [ref_count %d] in LRU",
                             gpu_device->super.device_index, gpu_device->super.name, gpu_elem, gpu_elem->super.obj_reference_count);
         parsec_list_push_back( &gpu_device->gpu_mem_lru, (parsec_list_item_t*)gpu_elem );
         gpu_device->memory_info( gpu_device, &free_mem, &total_mem );
@@ -806,7 +805,8 @@ static void parsec_device_memory_release_list(parsec_device_gpu_module_t* gpu_de
                                  "GPU[%d:%s] copy %p detached from a data but not yet reclaimed!",
                                  gpu_device->super.device_index, gpu_device->super.name, (void*)gpu_copy);
         }
-        if (PARSEC_DATA_COHERENCY_OWNED == gpu_copy->coherency_state) {
+        if (PARSEC_DATA_COHERENCY_OWNED == gpu_copy->coherency_state &&
+            NULL != original) {
             parsec_warning("GPU[%d:%s] still OWNS the master memory copy for data %d (%p) and it is discarding it!",
                            gpu_device->super.device_index, gpu_device->super.name, original->key, (void*)gpu_copy->device_private);
         }
@@ -1492,15 +1492,36 @@ parsec_gpu_data_copy_release_reader(parsec_device_gpu_module_t *gpu_device,
 {
     int readers = parsec_atomic_fetch_sub_int32(&copy->readers, 1) - 1;
     if( (0 == readers) && make_available ) {
+        parsec_device_module_t *copy_device;
+        parsec_device_gpu_module_t *copy_gpu_device;
         /* Only PaRSEC-owned copies can be reclaimed through the device LRU.
          * D2D readers do not change ownership, so dirty GPU-only data must
          * also stay off the clean LRU until the W2R backup path sees it.
          */
-        if( (0 != (copy->flags & PARSEC_DATA_FLAG_PARSEC_OWNED)) &&
-            (PARSEC_DATA_COHERENCY_OWNED != copy->coherency_state) ) {
+        if( 0 != (copy->flags & PARSEC_DATA_FLAG_PARSEC_OWNED) ) {
+            copy_device = parsec_mca_device_get(copy->device_index);
+            assert(NULL != copy_device);
+            assert(PARSEC_DEV_IS_GPU(copy_device->type));
+            copy_gpu_device = (parsec_device_gpu_module_t*)copy_device;
+            if( copy_gpu_device != gpu_device ) {
+                PARSEC_DEBUG_VERBOSE(20, parsec_gpu_output_stream,
+                                     "GPU[%d:%s]: released reader for copy %p owned by GPU[%d:%s]; requeue on owner device",
+                                     gpu_device->super.device_index, gpu_device->super.name,
+                                     copy, copy_gpu_device->super.device_index, copy_gpu_device->super.name);
+            }
             parsec_list_item_ring_chop((parsec_list_item_t*)copy);
             PARSEC_LIST_ITEM_SINGLETON(copy);
-            parsec_list_push_back(&gpu_device->gpu_mem_lru, (parsec_list_item_t*)copy);
+            /* D2D source copies can still own the latest version after the
+             * transfer completes. Keep dirty copies out of the clean LRU so
+             * they are not reclaimed as reusable read-cache memory.
+             */
+            if( PARSEC_DATA_COHERENCY_OWNED == copy->coherency_state ) {
+                parsec_list_push_back(&copy_gpu_device->gpu_mem_owned_lru,
+                                      (parsec_list_item_t*)copy);
+            } else {
+                parsec_list_push_back(&copy_gpu_device->gpu_mem_lru,
+                                      (parsec_list_item_t*)copy);
+            }
         }
     }
     return readers;

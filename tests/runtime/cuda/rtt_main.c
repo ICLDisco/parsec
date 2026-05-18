@@ -227,6 +227,10 @@ int main(int argc, char *argv[])
         printf("%d\t%d\t%d\t%zu\t%08.4g s\t%4.8g GB/s\n", nb_runs, frags, loops, msg_size*sizeof(uint8_t), t, bw);
     }
 
+    parsec_data_free(dcA->mat);
+    parsec_tiled_matrix_destroy((parsec_tiled_matrix_t*)dcA);
+    free(dcA);
+
     free(cuda_device_index); cuda_device_index = NULL;
     cuda_device_index_len = 0;
     parsec_fini(&parsec);
