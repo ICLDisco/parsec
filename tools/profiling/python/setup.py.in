@@ -1,14 +1,13 @@
 #!/usr/bin/env python
 # build script for pbt2ptt
-# run python setup.py build_ext --inplace to build
+# run python -m pip install . to build and install
 
-from distutils import ccompiler, util
-from distutils.core import setup
-from distutils.extension import Extension
-from Cython.Distutils import build_ext
 from Cython.Build import cythonize
+from setuptools import Extension, setup
+from setuptools.command.build_ext import build_ext
 import os, sys
 import socket
+import shlex
 
 c_compiler = '@CMAKE_C_COMPILER@'.replace('FILEPATH=', '')
 cxx_compiler = '@CMAKE_CXX_COMPILER@'.replace('FILEPATH=', '')
@@ -18,7 +17,7 @@ build_type = '@CMAKE_BUILD_TYPE@'
 # Import specific compiler flags from the PaRSEC environment
 # and complement with additional flags required by some
 # specific compilers.
-extra_compile_args = util.split_quoted('@C_WFLAGS@')
+extra_compile_args = shlex.split('@C_WFLAGS@')
 c_compiler_id = '@CMAKE_C_COMPILER_ID@'.replace('FILEPATH=', '')
 if c_compiler_id.startswith('Intel'):
     # https://cmake.org/cmake/help/latest/variable/CMAKE_LANG_COMPILER_ID.html
@@ -66,7 +65,7 @@ class local_compiler_build_ext( build_ext ):
         try:
             self.compiler.compiler = ([c_compiler] +
                                       self.compiler.compiler[1:] +
-                                      util.split_quoted('@CMAKE_C_FLAGS@') +
+                                      shlex.split('@CMAKE_C_FLAGS@') +
                                       extra_compile_args
             )
         except:
@@ -82,7 +81,7 @@ class local_compiler_build_ext( build_ext ):
         try:
             self.compiler.compiler_so = ([c_compiler] +
                                          self.compiler.compiler_so[1:] +
-                                         util.split_quoted('@CMAKE_C_FLAGS@') +
+                                         shlex.split('@CMAKE_C_FLAGS@') +
                                          extra_compile_args
             )
         except:
@@ -91,7 +90,7 @@ class local_compiler_build_ext( build_ext ):
         try:
             self.compiler.linker_so = ([c_compiler] +
                                        self.compiler.linker_so[1:] +
-                                       util.split_quoted('@CMAKE_C_FLAGS@') +
+                                       shlex.split('@CMAKE_C_FLAGS@') +
                                        extra_compile_args
             )
         except:
@@ -100,7 +99,7 @@ class local_compiler_build_ext( build_ext ):
         try:
             self.compiler.compiler_cxx = ([cxx_compiler] +
                                           self.compiler.compiler_cxx[1:] +
-                                          util.split_quoted('@CMAKE_C_FLAGS@') +
+                                          shlex.split('@CMAKE_C_FLAGS@') +
                                           extra_compile_args
             )
         except:
@@ -108,20 +107,6 @@ class local_compiler_build_ext( build_ext ):
 
         # print('compiler is ' + str(self.compiler.__dict__))
         build_ext.build_extensions(self)
-
-def distutils_dir_name(dname):
-    try:
-        import sysconfig
-        """Returns the name of a distutils build directory"""
-        f = "{dirname}.{platform}-{version[0]}.{version[1]}"
-        return f.format(dirname=dname,
-                        platform=sysconfig.get_platform(),
-                        version=sys.version_info)
-    except ImportError as e:
-        print(e)
-        print('Without the sysconfig module, the bash environment setup script may not work.')
-        print('A modern Python installation with the full distutils package is recommended.')
-        return 'LIB_DIR'
 
 setup(
     name = 'pbt2ptt',
@@ -142,7 +127,4 @@ setup(
                   "Topic :: Software Development :: Libraries :: Python Modules"],
     platforms=['all']
 )
-
-#install_dir = distutils_dir_name('lib')
-#print('Installed Python Trace Tables module to %s' % {install_dir})
 
