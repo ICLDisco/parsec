@@ -581,6 +581,18 @@ remote_dep_copy_allocate(parsec_dep_type_description_t* data, int preferred_devi
      * for all tasks executing on acclerators.
      */
     dc = parsec_arena_get_new_copy(data->arena, data->dst_count, preferred_device, data->dst_datatype);
+    if( NULL == dc ) {
+        return NULL;
+    }
+    if( 0 == preferred_device ) {
+        /* Device-0 arena copies normally keep an extra data_t reference because
+         * they may be visible to user code. Remote-dependency receive buffers
+         * are self-contained temporaries, so drop that owner reference and let
+         * the copies control the lifetime of the data_t.
+         */
+        assert(0 == dc->device_index);
+        PARSEC_OBJ_RELEASE(dc->original);
+    }
     PARSEC_DATA_COPY_RETAIN(dc);
     /* don't use preferred_device, it might not be the location where the data copy resides */
     parsec_data_start_transfer_ownership_to_copy(dc->original, dc->device_index, PARSEC_FLOW_ACCESS_WRITE);
@@ -775,6 +787,11 @@ remote_dep_mpi_retrieve_datatype(parsec_execution_stream_t *eu,
         data_arena = is_inplace(oldcontext, dep);  /* Can we do it inplace */
     }
     output->data.data = NULL;
+    /* Default incoming temporaries to CPU memory. Some paths below return
+     * early, notably the packed fallback for mixed receive datatypes, and must
+     * not inherit a stale GPU placement hint from a recycled remote_deps item.
+     */
+    output->data.preferred_device = 0;
 
     if( deps->max_priority < newcontext->priority ) deps->max_priority = newcontext->priority;
     deps->incoming_mask |= (1U << dep->dep_datatype_index);
@@ -823,7 +840,6 @@ remote_dep_mpi_retrieve_datatype(parsec_execution_stream_t *eu,
      * This only works is the task affinity is linked to the output location of the task, which
      * is mostly true for owner-compute type of algorithms.
      */
-    output->data.preferred_device = 0;  /* the default is CPU memory (aka. device 0) */
     if (NULL != fct->data_affinity ) {
         parsec_data_ref_t dref;
         fct->data_affinity(newcontext, &dref);

@@ -200,6 +200,7 @@ inline void remote_deps_free(parsec_remote_deps_t* deps)
         for(a = 0; a < (parsec_remote_dep_context.max_nodes_number + 31)/32; a++)
             deps->output[k].rank_bits[a] = 0;
         deps->output[k].count_bits = 0;
+        deps->output[k].data.preferred_device = 0;
 #if defined(PARSEC_DEBUG_PARANOID)
         deps->output[k].data.data   = NULL;
         deps->output[k].data.local.arena  = NULL;
