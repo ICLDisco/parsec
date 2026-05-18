@@ -1037,12 +1037,13 @@ parsec_device_data_reserve_space( parsec_device_gpu_module_t* gpu_device,
             continue;
         /* if the input data is already on this device there is nothing else to do */
         if( gpu_device->super.device_index == this_task->data[i].data_in->device_index ) {
+            parsec_data_copy_t *input_copy = this_task->data[i].data_in;
             PARSEC_DEBUG_VERBOSE(20, parsec_gpu_output_stream,
                                  "GPU[%d:%s]:%s: Flow %s:%i was already on the device %p%s",
                                  gpu_device->super.device_index, gpu_device->super.name, task_name,
-                                 flow->name, i, gpu_elem,
-                                 this_task->data[i].data_in->data_transfer_status == PARSEC_DATA_STATUS_UNDER_TRANSFER ? " [in transfer]" : "");
-            this_task->data[i].data_out = this_task->data[i].data_in;
+                                 flow->name, i, input_copy,
+                                 input_copy->data_transfer_status == PARSEC_DATA_STATUS_UNDER_TRANSFER ? " [in transfer]" : "");
+            this_task->data[i].data_out = input_copy;
             continue;
         }
         master   = this_task->data[i].data_in->original;
@@ -1058,11 +1059,12 @@ parsec_device_data_reserve_space( parsec_device_gpu_module_t* gpu_device,
                                  flow->name, i, gpu_elem,
                                  gpu_elem->data_transfer_status == PARSEC_DATA_STATUS_UNDER_TRANSFER ? " [in transfer]" : "");
             if ( gpu_elem->data_transfer_status == PARSEC_DATA_STATUS_UNDER_TRANSFER ) {
-                /* The data is under transfer, which is fine for RO data since we always force an event
-                 * at the end of this step so we do not need to have a special case for this. The forced
-                 * event will ensure the data will be available on the GPU by the time this task will move
-                 * to the next step. For WRITE flows, we have to abort here and come back later because
-                 * transfer_ownership will bark at WRITE flows that are under transfer.
+                /* The data is under transfer, which is fine for RO data: the
+                 * stage-in path reports the already-queued transfer as work so
+                 * the input stream event is still recorded. For WRITE flows,
+                 * delay ownership bookkeeping until the queued input transfer
+                 * reaches its event; transfer_ownership rejects write accesses
+                 * to copies still marked UNDER_TRANSFER.
                  */
                 if (0 != (PARSEC_FLOW_ACCESS_WRITE & flow->flow_flags)) {
                     this_task->data[i].data_out = NULL;
@@ -1535,7 +1537,19 @@ parsec_device_data_stage_in( parsec_device_gpu_module_t* gpu_device,
     }
     if( gpu_elem == candidate ) {  /* data already located in the right place */
         if( candidate->device_index == gpu_device->super.device_index ) {
-            /* the candidate is already located on the GPU, no transfer should be necessary but let's do the bookkeeping */
+            int wait_on_input_stream = (PARSEC_DATA_STATUS_UNDER_TRANSFER == candidate->data_transfer_status);
+            /* The candidate is already located on the GPU. If it is still being
+             * filled by earlier work on the input stream, there is no extra copy
+             * to schedule here, but this stage must still record an input event.
+             * The event preserves stream ordering and prevents execution before
+             * the queued transfer has completed.
+             */
+            if( wait_on_input_stream ) {
+                PARSEC_DEBUG_VERBOSE(20, parsec_gpu_output_stream,
+                                     "GPU[%d:%s]:\t\tInput data copy %p for flow %s is still under transfer; recording input stream event",
+                                     gpu_device->super.device_index, gpu_device->super.name,
+                                     candidate, flow->name);
+            }
             if( (PARSEC_FLOW_ACCESS_WRITE & type) && (gpu_task->task_type != PARSEC_GPU_TASK_TYPE_PREFETCH) ) {
                 candidate->version++;
                 parsec_list_item_ring_chop((parsec_list_item_t *)candidate);
@@ -1544,7 +1558,7 @@ parsec_device_data_stage_in( parsec_device_gpu_module_t* gpu_device,
             if( PARSEC_FLOW_ACCESS_READ & type ) {
                 parsec_atomic_fetch_add_int32(&candidate->readers, 1);
             }
-            return PARSEC_HOOK_RETURN_DONE;
+            return wait_on_input_stream ? 1 : PARSEC_HOOK_RETURN_DONE;
         }
         parsec_warning("GPU[%d:%s]:\t device_data_stage_in without a proper data_out on the device "
                        "and with a data_in (%p) located on another device %d",
@@ -2369,7 +2383,10 @@ parsec_device_progress_stream( parsec_device_gpu_module_t* gpu_device,
             }
         }
 #endif
-        /* If progress_fct added nothing on that stream, we skip scheduling a record on the GPU stream */
+        /* If progress_fct added nothing on that stream, skip the GPU event.
+         * Input stages with copies already queued on the input stream return a
+         * positive value, so they still record an event and preserve ordering.
+         */
         if( task->complete_stage )
             rc = task->complete_stage(gpu_device, &task, stream);
         *out_task = task;
@@ -2404,17 +2421,11 @@ parsec_device_progress_stream( parsec_device_gpu_module_t* gpu_device,
                              "trigger the task will be handled accordingly",
                              gpu_device->super.device_index, gpu_device->super.name, (void*)task);
     }
-    /**
-     * Do not skip the gpu event generation. The problem is that some of the inputs
-     * might be in the pipe of being transferred to the GPU. If we activate this task
-     * too early, it might get executed before the data is available on the GPU.
-     * Obviously, this lead to incorrect results.
-     */
+    task->last_status = rc;
     /* Keep the progress result with the task while it is parked behind the
      * event. In particular, AGAIN is not an error: it means the event
      * completion path must retry this same stage instead of advancing the task.
      */
-    task->last_status = rc;
     rc = gpu_device->event_record(gpu_device, stream, stream->start);
     assert(PARSEC_SUCCESS == rc);
     stream->tasks[stream->start] = task;
@@ -2448,7 +2459,7 @@ parsec_device_kernel_push( parsec_device_gpu_module_t      *gpu_device,
 {
     parsec_task_t *this_task = gpu_task->ec;
     const parsec_flow_t *flow;
-    int ret = 0, how_many = 0;
+    int ret = 0, input_stream_work = 0;
 #if defined(PARSEC_DEBUG_NOISIER)
     char tmp[MAX_TASK_STRLEN];
 #endif
@@ -2473,13 +2484,15 @@ parsec_device_kernel_push( parsec_device_gpu_module_t      *gpu_device,
         }
         if( NULL != gpu_task->ec->data[0].data_in->original->device_copies[gpu_device->super.device_index] &&
             gpu_task->ec->data[0].data_in->original->owner_device == gpu_device->super.device_index ) {
+            parsec_data_copy_t *gpu_copy =
+                gpu_task->ec->data[0].data_in->original->device_copies[gpu_device->super.device_index];
             /* There is already a copy of this data in the GPU */
             PARSEC_DEBUG_VERBOSE(3, parsec_gpu_output_stream,
                                  "GPU[%d:%s]: %s data_copy at index %d is %p, destroying prefetch request",
                                  gpu_device->super.device_index, gpu_device->super.name,
                                  parsec_device_describe_gpu_task(tmp, MAX_TASK_STRLEN, gpu_task),
                                  gpu_device->super.device_index,
-                                 gpu_task->ec->data[0].data_in->original->device_copies[gpu_device->super.device_index]);
+                                 gpu_copy);
             parsec_device_release_resources_prefetch_task(gpu_device, &gpu_task);
             return PARSEC_HOOK_RETURN_ASYNC;
         }
@@ -2507,6 +2520,14 @@ parsec_device_kernel_push( parsec_device_gpu_module_t      *gpu_device,
          */
         if( NULL != this_task->data[i].data_out &&
             (0 == (this_task->data[i].data_out->flags & PARSEC_DATA_FLAG_PARSEC_OWNED) ) ) {
+            if( PARSEC_DATA_STATUS_UNDER_TRANSFER == this_task->data[i].data_out->data_transfer_status ) {
+                /* Non-owned copies are not staged by PaRSEC, but an existing
+                 * under-transfer marker still means the input stream has work
+                 * ordered before this task. Record the event and let stream
+                 * ordering protect the access.
+                 */
+                input_stream_work++;
+            }
             if( flow->flow_flags & PARSEC_FLOW_ACCESS_READ ) {
                 parsec_atomic_fetch_add_int32(&this_task->data[i].data_out->readers, 1);
             }
@@ -2526,7 +2547,12 @@ parsec_device_kernel_push( parsec_device_gpu_module_t      *gpu_device,
             gpu_task->last_status = ret;
             return ret;
         }
-        how_many += ret;
+        /* A positive return means either a transfer was submitted, or an
+         * already-submitted transfer for this input is still ordered before us
+         * on the input stream. In both cases the push stage must record an
+         * event before the task can advance to execution.
+         */
+        input_stream_work += ret;
     }
     PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
                          "GPU[%d:%s]: Push task %s DONE",
@@ -2536,7 +2562,7 @@ parsec_device_kernel_push( parsec_device_gpu_module_t      *gpu_device,
 #if defined(PARSEC_PROF_TRACE)
     gpu_task->prof_key_end = -1; /* We do not log that event as the completion of this task */
 #endif
-    return how_many;
+    return input_stream_work;
 }
 
 /**
@@ -2598,9 +2624,9 @@ parsec_device_kernel_exec( parsec_device_gpu_module_t      *gpu_device,
     (void)this_task;
     rc = progress_fct( gpu_device, gpu_task, gpu_stream );
     gpu_task->last_status = rc;
-    /* Negative hook returns are scheduler control flow and must be propagated
-     * immediately. Non-negative returns mean the submit hook queued GPU work,
-     * so ask the stream progress engine to record an execution event.
+    /* Empty-stage event skipping is only valid for input/output streams.
+     * A non-negative kernel submit result means the execution stream needs an
+     * event, even when the submit hook itself returned HOOK_DONE.
      */
     if( rc < 0 )
         return rc;
