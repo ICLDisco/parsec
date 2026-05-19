@@ -258,6 +258,16 @@ struct parsec_device_gpu_module_s {
     parsec_gpu_exec_stream_t **exec_stream;
     size_t                     mem_block_size;
     int64_t                    mem_nb_blocks;
+    int32_t                    mem_evict_threshold; /**< Current eviction threshold (% of total zone
+                                                     *   capacity). Starts at parsec_gpu_mem_evict_upper
+                                                     *   and is stepped down by 5 points (to
+                                                     *   parsec_gpu_mem_evict_lower) each time a task
+                                                     *   stalls waiting for zone memory. */
+    size_t                     mem_evict_in_flight; /**< Bytes of dirty GPU data currently selected for
+                                                     *   D2H eviction (queued or executing on
+                                                     *   exec_stream[1]). Incremented by
+                                                     *   parsec_gpu_create_w2r_task, decremented as each
+                                                     *   copy completes in parsec_gpu_complete_w2r_task. */
 #if defined(PARSEC_PROF_TRACE)
     int                        trackable_events;
 #endif /* PARSEC_PROF_TRACE */
@@ -292,6 +302,8 @@ typedef struct parsec_gpu_workspace_s {
 PARSEC_DECLSPEC extern int parsec_gpu_output_stream;
 PARSEC_DECLSPEC extern int parsec_gpu_verbosity;
 PARSEC_DECLSPEC extern int32_t parsec_gpu_d2h_max_flows;
+PARSEC_DECLSPEC extern int32_t parsec_gpu_mem_evict_upper;
+PARSEC_DECLSPEC extern int32_t parsec_gpu_mem_evict_lower;
 
 /**
  * Debugging functions.
@@ -317,7 +329,8 @@ int parsec_device_free_workspace(parsec_device_gpu_module_t * gpu_device);
 
 /* sort pending task list by number of spaces needed */
 int parsec_device_sort_pending_list(parsec_device_module_t *gpu_device);
-parsec_gpu_task_t* parsec_gpu_create_w2r_task(parsec_device_gpu_module_t *gpu_device, parsec_execution_stream_t *es);
+parsec_gpu_task_t* parsec_gpu_create_w2r_task(parsec_device_gpu_module_t *gpu_device, parsec_execution_stream_t *es,
+                                               size_t required_size, size_t *selected_size);
 int parsec_gpu_complete_w2r_task(parsec_device_gpu_module_t *gpu_device, parsec_gpu_task_t *w2r_task, parsec_execution_stream_t *es);
 
 /**
@@ -349,11 +362,12 @@ void parsec_device_enable_debug(void);
 char *parsec_device_describe_gpu_task( char *tmp, size_t len, parsec_gpu_task_t *gpu_task );
 #endif
 
-#define PARSEC_GPU_TASK_TYPE_KERNEL       0x0000
-#define PARSEC_GPU_TASK_TYPE_D2HTRANSFER  0x1000
-#define PARSEC_GPU_TASK_TYPE_PREFETCH     0x2000
-#define PARSEC_GPU_TASK_TYPE_WARMUP       0x4000
-#define PARSEC_GPU_TASK_TYPE_D2D_COMPLETE 0x8000
+#define PARSEC_GPU_TASK_TYPE_KERNEL                0x0000
+#define PARSEC_GPU_TASK_TYPE_D2HTRANSFER           0x1000
+#define PARSEC_GPU_TASK_TYPE_PROACTIVE_D2HTRANSFER 0x1001  /**< Tier-2 proactive D2H: counts in device->mutex */
+#define PARSEC_GPU_TASK_TYPE_PREFETCH              0x2000
+#define PARSEC_GPU_TASK_TYPE_WARMUP                0x4000
+#define PARSEC_GPU_TASK_TYPE_D2D_COMPLETE          0x8000
 
 #if defined(PARSEC_PROF_TRACE)
 #define PARSEC_PROFILE_GPU_TRACK_DATA_IN  0x0001

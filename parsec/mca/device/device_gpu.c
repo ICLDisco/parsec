@@ -721,6 +721,7 @@ parsec_device_memory_reserve( parsec_device_gpu_module_t* gpu_device,
 #endif
     gpu_device->mem_block_size = eltsize;
     gpu_device->mem_nb_blocks = mem_elem_per_gpu;
+    gpu_device->mem_evict_threshold = parsec_gpu_mem_evict_upper;
 
     return PARSEC_SUCCESS;
 }
@@ -833,6 +834,95 @@ parsec_device_memory_release( parsec_device_gpu_module_t* gpu_device )
 }
 
 /**
+ * Try to evict one entry from the clean LRU (gpu_mem_lru) by detaching it from
+ * its original data and freeing its zone allocation back to the zone allocator.
+ *
+ * @param[in]  gpu_device       the GPU device whose clean LRU is targeted
+ * @param[in,out] cycling_sentinel  cycle-detector: caller initialises to NULL;
+ *               updated to the first entry that could not be evicted. When
+ *               we pop that entry again we know we have looped the entire LRU
+ *               without finding a free-able entry.
+ *
+ * @return 1 if a zone block was freed, 0 if the LRU is empty or fully cycling.
+ */
+#if !defined(PARSEC_GPU_ALLOC_PER_TILE)
+static int
+parsec_device_try_evict_lru_one( parsec_device_gpu_module_t  *gpu_device,
+                                  parsec_gpu_data_copy_t     **cycling_sentinel )
+{
+    parsec_gpu_data_copy_t *lru_gpu_elem;
+    parsec_data_t *oldmaster;
+
+  retry:
+    lru_gpu_elem = (parsec_gpu_data_copy_t*)parsec_list_pop_front(&gpu_device->gpu_mem_lru);
+    if( NULL == lru_gpu_elem )
+        return 0;
+    PARSEC_LIST_ITEM_SINGLETON(lru_gpu_elem);
+
+    if( *cycling_sentinel == lru_gpu_elem ) {
+        parsec_list_push_front(&gpu_device->gpu_mem_lru, (parsec_list_item_t*)lru_gpu_elem);
+        return 0;
+    }
+
+    /* Dangling reader: the copy is temporarily untracked in the LRU; skip it */
+    if( 0 != lru_gpu_elem->readers )
+        goto retry;
+
+    /* Outstanding object references: not safe to free yet; push back and note cycle */
+    if( lru_gpu_elem->super.super.obj_reference_count > 1 ) {
+        parsec_list_push_back(&gpu_device->gpu_mem_lru, &lru_gpu_elem->super);
+        if( NULL == *cycling_sentinel ) *cycling_sentinel = lru_gpu_elem;
+        goto retry;
+    }
+
+    if( NULL != lru_gpu_elem->original ) {
+        oldmaster = lru_gpu_elem->original;
+        if( !parsec_atomic_trylock(&oldmaster->lock) ) {
+            parsec_list_push_back(&gpu_device->gpu_mem_lru, &lru_gpu_elem->super);
+            if( NULL == *cycling_sentinel ) *cycling_sentinel = lru_gpu_elem;
+            goto retry;
+        }
+        /* Guard against a concurrent d2d reader acquiring the copy */
+        if( !parsec_atomic_cas_int32(&lru_gpu_elem->readers, 0,
+                                      -PARSEC_DEVICE_DATA_COPY_ATOMIC_SENTINEL) ) {
+            parsec_list_push_back(&gpu_device->gpu_mem_lru, &lru_gpu_elem->super);
+            if( NULL == *cycling_sentinel ) *cycling_sentinel = lru_gpu_elem;
+            parsec_atomic_unlock(&oldmaster->lock);
+            goto retry;
+        }
+        int do_unlock = oldmaster->super.obj_reference_count != 1;
+        parsec_data_copy_detach(oldmaster, lru_gpu_elem, gpu_device->super.device_index);
+        parsec_atomic_wmb();
+        if( do_unlock )
+            parsec_atomic_unlock(&oldmaster->lock);
+    }
+
+#if defined(PARSEC_PROF_TRACE)
+    if( (gpu_device->trackable_events & PARSEC_PROFILE_GPU_TRACK_MEM_USE) &&
+        (gpu_device->exec_stream[0]->prof_event_track_enable ||
+         gpu_device->exec_stream[1]->prof_event_track_enable) ) {
+        parsec_profiling_trace_flags(gpu_device->exec_stream[0]->profiling,
+                                     parsec_gpu_free_memory_key,
+                                     (int64_t)lru_gpu_elem->device_private,
+                                     gpu_device->super.device_index,
+                                     NULL, PARSEC_PROFILING_EVENT_COUNTER);
+        parsec_profiling_trace_flags(gpu_device->exec_stream[0]->profiling,
+                                     parsec_gpu_use_memory_key_end,
+                                     (uint64_t)lru_gpu_elem->device_private,
+                                     gpu_device->super.device_index, NULL, 0);
+    }
+#endif
+    assert( 0 != (lru_gpu_elem->flags & PARSEC_DATA_FLAG_PARSEC_OWNED) );
+    zone_free(gpu_device->memory, (void*)lru_gpu_elem->device_private);
+    lru_gpu_elem->device_private = NULL;
+    gpu_device->super.nb_evictions++;
+    PARSEC_OBJ_RELEASE(lru_gpu_elem);
+    assert( NULL == lru_gpu_elem );
+    return 1;
+}
+#endif  /* !defined(PARSEC_GPU_ALLOC_PER_TILE) */
+
+/**
  * Try to find memory space to move all data on the GPU. We attach a device_elem to
  * a memory_elem as soon as a device_elem is available. If we fail to find enough
  * available elements, we push all the elements handled during this allocation
@@ -859,6 +949,24 @@ parsec_device_data_reserve_space( parsec_device_gpu_module_t* gpu_device,
 #endif  /* defined(PARSEC_DEBUG_NOISIER) */
 
     (void)copy_readers_update; // potentially unused
+
+#if !defined(PARSEC_GPU_ALLOC_PER_TILE)
+    /* Tier-1 proactive eviction: free clean LRU entries while zone usage exceeds
+     * gpu_device->mem_evict_threshold percent of total capacity.  The threshold
+     * starts at parsec_gpu_mem_evict_upper (default 95%) and is lowered in 5-point
+     * steps (floor: parsec_gpu_mem_evict_lower, default 80%) whenever the device stalled
+     * because the reactive path also failed to find memory. */
+    {
+        size_t total_capacity = (size_t)gpu_device->mem_nb_blocks * gpu_device->mem_block_size;
+        parsec_gpu_data_copy_t *cycling = NULL;
+        while( zone_in_use(gpu_device->memory) * 100 >
+               (size_t)gpu_device->mem_evict_threshold * total_capacity ) {
+            if( !parsec_device_try_evict_lru_one(gpu_device, &cycling) )
+                break;
+            data_avail_epoch++;
+        }
+    }
+#endif  /* !defined(PARSEC_GPU_ALLOC_PER_TILE) */
 
     /**
      * Parse all the input and output flows of data and ensure all have
@@ -2749,6 +2857,20 @@ parsec_device_kernel_cleanout( parsec_device_gpu_module_t *gpu_device,
 }
 
 /**
+ * Returns false if at least one of the execution stream fifos has pending tasks.
+ * Otherwise, returns true, meaning that the GPU has no new work to schedule into the stream.
+ */
+static bool gpu_device_exec_streams_fifo_empty( parsec_device_gpu_module_t *gpu_device )
+{
+    for (int i = 2; i < gpu_device->nb_exec_streams; i++) {
+        if( !parsec_list_nolock_is_empty(gpu_device->exec_streams[i].fifo_pending) ) {
+            return false;
+        }
+    }
+    return true;
+}
+
+/**
  * This version is based on 4 streams: one for transfers from the memory to
  * the GPU, 2 for kernel executions and one for transfers from the GPU into
  * the main memory. The synchronization on each stream is based on GPU events,
@@ -2826,6 +2948,66 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
                              gpu_device->super.device_index, gpu_device->super.name,
                              parsec_device_describe_gpu_task(tmp, MAX_TASK_STRLEN, gpu_task));
     }
+
+    /* Tier-2 proactive dirty-page writeback: when the clean LRU is empty and zone
+     * memory pressure exceeds the watermark, queue a D2H transfer on exec_stream[1]
+     * now so its latency overlaps with the upcoming H2D stage and kernel execution.
+     * This converts a potential blocking wait (dirty page eviction on the critical
+     * path) into an overlapped background transfer.
+     *
+     * In PARSEC_GPU_ALLOC_PER_TILE mode there is no zone allocator; fall back to the
+     * simple condition of clean LRU being empty. */
+    if( !parsec_list_nolock_is_empty(&gpu_device->gpu_mem_owned_lru) &&
+         parsec_list_nolock_is_empty(&gpu_device->gpu_mem_lru) ) {
+#if !defined(PARSEC_GPU_ALLOC_PER_TILE)
+        {
+            size_t total_capacity = (size_t)gpu_device->mem_nb_blocks * gpu_device->mem_block_size;
+            size_t in_use         = zone_in_use(gpu_device->memory);
+            size_t threshold_bytes = (size_t)gpu_device->mem_evict_threshold * total_capacity / 100;
+            if( in_use > threshold_bytes ) {
+                /* Compute how many more bytes of dirty-page eviction are needed beyond
+                 * what is already in-flight on exec_stream[1]. */
+                size_t needed = in_use - threshold_bytes;
+                size_t still_needed = (needed > gpu_device->mem_evict_in_flight) ?
+                                      (needed - gpu_device->mem_evict_in_flight) : 0;
+                while( still_needed > 0 ) {
+                    size_t selected = 0;
+                    parsec_gpu_task_t *_w2r = parsec_gpu_create_w2r_task(gpu_device, es,
+                                                                          still_needed, &selected);
+                    if( NULL == _w2r ) break;
+                    _w2r->task_type = PARSEC_GPU_TASK_TYPE_PROACTIVE_D2HTRANSFER;
+                    parsec_atomic_fetch_add_int32(&gpu_device->mutex, 1);
+                    PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
+                                         "GPU[%d:%s]: Proactive D2H writeback: clean LRU empty, "
+                                         "zone above %d%% threshold; needed %zu, selected %zu bytes",
+                                         gpu_device->super.device_index, gpu_device->super.name,
+                                         gpu_device->mem_evict_threshold, still_needed, selected);
+                    PARSEC_PUSH_TASK(gpu_device->exec_stream[1]->fifo_pending,
+                                     (parsec_list_item_t*)_w2r);
+                    still_needed = (still_needed > selected) ? (still_needed - selected) : 0;
+                }
+            }
+        }
+#else
+        {
+            /* No zone allocator in ALLOC_PER_TILE mode: issue one D2H batch whenever
+             * the clean LRU is empty and the dirty LRU is non-empty. */
+            size_t selected = 0;
+            parsec_gpu_task_t *_w2r = parsec_gpu_create_w2r_task(gpu_device, es,
+                                                                   SIZE_MAX, &selected);
+            if( NULL != _w2r ) {
+                _w2r->task_type = PARSEC_GPU_TASK_TYPE_PROACTIVE_D2HTRANSFER;
+                parsec_atomic_fetch_add_int32(&gpu_device->mutex, 1);
+                PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
+                                     "GPU[%d:%s]: Proactive D2H writeback: clean LRU empty, selected %zu bytes",
+                                     gpu_device->super.device_index, gpu_device->super.name, selected);
+                PARSEC_PUSH_TASK(gpu_device->exec_stream[1]->fifo_pending,
+                                 (parsec_list_item_t*)_w2r);
+            }
+        }
+#endif  /* !defined(PARSEC_GPU_ALLOC_PER_TILE) */
+    }
+
     rc = parsec_device_progress_stream( gpu_device,
                                         gpu_device->exec_stream[0],
                                         parsec_device_kernel_push,
@@ -2845,8 +3027,23 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
         assert(NULL == progress_task);
 
         /* TODO: check this */
-        /* If we can extract data go for it, otherwise try to drain the pending tasks */
-        gpu_task = parsec_gpu_create_w2r_task(gpu_device, es);
+        /* If we can extract data go for it, otherwise try to drain the pending tasks.
+         * Skip if evictions are already in flight to avoid a storm of D2H tasks.
+         * If there are no in-flight evictions and nothing left to queue from the dirty
+         * LRU, we are truly stuck: step the eviction threshold down so tier-1 starts
+         * freeing pages earlier on the next attempt.
+         * We don't evict from the dirty LRU if there are pending tasks in the execution streams.
+         * There is a good chance that memory will become available once the active tasks complete and we still
+         * have more tasks to execute. */
+        if( 0 == gpu_device->mem_evict_in_flight && gpu_device_exec_streams_fifo_empty(gpu_device) ) {
+            size_t _sel = 0;
+            gpu_task = parsec_gpu_create_w2r_task(gpu_device, es, SIZE_MAX, &_sel);
+            if(gpu_device->mem_evict_threshold - 5 >= parsec_gpu_mem_evict_lower) {
+                /* We had to trigger a reactive D2H writeback so reduce the threshold to
+                 * be more aggressive in the proactive part. */
+                gpu_device->mem_evict_threshold -= 5;
+            }
+        }
         if( NULL != gpu_task )
             goto get_data_out_of_device;
     }
@@ -2946,9 +3143,26 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
                          parsec_task_snprintf(tmp, MAX_TASK_STRLEN, gpu_task->ec));
     /* Everything went fine so far, the result is correct and back in the main memory */
     PARSEC_LIST_ITEM_SINGLETON(gpu_task);
-    if (gpu_task->task_type == PARSEC_GPU_TASK_TYPE_D2HTRANSFER) {
+    if (gpu_task->task_type == PARSEC_GPU_TASK_TYPE_D2HTRANSFER ||
+        gpu_task->task_type == PARSEC_GPU_TASK_TYPE_PROACTIVE_D2HTRANSFER) {
+        int _proactive = (gpu_task->task_type == PARSEC_GPU_TASK_TYPE_PROACTIVE_D2HTRANSFER);
         parsec_gpu_complete_w2r_task(gpu_device, gpu_task, es);
+        /* gpu_task freed inside parsec_gpu_complete_w2r_task */
         gpu_task = progress_task;
+        if( _proactive ) {
+            /* Proactive task owned a mutex count; release it now. */
+            rc = parsec_atomic_fetch_dec_int32( &(gpu_device->mutex) );
+            if( 1 == rc ) {  /* I was the last one */
+#if defined(PARSEC_PROF_TRACE)
+                if( gpu_device->trackable_events & PARSEC_PROFILE_GPU_TRACK_OWN )
+                    PARSEC_PROFILING_TRACE( es->es_profile, parsec_gpu_own_GPU_key_end,
+                                            (unsigned long)es, PROFILE_OBJECT_ID_NULL, NULL );
+#endif
+                PARSEC_DEBUG_VERBOSE(5, parsec_gpu_output_stream, "GPU[%d:%s]: Leaving GPU management",
+                                     gpu_device->super.device_index, gpu_device->super.name);
+                return PARSEC_HOOK_RETURN_ASYNC;
+            }
+        }
         goto fetch_task_from_shared_queue;
     }
     if (gpu_task->task_type == PARSEC_GPU_TASK_TYPE_D2D_COMPLETE) {
