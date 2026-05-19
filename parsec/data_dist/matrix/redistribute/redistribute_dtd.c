@@ -7,7 +7,7 @@
 #include "parsec/interfaces/dtd/insert_function_internal.h"
 
 #define TILE_OF_INSERT(DC, I, J) \
-    parsec_dtd_tile_of(&(dc##DC->super.super), (&(dc##DC->super.super))->data_key(&(dc##DC->super.super), I, J))
+    parsec_dtd_tile_of(&(dc##DC->super), (&(dc##DC->super))->data_key(&(dc##DC->super), I, J))
 
 static inline int parsec_imin(int a, int b)
 {
@@ -154,8 +154,8 @@ static int
 insert_task(parsec_execution_stream_t *es, parsec_task_t *this_task)
 {
     (void)es;
-    parsec_matrix_block_cyclic_t *dcY;
-    parsec_matrix_block_cyclic_t *dcT;
+    parsec_tiled_matrix_t *dcY;
+    parsec_tiled_matrix_t *dcT;
     int size_row, size_col, disi_Y, disj_Y, disi_T, disj_T;
 
     parsec_taskpool_t *dtd_tp = (parsec_taskpool_t *)this_task->taskpool;
@@ -170,10 +170,10 @@ insert_task(parsec_execution_stream_t *es, parsec_task_t *this_task)
     int mb_T_inner, nb_T_inner;
 
     /* Global parameters */
-    int mb_Y_INNER = dcY->super.mb;
-    int nb_Y_INNER = dcY->super.nb;
-    int mb_T_INNER = dcT->super.mb;
-    int nb_T_INNER = dcT->super.nb;
+    int mb_Y_INNER = dcY->mb;
+    int nb_Y_INNER = dcY->nb;
+    int mb_T_INNER = dcT->mb;
+    int nb_T_INNER = dcT->nb;
     int m_T_START = disi_T / mb_T_INNER;
     int n_T_START = disj_T / nb_T_INNER;
     int m_T_END = (size_row + disi_T - 1) / mb_T_INNER;
@@ -207,8 +207,8 @@ insert_task(parsec_execution_stream_t *es, parsec_task_t *this_task)
                                              &parsec_core_redistribute_dtd, 0, PARSEC_DEV_CPU,"redistribute_dtd",
                                              PASSED_BY_REF, TILE_OF_INSERT(T, m_T, n_T),   PARSEC_OUTPUT | TARGET | PARSEC_AFFINITY,
                                              PASSED_BY_REF, TILE_OF_INSERT(Y, m_Y, n_Y),   PARSEC_INPUT | SOURCE,
-                                             sizeof(int), &dcY->super.mb, PARSEC_VALUE,
-                                             sizeof(int), &dcY->super.nb, PARSEC_VALUE,
+                                             sizeof(int), &dcY->mb, PARSEC_VALUE,
+                                             sizeof(int), &dcY->nb, PARSEC_VALUE,
                                              sizeof(int), &m_Y, PARSEC_VALUE,
                                              sizeof(int), &n_Y, PARSEC_VALUE,
                                              sizeof(int), &m_Y_start, PARSEC_VALUE,
@@ -219,7 +219,7 @@ insert_task(parsec_execution_stream_t *es, parsec_task_t *this_task)
                                              sizeof(int), &i_end, PARSEC_VALUE,
                                              sizeof(int), &j_start, PARSEC_VALUE,
                                              sizeof(int), &j_end, PARSEC_VALUE,
-                                             sizeof(int), &dcT->super.mb, PARSEC_VALUE,
+                                             sizeof(int), &dcT->mb, PARSEC_VALUE,
                                              sizeof(int), &mb_T_inner, PARSEC_VALUE,
                                              sizeof(int), &nb_T_inner, PARSEC_VALUE,
                                              sizeof(int), &i_start_T, PARSEC_VALUE,
@@ -268,8 +268,8 @@ static int
 insert_task_reshuffle(parsec_execution_stream_t *es, parsec_task_t *this_task)
 {
     (void)es;
-    parsec_matrix_block_cyclic_t *dcY;
-    parsec_matrix_block_cyclic_t *dcT;
+    parsec_tiled_matrix_t *dcY;
+    parsec_tiled_matrix_t *dcT;
     int size_row, size_col, disi_Y, disj_Y, disi_T, disj_T;
 
     parsec_taskpool_t *dtd_tp = (parsec_taskpool_t *)this_task->taskpool;
@@ -278,22 +278,22 @@ insert_task_reshuffle(parsec_execution_stream_t *es, parsec_task_t *this_task)
 
     /* Parameters */
     int m_Y, n_Y, m_T, n_T, mb, nb, count = 0;
-    int m_Y_START = disi_Y / dcY->super.mb;
-    int n_Y_START = disj_Y / dcY->super.nb;
-    int m_T_START = disi_T / dcT->super.mb;
-    int n_T_START = disj_T / dcT->super.nb;
-    int m_T_END = (disi_T+size_row-1) / dcT->super.mb;
-    int n_T_END = (disj_T+size_col-1) / dcT->super.nb;
+    int m_Y_START = disi_Y / dcY->mb;
+    int n_Y_START = disj_Y / dcY->nb;
+    int m_T_START = disi_T / dcT->mb;
+    int n_T_START = disj_T / dcT->nb;
+    int m_T_END = (disi_T+size_row-1) / dcT->mb;
+    int n_T_END = (disj_T+size_col-1) / dcT->nb;
 
     /* Insert task */
     for(m_T = m_T_START; m_T <= m_T_END; m_T++, count++) {
         for(n_T = n_T_START; n_T <= n_T_END ; n_T++) {
             m_Y = m_T - m_T_START + m_Y_START;
             n_Y = n_T - n_T_START + n_Y_START;
-            mb = (m_T == m_T_END)? parsec_imin(dcT->super.mb,
-                 size_row-(m_T_END-m_T_START)*dcT->super.mb): dcT->super.mb;
-            nb = (n_T == n_T_END)? parsec_imin(dcT->super.nb,
-                 size_col-(n_T_END-n_T_START)*dcT->super.nb): dcT->super.nb;
+            mb = (m_T == m_T_END)? parsec_imin(dcT->mb,
+                 size_row-(m_T_END-m_T_START)*dcT->mb): dcT->mb;
+            nb = (n_T == n_T_END)? parsec_imin(dcT->nb,
+                 size_col-(n_T_END-n_T_START)*dcT->nb): dcT->nb;
             parsec_dtd_insert_task(dtd_tp,
                                    &parsec_core_redistribute_reshuffle_dtd, 0,
                                    PARSEC_DEV_CPU, "redistribute_reshuffle_dtd",
@@ -301,7 +301,7 @@ insert_task_reshuffle(parsec_execution_stream_t *es, parsec_task_t *this_task)
                                    PASSED_BY_REF, TILE_OF_INSERT(Y, m_Y, n_Y),   PARSEC_INPUT | SOURCE,
                                    sizeof(int), &mb, PARSEC_VALUE,
                                    sizeof(int), &nb, PARSEC_VALUE,
-                                   sizeof(int), &dcT->super.mb, PARSEC_VALUE,
+                                   sizeof(int), &dcT->mb, PARSEC_VALUE,
                                    sizeof(int), &m_T, PARSEC_VALUE,
                                    sizeof(int), &m_T_END, PARSEC_VALUE,
                                    PARSEC_DTD_ARG_END );
@@ -363,6 +363,18 @@ parsec_redistribute_New_dtd(parsec_context_t *parsec,
         return PARSEC_ERROR;
     }
 
+    if( !redistribute_region_is_stored(dcY, size_row, size_col, disi_Y, disj_Y) ) {
+        if( 0 == dcY->super.myrank )
+            parsec_warning("ERROR: Submatrix references unstored SOURCE tiles\n");
+        return PARSEC_ERROR;
+    }
+
+    if( !redistribute_region_is_stored(dcT, size_row, size_col, disi_T, disj_T) ) {
+        if( 0 == dcY->super.myrank )
+            parsec_warning("ERROR: Submatrix references unstored TARGET tiles\n");
+        return PARSEC_ERROR;
+    }
+
     /* Initializing dc for dtd */
     parsec_dtd_data_collection_init((parsec_data_collection_t *)dcY);
 
@@ -387,8 +399,8 @@ parsec_redistribute_New_dtd(parsec_context_t *parsec,
         && (disj_Y % dcY->nb == 0) && (disi_T % dcT->mb == 0) && (disj_T % dcT->nb == 0) ) {
         /* When tile sizes are the same and displacements are at start of tiles */
         parsec_dtd_insert_task( dtd_tp,       insert_task_reshuffle, 0, PARSEC_DEV_CPU, "insert_task_reshuffle",
-                       sizeof(parsec_matrix_block_cyclic_t *), (parsec_matrix_block_cyclic_t *)dcY,  PARSEC_REF,
-                       sizeof(parsec_matrix_block_cyclic_t *), (parsec_matrix_block_cyclic_t *)dcT,  PARSEC_REF,
+                       sizeof(parsec_tiled_matrix_t *), dcY,  PARSEC_REF,
+                       sizeof(parsec_tiled_matrix_t *), dcT,  PARSEC_REF,
                        sizeof(int),                &size_row,           PARSEC_VALUE,
                        sizeof(int),                &size_col,           PARSEC_VALUE,
                        sizeof(int),                &disi_Y,             PARSEC_VALUE,
@@ -398,8 +410,8 @@ parsec_redistribute_New_dtd(parsec_context_t *parsec,
                        PARSEC_DTD_ARG_END );
     } else {
         parsec_dtd_insert_task( dtd_tp,       insert_task, 0, PARSEC_DEV_CPU, "insert_task",
-                       sizeof(parsec_matrix_block_cyclic_t *), (parsec_matrix_block_cyclic_t *)dcY,  PARSEC_REF,
-                       sizeof(parsec_matrix_block_cyclic_t *), (parsec_matrix_block_cyclic_t *)dcT,  PARSEC_REF,
+                       sizeof(parsec_tiled_matrix_t *), dcY,  PARSEC_REF,
+                       sizeof(parsec_tiled_matrix_t *), dcT,  PARSEC_REF,
                        sizeof(int),                      &size_row,                      PARSEC_VALUE,
                        sizeof(int),                      &size_col,                      PARSEC_VALUE,
                        sizeof(int),                      &disi_Y,                        PARSEC_VALUE,

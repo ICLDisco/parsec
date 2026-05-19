@@ -16,6 +16,7 @@ set(sources
     ${CMAKE_CURRENT_LIST_DIR}/two_dim_rectangle_cyclic_band.c
     ${CMAKE_CURRENT_LIST_DIR}/sym_two_dim_rectangle_cyclic.c
     ${CMAKE_CURRENT_LIST_DIR}/sym_two_dim_rectangle_cyclic_band.c
+    ${CMAKE_CURRENT_LIST_DIR}/sbc.c
     ${CMAKE_CURRENT_LIST_DIR}/vector_two_dim_cyclic.c
     ${CMAKE_CURRENT_LIST_DIR}/subtile.c
 )
@@ -47,6 +48,7 @@ set_property(TARGET parsec
                                      data_dist/matrix/two_dim_rectangle_cyclic_band.h
                                      data_dist/matrix/sym_two_dim_rectangle_cyclic.h
                                      data_dist/matrix/sym_two_dim_rectangle_cyclic_band.h
+                                     data_dist/matrix/sbc.h
                                      data_dist/matrix/vector_two_dim_cyclic.h
                                      data_dist/matrix/two_dim_tabular.h
                                      data_dist/matrix/grid_2Dcyclic.h

@@ -92,12 +92,9 @@ parsec_redistribute_check2_New(parsec_tiled_matrix_t *dcY,
     redistribute_check2_taskpool = (parsec_taskpool_t*)taskpool;
 
     /* Check distribution, and determine batch size: num_col */
-    if( dcY->dtype & parsec_matrix_tabular_type ) {
-        taskpool->_g_num_col = parsec_imin( ceil(size_col/dcY->nb), dcY->super.nodes );
-    } else if( dcY->dtype & parsec_matrix_block_cyclic_type ) {
-        taskpool->_g_num_col = ((parsec_matrix_block_cyclic_t *)dcY)->grid.cols * ((parsec_matrix_block_cyclic_t *)dcY)->grid.kcols;
-    } else {
-        fprintf(stderr, "Only support parsec_matrix_block_cyclic_type and parsec_matrix_tabular_type\n");
+    taskpool->_g_num_col = redistribute_distribution_num_cols(dcY, size_col);
+    if( taskpool->_g_num_col <= 0 ) {
+        fprintf(stderr, "Only support parsec_matrix_block_cyclic_type, parsec_matrix_tabular_type, and parsec_matrix_sbc_type\n");
         return NULL;
     }
 

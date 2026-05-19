@@ -22,6 +22,8 @@ enum iparam_t {
   /* Source Matrix */
   IPARAM_P,            /* Rows in the process grid          */
   IPARAM_Q,            /* Columns in the process grid       */
+  IPARAM_SOURCE_DIST,  /* Source data distribution          */
+  IPARAM_SOURCE_MEMORY,/* Source memory location            */
   IPARAM_M,            /* Number of rows of the matrix      */
   IPARAM_N,            /* Number of columns of the matrix   */
   IPARAM_MB,           /* Number of rows in a tile          */
@@ -33,6 +35,8 @@ enum iparam_t {
   /* Target/Redistributed Matrix */
   IPARAM_P_R,          /* Rows in the process grid          */
   IPARAM_Q_R,          /* Columns in the process grid       */
+  IPARAM_TARGET_DIST,  /* Target data distribution          */
+  IPARAM_TARGET_MEMORY,/* Target memory location            */
   IPARAM_M_R,          /* Redistributed M size              */
   IPARAM_N_R,          /* Redistributed N size              */
   IPARAM_MB_R,         /* Redistributed MB size             */
@@ -58,6 +62,17 @@ enum iparam_t {
   IPARAM_SIZEOF
 };
 
+typedef enum redistribute_distribution_e {
+  REDISTRIBUTE_DIST_2DBC,
+  REDISTRIBUTE_DIST_SBC
+} redistribute_distribution_t;
+
+typedef enum redistribute_memory_location_e {
+  REDISTRIBUTE_MEMORY_HOST,
+  REDISTRIBUTE_MEMORY_MANAGED,
+  REDISTRIBUTE_MEMORY_DEVICE
+} redistribute_memory_location_t;
+
 enum dparam_t {
   DPARAM_NETWORK_BANDWIDTH,    /* Network bandwidth                 */
   DPARAM_MEMCPY_BANDWIDTH,    /* Network bandwidth                 */
@@ -65,6 +80,10 @@ enum dparam_t {
 };
 
 void print_usage(void);
+
+const char *redistribute_distribution_name(int distribution);
+
+const char *redistribute_memory_location_name(int memory_location);
 
 parsec_context_t *setup_parsec(int argc, char* argv[], int *iparam, double *dparam);
 

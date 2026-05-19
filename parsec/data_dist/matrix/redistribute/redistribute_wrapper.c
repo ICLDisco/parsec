@@ -7,16 +7,6 @@
 #include "redistribute.h"
 #include "redistribute_reshuffle.h"
 
-static inline int parsec_imin(int a, int b)
-{
-    return (a <= b) ? a : b;
-};
-
-static inline int parsec_imax(int a, int b)
-{
-    return (a >= b) ? a : b;
-};
-
 /**
  * @brief New function for redistribute
  *
@@ -67,18 +57,22 @@ parsec_redistribute_New(parsec_tiled_matrix_t *dcY,
         return NULL;
     }
 
+    if( !redistribute_region_is_stored(dcY, size_row, size_col, disi_Y, disj_Y) ) {
+        if( 0 == dcY->super.myrank )
+            parsec_warning("ERROR: Submatrix references unstored SOURCE tiles\n");
+        return NULL;
+    }
+
+    if( !redistribute_region_is_stored(dcT, size_row, size_col, disi_T, disj_T) ) {
+        if( 0 == dcY->super.myrank )
+            parsec_warning("ERROR: Submatrix references unstored TARGET tiles\n");
+        return NULL;
+    }
+
     /* Check distribution, and determine batch size: num_col */
-    if( (dcY->dtype & parsec_matrix_tabular_type) && (dcT->dtype & parsec_matrix_tabular_type) ) {
-        num_cols = parsec_imin( ceil(size_col/dcY->nb), dcY->super.nodes );
-    } else if( (dcY->dtype & parsec_matrix_tabular_type) && (dcT->dtype & parsec_matrix_block_cyclic_type) ) {
-        num_cols = ((parsec_matrix_block_cyclic_t *)dcT)->grid.cols * ((parsec_matrix_block_cyclic_t *)dcT)->grid.kcols;
-    } else if( (dcY->dtype & parsec_matrix_block_cyclic_type) && (dcT->dtype & parsec_matrix_tabular_type) ) {
-        num_cols = ((parsec_matrix_block_cyclic_t *)dcY)->grid.cols * ((parsec_matrix_block_cyclic_t *)dcY)->grid.kcols;
-    } else if( (dcY->dtype & parsec_matrix_block_cyclic_type) && (dcT->dtype & parsec_matrix_block_cyclic_type) ) {
-        num_cols = parsec_imax( ((parsec_matrix_block_cyclic_t *)dcY)->grid.cols * ((parsec_matrix_block_cyclic_t *)dcY)->grid.kcols,
-                                ((parsec_matrix_block_cyclic_t *)dcT)->grid.cols * ((parsec_matrix_block_cyclic_t *)dcT)->grid.kcols );
-    } else {
-        parsec_warning("This version of data redistribution only supports parsec_matrix_block_cyclic_type and parsec_matrix_tabular_type");
+    num_cols = redistribute_pair_num_cols(dcY, dcT, size_col);
+    if( num_cols <= 0 ) {
+        parsec_warning("This version of data redistribution only supports parsec_matrix_block_cyclic_type, parsec_matrix_tabular_type, and parsec_matrix_sbc_type");
         return NULL;
     }
 
@@ -197,4 +191,3 @@ int parsec_redistribute(parsec_context_t *parsec,
 
     return PARSEC_ERR_NOT_SUPPORTED;
 }
-
