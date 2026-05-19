@@ -18,6 +18,7 @@ static parsec_comm_module_t parsec_comm_mpi_module = {
     .module = {
         .init = mpi_funnelled_init,
     },
+    .datatype = &parsec_comm_mpi_datatype_module,
 };
 
 const parsec_comm_base_component_t parsec_comm_mpi_component = {
@@ -25,9 +26,9 @@ const parsec_comm_base_component_t parsec_comm_mpi_component = {
         PARSEC_COMM_BASE_VERSION_2_0_0,
 
         "mpi",
-        /* Compile-time capabilities of this backend, reported next to its name
-         * by parsec_version_ex(). MPI-2 brings the resized datatypes the
-         * datatype module needs to describe strided data. */
+        /* Compile-time capabilities, reported next to the backend name by
+         * parsec_version_ex(). MPI-2 brings the resized datatypes needed to
+         * describe strided data. */
 #if defined(PARSEC_HAVE_MPI_20)
         "+mpi20",
 #else
