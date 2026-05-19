@@ -270,21 +270,15 @@ int parsec_redistribute_check(parsec_context_t *parsec,
 
     /* Check distribution, and determine batch size,
      * how many tile columns exist at the same time */
-    if( dcY->dtype & parsec_matrix_tabular_type ) {
-        num_col_Y = parsec_imin( ceil(size_col/dcY->nb), dcY->super.nodes );
-    } else if( dcY->dtype & parsec_matrix_block_cyclic_type ) {
-        num_col_Y = ((parsec_matrix_block_cyclic_t *)dcY)->grid.cols * ((parsec_matrix_block_cyclic_t *)dcY)->grid.kcols;
-    } else {
-        fprintf(stderr, "Only support parsec_matrix_block_cyclic_type and parsec_matrix_tabular_type\n");
+    num_col_Y = redistribute_distribution_num_cols(dcY, size_col);
+    if( num_col_Y <= 0 ) {
+        fprintf(stderr, "Only support parsec_matrix_block_cyclic_type, parsec_matrix_tabular_type, and parsec_matrix_sbc_type\n");
         exit(1);
     }
 
-    if( dcT->dtype & parsec_matrix_tabular_type ) {
-        num_col_T = parsec_imin( ceil(size_col/dcT->nb), dcT->super.nodes );
-    } else if( dcT->dtype & parsec_matrix_block_cyclic_type ) {
-        num_col_T = ((parsec_matrix_block_cyclic_t *)dcT)->grid.cols * ((parsec_matrix_block_cyclic_t *)dcT)->grid.kcols;
-    } else {
-        fprintf(stderr, "Only support parsec_matrix_block_cyclic_type and parsec_matrix_tabular_type\n");
+    num_col_T = redistribute_distribution_num_cols(dcT, size_col);
+    if( num_col_T <= 0 ) {
+        fprintf(stderr, "Only support parsec_matrix_block_cyclic_type, parsec_matrix_tabular_type, and parsec_matrix_sbc_type\n");
         exit(1);
     }
 

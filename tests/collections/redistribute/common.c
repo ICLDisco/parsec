@@ -9,6 +9,7 @@
 #include "common.h"
 #include <stdlib.h>
 #include <stdio.h>
+#include <strings.h>
 
 #if defined(PARSEC_HAVE_GETOPT_H)
 #include <getopt.h>
@@ -21,6 +22,66 @@
 double time_elapsed = 0.0;
 double sync_time_elapsed = 0.0;
 
+const char *redistribute_distribution_name(int distribution)
+{
+    switch(distribution) {
+    case REDISTRIBUTE_DIST_2DBC:
+        return "2dbc";
+    case REDISTRIBUTE_DIST_SBC:
+        return "sbc";
+    default:
+        return "unknown";
+    }
+}
+
+const char *redistribute_memory_location_name(int memory_location)
+{
+    switch(memory_location) {
+    case REDISTRIBUTE_MEMORY_HOST:
+        return "cpu";
+    case REDISTRIBUTE_MEMORY_MANAGED:
+        return "managed";
+    case REDISTRIBUTE_MEMORY_DEVICE:
+        return "cuda";
+    default:
+        return "unknown";
+    }
+}
+
+static int parse_distribution_arg(const char *arg)
+{
+    if( 0 == strcasecmp(arg, "2dbc") ) {
+        return REDISTRIBUTE_DIST_2DBC;
+    }
+    if( (0 == strcasecmp(arg, "sbc")) ||
+        (0 == strcasecmp(arg, "sdb")) ) {
+        return REDISTRIBUTE_DIST_SBC;
+    }
+
+    fprintf(stderr, "#XXXXX unsupported distribution '%s' (expected 2dbc, sbc, or sdb)\n", arg);
+    exit(2);
+    return REDISTRIBUTE_DIST_2DBC;
+}
+
+static int parse_memory_location_arg(const char *arg)
+{
+    if( (0 == strcasecmp(arg, "cpu")) ||
+        (0 == strcasecmp(arg, "host")) ) {
+        return REDISTRIBUTE_MEMORY_HOST;
+    }
+    if( 0 == strcasecmp(arg, "managed") ) {
+        return REDISTRIBUTE_MEMORY_MANAGED;
+    }
+    if( (0 == strcasecmp(arg, "cuda")) ||
+        (0 == strcasecmp(arg, "device")) ) {
+        return REDISTRIBUTE_MEMORY_DEVICE;
+    }
+
+    fprintf(stderr, "#XXXXX unsupported memory location '%s' (expected cpu, managed, or cuda)\n", arg);
+    exit(2);
+    return REDISTRIBUTE_MEMORY_HOST;
+}
+
 /**********************************
  * Command line arguments
  **********************************/
@@ -31,6 +92,8 @@ void print_usage(void)
             "\n Source Matrix:\n" 
             " -P --source-grid-rows : rows (P) in the PxQ process grid (default: NP)\n"
             " -Q --source-grid-cols : columns (Q) in the PxQ process grid (default: NP/P)\n"
+            " -g --source-distribution : source distribution, 2dbc, sbc, or sdb (default: 2dbc)\n"
+            " -l --source-memory    : source memory location, cpu, managed, or cuda (default: cpu)\n"
             " -M                    : dimension (M) of the matrices (default: N)\n"
             " -N                    : dimension (N) of the matrices (required)\n"
             " -t --MB               : rows in a tile     (default: autotuned)\n"
@@ -42,6 +105,8 @@ void print_usage(void)
             "\n Target/Redistributed Matrix:\n" 
             " -p --target-grid-rows : rows (p) in the pxq process grid (default: NP)\n"
             " -q --target-grid-cols : columns (q) in the pxq process grid (default: NP/p)\n"
+            " -G --target-distribution : target distribution, 2dbc, sbc, or sdb (default: 2dbc)\n"
+            " -L --target-memory    : target memory location, cpu, managed, or cuda (default: cpu)\n"
             " -a --MR               : set redistributed M size\n"
             " -A --NR               : set redistributed N size\n"
             " -b --MBR              : set redistributed MB size\n"
@@ -65,11 +130,14 @@ void print_usage(void)
             " -f --thread_multiple  : 0/default, init mpi with MPI_THREAD_SERIALIZED; others, MPI_THREAD_MULTIPLE\n"
             " -y --no-optimization  : no_optimization version, send the whole tile to target; default 0, not no_optimization version\n"
             " -c --cores            : number of concurrent threads (default: number of physical hyper-threads)\n"
+            "\n Notes:\n"
+            "    SBC stores a triangular tile set; the redistributed rectangle must fit entirely\n"
+            "    within the stored upper or lower tile triangle of each SBC descriptor.\n"
             " -- -flag              : use parsec 'flag', details -- --help\n"
             "\n");
 }
 
-#define GETOPT_STRING "c:P:Q:M:N:t:T:s:S:I:J:p:q:a:A:b:B:d:D:i:j:R:m:n:x:v:h:z:u:U:y:e:f:"
+#define GETOPT_STRING "c:P:Q:g:l:M:N:t:T:s:S:I:J:p:q:G:L:a:A:b:B:d:D:i:j:R:m:n:x:v:h:z:u:U:y:e:f:"
 
 #if defined(PARSEC_HAVE_GETOPT_LONG)
 static struct option long_options[] =
@@ -80,6 +148,12 @@ static struct option long_options[] =
     {"P",                  required_argument,  0, 'P'},
     {"source-grid-cols",   required_argument,  0, 'Q'},
     {"Q",                  required_argument,  0, 'Q'},
+    {"source-distribution",required_argument,  0, 'g'},
+    {"source-dist",        required_argument,  0, 'g'},
+    {"g",                  required_argument,  0, 'g'},
+    {"source-memory",      required_argument,  0, 'l'},
+    {"source-memory-location", required_argument,  0, 'l'},
+    {"l",                  required_argument,  0, 'l'},
     {"N",                  required_argument,  0, 'N'},
     {"M",                  required_argument,  0, 'M'},
     {"MB",                 required_argument,  0, 't'},
@@ -98,6 +172,12 @@ static struct option long_options[] =
     {"p",                  required_argument,  0, 'p'},
     {"target-grid-cols",   required_argument,  0, 'q'},
     {"q",                  required_argument,  0, 'q'},
+    {"target-distribution",required_argument,  0, 'G'},
+    {"target-dist",        required_argument,  0, 'G'},
+    {"G",                  required_argument,  0, 'G'},
+    {"target-memory",      required_argument,  0, 'L'},
+    {"target-memory-location", required_argument,  0, 'L'},
+    {"L",                  required_argument,  0, 'L'},
     {"MR",                 required_argument,  0, 'a'},
     {"a",                  required_argument,  0, 'a'},
     {"NR",                 required_argument,  0, 'A'},
@@ -178,6 +258,10 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam, double *dpar
     iparam[IPARAM_VERBOSE] = 0; 
     iparam[IPARAM_NCORES] = -1;
     iparam[IPARAM_RADIUS] = 0;
+    iparam[IPARAM_SOURCE_DIST] = REDISTRIBUTE_DIST_2DBC;
+    iparam[IPARAM_TARGET_DIST] = REDISTRIBUTE_DIST_2DBC;
+    iparam[IPARAM_SOURCE_MEMORY] = REDISTRIBUTE_MEMORY_HOST;
+    iparam[IPARAM_TARGET_MEMORY] = REDISTRIBUTE_MEMORY_HOST;
 
     /* No supertiling by default */
     iparam[IPARAM_SMB] = 1;
@@ -212,6 +296,8 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam, double *dpar
             /* Source */
             case 'P': iparam[IPARAM_P] = atoi(optarg); break;
             case 'Q': iparam[IPARAM_Q] = atoi(optarg); break;
+            case 'g': iparam[IPARAM_SOURCE_DIST] = parse_distribution_arg(optarg); break;
+            case 'l': iparam[IPARAM_SOURCE_MEMORY] = parse_memory_location_arg(optarg); break;
             case 'M': iparam[IPARAM_M] = atoi(optarg); break;
             case 'N': iparam[IPARAM_N] = atoi(optarg); break;
             case 't': iparam[IPARAM_MB] = atoi(optarg); break;
@@ -224,6 +310,8 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam, double *dpar
             /* Target/redistribute */
             case 'p': iparam[IPARAM_P_R] = atoi(optarg); break;
             case 'q': iparam[IPARAM_Q_R] = atoi(optarg); break;
+            case 'G': iparam[IPARAM_TARGET_DIST] = parse_distribution_arg(optarg); break;
+            case 'L': iparam[IPARAM_TARGET_MEMORY] = parse_memory_location_arg(optarg); break;
             case 'a': iparam[IPARAM_M_R] = atoi(optarg); break;
             case 'A': iparam[IPARAM_N_R] = atoi(optarg); break;
             case 'b': iparam[IPARAM_MB_R] = atoi(optarg); break;
@@ -326,6 +414,12 @@ static void print_arguments(int* iparam)
         fprintf(stderr, "#+++++ P x Q :                   %d x %d\n",
                         iparam[IPARAM_P], iparam[IPARAM_Q]);
 
+        fprintf(stderr, "#+++++ distribution :            %s\n",
+                        redistribute_distribution_name(iparam[IPARAM_SOURCE_DIST]));
+
+        fprintf(stderr, "#+++++ memory location :         %s\n",
+                        redistribute_memory_location_name(iparam[IPARAM_SOURCE_MEMORY]));
+
         if(iparam[IPARAM_SNB] * iparam[IPARAM_SMB] != 1)
             fprintf(stderr, "#+++++ SMB x SNB :               %d x %d\n", 
                              iparam[IPARAM_SMB], iparam[IPARAM_SNB]);
@@ -343,6 +437,12 @@ static void print_arguments(int* iparam)
 
         fprintf(stderr, "#+++++ PR x QR :                 %d x %d\n",
                         iparam[IPARAM_P_R], iparam[IPARAM_Q_R]);
+
+        fprintf(stderr, "#+++++ distribution :            %s\n",
+                        redistribute_distribution_name(iparam[IPARAM_TARGET_DIST]));
+
+        fprintf(stderr, "#+++++ memory location :         %s\n",
+                        redistribute_memory_location_name(iparam[IPARAM_TARGET_MEMORY]));
 
         fprintf(stderr, "#+++++ MR x NR :                 %d x %d\n", 
                          iparam[IPARAM_M_R], iparam[IPARAM_N_R]);
