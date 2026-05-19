@@ -4,12 +4,22 @@
  *                         reserved.
  * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
+/**
+ * @file
+ *
+ * Funnelled MPI implementation of the communication engine callbacks.
+ *
+ * This file is intentionally still transport-specific after the first comm MCA
+ * componentization step.  The generic remote-dependency protocol continues to
+ * call through parsec_comm_engine_t, while this backend provides the MPI active
+ * message, memory-handle, pack/unpack, and progress operations.
+ */
 
 #include <mpi.h>
 #include <assert.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include "parsec/parsec_mpi_funnelled.h"
+#include "comm_mpi_funnelled.h"
 #include "parsec/remote_dep.h"
 #include "parsec/class/parsec_hash_table.h"
 #include "parsec/class/dequeue.h"
@@ -641,7 +651,30 @@ static int mpi_funneled_init_once(parsec_context_t* context)
 parsec_comm_engine_t *
 mpi_funnelled_init(parsec_context_t *context)
 {
-    int i, rc;
+    int i, rc, is_mpi_up = 0, thread_level_support;
+
+    MPI_Initialized(&is_mpi_up);
+    if( 0 == is_mpi_up ) {
+        /**
+         * MPI is not up.  The MPI backend cannot provide communication or the
+         * MPI datatype operations used by the current distributed build.
+         */
+        context->nb_nodes = 1;
+        parsec_communication_engine_up = -1;  /* No communications supported */
+        parsec_fatal("MPI was not initialized. This version of PaRSEC was compiled with MPI datatype support and needs MPI to execute.\n"
+                     "\t* Please initialize MPI in the application (MPI_Init/MPI_Init_thread) before initializing PaRSEC.\n"
+                     "\t* Alternatively, compile a version of PaRSEC without MPI (-DPARSEC_DIST_WITH_MPI=OFF in ccmake)\n");
+        return NULL;
+    }
+
+    MPI_Query_thread(&thread_level_support);
+    if( thread_level_support == MPI_THREAD_SINGLE ||
+        thread_level_support == MPI_THREAD_FUNNELED ) {
+        parsec_warning("MPI was not initialized with the appropriate level of thread support.\n"
+                       "\t* Current level is %s, while MPI_THREAD_SERIALIZED or MPI_THREAD_MULTIPLE is needed\n"
+                       "\t* to guarantee correctness of the PaRSEC runtime.\n",
+                       thread_level_support == MPI_THREAD_SINGLE ? "MPI_THREAD_SINGLE" : "MPI_THREAD_FUNNELED");
+    }
 
     if( -1 == MAX_MPI_TAG )
         if( 0 != (rc = mpi_funneled_init_once(context)) ) {
@@ -692,6 +725,7 @@ mpi_funnelled_init(parsec_context_t *context)
     parsec_ce.parsec_context      = context;
     parsec_ce.capabilites.sided   = 2;
     parsec_ce.capabilites.supports_noncontiguous_datatype = 1;
+    parsec_ce.capabilites.multithreaded = (thread_level_support >= MPI_THREAD_MULTIPLE);
 
     /* Define some sensible values. We assume the application will initialize PaRSEC using
      * the entire MPI_COMM_WORLD, but we need to prepare some decent default values. */

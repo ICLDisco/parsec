@@ -256,7 +256,6 @@ int parsec_remote_dep_propagate(parsec_execution_stream_t* es,
 #define parsec_remote_dep_progress(ctx)        0
 #define parsec_remote_dep_activate(ctx, o, r) -1
 #define parsec_remote_dep_new_taskpool(ctx)    0
-#define remote_dep_mpi_initialize_execution_stream(ctx) 0
 #endif /* DISTRIBUTED */
 
 /* check if this data description represents a CTL dependency */
@@ -338,12 +337,13 @@ struct dep_cmd_item_s {
 };
 
 #define dep_cmd_prio (offsetof(dep_cmd_item_t, priority))
-#define dep_mpi_pos_list (offsetof(dep_cmd_item_t, priority) - offsetof(dep_cmd_item_t, pos_list))
+#define dep_cmd_pos_list (offsetof(dep_cmd_item_t, priority) - offsetof(dep_cmd_item_t, pos_list))
 #define rdep_prio (offsetof(parsec_remote_deps_t, max_priority))
 
 /**
- * These functions will be inherited from the current remote_dep_mpi.c
- * and for the time being will remain in there.
+ * Remote-dependency communication protocol entry points.  These functions are
+ * implemented by the transport-neutral protocol layer and use the selected
+ * parsec_comm_engine_t backend for network operations.
  */
 void* remote_dep_dequeue_main(parsec_context_t* context);
 
@@ -389,13 +389,13 @@ typedef struct {
     uint32_t tcid; // 20
     int msg_size;  // 24
     int dep;       // 28
-} parsec_profile_remote_dep_mpi_info_t; // 32 bytes
+} parsec_profile_remote_dep_comm_info_t; // 32 bytes
 
 #ifdef PARSEC_PROF_TRACE
 #define TAKE_TIME_WITH_INFO(PROF, KEY, I, k, src, dst, rdw, nbdtt, dtt) \
   do {                                                                  \
     if( parsec_profile_enabled ) {                                      \
-        parsec_profile_remote_dep_mpi_info_t __info;                    \
+        parsec_profile_remote_dep_comm_info_t __info;                    \
         parsec_taskpool_t *__tp = parsec_taskpool_lookup( (rdw).taskpool_id ); \
         const parsec_task_class_t *__tc = __tp->task_classes_array[(rdw).task_class_id ]; \
         __info.rank_src = (src);                                        \

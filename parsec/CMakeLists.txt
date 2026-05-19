@@ -132,8 +132,7 @@ if( PARSEC_PROF_TRACE )
 endif( PARSEC_PROF_TRACE )
 if( PARSEC_HAVE_MPI )
   list(APPEND SOURCES
-    parsec_mpi_funnelled.c
-    remote_dep_mpi.c)
+    remote_dep_comm.c)
 endif( PARSEC_HAVE_MPI )
 if( NOT MPI_C_FOUND )
   list(APPEND SOURCES datatype/datatype.c)

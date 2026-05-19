@@ -988,6 +988,7 @@ int parsec_version( int* version_major, int* version_minor, int* version_release
 
 int parsec_version_ex( size_t len, char* version_string) {
     int ret;
+    char *comm_components = mca_components_list_compiled("comm");
     char *sched_components = mca_components_list_compiled("sched");
     char *device_components = mca_components_list_compiled("device");
     char *pins_components = mca_components_list_compiled("pins");
@@ -1058,18 +1059,7 @@ int parsec_version_ex( size_t len, char* version_string) {
         "no"
 #endif /*PARSEC_PROF_TRACE*/
         ,
-#if defined(PARSEC_HAVE_MPI)
-        "mpi"
-#if defined(PARSEC_HAVE_MPI_20)
-        "2"
-#endif
-#if defined(PARSEC_DIST_THREAD)
-        "+thread_multiple"
-#endif
-#else  /* defined(PARSEC_HAVE_MPI) */
-        "single process only"
-#endif
-        ,
+        comm_components,
         device_components,
         sched_components,
 #if defined(PARSEC_HAVE_HWLOC)
@@ -1118,6 +1108,7 @@ int parsec_version_ex( size_t len, char* version_string) {
         CMAKE_PARSEC_C_COMPILER,
         CMAKE_PARSEC_C_FLAGS
     );
+    free(comm_components);
     free(device_components);
     free(sched_components);
     free(pins_components);

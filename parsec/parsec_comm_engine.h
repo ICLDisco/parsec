@@ -169,7 +169,9 @@ typedef int (*parsec_ce_reshape_fn_t)(parsec_comm_engine_t* ce,
 
 struct parsec_comm_engine_capabilites_s {
     unsigned int sided : 2; /* Valid values are 1 and 2 */
+    /** The backend can register and move non-contiguous datatypes directly. */
     unsigned int supports_noncontiguous_datatype : 1;
+    /** The backend can safely be called concurrently by worker threads. */
     unsigned int multithreaded : 1;
 };
 
