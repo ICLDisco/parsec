@@ -1,8 +1,16 @@
+/*
+ * Copyright (c) 2026      Stony Brook University.  All rights reserved.
+ */
+
+
 #ifndef PARSEC_RBTREE_H
 #define PARSEC_RBTREE_H
 
+
 #include "parsec/class/list_item.h"
 
+
+BEGIN_C_DECLS
 
 typedef enum parsec_rbtree_color_e { PARSEC_RBTREE_RED, PARSEC_RBTREE_BLACK } parsec_rbtree_color_e;
 
@@ -40,5 +48,7 @@ parsec_rbtree_node_t* parsec_rbtree_find_or_larger(parsec_rbtree_t *tree, int da
 int parsec_rbtree_update_node(parsec_rbtree_t *tree, parsec_rbtree_node_t *node, int newdata);
 
 void parsec_rbtree_foreach(parsec_rbtree_t *tree, parsec_rbtree_visitor_cb *fn, void *cbdata);
+
+END_C_DECLS
 
 #endif // PARSEC_RBTREE_H

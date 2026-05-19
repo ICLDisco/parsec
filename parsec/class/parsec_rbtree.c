@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2026      Stony Brook University.  All rights reserved.
+ */
+
 #include <stdbool.h>
 
 #include "parsec/parsec_config.h"
@@ -289,38 +293,56 @@ parsec_rbtree_node_t* parsec_rbtree_find_or_larger(parsec_rbtree_t *tree, int da
 int parsec_rbtree_update_node(parsec_rbtree_t *tree, parsec_rbtree_node_t *node, int newdata)
 {
     bool needs_reinsert = false;
-    parsec_rbtree_node_t *parent = node->parent;
-    /* check whether parent and left/right nodes would still be in the right place */
-    if (parent != tree->nil) {
-        if (LEFT(parent) == node && COMPARISON_VAL(parent, tree->comp_offset) <= newdata) {
-            if (COMPARISON_VAL(parent, tree->comp_offset) == newdata) {
-                return PARSEC_ERR_EXISTS;
-            }
-            needs_reinsert = true; // node grew past the parent
-        } else if (RIGHT(parent) == node && COMPARISON_VAL(parent, tree->comp_offset) > newdata) {
-            /* no need to check for equality again here */
-            needs_reinsert = true; // node shrunk past the parent
-        } else if (LEFT(node) != tree->nil && COMPARISON_VAL(LEFT(node), tree->comp_offset) >= newdata) {
-            if (COMPARISON_VAL(LEFT(node), tree->comp_offset) == newdata) {
-                return PARSEC_ERR_EXISTS;
-            }
-            needs_reinsert = true; // node shrunk past its left child
-        } else if (RIGHT(node) != tree->nil && COMPARISON_VAL(RIGHT(node), tree->comp_offset) < newdata) {
-            if (COMPARISON_VAL(RIGHT(node), tree->comp_offset) == newdata) {
-                return PARSEC_ERR_EXISTS;
-            }
-            needs_reinsert = true; // node grew past its right child
-        }
 
-        if (needs_reinsert) {
-            /* remove and reinsert to ensure balancing */
-            parsec_rbtree_remove(tree, node);
-            COMPARISON_VAL(node, tree->comp_offset) = newdata;
-            parsec_rbtree_insert(tree, node);
+    /* Find the in-order predecessor: rightmost node in the left subtree, or
+     * the first ancestor reached by walking up while on a left-child path. */
+    {
+        parsec_rbtree_node_t *pred;
+        if (LEFT(node) != tree->nil) {
+            pred = LEFT(node);
+            while (RIGHT(pred) != tree->nil) pred = RIGHT(pred);
         } else {
-            /* simply update the node value */
-            COMPARISON_VAL(node, tree->comp_offset) = newdata;
+            parsec_rbtree_node_t *x = node, *y = node->parent;
+            while (y != tree->nil && x == LEFT(y)) { x = y; y = y->parent; }
+            pred = y;
         }
+        if (pred != tree->nil) {
+            int pk = COMPARISON_VAL(pred, tree->comp_offset);
+            if (pk == newdata) return PARSEC_ERR_EXISTS;
+            if (pk  > newdata) needs_reinsert = true;
+        }
+    }
+
+    /* Find the in-order successor: leftmost node in the right subtree, or
+     * the first ancestor reached by walking up while on a right-child path. */
+    if (!needs_reinsert) {
+        parsec_rbtree_node_t *succ;
+        if (RIGHT(node) != tree->nil) {
+            succ = RIGHT(node);
+            while (LEFT(succ) != tree->nil) succ = LEFT(succ);
+        } else {
+            parsec_rbtree_node_t *x = node, *y = node->parent;
+            while (y != tree->nil && x == RIGHT(y)) { x = y; y = y->parent; }
+            succ = y;
+        }
+        if (succ != tree->nil) {
+            int sk = COMPARISON_VAL(succ, tree->comp_offset);
+            if (sk == newdata) return PARSEC_ERR_EXISTS;
+            if (sk  < newdata) needs_reinsert = true;
+        }
+    }
+
+    if (needs_reinsert) {
+        /* The new key requires moving the node.  Check for a duplicate first
+         * so the caller can merge lists rather than creating two nodes with
+         * the same key. */
+        if (parsec_rbtree_find(tree, newdata) != NULL) return PARSEC_ERR_EXISTS;
+        parsec_rbtree_remove(tree, node);
+        COMPARISON_VAL(node, tree->comp_offset) = newdata;
+        parsec_rbtree_insert(tree, node);
+    } else {
+        /* New key fits in the same BST position: update in place. */
+        COMPARISON_VAL(node, tree->comp_offset) = newdata;
     }
 
     return PARSEC_SUCCESS;

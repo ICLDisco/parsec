@@ -2,11 +2,13 @@
  * Copyright (c) 2012-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      Stony Brook University.  All rights reserved.
  */
 
 #include "parsec/parsec_config.h"
 #include "parsec/utils/zone_malloc.h"
 #include "parsec/utils/debug.h"
+#include "parsec/constants.h"
 
 #include "parsec/class/list.h"
 #include "parsec/class/parsec_rbtree.h"
@@ -135,19 +137,13 @@ void *zone_malloc(zone_malloc_t *gdata, size_t size)
     current_segment = (segment_t *)parsec_list_nolock_pop_front(&fl->list);
     assert(current_segment->nb_units >= nb_units);
     current_segment->status = SEGMENT_FULL;
-    if (parsec_list_nolock_is_empty(&fl->list)) {
-        /* empty chunk list, remove */
-        parsec_rbtree_remove(&gdata->rbtree, &fl->super);
-        PARSEC_LIST_ITEM_SINGLETON(&fl->super.super);
-        /* put into free list */
-        parsec_lifo_nolock_push(&gdata->rbtree_free_list, &fl->super.super);
-    }
+    int fl_emptied = parsec_list_nolock_is_empty(&fl->list);
     current_tid = (current_segment - gdata->segments);
     if (current_segment->nb_units > nb_units) {
         /* segment must be split */
         next_tid = current_tid + current_segment->nb_units;
 
-        /* get the following segment and put it into the rbtree */
+        /* get the following segment and update its back-pointer */
         next_segment = SEGMENT_AT_TID(gdata, next_tid);
         if( NULL != next_segment ) {
             next_segment->nb_prev -= nb_units;
@@ -159,35 +155,45 @@ void *zone_malloc(zone_malloc_t *gdata, size_t size)
         new_segment->nb_prev  = nb_units;
         new_segment->nb_units = current_segment->nb_units - nb_units;
 
-        fl = (zone_malloc_chunk_list_t*)parsec_rbtree_find(&gdata->rbtree, new_segment->nb_units);
-        if (fl == NULL) {
-            /* create new chunk list and insert into rbtree */
-            fl = allocate_chunk_list(gdata, new_segment->nb_units);
-            parsec_rbtree_insert(&gdata->rbtree, &fl->super);
+        if (fl_emptied) {
+            /* The chunk-list for the old size is now empty.  Try to reuse it
+             * for the remainder by updating its key in place; this avoids a
+             * remove+insert pair when the new size fits in the same BST
+             * position (e.g., sequential allocation into a single large chunk). */
+            if (parsec_rbtree_update_node(&gdata->rbtree, &fl->super,
+                                          new_segment->nb_units) == PARSEC_SUCCESS) {
+                fl->nb_units = new_segment->nb_units;
+                parsec_list_nolock_push_front(&fl->list, &new_segment->super);
+            } else {
+                /* A node for the remainder size already exists; retire fl. */
+                parsec_rbtree_remove(&gdata->rbtree, &fl->super);
+                PARSEC_LIST_ITEM_SINGLETON(&fl->super.super);
+                parsec_lifo_nolock_push(&gdata->rbtree_free_list, &fl->super.super);
+                fl = (zone_malloc_chunk_list_t*)parsec_rbtree_find(&gdata->rbtree,
+                                                                    new_segment->nb_units);
+                assert(fl != NULL);
+                parsec_list_nolock_push_front(&fl->list, &new_segment->super);
+            }
+        } else {
+            fl = (zone_malloc_chunk_list_t*)parsec_rbtree_find(&gdata->rbtree, new_segment->nb_units);
+            if (fl == NULL) {
+                fl = allocate_chunk_list(gdata, new_segment->nb_units);
+                parsec_rbtree_insert(&gdata->rbtree, &fl->super);
+            }
+            parsec_list_nolock_push_front(&fl->list, &new_segment->super);
         }
-        parsec_list_nolock_push_front(&fl->list, &new_segment->super);
 
         /* reduce size of current segment */
         current_segment->nb_units = nb_units;
+    } else if (fl_emptied) {
+        /* No split and the chunk-list is now empty: remove it. */
+        parsec_rbtree_remove(&gdata->rbtree, &fl->super);
+        PARSEC_LIST_ITEM_SINGLETON(&fl->super.super);
+        parsec_lifo_nolock_push(&gdata->rbtree_free_list, &fl->super.super);
     }
     /* found segment of right size, done */
     parsec_atomic_unlock(&gdata->lock);
     return (void*)(gdata->base + (current_tid * gdata->unit_size));
-}
-
-static void remove_segment_from_rbtree(zone_malloc_t *gdata, segment_t *current_segment) {
-    zone_malloc_chunk_list_t *fl;
-    /* find chunk list */
-    fl = (zone_malloc_chunk_list_t*)parsec_rbtree_find(&gdata->rbtree, current_segment->nb_units);
-    assert(fl != NULL);
-    /* remove from list */
-    parsec_list_nolock_remove(&fl->list, &current_segment->super);
-    if (parsec_list_nolock_is_empty(&fl->list)) {
-        /* empty chunk list, remove */
-        parsec_rbtree_remove(&gdata->rbtree, &fl->super);
-        /* put into free list */
-        parsec_lifo_nolock_push(&gdata->rbtree_free_list, &fl->super.super);
-    }
 }
 
 void zone_free(zone_malloc_t *gdata, void *add)
@@ -195,7 +201,7 @@ void zone_free(zone_malloc_t *gdata, void *add)
     segment_t *current_segment, *next_segment, *prev_segment;
     int current_tid, next_tid, prev_tid;
     off_t offset;
-    zone_malloc_chunk_list_t *fl;
+    zone_malloc_chunk_list_t *fl, *reuse_fl = NULL;
 
     parsec_atomic_lock(&gdata->lock);
     offset = (char*)add -gdata->base;
@@ -224,8 +230,31 @@ void zone_free(zone_malloc_t *gdata, void *add)
     next_tid = current_tid + current_segment->nb_units;
     next_segment = SEGMENT_AT_TID(gdata, next_tid);
 
+    /* Pre-compute the fully merged size so we can update an empty fl in place,
+     * avoiding a remove+insert pair in the common sequential-free pattern. */
+    int merged_nb_units = current_segment->nb_units;
+    if (NULL != prev_segment && prev_segment->status == SEGMENT_EMPTY)
+        merged_nb_units += prev_segment->nb_units;
+    if (NULL != next_segment && next_segment->status == SEGMENT_EMPTY)
+        merged_nb_units += next_segment->nb_units;
+
     if (NULL != prev_segment && prev_segment->status == SEGMENT_EMPTY) {
-        remove_segment_from_rbtree(gdata, prev_segment);
+        fl = (zone_malloc_chunk_list_t*)parsec_rbtree_find(&gdata->rbtree, prev_segment->nb_units);
+        assert(fl != NULL);
+        parsec_list_nolock_remove(&fl->list, &prev_segment->super);
+        if (parsec_list_nolock_is_empty(&fl->list)) {
+            /* fl is empty and still in the tree; update its key to merged_nb_units
+             * so we can reuse it without a remove+insert. */
+            if (parsec_rbtree_update_node(&gdata->rbtree, &fl->super, merged_nb_units) == PARSEC_SUCCESS) {
+                fl->nb_units = merged_nb_units;
+                reuse_fl = fl;
+            } else {
+                /* A node for merged_nb_units already exists; retire fl. */
+                parsec_rbtree_remove(&gdata->rbtree, &fl->super);
+                PARSEC_LIST_ITEM_SINGLETON(&fl->super.super);
+                parsec_lifo_nolock_push(&gdata->rbtree_free_list, &fl->super.super);
+            }
+        }
         /* We can merge prev and current */
         if( NULL != next_segment ) {
             next_segment->nb_prev += prev_segment->nb_units;
@@ -238,7 +267,27 @@ void zone_free(zone_malloc_t *gdata, void *add)
     }
 
     if (NULL != next_segment && next_segment->status == SEGMENT_EMPTY) {
-        remove_segment_from_rbtree(gdata, next_segment);
+        fl = (zone_malloc_chunk_list_t*)parsec_rbtree_find(&gdata->rbtree, next_segment->nb_units);
+        assert(fl != NULL);
+        parsec_list_nolock_remove(&fl->list, &next_segment->super);
+        if (parsec_list_nolock_is_empty(&fl->list)) {
+            if (reuse_fl == NULL) {
+                /* No prev merge reuse yet; try to reuse this fl. */
+                if (parsec_rbtree_update_node(&gdata->rbtree, &fl->super, merged_nb_units) == PARSEC_SUCCESS) {
+                    fl->nb_units = merged_nb_units;
+                    reuse_fl = fl;
+                } else {
+                    parsec_rbtree_remove(&gdata->rbtree, &fl->super);
+                    PARSEC_LIST_ITEM_SINGLETON(&fl->super.super);
+                    parsec_lifo_nolock_push(&gdata->rbtree_free_list, &fl->super.super);
+                }
+            } else {
+                /* Already have reuse_fl; retire this one. */
+                parsec_rbtree_remove(&gdata->rbtree, &fl->super);
+                PARSEC_LIST_ITEM_SINGLETON(&fl->super.super);
+                parsec_lifo_nolock_push(&gdata->rbtree_free_list, &fl->super.super);
+            }
+        }
         /* We can merge current and next */
         next_tid += next_segment->nb_units;
         current_segment->nb_units += next_segment->nb_units;
@@ -248,15 +297,20 @@ void zone_free(zone_malloc_t *gdata, void *add)
         }
     }
 
-    /* add the chunk into the RB tree */
-    fl = (zone_malloc_chunk_list_t*)parsec_rbtree_find(&gdata->rbtree, current_segment->nb_units);
-    if (fl == NULL) {
-        /* no chunk list, create a new entry */
-        fl = allocate_chunk_list(gdata, current_segment->nb_units);
-        parsec_rbtree_insert(&gdata->rbtree, &fl->super);
+    /* add the merged chunk into the RB tree */
+    if (reuse_fl != NULL) {
+        /* reuse_fl is already in the tree with key = merged_nb_units */
+        parsec_list_nolock_push_front(&reuse_fl->list, &current_segment->super);
+    } else {
+        fl = (zone_malloc_chunk_list_t*)parsec_rbtree_find(&gdata->rbtree, current_segment->nb_units);
+        if (fl == NULL) {
+            /* no chunk list, create a new entry */
+            fl = allocate_chunk_list(gdata, current_segment->nb_units);
+            parsec_rbtree_insert(&gdata->rbtree, &fl->super);
+        }
+        assert(fl != NULL);
+        parsec_list_nolock_push_front(&fl->list, &current_segment->super);
     }
-    assert(fl != NULL);
-    parsec_list_nolock_push_front(&fl->list, &current_segment->super);
     parsec_atomic_unlock(&gdata->lock);
 }
 
