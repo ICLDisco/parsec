@@ -6,6 +6,7 @@
 #include "parsec.h"
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "parsec/data_dist/matrix/two_dim_tabular.h"
+#include "parsec/data_dist/matrix/sbc.h"
 #include "parsec/data_dist/matrix/matrix.h"
 #include "parsec/datatype.h"
 #include "parsec/arena.h"
@@ -72,6 +73,79 @@ getsize(const int index, const int index_start, const int index_end,
         return size + dis - (index_end-index_start) * mb;
 
     return mb;
+}
+
+static inline int
+redistribute_distribution_num_cols(parsec_tiled_matrix_t *dc, int size_col)
+{
+    if( dc->dtype & parsec_matrix_tabular_type ) {
+        int tile_cols = (int)ceil((double)size_col / (double)dc->nb);
+        return (tile_cols <= (int)dc->super.nodes) ? tile_cols : (int)dc->super.nodes;
+    }
+    if( dc->dtype & parsec_matrix_block_cyclic_type ) {
+        parsec_matrix_block_cyclic_t *bc = (parsec_matrix_block_cyclic_t *)dc;
+        return bc->grid.cols * bc->grid.kcols;
+    }
+    if( dc->dtype & parsec_matrix_sbc_type ) {
+        parsec_matrix_sbc_t *sbc = (parsec_matrix_sbc_t *)dc;
+        return sbc->r;
+    }
+
+    return -1;
+}
+
+static inline int
+redistribute_pair_num_cols(parsec_tiled_matrix_t *dcY,
+                           parsec_tiled_matrix_t *dcT,
+                           int size_col)
+{
+    int num_col_Y = redistribute_distribution_num_cols(dcY, size_col);
+    int num_col_T = redistribute_distribution_num_cols(dcT, size_col);
+
+    if( (num_col_Y <= 0) || (num_col_T <= 0) ) {
+        return -1;
+    }
+
+    if( (dcY->dtype & parsec_matrix_tabular_type) &&
+        (dcT->dtype & parsec_matrix_tabular_type) ) {
+        return num_col_Y;
+    }
+    if( dcY->dtype & parsec_matrix_tabular_type ) {
+        return num_col_T;
+    }
+    if( dcT->dtype & parsec_matrix_tabular_type ) {
+        return num_col_Y;
+    }
+
+    return (num_col_Y >= num_col_T) ? num_col_Y : num_col_T;
+}
+
+static inline int
+redistribute_region_is_stored(parsec_tiled_matrix_t *dc,
+                              int size_row, int size_col,
+                              int disi, int disj)
+{
+    parsec_matrix_sbc_t *sbc;
+    int m_start, m_end, n_start, n_end;
+
+    if( !(dc->dtype & parsec_matrix_sbc_type) ) {
+        return 1;
+    }
+
+    sbc = (parsec_matrix_sbc_t *)dc;
+    m_start = disi / dc->mb;
+    m_end = (disi + size_row - 1) / dc->mb;
+    n_start = disj / dc->nb;
+    n_end = (disj + size_col - 1) / dc->nb;
+
+    if( PARSEC_MATRIX_LOWER == sbc->uplo ) {
+        return m_start >= n_end;
+    }
+    if( PARSEC_MATRIX_UPPER == sbc->uplo ) {
+        return n_start >= m_end;
+    }
+
+    return 0;
 }
 
 /**

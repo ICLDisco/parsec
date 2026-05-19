@@ -2,6 +2,7 @@
  * Copyright (c) 2010-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
 
 
@@ -92,7 +93,9 @@ enum {
   parsec_matrix_type = 0x01,
   parsec_matrix_block_cyclic_type = 0x2,
   parsec_matrix_sym_block_cyclic_type = 0x4,
-  parsec_matrix_tabular_type = 0x8
+  parsec_matrix_tabular_type = 0x8,
+  /** Symmetric Block-Cyclic distribution from Beaumont et al., SC22. */
+  parsec_matrix_sbc_type = 0x10
 };
 
 typedef struct parsec_tiled_matrix_s {

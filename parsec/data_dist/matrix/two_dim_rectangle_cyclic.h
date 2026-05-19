@@ -11,16 +11,10 @@
 
 BEGIN_C_DECLS
 
-/*
- * General distribution of data. Suppose exists a matrix in process of mpi rank 0
- */
-
 /*******************************************************************
  * distributed data structure and basic functionalities
  *******************************************************************/
 
-/* structure equivalent to PLASMA_desc, but for distributed matrix data
- */
 typedef struct parsec_matrix_block_cyclic {
     parsec_tiled_matrix_t super;
     parsec_grid_2Dcyclic_t   grid;
