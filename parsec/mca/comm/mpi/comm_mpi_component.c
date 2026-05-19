@@ -18,6 +18,7 @@ static parsec_comm_module_t parsec_comm_mpi_module = {
     .module = {
         .init = mpi_funnelled_init,
     },
+    .datatype = &parsec_comm_mpi_datatype_module,
 };
 
 const parsec_comm_base_component_t parsec_comm_mpi_component = {
