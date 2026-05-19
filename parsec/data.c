@@ -635,7 +635,7 @@ static void parsec_arena_datatype_construct(parsec_object_t *obj) {
     adt->ht_item.next_item  = NULL; /* keep Coverity happy */
     adt->ht_item.hash64     = 0;    /* keep Coverity happy */
     adt->ht_item.key        = 0;    /* keep Coverity happy */
-    adt->opaque_dtt         = NULL;
+    adt->opaque_dtt         = PARSEC_DATATYPE_NULL;
 }
 
 static void parsec_arena_datatype_destruct(parsec_object_t *obj) {

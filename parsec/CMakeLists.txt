@@ -120,6 +120,7 @@ set(SOURCES
   private_mempool.c
   remote_dep.c
   parsec_comm_engine.c
+  datatype/datatype_module.c
   scheduling.c
   compound.c
   vpmap.c
@@ -134,11 +135,9 @@ if( PARSEC_HAVE_MPI )
   list(APPEND SOURCES
     remote_dep_comm.c)
 endif( PARSEC_HAVE_MPI )
-if( NOT MPI_C_FOUND )
+if( NOT PARSEC_HAVE_MPI )
   list(APPEND SOURCES datatype/datatype.c)
-else( NOT MPI_C_FOUND )
-  list(APPEND SOURCES datatype/datatype_mpi.c)
-endif( NOT MPI_C_FOUND )
+endif( NOT PARSEC_HAVE_MPI )
 list(APPEND SOURCES parsec_hwloc.c)
 
 if( PARSEC_PROF_GRAPHER )
@@ -309,6 +308,7 @@ if( BUILD_PARSEC )
           ${CMAKE_CURRENT_SOURCE_DIR}/include/parsec/parsec_config_bottom.h
           ${CMAKE_CURRENT_SOURCE_DIR}/include/parsec/data_distribution.h
           ${CMAKE_CURRENT_SOURCE_DIR}/datatype.h
+          ${CMAKE_CURRENT_SOURCE_DIR}/datatype_module.h
           ${CMAKE_CURRENT_SOURCE_DIR}/profiling.h
           ${CMAKE_CURRENT_SOURCE_DIR}/dictionary.h
           ${CMAKE_CURRENT_SOURCE_DIR}/data.h

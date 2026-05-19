@@ -24,6 +24,8 @@
 
 BEGIN_C_DECLS
 
+struct parsec_datatype_module_s;
+
 /**
  * Common component header for communication engine components.
  *
@@ -52,9 +54,10 @@ typedef parsec_comm_engine_t *(*parsec_comm_base_module_init_fn_t)(parsec_contex
 /**
  * Communication module contract.
  *
- * The module has a single responsibility at this layer: build and return the
- * concrete parsec_comm_engine_t used by the runtime.  Backend operations
- * themselves are the function pointers stored in that returned engine.
+ * The module builds the concrete parsec_comm_engine_t used by the runtime and
+ * publishes the datatype operations that match this transport.  Backend
+ * communication operations themselves are the function pointers stored in the
+ * returned parsec_comm_engine_t.
  */
 struct parsec_comm_base_module_1_0_0_t {
     parsec_comm_base_module_init_fn_t init;
@@ -64,8 +67,20 @@ typedef struct parsec_comm_base_module_1_0_0_t parsec_comm_base_module_1_0_0_t;
 typedef struct parsec_comm_base_module_1_0_0_t parsec_comm_base_module_t;
 
 typedef struct parsec_comm_module_s {
+    /*
+     * Keep the component pointer in the module, following the existing MCA
+     * framework convention in PaRSEC.  The generic MCA query API returns an
+     * opaque mca_base_module_t pointer, and the comm framework casts it back to
+     * this complete module type after selection.
+     */
     const parsec_comm_base_component_t *component;
     parsec_comm_base_module_t           module;
+    /*
+     * Datatype operations used by the public parsec_type_* API while this
+     * transport backend is selected.  The module storage must outlive runtime
+     * finalization because datatype objects can be released late in teardown.
+     */
+    const struct parsec_datatype_module_s *datatype;
 } parsec_comm_module_t;
 
 /**
