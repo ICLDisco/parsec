@@ -308,7 +308,7 @@ int parsec_level_zero_module_init( int dev_id, parsec_device_level_zero_driver_t
         PARSEC_LEVEL_ZERO_CHECK_ERROR( "zeCommandQueueCreate ", ze_rc, {goto release_device;} );
         exec_stream->workspace    = NULL;
         PARSEC_OBJ_CONSTRUCT(&exec_stream->infos, parsec_info_object_array_t);
-        parsec_info_object_array_init(&exec_stream->infos, &parsec_per_stream_infos, exec_stream);
+        parsec_info_object_array_init(&exec_stream->infos, &parsec_per_stream_infos, exec_stream, (parsec_info_set_ctx_fn)parsec_level_zero_set_device, gpu_device);
         exec_stream->max_events   = PARSEC_MAX_EVENTS_PER_STREAM;
         exec_stream->executed     = 0;
         exec_stream->start        = 0;
