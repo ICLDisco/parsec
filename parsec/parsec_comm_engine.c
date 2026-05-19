@@ -12,7 +12,7 @@
 
 parsec_comm_engine_t parsec_ce;
 
-#if defined(PARSEC_HAVE_MPI)
+#if defined(DISTRIBUTED)
 
 /* Select and initialize the distributed communication backend. */
 parsec_comm_engine_t *
@@ -48,6 +48,7 @@ parsec_comm_engine_init(parsec_context_t *parsec_context)
     parsec_ce.capabilites.sided = 0;
     parsec_ce.capabilites.supports_noncontiguous_datatype = 0;
     parsec_ce.capabilites.multithreaded = 0;
+    parsec_ce.taskpool_sync_ids = NULL;
     return &parsec_ce;
 }
 
@@ -58,4 +59,4 @@ parsec_comm_engine_fini(parsec_comm_engine_t *comm_engine)
     return PARSEC_SUCCESS;
 }
 
-#endif  /* defined(PARSEC_HAVE_MPI) */
+#endif  /* defined(DISTRIBUTED) */

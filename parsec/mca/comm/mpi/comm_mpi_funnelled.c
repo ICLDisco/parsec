@@ -721,6 +721,7 @@ mpi_funnelled_init(parsec_context_t *context)
     parsec_ce.reshape             = NULL;
     parsec_ce.can_serve           = NULL;
     parsec_ce.send_am             = NULL;
+    parsec_ce.taskpool_sync_ids   = mpi_no_thread_taskpool_sync_ids;
 
     parsec_ce.parsec_context      = context;
     parsec_ce.capabilites.sided   = 2;
@@ -1532,6 +1533,7 @@ mpi_no_thread_enable(parsec_comm_engine_t *ce)
     parsec_ce.reshape             = parsec_mpi_sendrecv;
     parsec_ce.can_serve           = mpi_no_thread_can_push_more;
     parsec_ce.send_am             = mpi_no_thread_send_active_message;
+    parsec_ce.taskpool_sync_ids   = mpi_no_thread_taskpool_sync_ids;
 
     /* Initialize the arrays */
     array_of_callbacks = (mpi_funnelled_callback_t *) calloc(parsec_param_comm_mpi_dynamic_requests,
@@ -1648,4 +1650,29 @@ mpi_no_thread_can_push_more(parsec_comm_engine_t *ce)
 
     /* Do we have room to post more requests? */
     return mpi_funnelled_last_active_req < current_size_of_total_reqs;
+}
+
+int
+mpi_no_thread_taskpool_sync_ids(parsec_comm_engine_t *ce,
+                                intptr_t comm_ctx,
+                                uint32_t *next_taskpool_id)
+{
+    MPI_Comm comm = (MPI_Comm)comm_ctx;
+    int mpi_is_on, idx;
+
+    if( (NULL == next_taskpool_id) ||
+        (MPI_SUCCESS != MPI_Initialized(&mpi_is_on)) ||
+        !mpi_is_on ) {
+        return PARSEC_ERR_NOT_IMPLEMENTED;
+    }
+    if( MPI_COMM_NULL == comm ) {
+        comm = (NULL != ce) ? (MPI_Comm)ce->parsec_context->comm_ctx : MPI_COMM_WORLD;
+    }
+
+    idx = (int)*next_taskpool_id;
+    if( MPI_SUCCESS != MPI_Allreduce(MPI_IN_PLACE, &idx, 1, MPI_INT, MPI_MAX, comm) ) {
+        return PARSEC_ERROR;
+    }
+    *next_taskpool_id = (uint32_t)idx;
+    return PARSEC_SUCCESS;
 }

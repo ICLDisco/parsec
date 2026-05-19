@@ -2188,16 +2188,30 @@ void parsec_taskpool_sync_ids_context( intptr_t comm )
     parsec_atomic_lock( &taskpool_array_lock );
     idx = (int)taskpool_array_pos;
     msz = (int)taskpool_array_size;
-#if defined(DISTRIBUTED) && defined(PARSEC_HAVE_MPI)
-    int mpi_is_on;
-    MPI_Initialized(&mpi_is_on);
-    if( mpi_is_on ) {
-        MPI_Allreduce( MPI_IN_PLACE, &idx, 1, MPI_INT, MPI_MAX, (MPI_Comm)comm );
-        while (idx >= msz){
-            msz <<= 1;
-        }
+#if defined(DISTRIBUTED)
+    int rc = PARSEC_ERR_NOT_IMPLEMENTED;
+    if( NULL != parsec_ce.taskpool_sync_ids ) {
+        rc = parsec_ce.taskpool_sync_ids(&parsec_ce, comm, &idx);
     }
-#endif
+#if defined(PARSEC_HAVE_MPI)
+    /*
+     * Keep the legacy direct MPI path for applications that synchronize
+     * taskpool ids before the communication engine has been selected.
+     */
+    int mpi_is_on;
+    if( (PARSEC_ERR_NOT_IMPLEMENTED == rc) &&
+        (NULL == parsec_ce.taskpool_sync_ids) &&
+        (MPI_SUCCESS == MPI_Initialized(&mpi_is_on)) && mpi_is_on ) {
+        MPI_Allreduce( MPI_IN_PLACE, &idx, 1, MPI_INT, MPI_MAX, (MPI_Comm)comm );
+        rc = PARSEC_SUCCESS;
+    }
+#endif  /* defined(PARSEC_HAVE_MPI) */
+    while( (PARSEC_SUCCESS == rc) && (idx >= msz) ) {
+        msz <<= 1;
+    }
+#else
+    (void)comm;
+#endif  /* defined(DISTRIBUTED) */
     if( msz > taskpool_array_size ) {
         taskpool_array = (parsec_taskpool_t**)realloc(taskpool_array, msz * sizeof(parsec_taskpool_t*) );
         /* NULLify all the new elements */

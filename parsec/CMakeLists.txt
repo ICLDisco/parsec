@@ -131,10 +131,10 @@ set(SOURCES
 if( PARSEC_PROF_TRACE )
   list(APPEND SOURCES dictionary.c)
 endif( PARSEC_PROF_TRACE )
-if( PARSEC_HAVE_MPI )
+if( PARSEC_HAVE_MPI OR PARSEC_HAVE_UCX )
   list(APPEND SOURCES
     remote_dep_comm.c)
-endif( PARSEC_HAVE_MPI )
+endif( PARSEC_HAVE_MPI OR PARSEC_HAVE_UCX )
 if( NOT PARSEC_HAVE_MPI )
   list(APPEND SOURCES datatype/datatype.c)
 endif( NOT PARSEC_HAVE_MPI )

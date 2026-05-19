@@ -211,9 +211,11 @@ int parsec_version_ex( size_t len, char* version_string);
  *
  * @details
  * Reset the comm engine associated with the PaRSEC context, and use
- * the communication context opaque_comm_ctx in the future (typically an MPI
- * communicator). The context can only be changed while the PaRSEC runtime
- * is down, more specifically while the communication thread is not active.
+ * the communication context opaque_comm_ctx in the future. For the MPI backend
+ * this is an MPI communicator. For the UCX backend this is a pointer to a
+ * parsec_comm_ucx_external_worker_t declared by the UCX comm component. The
+ * context can only be changed while the PaRSEC runtime is down, more
+ * specifically while the communication thread is not active.
  *
  * parsec_context_wait becomes collective across nodes spanning
  * on this communication context.
