@@ -127,7 +127,6 @@ int main(int argc, char *argv[])
     parsec_data_collection_t mydata;
     parsec_Ex06_RAW_taskpool_t *tp;
     int mycounter;
-    parsec_arena_datatype_t adt;
 
 #if defined(PARSEC_HAVE_MPI)
     {
@@ -149,10 +148,6 @@ int main(int argc, char *argv[])
     mydata.data_key = data_key;
     mydata.data_of = data_of;
 
-    parsec_arena_datatype_construct( &adt,
-                                     sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
-                                     parsec_datatype_int_t );
-
     mycounter = 300 + rank;
     ddata_mycounter = parsec_data_create(
         &ddata_mycounter, &mydata, 0,
@@ -161,7 +156,9 @@ int main(int argc, char *argv[])
 
     tp = parsec_Ex06_RAW_new(&mydata, world, rank);
 
-    tp->arenas_datatypes[PARSEC_Ex06_RAW_DEFAULT_ADT_IDX] = adt; 
+    parsec_arena_datatype_set_type( &tp->arenas_datatypes[PARSEC_Ex06_RAW_DEFAULT_ADT_IDX],
+                                    sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
+                                    parsec_datatype_int_t );
 
     rc = parsec_context_add_taskpool( parsec, (parsec_taskpool_t*)tp );
     PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
@@ -170,6 +167,7 @@ int main(int argc, char *argv[])
     rc = parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
+    PARSEC_OBJ_DESTRUCT(&tp->arenas_datatypes[PARSEC_Ex06_RAW_DEFAULT_ADT_IDX]);
     parsec_taskpool_free((parsec_taskpool_t*)tp);
 
     parsec_data_destroy( ddata_mycounter );

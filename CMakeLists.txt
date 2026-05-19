@@ -2,6 +2,7 @@
 # Copyright (c) 2010-2024 The University of Tennessee and The University
 #                         of Tennessee Research Foundation.  All rights
 #                         reserved.
+# Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
 #
 cmake_minimum_required (VERSION 3.21)
 project (PARSEC C)
@@ -19,7 +20,7 @@ include(GNUInstallDirs)
 #   When making a backward compatible addition to the API
 #     PARSEC_VERSION_MAJOR does not change
 #     PARSEC_VERSION_MINOR increases by 1
-#   When making a backward incompabilte change to an API (or exposed structure)
+#   When making a backward incompatible change to an API (or exposed structure)
 #     PARSEC_VERSION_MAJOR increases by 1
 #     PARSEC_VERSION_MINOR resets to 0
 # Unlike strict libtool numbering, PARSEC_VERSION_RELEASE is an monotonous 
@@ -179,6 +180,10 @@ option(PARSEC_DIST_COLLECTIVES
 set   (PARSEC_DIST_SHORT_LIMIT 1 CACHE STRING
   "Use the short protocol (no flow control) for messages smaller than the limit in KB. Performs better if smaller than the MTU.")
 
+### Batched task parameters
+option(PARSEC_HAVE_DEV_CAPABILITY_BATCH
+  "Enable batched task operations on all devices that support batching" ON)
+
 ### GPU engine parameters
 option(PARSEC_GPU_ALLOC_PER_TILE
   "Tile based allocation engine for GPU memory (instead of internal management
@@ -230,6 +235,8 @@ option(PARSEC_PROF_TRACE
   set(PARSEC_PROF_TRACE_SYSTEM "PaRSEC Binary Tracing Format" CACHE STRING "Select the profiling system, if PARSEC_PROF_TRACE is ON")
 #This enforces that only valid values are available in ccmake or cmake-gui
 set_property(CACHE PARSEC_PROF_TRACE_SYSTEM PROPERTY STRINGS "OTF2" "PaRSEC Binary Tracing Format")
+option(PARSEC_PROF_TRACE_NVTX
+  "Mirror PaRSEC profiling events as NVIDIA NVTX ranges for Nsight Systems" OFF)
 option(PARSEC_PROF_TRACE_PTG_INTERNAL_INIT
   "Generate Profiling traces for the internal_init tasks in the PTG interface (expert mode only)" OFF)
 mark_as_advanced(PARSEC_PROF_TRACE_PTG_INTERNAL_INIT) #This is available in export mode only
@@ -413,6 +420,14 @@ endif(NOT PARSEC_HAVE_SCHED_SETAFFINITY)
 
 # timeval, timespec, realtime clocks, etc
 include(CheckStructHasMember)
+check_c_source_compiles("
+#include <sys/time.h>
+int main(int argc, char *argv[]) {
+  struct timeval start, end, diff;
+  (void)argc; (void)argv;
+  timersub(&end, &start, &diff);
+  return 0;
+}" PARSEC_HAVE_TIMERSUB)
 check_struct_has_member("struct timespec" tv_nsec time.h PARSEC_HAVE_TIMESPEC_TV_NSEC)
 if( NOT PARSEC_HAVE_TIMESPEC_TV_NSEC )
   cmake_push_check_state()
@@ -434,6 +449,20 @@ if( NOT PARSEC_HAVE_CLOCK_GETTIME )
     list(APPEND EXTRA_LIBS rt)
   endif(PARSEC_HAVE_CLOCK_GETTIMERT)
 endif( NOT PARSEC_HAVE_CLOCK_GETTIME )
+if( PARSEC_HAVE_CLOCK_GETTIME )
+  cmake_push_check_state()
+  if( PARSEC_HAVE_CLOCK_GETTIMERT )
+    list(APPEND CMAKE_REQUIRED_LIBRARIES rt)
+  endif()
+  check_c_source_compiles("
+#include <time.h>
+int main(int argc, char *argv[]) {
+  struct timespec ts;
+  (void)argc; (void)argv;
+  return clock_gettime(CLOCK_MONOTONIC, &ts);
+}" PARSEC_HAVE_CLOCK_GETTIME_MONOTONIC)
+  cmake_pop_check_state()
+endif()
 
 if(CMAKE_SYSTEM_NAME MATCHES "Windows" OR
    CMAKE_SYSTEM_NAME MATCHES "MSYS" OR
@@ -507,8 +536,20 @@ check_include_files(dlfcn.h PARSEC_HAVE_DLFCN_H)
 check_function_exists(asprintf PARSEC_HAVE_ASPRINTF)
 check_function_exists(vasprintf PARSEC_HAVE_VASPRINTF)
 check_function_exists(getopt_long PARSEC_HAVE_GETOPT_LONG)
-check_function_exists(rand_r PARSEC_HAVE_RAND_R)
+check_symbol_exists(rand_r "stdlib.h" PARSEC_HAVE_RAND_R_WITHOUT_POSIX_C_SOURCE)
+set(PARSEC_HAVE_RAND_R ${PARSEC_HAVE_RAND_R_WITHOUT_POSIX_C_SOURCE})
+if( NOT PARSEC_HAVE_RAND_R )
+  cmake_push_check_state()
+  list(APPEND CMAKE_REQUIRED_DEFINITIONS "-D_POSIX_C_SOURCE=199506L")
+  check_symbol_exists(rand_r "stdlib.h" PARSEC_HAVE_RAND_R_WITH_POSIX_C_SOURCE)
+  cmake_pop_check_state()
+  if( PARSEC_HAVE_RAND_R_WITH_POSIX_C_SOURCE )
+    set(PARSEC_HAVE_RAND_R 1)
+    set(PARSEC_NEED_POSIX_C_SOURCE_FOR_RAND_R 1)
+  endif()
+endif()
 check_function_exists(getline PARSEC_HAVE_GETLINE)
+check_function_exists(readlink PARSEC_HAVE_READLINK)
 check_function_exists(setenv PARSEC_HAVE_SETENV)
 check_function_exists(sysconf PARSEC_HAVE_SYSCONF)
 
@@ -620,12 +661,12 @@ if( BUILD_PARSEC )
       check_c_source_compiles("#include <mpi.h>
                                int main(int argc, char* argv[]) {
                                #if (3 == OMPI_MAJOR_VERSION && 1 >= OMPI_MINOR_VERSION && 4 >= OMPI_RELEASE_VERSION) || (4 == OMPI_MAJOR_VERSION && 0 == OMPI_MINOR_VERSION && 1 >= OMPI_RELEASE_VERSION)
-                               #warning \"malfunctionning mpi_assert_enable_overtaking found\"
+                               #warning \"malfunctioning mpi_assert_enable_overtaking found\"
                                #endif
                                return 0;
                                }"
                                PARSEC_HAVE_MPI_OVERTAKE
-                               FAIL_REGEX "malfunctionning mpi_assert_enable_overtaking")
+                               FAIL_REGEX "malfunctioning mpi_assert_enable_overtaking")
     endif(PARSEC_HAVE_MPI_30)
     cmake_pop_check_state()
   endif (MPI_C_FOUND)
@@ -657,12 +698,12 @@ if( BUILD_PARSEC )
         # compiling/linking our own with a different, incompatible ABI hwloc
         # will cause breakage. We try to capture this case ASAP during configure,
         # except if we are cross-compiling: in this case the error will be
-        # mopped-up when runing the user program, late but safe.
+        # mopped-up when running the user program, late but safe.
         #
         # Note that we test the same link-order as in PaRSEC
         # Dependent upon which one links first, either PaRSEC, or MPI will break.
         #
-        # Do not use use targets here becuase CMake consider all imported
+        # Do not use use targets here because CMake consider all imported
         # interfaces as system headers, and instead of using -I (which provide
         # priority during header search) will use -isystem (which does not and
         # might allow to find the header in the standard path).
@@ -734,7 +775,6 @@ int main(int argc, char *argv[]) {
     endif (CUDAToolkit_FOUND)
     set(PARSEC_HAVE_CU_COMPILER ${CMAKE_CUDA_COMPILER} CACHE BOOL "True if PaRSEC provide support for compiling .cu files")
   endif( PARSEC_GPU_WITH_CUDA )
-
   if( PARSEC_GPU_WITH_HIP )
     if( NOT DEFINED ROCM_ROOT_DIR AND IS_DIRECTORY /opt/rocm )
       set(ROCM_ROOT_DIR /opt/rocm)
@@ -748,7 +788,7 @@ int main(int argc, char *argv[]) {
       # the underlying reason is that the generated ptg code cannot include at the same time
       # cuda_runtime.h and hip_runtime.h, so we need to modify the dev_cuda.h to not expose any
       # structure that depends on these headers.
-      message(WARNING "For the time being HIP and CUDA devices cannot be compiled at the same time. Choose one by setting explicitely the options PARSEC_GPU_WITH_{CUDA|HIP}")
+      message(WARNING "For the time being HIP and CUDA devices cannot be compiled at the same time. Choose one by setting explicitly the options PARSEC_GPU_WITH_{CUDA|HIP}")
       set(HIP_NOT_CUDA_FOUND FALSE)
     elseif(HIP_FOUND)
       message(STATUS "Found HIP ${HIP_VERSION} in ${HIP_LIB_INSTALL_DIR}")
@@ -819,7 +859,7 @@ endif(NOT PARSEC_HAVE_SHM_OPEN)
 #
 
 #
-# Using @rpath allows rellocatable libraries:
+# Using @rpath allows relocatable libraries:
 # https://blog.kitware.com/upcoming-in-cmake-2-8-12-osx-rpath-support/
 #
 set(CMAKE_MACOSX_RPATH 1)
@@ -896,6 +936,28 @@ if(PARSEC_PROF_TRACE AND PARSEC_DIST_WITH_MPI)
     endif(OTF2_FOUND AND MPI_C_FOUND)
   endif(PARSEC_PROF_TRACE_SYSTEM STREQUAL "OTF2" OR PARSEC_PROF_TRACE_SYSTEM STREQUAL "Auto")
 endif(PARSEC_PROF_TRACE AND PARSEC_DIST_WITH_MPI)
+
+if(PARSEC_PROF_TRACE_NVTX)
+  if(NOT PARSEC_PROF_TRACE)
+    message(FATAL_ERROR "PARSEC_PROF_TRACE_NVTX requires PARSEC_PROF_TRACE=ON")
+  endif()
+  find_path(PARSEC_NVTX_INCLUDE_DIR
+            NAMES nvtx3/nvToolsExt.h
+            HINTS ${PARSEC_NVTX_ROOT}
+                  ${NVTX_ROOT}
+                  ${CUDAToolkit_INCLUDE_DIRS}
+                  ${CUDAToolkit_ROOT}
+                  ${CUDA_TOOLKIT_ROOT_DIR}
+                  ENV NVTX_ROOT
+                  ENV CUDAToolkit_ROOT
+                  ENV CUDA_PATH
+            PATH_SUFFIXES include)
+  if(NOT PARSEC_NVTX_INCLUDE_DIR)
+    message(FATAL_ERROR "PARSEC_PROF_TRACE_NVTX was requested, but nvtx3/nvToolsExt.h was not found. Set NVTX_ROOT or PARSEC_NVTX_INCLUDE_DIR.")
+  endif()
+  message(STATUS "Profiling will emit NVTX annotations using ${PARSEC_NVTX_INCLUDE_DIR}")
+endif()
+mark_as_advanced(PARSEC_NVTX_INCLUDE_DIR)
 
 #
 # First go for the tools.
@@ -1208,11 +1270,11 @@ foreach(extra_lib IN ITEMS ${PARSEC_ATOMIC_SUPPORT_LIBS} ${PAPI_LIBRARIES})
 endforeach()
 
 # Due to the lack of standardization detecting libraries under CMake leads
-# to unconsistents lists of libraries, where some libraries are using full path,
+# to inconsistent lists of libraries, where some libraries are using full path,
 # other a combination of "-L* and -l*" and others just the library name.
 # Force a coherent EXTRA_LIBS_EXPANDED that can be used for the generation of the
 # pkg-config files: leave all options starting with - as they are, and for
-# everything else add "-l" if they are not an abolute path.
+# everything else add "-l" if they are not an absolute path.
 set(EXTRA_LIBS_EXPANDED)
 foreach(LIB IN ITEMS ${EXTRA_LIBS})
   if( NOT LIB MATCHES "(^|;)-.*" )

@@ -41,11 +41,11 @@ typedef struct subtile_desc_s {
  *        Number of columns in each subtiles
  *
  * @param[in] i
- *        Row index of the first element of the submatrix. 0 beeing the first
+ *        Row index of the first element of the submatrix. 0 being the first
  *        row of the original tile.
  *
  * @param[in] j
- *        Column index of the first element of the submatrix. 0 beeing the first
+ *        Column index of the first element of the submatrix. 0 being the first
  *        row of the original tile.
  *
  * @param[in] m

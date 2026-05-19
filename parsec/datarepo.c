@@ -73,7 +73,7 @@ __data_repo_lookup_entry_and_create(parsec_execution_stream_t *es, data_repo_t *
     /* When setting up future reshape promises the creation of repos for successors
      * tasks is advanced. Multiple threads may try to create the repo of the same
      * successor task at a given moment (each one targeting the reshape of a
-     * different succesor's flow). Thus, we need to re-check before inserting.
+     * different successor's flow). Thus, we need to re-check before inserting.
      */
     e2 = (data_repo_entry_t*)parsec_hash_table_nolock_find_handle(&repo->table, &kh);
     if( NULL != e2 ) {

@@ -101,6 +101,9 @@ else(NOT PARSEC_HAVE_OTF2)
   list(APPEND EXTRA_LIBS "otf2")
   message(STATUS "Profiling uses OTF2")
 endif(NOT PARSEC_HAVE_OTF2)
+if(PARSEC_PROF_TRACE_NVTX)
+  list(APPEND EXTRA_SOURCES "profiling_nvtx.c")
+endif()
 
 set(SOURCES
   arena.c
@@ -116,8 +119,6 @@ set(SOURCES
   private_mempool.c
   remote_dep.c
   parsec_comm_engine.c
-  parsec_mpi_funnelled.c
-  remote_dep_mpi.c
   scheduling.c
   compound.c
   vpmap.c
@@ -128,6 +129,11 @@ set(SOURCES
 if( PARSEC_PROF_TRACE )
   list(APPEND SOURCES dictionary.c)
 endif( PARSEC_PROF_TRACE )
+if( PARSEC_HAVE_MPI )
+  list(APPEND SOURCES
+    parsec_mpi_funnelled.c
+    remote_dep_mpi.c)
+endif( PARSEC_HAVE_MPI )
 if( NOT MPI_C_FOUND )
   list(APPEND SOURCES datatype/datatype.c)
 else( NOT MPI_C_FOUND )
@@ -227,6 +233,9 @@ if( BUILD_PARSEC )
       $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/parsec/include>>
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/parsec/include>)
+  if(PARSEC_PROF_TRACE_NVTX)
+    target_include_directories(parsec PRIVATE ${PARSEC_NVTX_INCLUDE_DIR})
+  endif()
   target_link_libraries(parsec
     PRIVATE
     Threads::Threads
@@ -378,5 +387,3 @@ endif(PARSEC_WITH_DEVEL_HEADERS)
 
 
 endif( BUILD_PARSEC )
-
-

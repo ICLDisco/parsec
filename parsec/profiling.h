@@ -99,7 +99,7 @@
  *          etc. */
 #define PARSEC_PROFILING_EVENT_COUNTER          (1<<2)
 /**
- * @brief time at the beginning of exeuction.
+ * @brief time at the beginning of execution.
  * @details Flag used to indicate to `parsec_profiling_trace_flags` that
  *          it should call `take_time` at the beginning of its execution
  *          rather than at the end. Immediately after, there is a flag
@@ -201,7 +201,7 @@ int parsec_profiling_fini( void );
  * to do a new profiling with the same thread contexts. This does not
  * invalidate the current thread contexts.
  *
- * @return 0 if succes, negative otherwise
+ * @return 0 if success, negative otherwise
  * not thread safe
  */
 int parsec_profiling_reset( void );
@@ -265,9 +265,9 @@ parsec_profiling_stream_t *parsec_profiling_set_default_thread( parsec_profiling
 
 
 /**
- * @brief Inserts a new keyword in the dictionnary
+ * @brief Inserts a new keyword in the dictionary
  *
- * @details The dictionnary is process-global, and operations on it are *not* thread
+ * @details The dictionary is process-global, and operations on it are *not* thread
  * safe. All keywords should be inserted by one thread at most, and no thread
  * should use a key before it has been inserted.
  *
@@ -286,12 +286,12 @@ int parsec_profiling_add_dictionary_keyword( const char* name, const char* attri
                                             int* key_start, int* key_end );
 
 /**
- * @brief Empties the global dictionnary
+ * @brief Empties the global dictionary
  *
- * @details this might be usefull in conjunction with reset, if
+ * @details this might be useful in conjunction with reset, if
  * you want to redo an experiment.
  *
- * @remark Emptying the dictionnary without reseting the profiling system will yield
+ * @remark Emptying the dictionary without resetting the profiling system will yield
  * undeterminate results
  *
  * @return 0 if success, negative otherwise.
@@ -460,7 +460,7 @@ typedef struct {
 /**
  * per-task profiling information.
  * @remark we don't reuse parsec_profile_data_collection_info_t to avoid
- * alignment issues, but we re-use the same keywords to avoid creating
+ * alignment issues, but we reuse the same keywords to avoid creating
  * too many columns in the events dataframe.
  */
 typedef struct {

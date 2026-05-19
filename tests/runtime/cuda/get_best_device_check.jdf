@@ -3,6 +3,7 @@ extern "C" %{
  * Copyright (c) 2021-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation. All rights
  *                         reserved.
+ * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
  */
 #include "cuda_test_internal.h"
 
@@ -10,7 +11,7 @@ static int64_t task_time_estimate(const parsec_task_t *task, parsec_device_modul
 
 %}
 
-%option no_taskpool_instance = true  /* can be aything */
+%option no_taskpool_instance = true  /* can be anything */
 
 descA                [ type = "parsec_tiled_matrix_t*" ]
 info                 [ type = "int*" ]
@@ -148,7 +149,7 @@ parsec_get_best_device_check_New(parsec_tiled_matrix_t *dcA, int *info)
     int nb = 0;
     for(int i = 0; i < (int)parsec_nb_devices; i++) {
         parsec_device_module_t *device = parsec_mca_device_get(i);
-        if( PARSEC_DEV_CUDA == device->type ) {
+        if( PARSEC_DEV_CUDA & device->type ) {
             nb++;
         }
     }
@@ -160,7 +161,7 @@ parsec_get_best_device_check_New(parsec_tiled_matrix_t *dcA, int *info)
     nb = 0;
     for(int i = 0; i < (int)parsec_nb_devices; i++) {
         parsec_device_module_t *device = parsec_mca_device_get(i);
-        if( PARSEC_DEV_CUDA == device->type ) {
+        if( PARSEC_DEV_CUDA & device->type ) {
             dev_index[nb++] = device->device_index;
         }
     }
@@ -169,10 +170,8 @@ parsec_get_best_device_check_New(parsec_tiled_matrix_t *dcA, int *info)
     taskpool->_g_cuda_device_index = dev_index;
 #endif
 
-    parsec_add2arena( &taskpool->arenas_datatypes[PARSEC_get_best_device_check_DEFAULT_ADT_IDX],
-            parsec_datatype_double_t, PARSEC_MATRIX_FULL,
-            1, dcA->mb, dcA->nb, dcA->mb,
-            PARSEC_ARENA_ALIGNMENT_SSE, -1 );
+    parsec_matrix_adt_define_rect( &taskpool->arenas_datatypes[PARSEC_get_best_device_check_DEFAULT_ADT_IDX],
+            parsec_datatype_double_t, dcA->mb, dcA->nb, dcA->mb);
 
     return get_best_device_check_taskpool;
 }
@@ -183,7 +182,7 @@ parsec_get_best_device_check_New(parsec_tiled_matrix_t *dcA, int *info)
 static void
 __parsec_taskpool_get_best_device_check_destructor(parsec_get_best_device_check_taskpool_t *get_best_device_check_taskpool)
 {
-    parsec_del2arena(&get_best_device_check_taskpool->arenas_datatypes[PARSEC_get_best_device_check_DEFAULT_ADT_IDX]);
+    parsec_matrix_arena_datatype_destruct_free_type(&get_best_device_check_taskpool->arenas_datatypes[PARSEC_get_best_device_check_DEFAULT_ADT_IDX]);
 #if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
     if( NULL != get_best_device_check_taskpool->_g_cuda_device_index )
         free(get_best_device_check_taskpool->_g_cuda_device_index);

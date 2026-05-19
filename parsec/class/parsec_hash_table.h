@@ -97,13 +97,13 @@ struct parsec_hash_table_s {
                                                      *   rw_hash */
     int64_t                   elt_hashitem_offset;  /**< Elements belonging to this hash table have a parsec_hash_table_item_t
                                                      *   at this offset */
-    parsec_key_fn_t           key_functions;        /**< How to acccess and modify the keys */
+    parsec_key_fn_t           key_functions;        /**< How to access and modify the keys */
     void                     *hash_data;            /**< This is the last parameter of the hashing function */
     int                       max_collisions_hint;  /**< How many collisions before this hash table is resized */
     int                       max_table_nb_bits;    /**< Maximum size of the hash table: above this, if max_collisions_hint
                                                      *   is reached, a warning is issued (once), and elements just get stacked
                                                      *   in the same buckets. */
-    int                       warning_issued;       /**< Number of times the warning mentionned above has been issued */
+    int                       warning_issued;       /**< Number of times the warning mentioned above has been issued */
     parsec_hash_table_head_t *rw_hash;              /**< Added elements go in this hash table */
 };
 PARSEC_DECLSPEC PARSEC_OBJ_CLASS_DECLARATION(parsec_hash_table_t);
@@ -315,7 +315,7 @@ void parsec_hash_table_insert_impl(parsec_hash_table_t *ht, parsec_hash_table_it
 #define parsec_hash_table_insert(ht, item) parsec_hash_table_insert_impl(ht, item, __FILE__, __LINE__)
 
 /**
- * @brief Find element in the hash table wihout locking it
+ * @brief Find element in the hash table without locking it
  *
  * @details
  *  This does not lock the bucket, and is not thread safe.
@@ -440,4 +440,3 @@ END_C_DECLS
 /** @} */
 
 #endif
-

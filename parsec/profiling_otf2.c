@@ -7,6 +7,9 @@
 #include "parsec/parsec_config.h"
 
 #include "parsec/profiling.h"
+#if defined(PARSEC_PROF_TRACE_NVTX)
+#include "parsec/profiling_nvtx.h"
+#endif
 #include "parsec/data_distribution.h"
 #include "parsec/utils/debug.h"
 #include "parsec/parsec_hwloc.h"
@@ -50,6 +53,10 @@ struct parsec_profiling_stream_s {
     parsec_list_t      informations;
     OTF2_EvtWriter    *evt_writer;
     parsec_profiling_stream_data_t data;
+#if defined(PARSEC_PROF_TRACE_NVTX)
+    parsec_profiling_nvtx_range_t *nvtx_ranges;
+    parsec_profiling_nvtx_range_t *nvtx_freelist;
+#endif
 };
 
 typedef struct {
@@ -164,6 +171,18 @@ static OTF2_GlobalDefWriter* global_def_writer = NULL;
 static int32_t next_strid = 1;
 static int emptystrid = 0;
 
+static int parsec_profiling_has_active_substrate(void)
+{
+    if( NULL != otf2_archive ) {
+        return 1;
+    }
+#if defined(PARSEC_PROF_TRACE_NVTX)
+    return parsec_profiling_nvtx_is_enabled();
+#else
+    return 0;
+#endif
+}
+
 static int next_otf2_global_strid(void)
 {
     return parsec_atomic_fetch_inc_int32(&next_strid);
@@ -231,6 +250,9 @@ int parsec_profiling_init( int process_id )
 
     parsec_mca_param_reg_int_name("profile", "max_streams", "Maximum number of profiling streams per process",
                                   false, false, max_stream_id, &max_stream_id);
+#if defined(PARSEC_PROF_TRACE_NVTX)
+    parsec_profiling_nvtx_init(process_id);
+#endif
 
     /* As we called the _start function automatically, the timing will be
      * based on this moment. By forcing back the __already_called to 0, we
@@ -314,7 +336,7 @@ parsec_profiling_stream_t* parsec_profiling_stream_init( size_t length, const ch
     va_end(ap);
 
 
-    if (start_called) {
+    if (start_called && NULL != otf2_archive) {
         /* adjust for the communicator rank */
         res->data.id += process_id*max_stream_id;
         res->evt_writer = OTF2_Archive_GetEvtWriter( otf2_archive, res->data.id );
@@ -464,25 +486,28 @@ void parsec_profiling_start(void)
     if(start_called)
         return;
 
-    if( NULL == otf2_archive )
+    if( !__profile_initialized || !parsec_profiling_has_active_substrate() ) {
         return;
-
-    parsec_list_lock( &threads );
-    for( r = PARSEC_LIST_ITERATOR_FIRST(&threads);
-         r != PARSEC_LIST_ITERATOR_END(&threads);
-         r = PARSEC_LIST_ITERATOR_NEXT(r) ) {
-        tp = (parsec_profiling_stream_t*)r;
-        /* adjust the id for the communicator rank */
-        tp->data.id += process_id*max_stream_id;
-        tp->evt_writer = OTF2_Archive_GetEvtWriter( otf2_archive, tp->data.id );
-        if( NULL == tp->evt_writer ) {
-            parsec_warning("PaRSEC Profiling -- OTF2: could not allocate event writer for location %d\n", tp->data.id);
-        }
     }
-    parsec_list_unlock( &threads );
 
-    if( parsec_profiling_mpi_on ) {
-        MPI_Barrier(parsec_otf2_profiling_comm);
+    if( NULL != otf2_archive ) {
+        parsec_list_lock( &threads );
+        for( r = PARSEC_LIST_ITERATOR_FIRST(&threads);
+             r != PARSEC_LIST_ITERATOR_END(&threads);
+             r = PARSEC_LIST_ITERATOR_NEXT(r) ) {
+            tp = (parsec_profiling_stream_t*)r;
+            /* adjust the id for the communicator rank */
+            tp->data.id += process_id*max_stream_id;
+            tp->evt_writer = OTF2_Archive_GetEvtWriter( otf2_archive, tp->data.id );
+            if( NULL == tp->evt_writer ) {
+                parsec_warning("PaRSEC Profiling -- OTF2: could not allocate event writer for location %d\n", tp->data.id);
+            }
+        }
+        parsec_list_unlock( &threads );
+
+        if( parsec_profiling_mpi_on ) {
+            MPI_Barrier(parsec_otf2_profiling_comm);
+        }
     }
 
     start_called = 1;
@@ -526,6 +551,9 @@ int parsec_profiling_add_dictionary_keyword( const char* key_name, const char* a
     regions[region].info_length = info_length;
     regions[region].attr_info = NULL;
     regions[region].otf2_nb_attributes = 0;
+#if defined(PARSEC_PROF_TRACE_NVTX)
+    parsec_profiling_nvtx_register_key(region, key_name, attributes);
+#endif
 
     if( NULL == orig_convertor_code ) {
         /* skip converter code parsing */
@@ -686,6 +714,9 @@ malformed_convertor_code:
 
 int parsec_profiling_dictionary_flush( void )
 {
+#if defined(PARSEC_PROF_TRACE_NVTX)
+    parsec_profiling_nvtx_dictionary_flush();
+#endif
     return 0;
 }
 
@@ -694,7 +725,9 @@ int parsec_profiling_ts_trace_flags_info_fn(int key, uint64_t event_id, uint32_t
 {
     parsec_profiling_stream_t* ctx;
 
-    if( !start_called ) {
+    if( !__profile_initialized ||
+        !start_called ||
+        !parsec_profiling_has_active_substrate() ) {
         return PARSEC_ERR_NOT_SUPPORTED;
     }
 
@@ -730,16 +763,30 @@ parsec_profiling_trace_flags_info_fn(parsec_profiling_stream_t* context, int key
     (void)event_id;
     (void)flags;
 
-    if( !start_called ) {
+    if( !__profile_initialized ||
+        !start_called ||
+        !parsec_profiling_has_active_substrate() ) {
         return PARSEC_ERR_NOT_SUPPORTED;
-    }
-
-    if( NULL == context->evt_writer ) {
-        return PARSEC_ERR_BAD_PARAM;
     }
 
     if (key > -REGION_ID_OFFSET && key < REGION_ID_OFFSET) {
         /* -1 is an invalid key, silently ignore it */
+        return PARSEC_ERR_BAD_PARAM;
+    }
+
+#if defined(PARSEC_PROF_TRACE_NVTX)
+    parsec_profiling_nvtx_trace(&context->nvtx_ranges,
+                                &context->nvtx_freelist,
+                                key < 0 ? -key : key,
+                                key > 0,
+                                event_id, taskpool_id);
+#endif
+
+    if( NULL == otf2_archive ) {
+        return 0;
+    }
+
+    if( NULL == context->evt_writer ) {
         return PARSEC_ERR_BAD_PARAM;
     }
 
@@ -798,7 +845,7 @@ parsec_profiling_trace_flags_info_fn(parsec_profiling_stream_t* context, int key
                     ptr += sizeof(double);
                     break;
                 default:
-                    parsec_warning("PaRSEC Profiling System: internal error, type %d unkown", regions[region].attr_info[t].type);
+                    parsec_warning("PaRSEC Profiling System: internal error, type %d unknown", regions[region].attr_info[t].type);
                     break;
                 }
             } else {
@@ -1237,22 +1284,33 @@ int parsec_profiling_fini( void )
 
     if( !__profile_initialized ) return PARSEC_ERR_NOT_SUPPORTED;
 
-    if( 0 != parsec_profiling_dbp_dump() ) {
-        return PARSEC_ERROR;
+    if( NULL != otf2_archive ) {
+        if( 0 != parsec_profiling_dbp_dump() ) {
+            return PARSEC_ERROR;
+        }
     }
 
     while( (t = (parsec_profiling_stream_t*)parsec_list_nolock_pop_front(&threads)) ) {
+#if defined(PARSEC_PROF_TRACE_NVTX)
+        parsec_profiling_nvtx_release_stream(&t->nvtx_ranges,
+                                             &t->nvtx_freelist);
+#endif
         free(t);
     }
     PARSEC_OBJ_DESTRUCT(&threads);
 
     parsec_profiling_dictionary_flush();
+#if defined(PARSEC_PROF_TRACE_NVTX)
+    parsec_profiling_nvtx_fini();
+#endif
     start_called = 0;  /* Allow the profiling to be reinitialized */
     parsec_profile_enabled = 0;  /* turn off the profiling */
     __profile_initialized = 0;  /* not initialized */
 
-    MPI_Comm_free(&parsec_otf2_profiling_comm);
-    parsec_profiling_mpi_on = 0;
+    if( parsec_profiling_mpi_on ) {
+        MPI_Comm_free(&parsec_otf2_profiling_comm);
+        parsec_profiling_mpi_on = 0;
+    }
 
     return 0;
 }

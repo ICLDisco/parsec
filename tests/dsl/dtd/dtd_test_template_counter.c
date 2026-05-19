@@ -2,6 +2,7 @@
  * Copyright (c) 2017-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
 
 /* parsec things */
@@ -75,7 +76,7 @@ int main(int argc, char **argv)
 #endif
 
     nb = 1; /* tile_size */
-    nt = world; /* total no. of tiles */
+    nt = (world > 1) ? world : 2; /* total no. of tiles */
 
     if(argv[1] != NULL){
         cores = atoi(argv[1]);
@@ -85,10 +86,9 @@ int main(int argc, char **argv)
 
     parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new();
 
-    adt = parsec_dtd_create_arena_datatype(parsec, &TILE_FULL);
-    parsec_add2arena_rect( adt,
-                                  parsec_datatype_int32_t,
-                                  nb, 1, nb);
+    adt = parsec_matrix_adt_new_rect(
+            parsec_datatype_int32_t, nb, 1, nb);
+    parsec_dtd_attach_arena_datatype(parsec, adt, &TILE_FULL);
 
     /* Correctness checking */
     dcA = create_and_distribute_data(rank, world, nb, nt);
@@ -103,7 +103,7 @@ int main(int argc, char **argv)
     rc = parsec_context_start(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_start");
 
-    for( i = 0; i < world - 1; i++ ) {
+    for( i = 0; i < nt - 1; i++ ) {
         parsec_dtd_insert_task(dtd_tp, task_rank_0, 0, PARSEC_DEV_CPU, "task_rank_0",
                                PASSED_BY_REF, PARSEC_DTD_TILE_OF_KEY(A, A->data_key(A, i, 0)),   PARSEC_INOUT | TILE_FULL | PARSEC_AFFINITY,
                                PARSEC_DTD_ARG_END );
@@ -113,13 +113,16 @@ int main(int argc, char **argv)
                                PARSEC_DTD_ARG_END );
     }
 
+    /*
+     * A wait boundary closes this insertion epoch. Flush all touched tiles
+     * first so the final DTD users are materialized, remote updates return to
+     * their owners, and the same tiles can be safely reused in the next epoch.
+     */
+    parsec_dtd_data_flush_all( dtd_tp, A );
     rc = parsec_taskpool_wait( dtd_tp );
     PARSEC_CHECK_ERROR(rc, "parsec_taskpool_wait");
 
-    rc = parsec_taskpool_wait( dtd_tp );
-    PARSEC_CHECK_ERROR(rc, "parsec_taskpool_wait");
-
-    for( i = 0; i < world - 1; i++ ) {
+    for( i = 0; i < nt - 1; i++ ) {
         parsec_dtd_insert_task(dtd_tp, task_rank_0, 0, PARSEC_DEV_CPU, "task_rank_0",
                                PASSED_BY_REF, PARSEC_DTD_TILE_OF_KEY(A, A->data_key(A, i, 0)),   PARSEC_INOUT | TILE_FULL | PARSEC_AFFINITY,
                                PARSEC_DTD_ARG_END );
@@ -129,6 +132,11 @@ int main(int argc, char **argv)
                                PARSEC_DTD_ARG_END );
     }
 
+    /*
+     * Flush before the final wait for the same reason: the test intentionally
+     * reuses task classes across epochs, but data-version chains still need an
+     * explicit terminal user before the taskpool can quiesce cleanly.
+     */
     parsec_dtd_data_flush_all( dtd_tp, A );
     rc = parsec_taskpool_wait( dtd_tp );
     PARSEC_CHECK_ERROR(rc, "parsec_taskpool_wait");
@@ -136,9 +144,7 @@ int main(int argc, char **argv)
 
     parsec_context_wait(parsec);
 
-    parsec_del2arena(adt);
-    PARSEC_OBJ_RELEASE(adt->arena);
-    parsec_dtd_destroy_arena_datatype(parsec, TILE_FULL);
+    parsec_dtd_free_arena_datatype(parsec, TILE_FULL);
     parsec_dtd_data_collection_fini( A );
     free_data(dcA);
 

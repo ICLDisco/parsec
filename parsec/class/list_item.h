@@ -2,7 +2,7 @@
  * Copyright (c) 2010-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
- * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
+ * Copyright (c) 2024-2026 NVIDIA Corporation.  All rights reserved.
  */
 
 #ifndef PARSEC_LIST_ITEM_H_HAS_BEEN_INCLUDED
@@ -306,7 +306,7 @@ parsec_list_item_ring_push_sorted( parsec_list_item_t* ring,
 #define PARSEC_ITEM_DETACH(ITEM)                                        \
     do {                                                                \
         parsec_list_item_t *_item = (ITEM);                             \
-        /* check for not poping the ghost element */\
+        /* check for not popping the ghost element */\
         assert( _item->belong_to != (void*)_item );                     \
         _item->list_prev = (parsec_list_item_t*)(void*)0xdeadbeefL;     \
         _item->list_next = (parsec_list_item_t*)(void*)0xdeadbeefL;     \
@@ -324,7 +324,7 @@ parsec_list_item_ring_push_sorted( parsec_list_item_t* ring,
  */
 #define PARSEC_ITEMS_ATTACH(LIST, ITEMS) do { (void)(LIST); (void)(ITEMS); } while(0)
 /**
- * @brief Dettach an item from a higher level structure
+ * @brief Detach an item from a higher level structure
  */
 #define PARSEC_ITEM_DETACH(ITEM) do { (void)(ITEM); } while(0)
 #endif  /* PARSEC_DEBUG_PARANOID */
@@ -334,4 +334,3 @@ END_C_DECLS
 /** @} */
 
 #endif
-

@@ -8,7 +8,7 @@
 
 /**
  * Map the datatype creation to the well designed and well known MPI datatype
- * mainipulation. However, right now we only provide the most basic types and
+ * manipulation. However, right now we only provide the most basic types and
  * functions to mix them together.
  *
  * However, this file contains only the support functions needed when MPI is not

@@ -2,7 +2,7 @@
  * Copyright (c) 2009-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
- * Copyright (c) 2023      NVIDIA CORPORATION. All rights reserved.
+ * Copyright (c) 2023-2026 NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/parsec_config.h"
@@ -2253,7 +2253,7 @@ remote_dep_ce_init(parsec_context_t* context)
     PARSEC_OBJ_CONSTRUCT(&dep_activates_noobj_fifo, parsec_list_t);
     PARSEC_OBJ_CONSTRUCT(&dep_put_fifo, parsec_list_t);
 
-    /* Register Persistant requests */
+    /* Register Persistent requests */
     rc = parsec_ce.tag_register(PARSEC_CE_REMOTE_DEP_ACTIVATE_TAG, remote_dep_mpi_save_activate_cb, context,
                                 DEP_SHORT_BUFFER_SIZE * sizeof(char));
     if( PARSEC_SUCCESS != rc ) {
@@ -2305,4 +2305,3 @@ int remote_dep_ce_fini(parsec_context_t* context)
 
     return 0;
 }
-

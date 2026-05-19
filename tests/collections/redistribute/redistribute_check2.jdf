@@ -3,7 +3,7 @@ extern "C" %{
  * Copyright (c) 2017-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation. All rights
  *                         reserved.
- * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
+ * Copyright (c) 2024-2026 NVIDIA Corporation.  All rights reserved.
  */
 #include "redistribute_test.h"
 
@@ -91,7 +91,7 @@ parsec_redistribute_check2_New(parsec_tiled_matrix_t *dcY,
     taskpool = parsec_redistribute_check2_new(dcY, size_row, size_col, disi_Y, disj_Y, info);
     redistribute_check2_taskpool = (parsec_taskpool_t*)taskpool;
 
-    /* Check distribution, and detarmine batch size: num_col */
+    /* Check distribution, and determine batch size: num_col */
     if( dcY->dtype & parsec_matrix_tabular_type ) {
         taskpool->_g_num_col = parsec_imin( ceil(size_col/dcY->nb), dcY->super.nodes );
     } else if( dcY->dtype & parsec_matrix_block_cyclic_type ) {
@@ -106,10 +106,8 @@ parsec_redistribute_check2_New(parsec_tiled_matrix_t *dcY,
     int n_END = (disj_Y+size_col-1)/dcY->nb;
     taskpool->_g_NT = (n_END-n_START)/taskpool->_g_num_col;
 
-    parsec_add2arena(&taskpool->arenas_datatypes[PARSEC_redistribute_check2_DEFAULT_ADT_IDX],
-                            MY_TYPE, PARSEC_MATRIX_FULL,
-                            1, dcY->mb, dcY->nb, dcY->mb,
-                            PARSEC_ARENA_ALIGNMENT_SSE, -1 );
+    parsec_matrix_adt_define_rect(&taskpool->arenas_datatypes[PARSEC_redistribute_check2_DEFAULT_ADT_IDX],
+                            MY_TYPE, dcY->mb, dcY->nb, dcY->mb);
 
     return redistribute_check2_taskpool;
 }
@@ -117,7 +115,7 @@ parsec_redistribute_check2_New(parsec_tiled_matrix_t *dcY,
 static void
 __parsec_taskpool_redistribute_check2_destructor(parsec_redistribute_check2_taskpool_t *redistribute_check2_taskpool)
 {
-    parsec_del2arena(&redistribute_check2_taskpool->arenas_datatypes[PARSEC_redistribute_check2_DEFAULT_ADT_IDX]);
+    parsec_matrix_arena_datatype_destruct_free_type(&redistribute_check2_taskpool->arenas_datatypes[PARSEC_redistribute_check2_DEFAULT_ADT_IDX]);
 }
 
 PARSEC_OBJ_CLASS_INSTANCE(parsec_redistribute_check2_taskpool_t, parsec_taskpool_t,

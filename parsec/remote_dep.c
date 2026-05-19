@@ -2,6 +2,7 @@
  * Copyright (c) 2009-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/parsec_config.h"
@@ -129,7 +130,7 @@ remote_dep_complete_and_cleanup(parsec_remote_deps_t** deps,
                 assert( (*deps)->output[i].count_bits );
                 if( NULL != (*deps)->output[i].data.data ) { /* if not CONTROL */
                     if( PARSEC_TASKPOOL_TYPE_DTD == (*deps)->taskpool->taskpool_type ) {
-                        (void)parsec_atomic_fetch_dec_int32(&(*deps)->output[i].data.data->readers);
+                        parsec_dtd_data_copy_reader_release((*deps)->output[i].data.data);
                     }
                     PARSEC_DATA_COPY_RELEASE((*deps)->output[i].data.data);
                 }

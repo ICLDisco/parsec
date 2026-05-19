@@ -24,6 +24,7 @@ __parsec_rtt_taskpool_destructor(parsec_rtt_taskpool_t *rtt_tp)
      * so we need to clean up.
      */
     parsec_type_free( &(rtt_tp->arenas_datatypes[PARSEC_rtt_DEFAULT_ADT_IDX].opaque_dtt) );
+    PARSEC_OBJ_DESTRUCT(&rtt_tp->arenas_datatypes[PARSEC_rtt_DEFAULT_ADT_IDX]);
 }
 
 PARSEC_OBJ_CLASS_INSTANCE(parsec_rtt_taskpool_t, parsec_taskpool_t,
@@ -57,7 +58,7 @@ parsec_taskpool_t *rtt_new(parsec_data_collection_t *A, int size, int nb)
     parsec_type_create_contiguous(size, parsec_datatype_uint8_t, &block);
     parsec_type_extent(block, &lb, &extent);
 
-    parsec_arena_datatype_construct( &tp->arenas_datatypes[PARSEC_rtt_DEFAULT_ADT_IDX],
+    parsec_arena_datatype_set_type( &tp->arenas_datatypes[PARSEC_rtt_DEFAULT_ADT_IDX],
                                      extent, PARSEC_ARENA_ALIGNMENT_SSE,
                                      block );
     return (parsec_taskpool_t*)tp;

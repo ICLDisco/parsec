@@ -39,10 +39,15 @@ void cb_fulfill(parsec_base_future_t * future, ...)
     parsec_future_set(future, data);
 }
 
-int cb_match(parsec_base_future_t * future, void * t1, void * t2)
+int cb_match(parsec_base_future_t * future, ...)
 {
-    (void)future;
-    return (((int*)t1) == ((int*)t2));
+    va_list ap;
+    va_start(ap, future);
+    void *t1 = va_arg(ap, void*);
+    void *t2 = va_arg(ap, void*);
+    va_end(ap);
+
+    return (*((int*)t1) == *((int*)t2));
 }
 
 void cb_cleanup(parsec_base_future_t * future)
@@ -57,12 +62,18 @@ void cb_cleanup(parsec_base_future_t * future)
 void cb_nested(parsec_base_future_t ** future, ...)
 {
     parsec_datacopy_future_t** d_fut = (parsec_datacopy_future_t**)future;
+    parsec_datacopy_future_t* root_fut;
     va_list ap;
+    int* request;
+    int* specs;
+
     va_start(ap, future);
-    int* data = va_arg(ap, int*);
-    int* specs = va_arg(ap, int*);
+    root_fut = va_arg(ap, parsec_datacopy_future_t*);
+    request = va_arg(ap, int*);
     va_end(ap);
-    *specs += *data;
+    (void)root_fut;
+    specs = (int*)malloc(sizeof(int));
+    *specs = *request;
     *d_fut = PARSEC_OBJ_NEW(parsec_datacopy_future_t);
     parsec_future_init( *d_fut, 
                         cb_fulfill, 
@@ -90,7 +101,6 @@ static void *do_test_no_nested(void* _param){
 static void *do_test_nested(void* _param){
     int *param = (int*)_param;
     int id = param[0]; //thread id
-    int *specs; 
     if(id % 2 == 0) {
         for(int i = 0; i < ncopy; i++){
             while( (data_check_out[i][id] = 
@@ -101,11 +111,10 @@ static void *do_test_nested(void* _param){
         }
     }else{
         for(int i = 0; i < ncopy; i++){
-            specs = (int*)malloc(sizeof(int));
-            *specs = ncopy;
+            int specs = data[i] + ncopy;
             while( (data_check_out[i][id] = 
                         parsec_future_get_or_trigger(fut_array[i],
-                                                     cb_nested, specs, /* nested data */
+                                                     cb_nested, &specs, /* nested data */
                                                      NULL, NULL /*callback not using es, tp, task */
                                                      ) ) == NULL ){}
         }
@@ -160,35 +169,34 @@ int main(int argc, char* argv[])
                 break;
         }
     }
-    
+
     printf("running with %d cores and %d copies\n", cores, ncopy);
     threads = calloc(cores, sizeof(pthread_t));
 
     fut_array = malloc(ncopy*sizeof(parsec_datacopy_future_t*));
     data = malloc(cores*ncopy*sizeof(int));
     int *ids = malloc(cores*sizeof(int));
-    
 
     data_check_out = malloc(ncopy*sizeof(int**));
     for(i=0; i< ncopy; i++){
         data_check_out[i] = malloc(cores*sizeof(int*));
         data[i] = i;
-        data_in = malloc(cores*sizeof(int*));
+        data_in = malloc(sizeof(int));
         *data_in = data[i];
         fut_array[i] = PARSEC_OBJ_NEW(parsec_datacopy_future_t);
-        parsec_future_init( fut_array[i], 
-                            cb_fulfill, 
+        parsec_future_init( fut_array[i],
+                            cb_fulfill,
                             data_in,
                             cb_match,
                             data_in,
-                            cb_cleanup); 
+                            cb_cleanup);
     }
 
     for(i=0; i< cores; i++){
         ids[i] = i;
         pthread_create(&threads[i], NULL, do_test_no_nested, &ids[i]);
     }
- 
+
     for(i=0; i< cores; i++){
         flag += pthread_join(threads[i], &retval);
     }
@@ -197,7 +205,7 @@ int main(int argc, char* argv[])
     for(i=0; i< ncopy; i++){
         for(j=1; j< cores; j++){
             if( data_check_out[i][j-1] != data_check_out[i][j] ){
-                flag = 1; 
+                flag = 1;
                 break;
             }
         }
@@ -210,22 +218,22 @@ int main(int argc, char* argv[])
 
     for(i=0; i< ncopy; i++){
         data[i] = i;
-        data_in = malloc(cores*sizeof(int*));
+        data_in = malloc(sizeof(int));
         *data_in = data[i];
         fut_array[i] = PARSEC_OBJ_NEW(parsec_datacopy_future_t);
-        parsec_future_init( fut_array[i], 
-                            cb_fulfill, 
+        parsec_future_init( fut_array[i],
+                            cb_fulfill,
                             data_in,
                             cb_match,
                             data_in,
-                            cb_cleanup); 
+                            cb_cleanup);
     }
 
     for(i=0; i< cores; i++){
         ids[i] = i;
         pthread_create(&threads[i], NULL, do_test_nested, &ids[i]);
     }
- 
+
     for(i=0; i< cores; i++){
         flag += pthread_join(threads[i], &retval);
     }

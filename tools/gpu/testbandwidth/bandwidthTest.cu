@@ -1,5 +1,6 @@
 /*
  * Copyright 1993-2009 NVIDIA Corporation.  All rights reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  *
  * NVIDIA Corporation and its licensors retain all intellectual property and 
  * proprietary rights in and to this software and related documentation and 
@@ -10,7 +11,7 @@
  */
 
 /* 
- * This is a simple test program to measure the memcopy bandwidth of the GPU.
+ * This is a simple test program to measure the memory copy bandwidth of the GPU.
  * It can measure device to device copy bandwidth, host to device copy bandwidth 
  * for pageable and pinned memory, and device to host copy bandwidth for pageable 
  * and pinned memory.
@@ -527,7 +528,7 @@ testBandwidthShmoo(memcpyKind kind, printMode printmode, memoryMode memMode, int
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-//  test the bandwidth of a device to host memcopy of a specific size
+//  test the bandwidth of a device to host memory copy of a specific size
 ///////////////////////////////////////////////////////////////////////////////
 float
 testDeviceToHostTransfer(unsigned int memSize, memoryMode memMode, bool wc)
@@ -630,7 +631,7 @@ testDeviceToHostTransfer(unsigned int memSize, memoryMode memMode, bool wc)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-//! test the bandwidth of a host to device memcopy of a specific size
+//! test the bandwidth of a host to device memory copy of a specific size
 ///////////////////////////////////////////////////////////////////////////////
 float
 testHostToDeviceTransfer(unsigned int memSize, memoryMode memMode, bool wc)
@@ -731,7 +732,7 @@ testHostToDeviceTransfer(unsigned int memSize, memoryMode memMode, bool wc)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-//! test the bandwidth of a device to device memcopy of a specific size
+//! test the bandwidth of a device to device memory copy of a specific size
 ///////////////////////////////////////////////////////////////////////////////
 float
 testDeviceToDeviceTransfer(unsigned int memSize)
@@ -763,7 +764,7 @@ testDeviceToDeviceTransfer(unsigned int memSize)
     cutilSafeCall( cudaMemcpy( d_idata, h_idata, memSize,
                                 cudaMemcpyHostToDevice) );
 
-    //run the memcopy
+    //run the memory copy
     cutilCheckError( cutStartTimer( timer));
     cutilSafeCall( cudaEventRecord( start, 0 ) );
     for( unsigned int i = 0; i < MEMCOPY_ITERATIONS; i++ )

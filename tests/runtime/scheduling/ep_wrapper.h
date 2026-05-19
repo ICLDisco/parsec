@@ -18,5 +18,6 @@
  * @return the parsec object to schedule.
  */
 parsec_taskpool_t *ep_new(parsec_data_collection_t *A, int nt, int level);
+void ep_free(parsec_taskpool_t *tp);
 
 #endif

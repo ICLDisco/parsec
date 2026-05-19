@@ -2,6 +2,7 @@
  * Copyright (c) 2021-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2024-2026 NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec.h"
@@ -9,10 +10,24 @@
 #include "parsec/data_dist/matrix/matrix.h"
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "parsec/interfaces/dtd/insert_function_internal.h"
+#include "parsec/mca/device/device.h"
 
 // The file is not compiled if CUDA is not present or CUBLAS is not found
 #include "parsec/mca/device/cuda/device_cuda.h"
 #include "cublas_v2.h"
+
+#include <sys/time.h>
+
+#if !defined(timersub)
+#define timersub(a, b, result) do {                \
+        (result)->tv_sec = (a)->tv_sec - (b)->tv_sec;       \
+        (result)->tv_usec = (a)->tv_usec - (b)->tv_usec;    \
+        if( (result)->tv_usec < 0 ) {                       \
+            --(result)->tv_sec;                             \
+            (result)->tv_usec += 1000000;                   \
+        }                                                   \
+    } while(0)
+#endif
 
 #if defined(HAVE_BLAS)
 // If our CMake finds a BLAS library, it defines HAVE_BLAS
@@ -37,6 +52,10 @@ extern void cblas_dgemm(const CBLAS_LAYOUT layout, const CBLAS_TRANSPOSE TransA,
 
 #include <unistd.h>
 #include <getopt.h>
+#include <string.h>
+#include <strings.h>
+#include <stdlib.h>
+#include <stdint.h>
 
 static int TILE_FULL = -1;
 static parsec_info_id_t CuHI = -1;
@@ -45,12 +64,92 @@ static int verbose = 0;
 static int device = PARSEC_DEV_CUDA;
 static int P = -1;
 static int Q = -1;
+static int cuda_max_batch_size = 32;
+static int cuda_max_submitted_batches = 4;
+
+typedef enum {
+    GEMM_CUDA_BATCH_NONE,
+    GEMM_CUDA_BATCH_ONE_BY_ONE,
+    GEMM_CUDA_BATCH_CUBLAS
+} gemm_cuda_batch_mode_t;
+
+static gemm_cuda_batch_mode_t cuda_batch_mode = GEMM_CUDA_BATCH_NONE;
+
+typedef struct gemm_cuda_batch_pool_s {
+    double **ptrs;
+    int max_batch_size;
+    int max_submitted_batches;
+    int cuda_device_index;
+    uint64_t next_submit;
+    uint64_t next_complete;
+} gemm_cuda_batch_pool_t;
+
+typedef struct gemm_cuda_stream_state_s {
+    cublasHandle_t handle;
+    gemm_cuda_batch_pool_t batch_pool;
+} gemm_cuda_stream_state_t;
+
+typedef struct gemm_cuda_batch_match_data_s {
+    int max_batch_size;
+    int accepted;
+} gemm_cuda_batch_match_data_t;
 
 #define Rnd64_A 6364136223846793005ULL
 #define Rnd64_C 1ULL
 #define RndF_Mul 5.4210108624275222e-20f
 #define RndD_Mul 5.4210108624275222e-20
 #define NBELEM 1
+#define GEMM_CUDA_BATCH_LIMIT_REACHED (-1000000)
+
+static int
+gemm_cuda_batch_enabled(void)
+{
+    return GEMM_CUDA_BATCH_NONE != cuda_batch_mode;
+}
+
+static void
+gemm_cuda_set_batch_mode(const char *mode)
+{
+    if( 0 == strcmp(mode, "none") ) {
+        cuda_batch_mode = GEMM_CUDA_BATCH_NONE;
+    } else if( (0 == strcmp(mode, "one-by-one")) ||
+               (0 == strcmp(mode, "submit")) ) {
+        cuda_batch_mode = GEMM_CUDA_BATCH_ONE_BY_ONE;
+    } else if( (0 == strcmp(mode, "cublas")) ||
+               (0 == strcmp(mode, "batched")) ) {
+        cuda_batch_mode = GEMM_CUDA_BATCH_CUBLAS;
+    } else {
+        fprintf(stderr, "Error: batch mode should be 'none', 'one-by-one', or 'cublas' (got '%s')\n", mode);
+        exit(1);
+    }
+}
+
+static const char *
+gemm_cuda_batch_mode_name(void)
+{
+    switch(cuda_batch_mode) {
+    case GEMM_CUDA_BATCH_ONE_BY_ONE:
+        return "one-by-one";
+    case GEMM_CUDA_BATCH_CUBLAS:
+        return "cublas";
+    case GEMM_CUDA_BATCH_NONE:
+    default:
+        return "none";
+    }
+}
+
+static int
+gemm_parse_positive_int_arg(const char *option, const char *value)
+{
+    int result = atoi(value);
+
+    if( result <= 0 ) {
+        fprintf(stderr, "Error: %s expects a positive integer (got '%s')\n",
+                option, value);
+        exit(1);
+    }
+    return result;
+}
 
 static unsigned long long int Rnd64_jump(unsigned long long int n, unsigned long long int seed)
 {
@@ -168,57 +267,337 @@ int initialize_matrix(parsec_context_t *parsec_context, int rank, parsec_matrix_
     return 0;
 }
 
+static int
+gemm_cuda_batch_match(parsec_gpu_task_t *candidate,
+                      parsec_gpu_task_t *batch_head,
+                      void *callback_data)
+{
+    gemm_cuda_batch_match_data_t *batch_data = (gemm_cuda_batch_match_data_t *)callback_data;
+
+    if( (NULL != batch_data) &&
+        (batch_data->accepted >= batch_data->max_batch_size - 1) ) {
+        return GEMM_CUDA_BATCH_LIMIT_REACHED;
+    }
+
+    if( (batch_head->ec->task_class == candidate->ec->task_class) &&
+        (batch_head->ec->selected_chore == candidate->ec->selected_chore) &&
+        (batch_head->ec->selected_device == candidate->ec->selected_device) ) {
+        if( NULL != batch_data ) {
+            batch_data->accepted++;
+        }
+        return 0;
+    }
+    return 1;
+}
+
+static void
+gemm_cuda_unpack_task(parsec_gpu_task_t *gpu_task,
+                      double **a_gpu, double **b_gpu, double **c_gpu,
+                      int *m, int *n, int *k,
+                      int *mb, int *nb, int *kb)
+{
+    double *A, *B, *C;
+    parsec_task_t *this_task = gpu_task->ec;
+
+    parsec_dtd_unpack_args(this_task,
+                           &A, &B, &C,
+                           m, n, k,
+                           mb, nb, kb);
+    (void)A; (void)B; (void)C;
+
+    *a_gpu = parsec_dtd_get_dev_ptr(this_task, 0);
+    *b_gpu = parsec_dtd_get_dev_ptr(this_task, 1);
+    *c_gpu = parsec_dtd_get_dev_ptr(this_task, 2);
+}
+
+static size_t
+gemm_cuda_batch_pool_ptrs_per_slot(gemm_cuda_batch_pool_t *pool)
+{
+    return (size_t)3 * (size_t)pool->max_batch_size;
+}
+
+static double **
+gemm_cuda_batch_pool_ptrs(gemm_cuda_batch_pool_t *pool, uint64_t position)
+{
+    int index = (int)(position % (uint64_t)pool->max_submitted_batches);
+
+    return pool->ptrs + (size_t)index * gemm_cuda_batch_pool_ptrs_per_slot(pool);
+}
+
+static int
+gemm_cuda_batch_pool_can_submit(gemm_cuda_batch_pool_t *pool)
+{
+    return (pool->next_submit - pool->next_complete) <
+           (uint64_t)pool->max_submitted_batches;
+}
+
+static void
+gemm_cuda_batch_pool_mark_pending(gemm_cuda_batch_pool_t *pool)
+{
+    assert(gemm_cuda_batch_pool_can_submit(pool));
+
+    pool->next_submit++;
+}
+
+static int
+gemm_cuda_batch_pool_release_completed(gemm_cuda_batch_pool_t *pool)
+{
+    if( pool->next_complete == pool->next_submit ) {
+        parsec_warning("Completed GEMM batch has no preallocated batch slot");
+        return PARSEC_HOOK_RETURN_ERROR;
+    }
+
+    pool->next_complete++;
+    return PARSEC_HOOK_RETURN_DONE;
+}
+
+static void
+gemm_cuda_batch_pool_fini(gemm_cuda_batch_pool_t *pool)
+{
+    if( NULL == pool ) {
+        return;
+    }
+
+    if( pool->cuda_device_index >= 0 ) {
+        (void)cudaSetDevice(pool->cuda_device_index);
+    }
+
+    if( NULL != pool->ptrs ) {
+        (void)cudaFree(pool->ptrs);
+    }
+    memset(pool, 0, sizeof(*pool));
+    pool->cuda_device_index = -1;
+}
+
+static int
+gemm_cuda_batch_pool_init(gemm_cuda_batch_pool_t *pool)
+{
+    size_t ptrs_per_slot;
+    size_t ptrs_size;
+    size_t all_ptrs_size;
+    cudaError_t status;
+
+    memset(pool, 0, sizeof(*pool));
+    pool->max_batch_size = cuda_max_batch_size;
+    pool->max_submitted_batches = cuda_max_submitted_batches;
+    pool->cuda_device_index = -1;
+    ptrs_per_slot = gemm_cuda_batch_pool_ptrs_per_slot(pool);
+    ptrs_size = ptrs_per_slot * sizeof(double *);
+    all_ptrs_size = (size_t)pool->max_submitted_batches * ptrs_size;
+
+    status = cudaGetDevice(&pool->cuda_device_index);
+    PARSEC_CUDA_CHECK_ERROR("cudaGetDevice", status, { goto error; });
+
+    status = cudaMallocManaged((void **)&pool->ptrs, all_ptrs_size, cudaMemAttachGlobal);
+    PARSEC_CUDA_CHECK_ERROR("cudaMallocManaged", status, { goto error; });
+
+    return PARSEC_SUCCESS;
+
+  error:
+    gemm_cuda_batch_pool_fini(pool);
+    return PARSEC_ERROR;
+}
+
+static int
+gemm_cuda_batch_complete(parsec_device_gpu_module_t *gpu_device,
+                         parsec_gpu_task_t **gpu_task,
+                         parsec_gpu_exec_stream_t *gpu_stream)
+{
+    gemm_cuda_stream_state_t *stream_state;
+    parsec_gpu_task_t *completed_task = *gpu_task;
+    int rc;
+
+    (void)gpu_device;
+
+    stream_state = parsec_info_get(&gpu_stream->infos, CuHI);
+    if( NULL == stream_state ) {
+        parsec_warning("Completed GEMM batch task %p has no CUDA stream state",
+                       (void *)completed_task);
+        completed_task->complete_stage = NULL;
+        return PARSEC_HOOK_RETURN_ERROR;
+    }
+
+    rc = gemm_cuda_batch_pool_release_completed(&stream_state->batch_pool);
+    completed_task->complete_stage = NULL;
+    return rc;
+}
+
+static int
+gemm_kernel_cuda_submit_one_by_one(parsec_gpu_task_t *gpu_task,
+                                   parsec_gpu_exec_stream_t *gpu_stream,
+                                   cublasHandle_t handle,
+                                   double *one_device,
+                                   int batch_count)
+{
+    parsec_gpu_task_t *current_gpu_task = gpu_task;
+    struct timeval start, end, diff;
+    double delta;
+
+    if( verbose ) {
+        gettimeofday(&start, NULL);
+    }
+    do {
+        int m, n, k, mb, nb, kb;
+        parsec_task_t *this_task = current_gpu_task->ec;
+        double *a_gpu, *b_gpu, *c_gpu;
+        cublasStatus_t status;
+
+        gemm_cuda_unpack_task(current_gpu_task,
+                              &a_gpu, &b_gpu, &c_gpu,
+                              &m, &n, &k,
+                              &mb, &nb, &kb);
+
+        status = cublasDgemm_v2(handle,
+                                CUBLAS_OP_N, CUBLAS_OP_N,
+                                mb, nb, kb,
+                                one_device, a_gpu, mb,
+                                b_gpu, kb,
+                                one_device, c_gpu, mb);
+
+        if(verbose) {
+            fprintf(stderr, "GEMM(%d, %d, %d) with tiles of %dx%d, %dx%d, %dx%d on node %d, GPU %s submitted%s\n",
+                    m, n, k, mb, kb, kb, nb, mb, kb,
+                    this_task->taskpool->context->my_rank,
+                    gpu_stream->name,
+                    batch_count > 1 ? " as part of a one-by-one batch" : "");
+        }
+
+        PARSEC_CUDA_CHECK_ERROR("cublasDgemm_v2", status,
+                                { return PARSEC_HOOK_RETURN_ERROR; });
+
+        current_gpu_task = (parsec_gpu_task_t *)current_gpu_task->list_item.list_next;
+    } while( current_gpu_task != gpu_task );
+
+    if( verbose ) {
+        gettimeofday(&end, NULL);
+        timersub(&end, &start, &diff);
+        delta = (double)diff.tv_sec + (double)diff.tv_usec/1e6;
+        fprintf(stderr, "Submitted %d GEMM task%s one-by-one on GPU stream %s in %g s\n",
+                batch_count, batch_count > 1 ? "s" : "", gpu_stream->name, delta);
+    }
+
+    return PARSEC_HOOK_RETURN_DONE;
+}
+
+static int
+gemm_kernel_cuda_submit_cublas_batched(parsec_gpu_task_t *gpu_task,
+                                       parsec_gpu_exec_stream_t *gpu_stream,
+                                       cublasHandle_t handle,
+                                       double *one_device,
+                                       gemm_cuda_batch_pool_t *batch_pool,
+                                       int batch_count)
+{
+    parsec_gpu_task_t *current_gpu_task = gpu_task;
+    double **ptr_A, **ptr_B, **ptr_C;
+    struct timeval start, end, diff;
+    double delta;
+    int first_m = 0, first_n = 0, first_k = 0;
+    int mb = 0, nb = 0, kb = 0;
+    int first_mb = 0, first_nb = 0, first_kb = 0;
+    int rank = gpu_task->ec->taskpool->context->my_rank;
+    cublasStatus_t status;
+    uint64_t submit_position = batch_pool->next_submit;
+
+    assert(batch_count <= batch_pool->max_batch_size);
+
+    ptr_A = gemm_cuda_batch_pool_ptrs(batch_pool, submit_position);
+    ptr_B = ptr_A + batch_count;
+    ptr_C = ptr_B + batch_count;
+
+    for( int i = 0; i < batch_count; i++ ) {
+        int m, n, k;
+
+        gemm_cuda_unpack_task(current_gpu_task,
+                              &ptr_A[i], &ptr_B[i], &ptr_C[i],
+                              &m, &n, &k,
+                              &mb, &nb, &kb);
+        if( 0 == i ) {
+            first_m = m; first_n = n; first_k = k;
+            first_mb = mb; first_nb = nb; first_kb = kb;
+        } else if( (first_mb != mb) || (first_nb != nb) || (first_kb != kb) ) {
+            parsec_warning("cublas batched GEMM requires uniform tile shapes; falling back to one-by-one submission");
+            return gemm_kernel_cuda_submit_one_by_one(gpu_task, gpu_stream, handle, one_device, batch_count);
+        }
+        current_gpu_task = (parsec_gpu_task_t *)current_gpu_task->list_item.list_next;
+    }
+
+    if( verbose ) {
+        gettimeofday(&start, NULL);
+    }
+    status = cublasDgemmBatched(handle,
+                                CUBLAS_OP_N, CUBLAS_OP_N,
+                                first_mb, first_nb, first_kb,
+                                one_device, (const double * const *)ptr_A, first_mb,
+                                (const double * const *)ptr_B, first_kb,
+                                one_device, ptr_C, first_mb,
+                                batch_count);
+
+    PARSEC_CUDA_CHECK_ERROR("cublasDgemmBatched", status,
+                            { return PARSEC_HOOK_RETURN_ERROR; });
+    gemm_cuda_batch_pool_mark_pending(batch_pool);
+    gpu_task->complete_stage = gemm_cuda_batch_complete;
+
+    if(verbose) {
+        gettimeofday(&end, NULL);
+        timersub(&end, &start, &diff);
+        delta = (double)diff.tv_sec + (double)diff.tv_usec/1e6;
+        fprintf(stderr, "Batched GEMM(%d, %d, %d) with tiles of %dx%d, %dx%d, %dx%d on node %d, GPU %s submitted in %g s with %d tasks\n",
+                first_m, first_n, first_k, first_mb, first_kb, first_kb, first_nb, first_mb, first_kb,
+                rank, gpu_stream->name, delta, batch_count);
+    }
+
+    return PARSEC_HOOK_RETURN_DONE;
+}
+
 int gemm_kernel_cuda(parsec_device_gpu_module_t *gpu_device,
                      parsec_gpu_task_t *gpu_task,
                      parsec_gpu_exec_stream_t *gpu_stream)
 {
-    double *A, *B, *C;
-    int m, n, k, mb, nb, kb;
-    parsec_task_t *this_task = gpu_task->ec;
-    cublasStatus_t status;
+    gemm_cuda_stream_state_t *stream_state;
     cublasHandle_t handle;
     double *one_device = NULL;
-    struct timeval start, end, diff;
-    double delta;
-    double *a_gpu, *b_gpu, *c_gpu;
+    int batch_count = 1;
+    gemm_cuda_batch_pool_t *batch_pool = NULL;
 
-    (void)gpu_stream;
-    (void)gpu_device;
+    stream_state = parsec_info_get(&gpu_stream->infos, CuHI);
+    if( NULL == stream_state ) {
+        return PARSEC_HOOK_RETURN_ERROR;
+    }
+    handle = stream_state->handle;
 
-    parsec_dtd_unpack_args(this_task,
-                           &A, &B, &C,
-                           &m, &n, &k,
-                           &mb, &nb, &kb);
+    if( GEMM_CUDA_BATCH_CUBLAS == cuda_batch_mode ) {
+        batch_pool = &stream_state->batch_pool;
+        if( !gemm_cuda_batch_pool_can_submit(batch_pool) ) {
+            return PARSEC_HOOK_RETURN_AGAIN;
+        }
+    }
 
-    a_gpu = parsec_dtd_get_dev_ptr(this_task, 0);
-    b_gpu = parsec_dtd_get_dev_ptr(this_task, 1);
-    c_gpu = parsec_dtd_get_dev_ptr(this_task, 2);
+    if( gemm_cuda_batch_enabled() && (cuda_max_batch_size > 1) ) {
+        gemm_cuda_batch_match_data_t batch_data = {
+            .max_batch_size = cuda_max_batch_size,
+            .accepted = 0
+        };
+        int nb_batched = parsec_gpu_task_collect_batch(gpu_stream, gpu_task,
+                                                       gemm_cuda_batch_match, &batch_data);
+        if( GEMM_CUDA_BATCH_LIMIT_REACHED == nb_batched ) {
+            nb_batched = batch_data.accepted;
+        } else if( nb_batched < 0 ) {
+            return nb_batched;
+        }
+        batch_count += nb_batched;
+    }
 
-    handle = parsec_info_get(&gpu_stream->infos, CuHI);
-    assert(NULL != handle);
     one_device = parsec_info_get(&gpu_device->super.infos, Cu1);
     assert(NULL != one_device);
-    gettimeofday(&start, NULL);
 
-    status = cublasDgemm_v2(handle,
-                            CUBLAS_OP_N, CUBLAS_OP_N,
-                            mb, nb, kb,
-                            one_device, a_gpu, mb,
-                            b_gpu, kb,
-                            one_device, c_gpu, mb);
-    gettimeofday(&end, NULL);
-    timersub(&end, &start, &diff);
-    delta = (double)diff.tv_sec + (double)diff.tv_usec/1e6;
-    if(verbose)
-        fprintf(stderr, "GEMM(%d, %d, %d) with tiles of %dx%d, %dx%d, %dx%d on node %d, GPU %s submitted in %g s\n",
-                m, n, k, mb, kb, kb, nb, mb, kb,
-                this_task->taskpool->context->my_rank,
-                gpu_stream->name, delta);
-
-    PARSEC_CUDA_CHECK_ERROR("cublasDgemm_v2", status,
-                            { return PARSEC_HOOK_RETURN_ERROR; });
-
-    return PARSEC_HOOK_RETURN_DONE;
+    if( GEMM_CUDA_BATCH_CUBLAS == cuda_batch_mode ) {
+        (void)gpu_device;
+        return gemm_kernel_cuda_submit_cublas_batched(gpu_task, gpu_stream,
+                                                      handle, one_device,
+                                                      batch_pool, batch_count);
+    }
+    return gemm_kernel_cuda_submit_one_by_one(gpu_task, gpu_stream, handle,
+                                              one_device, batch_count);
 }
 
 #if defined(HAVE_BLAS)
@@ -239,18 +618,21 @@ int gemm_kernel_cpu(parsec_execution_stream_t *es,
                            &m, &n, &k,
                            &mb, &nb, &kb);
 
-    gettimeofday(&start, NULL);
+    if( verbose ) {
+        gettimeofday(&start, NULL);
+    }
     cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, mb, nb, kb, alpha, A, mb, B, kb, beta, C, mb);
-    gettimeofday(&end, NULL);
-    timersub(&end, &start, &diff);
 
-    delta = (double)diff.tv_sec + (double)diff.tv_usec/1e6;
-    if( verbose )
+    if( verbose ) {
+        gettimeofday(&end, NULL);
+        timersub(&end, &start, &diff);
+        delta = (double)diff.tv_sec + (double)diff.tv_usec/1e6;
         fprintf(stderr, "GEMM(%d, %d, %d) with tiles of %dx%d, %dx%d, %dx%d on node %d, on core %d: %g s\n",
                 m, n, k, mb, kb, kb, nb, mb, kb,
                 this_task->taskpool->context->my_rank,
                 es->core_id,
                 delta);
+    }
 
     return PARSEC_HOOK_RETURN_DONE;
 }
@@ -283,7 +665,9 @@ int simple_gemm(parsec_context_t *parsec_context, parsec_matrix_block_cyclic_t *
                                            sizeof(int), PARSEC_VALUE,               /* nb */
                                            sizeof(int), PARSEC_VALUE,               /* kb */
                                            PARSEC_DTD_ARG_END);
-    parsec_dtd_task_class_add_chore(tp, gemm_tc, PARSEC_DEV_CUDA, gemm_kernel_cuda);
+    parsec_dtd_task_class_add_chore(tp, gemm_tc,
+                                    gemm_cuda_batch_enabled() ? (PARSEC_DEV_CUDA | PARSEC_DEV_CHORE_ALLOW_BATCH) : PARSEC_DEV_CUDA,
+                                    gemm_kernel_cuda);
 #if defined(HAVE_BLAS)
     parsec_dtd_task_class_add_chore(tp, gemm_tc, PARSEC_DEV_CPU, gemm_kernel_cpu);
 #endif
@@ -294,7 +678,8 @@ int simple_gemm(parsec_context_t *parsec_context, parsec_matrix_block_cyclic_t *
             for( int k = 0; k < A->super.nt; k++ ) {
                 keyA = A->super.super.data_key(&A->super.super, i, k);
                 keyB = B->super.super.data_key(&B->super.super, k, j);
-                parsec_dtd_insert_task_with_task_class(tp, gemm_tc, C->super.mt*C->super.nt*A->super.nt - i*C->super.nt + j, device,
+                parsec_dtd_insert_task_with_task_class(tp, gemm_tc, C->super.mt*C->super.nt*A->super.nt - i*C->super.nt + j,
+                                                       device,
                                                        PARSEC_INPUT, PARSEC_DTD_TILE_OF_KEY(&A->super.super, keyA),
                                                        PARSEC_INPUT, PARSEC_DTD_TILE_OF_KEY(&B->super.super, keyB),
                                                        k == A->super.nt - 1 ? (PARSEC_INOUT | PARSEC_PUSHOUT) : PARSEC_INOUT,
@@ -333,7 +718,7 @@ int get_nb_gpu_devices()
 
     for( int dev = 0; dev < (int)parsec_nb_devices; dev++ ) {
         parsec_device_module_t *device = parsec_mca_device_get(dev);
-        if( PARSEC_DEV_CUDA == device->type ) {
+        if( PARSEC_DEV_CUDA & device->type ) {
             nb++;
         }
     }
@@ -349,7 +734,7 @@ int *get_gpu_device_index()
     int i = 0;
     for( int dev = 0; dev < (int)parsec_nb_devices; dev++ ) {
         parsec_device_module_t *device = parsec_mca_device_get(dev);
-        if( PARSEC_DEV_CUDA == device->type ) {
+        if( PARSEC_DEV_CUDA & device->type ) {
             dev_index[i++] = device->device_index;
         }
     }
@@ -357,30 +742,94 @@ int *get_gpu_device_index()
     return dev_index;
 }
 
-static void destroy_cublas_handle(void *_h, void *_n)
+static int preallocate_cuda_stream_states(void)
 {
-#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
-    cublasHandle_t cublas_handle = (cublasHandle_t)_h;
-    cublasDestroy_v2(cublas_handle);
-#endif
-    (void)_n;
-    (void)_h;
+    if( PARSEC_INFO_ID_UNDEFINED == CuHI ) {
+        return 0;
+    }
+
+    for( int dev = 0; dev < (int)parsec_nb_devices; dev++ ) {
+        parsec_device_module_t *device = parsec_mca_device_get(dev);
+        parsec_device_gpu_module_t *gpu_device;
+
+        if( 0 == (PARSEC_DEV_CUDA & device->type) ) {
+            continue;
+        }
+
+        gpu_device = (parsec_device_gpu_module_t *)device;
+        if( PARSEC_SUCCESS != gpu_device->set_device(gpu_device) ) {
+            parsec_warning("Failed to select CUDA device %d while preallocating GEMM CUDA stream states",
+                           device->device_index);
+            return PARSEC_ERROR;
+        }
+
+        for( int stream = 0; stream < gpu_device->num_exec_streams; stream++ ) {
+            gemm_cuda_stream_state_t *stream_state;
+
+            stream_state = parsec_info_get(&gpu_device->exec_stream[stream]->infos, CuHI);
+            if( NULL == stream_state ) {
+                parsec_warning("Failed to preallocate GEMM CUDA stream state for CUDA device %d stream %d",
+                               device->device_index, stream);
+                return PARSEC_ERROR;
+            }
+        }
+    }
+
+    return PARSEC_SUCCESS;
 }
 
-static void *create_cublas_handle(void *obj, void *p)
+static void destroy_cuda_stream_state(void *_state, void *_n)
 {
 #if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
-    cublasHandle_t handle;
+    gemm_cuda_stream_state_t *stream_state = (gemm_cuda_stream_state_t *)_state;
+
+    if( NULL != stream_state ) {
+        if( GEMM_CUDA_BATCH_CUBLAS == cuda_batch_mode ) {
+            gemm_cuda_batch_pool_fini(&stream_state->batch_pool);
+        }
+        cublasDestroy_v2(stream_state->handle);
+        free(stream_state);
+    }
+#endif
+    (void)_n;
+    (void)_state;
+}
+
+static void *create_cuda_stream_state(void *obj, void *p)
+{
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
+    gemm_cuda_stream_state_t *stream_state;
     cublasStatus_t status;
     parsec_cuda_exec_stream_t *stream = (parsec_cuda_exec_stream_t *)obj;
     (void)p;
+
+    stream_state = (gemm_cuda_stream_state_t *)calloc(1, sizeof(gemm_cuda_stream_state_t));
+    if( NULL == stream_state ) {
+        return NULL;
+    }
+    stream_state->batch_pool.cuda_device_index = -1;
+
     /* No need to call cudaSetDevice, as this has been done by PaRSEC before calling the task body */
-    status = cublasCreate(&handle);
-    assert(CUBLAS_STATUS_SUCCESS == status);
-    status = cublasSetStream(handle, stream->cuda_stream);
-    assert(CUBLAS_STATUS_SUCCESS == status);
-    (void)status;
-    return (void *)handle;
+    status = cublasCreate(&stream_state->handle);
+    if( CUBLAS_STATUS_SUCCESS != status ) {
+        free(stream_state);
+        return NULL;
+    }
+    status = cublasSetStream(stream_state->handle, stream->cuda_stream);
+    if( CUBLAS_STATUS_SUCCESS != status ) {
+        cublasDestroy_v2(stream_state->handle);
+        free(stream_state);
+        return NULL;
+    }
+
+    if( GEMM_CUDA_BATCH_CUBLAS == cuda_batch_mode ) {
+        if( PARSEC_SUCCESS != gemm_cuda_batch_pool_init(&stream_state->batch_pool) ) {
+            cublasDestroy_v2(stream_state->handle);
+            free(stream_state);
+            return NULL;
+        }
+    }
+    return (void *)stream_state;
 #else
     (void)obj;
     (void)p;
@@ -390,10 +839,10 @@ static void *create_cublas_handle(void *obj, void *p)
 
 static void destroy_one_on_device(void *_h, void *_n)
 {
+    (void)_h;
 #if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
     cudaFree(_h);
 #endif
-    (void)_h;
     (void)_n;
 }
 
@@ -493,13 +942,17 @@ int main(int argc, char **argv)
                 {"device",  required_argument, 0, 'd'},
                 {"nruns",   required_argument, 0, 't'},
                 {"verbose", no_argument,       0, 'v'},
+                {"batch",   no_argument,       0, 'b'},
+                {"batch-mode", required_argument, 0, 'B'},
+                {"batch-size", required_argument, 0, 'S'},
+                {"batch-slots", required_argument, 0, 'L'},
                 {"Debug",   required_argument, 0, 'D'},
                 {"Alarm",   required_argument, 0, 'A'},
                 {"help",    no_argument,       0, 'h'},
                 {0, 0,                         0, 0}
         };
 
-        int c = getopt_long(argc, argv, "M:N:K:m:n:k:P:Q:t:d:D:A:vh",
+        int c = getopt_long(argc, argv, "M:N:K:m:n:k:P:Q:t:d:B:S:L:D:A:vbh",
                             long_options, &option_index);
         if( c == -1 )
             break;
@@ -535,10 +988,22 @@ int main(int argc, char **argv)
             case 'v':
                 verbose = !verbose;
                 break;
+            case 'b':
+                cuda_batch_mode = GEMM_CUDA_BATCH_ONE_BY_ONE;
+                break;
+            case 'B':
+                gemm_cuda_set_batch_mode(optarg);
+                break;
+            case 'S':
+                cuda_max_batch_size = gemm_parse_positive_int_arg("--batch-size", optarg);
+                break;
+            case 'L':
+                cuda_max_submitted_batches = gemm_parse_positive_int_arg("--batch-slots", optarg);
+                break;
             case 'd':
-                if(strcmp(optarg, "GPU") == 0) {
+                if(strcasecmp(optarg, "GPU") == 0) {
                     device=PARSEC_DEV_CUDA;
-                } else if(strcmp(optarg, "CPU") == 0) {
+                } else if(strcasecmp(optarg, "CPU") == 0) {
 #if defined(HAVE_BLAS)
                     device=PARSEC_DEV_CPU;
 #else
@@ -546,7 +1011,7 @@ int main(int argc, char **argv)
                     exit(1);
 #endif
                 } else {
-                    fprintf(stderr, "Error: device parameter should either be 'GPU' or 'CPU' (got '%s')\n", optarg);
+                    fprintf(stderr, "Error: device parameter should either be 'gpu' or 'cpu' (got '%s')\n", optarg);
                     exit(1);
                 }
                 break;
@@ -573,6 +1038,14 @@ int main(int argc, char **argv)
                             "   --mb|-m / --kb/-k / --nb|-n:  set mb, kb and nb (resp.)\n"
                             "   --nruns|-t:                   set the number of runs to do\n"
                             "   --device|-d:                  which device to use (CPU or GPU)\n"
+                            "   --batch|-b:                   enable CUDA batch collection and submit\n"
+                            "                                 the collected GEMMs one by one\n"
+                            "   --batch-mode|-B:              CUDA batching mode: none, one-by-one,\n"
+                            "                                 or cublas (default: %s)\n"
+                            "   --batch-size|-S:              maximum number of GEMM tasks per CUDA\n"
+                            "                                 batch (default: %d)\n"
+                            "   --batch-slots|-L:             maximum number of in-flight cuBLAS\n"
+                            "                                 batched submissions per stream (default: %d)\n"
                             "   --verbose|-v:                 display which GEMM runs on which GPU\n"
                             "                                 as execution is unfolding\n"
                             "   --help|-h|-?:                 display this help\n"
@@ -586,9 +1059,12 @@ int main(int argc, char **argv)
                             " Nota Bene: this test should not be used to evaluate performance of GEMM!\n"
                             "    Use DPLASMA or other linear algebra libraries written on top of PaRSEC to evaluate this.\n"
                             "\n",
-                            argv[0]);
+                            argv[0], gemm_cuda_batch_mode_name(),
+                            cuda_max_batch_size, cuda_max_submitted_batches);
                 }
+#if defined(PARSEC_HAVE_MPI)
                 MPI_Finalize();
+#endif
                 exit(0);
         }
     }
@@ -622,15 +1098,17 @@ int main(int argc, char **argv)
         rc = !(nbgpus >= 1);
         if( rc != 0 ) {
             fprintf(stderr, "Rank %d doesn't have CUDA accelerators\n", rank);
+#if defined(PARSEC_HAVE_MPI)
             MPI_Abort(MPI_COMM_WORLD, 0);
+#endif
             return -1;
         }
         gpu_device_index = get_gpu_device_index();
 
-        // Prepare CUBLAS Handle marshaller
-        CuHI = parsec_info_register(&parsec_per_stream_infos, "CUBLAS::HANDLE",
-                                    destroy_cublas_handle, NULL,
-                                    create_cublas_handle, NULL,
+        // Prepare the CUDA stream state, including the CUBLAS handle.
+        CuHI = parsec_info_register(&parsec_per_stream_infos, "DTD_GEMM::CUDA_STREAM_STATE",
+                                    destroy_cuda_stream_state, NULL,
+                                    create_cuda_stream_state, NULL,
                                     NULL);
         assert(CuHI != -1);
         Cu1 = parsec_info_register(&parsec_per_device_infos, "DEVICE::ONE",
@@ -638,11 +1116,20 @@ int main(int argc, char **argv)
                                    allocate_one_on_device, NULL,
                                    NULL);
         assert(Cu1 != -1);
+        rc = preallocate_cuda_stream_states();
+        if( PARSEC_SUCCESS != rc ) {
+            fprintf(stderr, "Failed to preallocate CUDA GEMM stream states\n");
+#if defined(PARSEC_HAVE_MPI)
+            MPI_Abort(MPI_COMM_WORLD, rc);
+#endif
+            return rc;
+        }
     }
 
     // Create datatypes
-    parsec_arena_datatype_t *adt = parsec_dtd_create_arena_datatype(parsec_context, &TILE_FULL);
-    parsec_add2arena_rect(adt, parsec_datatype_double_t, mb, nb, mb);
+    parsec_arena_datatype_t *adt = parsec_matrix_adt_new_rect(parsec_datatype_double_t, mb, nb, mb);
+
+    parsec_dtd_attach_arena_datatype(parsec_context, adt, &TILE_FULL);
 
     // Create and initialize the data
     parsec_matrix_block_cyclic_t *dcA = create_initialize_matrix(parsec_context, rank, 1789, "A", mb, kb, M, K,
@@ -667,11 +1154,11 @@ int main(int argc, char **argv)
         timersub(&end, &start, &diff);
         double t = (double)diff.tv_sec + (double)diff.tv_usec / 1e6;
         double gflops = gflop / t;
-        (void)t;
-        (void)gflops;
         if( 0 == rank && r > 0 ) {
-            fprintf(stderr, "DTD_GEMM PxQxg: %d %d %d M: %d N: %d K: %d mb: %d nb: %d kb: %d -- done\n",
-                    P, Q, nbgpus, M, N, K, mb, nb, kb);
+            fprintf(stderr, "DTD_GEMM PxQxg: %d %d %d M: %d N: %d K: %d mb: %d nb: %d kb: %d batch_mode: %s batch_size: %d batch_slots: %d time: %.6f gflops: %.6f -- done\n",
+                    P, Q, nbgpus, M, N, K, mb, nb, kb,
+                    gemm_cuda_batch_mode_name(), cuda_max_batch_size,
+                    cuda_max_submitted_batches, t, gflops);
         }
     }
     // deactivate the alarm if it was set
@@ -683,9 +1170,7 @@ int main(int argc, char **argv)
         parsec_info_unregister(&parsec_per_device_infos, Cu1, NULL);
     }
 
-    parsec_type_free(&adt->opaque_dtt);
-    PARSEC_OBJ_RELEASE(adt->arena);
-    parsec_dtd_destroy_arena_datatype(parsec_context, TILE_FULL);
+    parsec_dtd_free_arena_datatype(parsec_context, TILE_FULL);
 
     destroy_matrix(dcA);
     destroy_matrix(dcB);

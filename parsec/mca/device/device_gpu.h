@@ -2,7 +2,7 @@
  * Copyright (c) 2021-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
- * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
+ * Copyright (c) 2024-2026 NVIDIA Corporation.  All rights reserved.
  */
 
 #ifndef PARSEC_DEVICE_GPU_H
@@ -49,6 +49,19 @@ typedef int (*parsec_complete_stage_function_t)(parsec_device_gpu_module_t  *gpu
 typedef int (*parsec_advance_task_function_t)(parsec_device_gpu_module_t  *gpu_device,
                                               parsec_gpu_task_t           *gpu_task,
                                               parsec_gpu_exec_stream_t    *gpu_stream);
+
+/* Callback used by parsec_gpu_task_collect_batch() to decide whether a
+ * pending task can be appended to the current batched task ring.
+ *
+ * Return values:
+ *   < 0: stop iteration and return this error code to the caller.
+ *     0: extract candidate from the stream pending queue and append it to
+ *        batch_head.
+ *   > 0: leave candidate in the stream pending queue and continue.
+ */
+typedef int (*parsec_gpu_task_batch_cb_t)(parsec_gpu_task_t *candidate,
+                                          parsec_gpu_task_t *batch_head,
+                                          void *callback_data);
 
 /* Function type to transfer data to the GPU device.
  * Transfer transfer the <count> contiguous bytes from
@@ -182,7 +195,7 @@ typedef int (*parsec_device_event_query_fn_t)(struct parsec_device_gpu_module_s 
  * 
  * @details typically maps to cudaMemGetInfo or equivalent. 
  * 
- * @return PARSEC_SUCCESS if succesfull, a PARSEC error otherwise (in which case the parameters are undefined)
+ * @return PARSEC_SUCCESS if successful, a PARSEC error otherwise (in which case the parameters are undefined)
  */
 typedef int (*parsec_device_memory_info_fn_t)(struct parsec_device_gpu_module_s *gpu, size_t *free_mem, size_t *total_mem);
 
@@ -191,7 +204,7 @@ typedef int (*parsec_device_memory_info_fn_t)(struct parsec_device_gpu_module_s 
  * 
  * @details typically maps to cudaMalloc or equivalent. 
  * 
- * @return PARSEC_SUCCESS if succesfull, a PARSEC error otherwise (in which case @p addr is undefined)
+ * @return PARSEC_SUCCESS if successful, a PARSEC error otherwise (in which case @p addr is undefined)
  */
 typedef int (*parsec_device_memory_allocate_fn_t)(struct parsec_device_gpu_module_s *gpu, size_t bytes, void **addr);
 
@@ -200,7 +213,7 @@ typedef int (*parsec_device_memory_allocate_fn_t)(struct parsec_device_gpu_modul
  * 
  * @details typically maps to cudaFree or equivalent. 
  * 
- * @return PARSEC_SUCCESS if succesfull, a PARSEC error otherwise
+ * @return PARSEC_SUCCESS if successful, a PARSEC error otherwise
  */
 typedef int (*parsec_device_memory_free_fn_t)(struct parsec_device_gpu_module_s *gpu, void *addr);
 
@@ -319,6 +332,29 @@ int parsec_device_sort_pending_list(parsec_device_module_t *gpu_device);
 parsec_gpu_task_t* parsec_gpu_create_w2r_task(parsec_device_gpu_module_t *gpu_device, parsec_execution_stream_t *es,
                                                size_t required_size, size_t *selected_size);
 int parsec_gpu_complete_w2r_task(parsec_device_gpu_module_t *gpu_device, parsec_gpu_task_t *w2r_task, parsec_execution_stream_t *es);
+
+/**
+ * Iterate over gpu_stream->fifo_pending and append accepted tasks to
+ * batch_head. The callback receives each pending candidate, the task passed to
+ * the submit function, and user data. The callback should return 0 to append
+ * the candidate to batch_head's ring, a positive value to leave it pending, or
+ * a negative error code to stop the iteration.
+ * The callback must not modify gpu_stream->fifo_pending directly.
+ * If batching is disabled, unsupported by the head task's selected device, or
+ * not enabled on batch_head's selected incarnation, no iteration is performed
+ * and batch_head remains a singleton. Pending tasks whose selected incarnation
+ * does not support batching on that same selected device are skipped without
+ * calling the callback.
+ *
+ * Returns the number of additional tasks appended to batch_head's ring on
+ * success, or the negative callback error code. If an error is returned, tasks
+ * already accepted remain attached to batch_head and the remaining candidates
+ * stay in fifo_pending.
+ */
+int parsec_gpu_task_collect_batch(parsec_gpu_exec_stream_t *gpu_stream,
+                                  parsec_gpu_task_t *batch_head,
+                                  parsec_gpu_task_batch_cb_t callback,
+                                  void *callback_data);
 
 void parsec_device_enable_debug(void);
 

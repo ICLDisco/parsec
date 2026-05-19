@@ -2,6 +2,7 @@
  * Copyright (c) 2013-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2024-2026 NVIDIA Corporation.  All rights reserved.
  */
 
 /** @addtogroup parsec_device
@@ -69,6 +70,8 @@ typedef struct parsec_device_base_component_2_0_0 parsec_device_base_component_t
 #define PARSEC_DEV_ANY_TYPE   ((uint8_t)    0x3f)
 #define PARSEC_DEV_ALL        ((uint8_t)    0x3f)
 #define PARSEC_DEV_MAX_NB_TYPE                (7)
+/* The following flags are extensions to the device type */
+#define PARSEC_DEV_CHORE_ALLOW_BATCH  ((uint32_t)0x00000100)
 
 #define PARSEC_DEV_GPU_MASK   (PARSEC_DEV_CUDA|PARSEC_DEV_HIP|PARSEC_DEV_LEVEL_ZERO)
 #define PARSEC_DEV_IS_GPU(t)  (0 != ((t) & PARSEC_DEV_GPU_MASK))
@@ -93,7 +96,7 @@ typedef int   (*parsec_device_memory_release_f)(parsec_device_module_t*);
  *    @param[INOUT] data: a parsec data
  *    @param[IN]    cmd: an advice command
  *
- *  All advices can be ignored by any device. They are used to optimize
+ *  All advice can be ignored by any device. They are used to optimize
  *   usage and performance.
  *
  *  cmd can be 
@@ -191,6 +194,12 @@ extern uint32_t parsec_nb_devices;
 extern int parsec_device_output;
 
 /**
+ * Whether to skip input and output stream events that are not strictly
+ * necessary (enabled by default).
+ */
+extern int parsec_device_skip_empty_events;
+
+/**
  * @brief Find the best device to execute the kernel based on the compute
  * capability of the device.
  *
@@ -206,9 +215,15 @@ extern int parsec_device_output;
 PARSEC_DECLSPEC extern int parsec_select_best_device( parsec_task_t* this_task);
 
 /**
+ * Return true if batching is enabled globally and the provided non-empty
+ * mask contains only batching-capable device types.
+ */
+PARSEC_DECLSPEC int parsec_mca_device_type_supports_batch(uint32_t device_type);
+
+/**
  * Initialize the internal structures for managing external devices such as
  * accelerators and GPU. Memory nodes can as well be managed using the same
- * mechnism.
+ * mechanism.
  */
 extern int parsec_mca_device_init(void);
 
@@ -218,7 +233,7 @@ extern int parsec_mca_device_init(void);
 extern int parsec_mca_device_fini(void);
 
 /**
- * Parse the list of potential devices and see which one would succesfully load
+ * Parse the list of potential devices and see which one would successfully load
  * and initialize in the current environment.
  */
 extern int parsec_mca_device_attach(parsec_context_t*);
@@ -293,7 +308,7 @@ PARSEC_DECLSPEC void parsec_devices_free_statistics(uint64_t **pstats);
 
 /**
  * Print the current devices statistics; if start_stats is not NULL, the
- * procedure will substract start_stats before printing.
+ * procedure will subtract start_stats before printing.
  */
 PARSEC_DECLSPEC void parsec_devices_print_statistics(parsec_context_t *parsec_context, uint64_t *start_stats);
 
@@ -325,7 +340,7 @@ PARSEC_DECLSPEC int parsec_devices_release_memory(void);
 /**
  * Provides hints to a device about data
  *
- * Possible advices are PARSEC_DEV_DATA_ADVICE_*
+ * Possible advice values are PARSEC_DEV_DATA_ADVICE_*
  *   PREFETCH: a copy corresponding to the data should be prefetch
  *             on the device
  *   PREFERRED_DEVICE: this device is the preferred device to own

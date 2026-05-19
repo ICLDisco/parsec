@@ -39,7 +39,7 @@ int main(int argc, char *argv[])
         }
         nt = (int)val;
         if( 0 == nt ) {
-            printf("Bad value for nt (it canot be zero) !!!\n");
+            printf("Bad value for nt (it cannot be zero) !!!\n");
             exit(-1);
         }
     }
@@ -61,7 +61,7 @@ int main(int argc, char *argv[])
     rc = parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
-    parsec_taskpool_free((parsec_taskpool_t*)msort);
+    merge_sort_free((parsec_taskpool_t*)msort);
     free_data(dcA);
 
     parsec_fini(&parsec);

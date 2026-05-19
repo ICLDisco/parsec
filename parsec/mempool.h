@@ -62,7 +62,7 @@ struct parsec_thread_mempool_s {
  *  the type of elements that is allocated by this memory pool.
  *
  *  Once the system-wide memory pool has been constructed, each thread
- *  can take its onw mempool->thread_mempools element.
+ *  can take its own mempool->thread_mempools element.
  */
 #define PARSEC_MEMPOOL_CONSTRUCT( mempool, type, field_name, nbthreads )    \
     do {                                                                   \
@@ -77,7 +77,7 @@ struct parsec_thread_mempool_s {
  *
  * @details
  * Create a mempool for nbthreads, where each element of size elt_size
- * are ojects of class obj_class, and the field at byte pool_offset of
+ * are objects of class obj_class, and the field at byte pool_offset of
  * these elements is the backpointer to the mempool object for memory
  * release
  *
@@ -100,7 +100,7 @@ void parsec_mempool_construct( parsec_mempool_t *mempool,
  * @details
  *    Internal function.
  *    allocates an element of size thread_mempool->parent->elt_size,
- *    and set the back pointe to the appropriate thread_mempool,
+ *    and set the back pointer to the appropriate thread_mempool,
  *    when the requested thread_mempool is empty.
  *  This function is called by parsec_thread_mempool_allocate,
  *  and should never be called by another function.

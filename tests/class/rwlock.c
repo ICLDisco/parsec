@@ -155,5 +155,11 @@ int main(int argc, char *argv[])
         }
         printf("%d threads %"PRIu64" "TIMER_UNIT"\n", nbthreads+1, maxtime);
         fflush(stdout);
+        parsec_barrier_destroy(&barrier);
     }
+
+    parsec_hwloc_fini();
+    free(threads);
+
+    return 0;
 }

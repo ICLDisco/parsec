@@ -1,5 +1,16 @@
+/*
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
+ */
+
 #ifndef PARSEC_CONFIG_H_HAS_BEEN_INCLUDED
 #define PARSEC_CONFIG_H_HAS_BEEN_INCLUDED
+
+#cmakedefine PARSEC_NEED_POSIX_C_SOURCE_FOR_RAND_R
+#if defined(PARSEC_NEED_POSIX_C_SOURCE_FOR_RAND_R) && \
+    (!defined(_POSIX_C_SOURCE) || (_POSIX_C_SOURCE < 199506L))
+#undef _POSIX_C_SOURCE
+#define _POSIX_C_SOURCE 199506L
+#endif
 
 /* This file contains the OS dependent capabilities, and should be generic for
  * all compilers on a particular architecture. It is used during the PaRSEC build to
@@ -27,7 +38,9 @@
 /* OS dependent capabilities */
 #cmakedefine PARSEC_HAVE_PTHREAD
 #cmakedefine PARSEC_HAVE_SCHED_SETAFFINITY
+#cmakedefine PARSEC_HAVE_TIMERSUB
 #cmakedefine PARSEC_HAVE_CLOCK_GETTIME
+#cmakedefine PARSEC_HAVE_CLOCK_GETTIME_MONOTONIC
 #cmakedefine PARSEC_HAVE_ASPRINTF
 #cmakedefine PARSEC_HAVE_VASPRINTF
 #cmakedefine PARSEC_HAVE_RAND_R
@@ -36,6 +49,7 @@
 #cmakedefine PARSEC_HAVE_NRAND48
 #cmakedefine PARSEC_HAVE_LRAND48
 #cmakedefine PARSEC_HAVE_GETLINE
+#cmakedefine PARSEC_HAVE_READLINK
 #cmakedefine PARSEC_HAVE_SETENV
 #cmakedefine PARSEC_HAVE_STDARG_H
 #cmakedefine PARSEC_HAVE_UNISTD_H
@@ -93,6 +107,7 @@
 
 /* profiling */
 #cmakedefine PARSEC_PROF_TRACE
+#cmakedefine PARSEC_PROF_TRACE_NVTX
 #cmakedefine PARSEC_PROF_TRACE_PTG_INTERNAL_INIT
 #cmakedefine PARSEC_PROF_RUSAGE_EU
 #cmakedefine PARSEC_PROF_TRACE_SCHEDULING_EVENTS
@@ -129,6 +144,7 @@
 
 #cmakedefine PARSEC_HAVE_DEV_CPU_SUPPORT
 #cmakedefine PARSEC_HAVE_DEV_RECURSIVE_SUPPORT
+#cmakedefine01 PARSEC_HAVE_DEV_CAPABILITY_BATCH
 #cmakedefine PARSEC_HAVE_DEV_CUDA_SUPPORT
 #cmakedefine PARSEC_HAVE_DEV_HIP_SUPPORT
 #cmakedefine PARSEC_HAVE_DEV_LEVEL_ZERO_SUPPORT
@@ -155,4 +171,3 @@
 #include "parsec/parsec_config_bottom.h"
 
 #endif  /* PARSEC_CONFIG_H_HAS_BEEN_INCLUDED */
-

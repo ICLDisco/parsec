@@ -43,7 +43,7 @@
  * - If nothing else was found, use the parameter's default value.
  *
  * Note that there is a second header file (mca_param_internal.h)
- * that contains several internal type delcarations for the parameter
+ * that contains several internal type declarations for the parameter
  * system.  The internal file is only used within the parameter system
  * itself; it should not be required by any other Open MPI entities.
  */
@@ -130,7 +130,7 @@ struct parsec_mca_param_info_t {
 
     /** Is this parameter internal? */
     bool mbpp_internal;
-    /** Is this parameter changable? */
+    /** Is this parameter changeable? */
     bool mbpp_read_only;
     /** Help message associated with this parameter */
     char *mbpp_help_msg;
@@ -156,7 +156,7 @@ PARSEC_DECLSPEC PARSEC_OBJ_CLASS_DECLARATION(parsec_mca_param_info_t);
  *
  * @retval PARSEC_SUCCESS
  *
- * This function initalizes the MCA parameter system.  It is
+ * This function initializes the MCA parameter system.  It is
  * invoked internally (by parsec_mca_open()) and is only documented
  * here for completeness.
  */
@@ -202,7 +202,7 @@ PARSEC_DECLSPEC int parsec_mca_param_recache_files(void);
  * "btl_base" is not a valid type name.  Specifically, registering
  * a parameter with an unrecognized type is not an error, but
  * ompi_info has a hard-coded list of frameworks and levels;
- * parameters that have recongized types, although they can be
+ * parameters that have recognized types, although they can be
  * used by the user, will not be displayed by ompi_info.
  *
  * Note that if you use parsec_mca_param_find() to lookup the index
@@ -251,7 +251,7 @@ PARSEC_DECLSPEC int parsec_mca_param_recache_files(void);
  * "btl_base" is not a valid type name.  Specifically, registering
  * a parameter with an unrecognized type is not an error, but
  * ompi_info has a hard-coded list of frameworks and levels;
- * parameters that have recongized types, although they can be
+ * parameters that have recognized types, although they can be
  * used by the user, will not be displayed by ompi_info.
  *
  * Note that if you use parsec_mca_param_find() to lookup the index
@@ -304,7 +304,7 @@ PARSEC_DECLSPEC int parsec_mca_param_recache_files(void);
  * "btl_base" is not a valid type name.  Specifically, registering
  * a parameter with an unrecognized type is not an error, but
  * ompi_info has a hard-coded list of frameworks and levels;
- * parameters that have recongized types, although they can be
+ * parameters that have recognized types, although they can be
  * used by the user, will not be displayed by ompi_info.
  *
  * Note that if you use parsec_mca_param_find() to lookup the index
@@ -339,7 +339,7 @@ parsec_mca_param_reg_string_name(const char *type,
  * Essentially the same as mca_param_reg_syn(), but using a
  * type name instead of a component.
  *
- * See mca_param_reg_int_name() for guidence on type string
+ * See mca_param_reg_int_name() for guidance on type string
  * values.
  */
 PARSEC_DECLSPEC int
@@ -424,7 +424,7 @@ PARSEC_DECLSPEC int parsec_mca_param_lookup_string(int index, char **value);
  * @param source [out] Enum value indicating source
  * @param source_file [out] If value came from source, name of the
  * file that set it.  The caller should not modify or free this
- * string.  It is permissable to specify source_file==NULL if the
+ * string.  It is permissible to specify source_file==NULL if the
  * caller does not care to know the filename.
  *
  * @retval PARSEC_ERROR If the parameter was not found.
@@ -667,7 +667,7 @@ parsec_mca_param_check_exclusive_string(const char *type_a,
  * @returns PARSEC_SUCCESS If it can find the parameter to reset
  * @returns PARSEC_ERROR Otherwise
  *
- * "Internal" MCA parameters are ones that are not intentended to
+ * "Internal" MCA parameters are ones that are not intended to
  * be seen or modified by users or user applications.  These
  * include values that are set at run time, such as TCP ports, IP
  * addresses, etc.  By setting the "internal" flag, internal MCA

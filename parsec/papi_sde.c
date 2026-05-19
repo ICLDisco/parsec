@@ -57,7 +57,7 @@ hl_counter_type_t hl_counters[PARSEC_PAPI_SDE_NB_HL_COUNTERS] = {
       "the number of tasks that became ready at this time",
       1, 0 },
     { "TASKS_RETIRED",
-      "the numbre of tasks that completed at this time",
+      "the number of tasks that completed at this time",
       1, 0},
     { "SCHEDULER::PENDING_TASKS",
       "the number of pending tasks. A task is said pending if it is "

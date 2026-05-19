@@ -2,7 +2,7 @@
  * Copyright (c) 2011-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
- * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
+ * Copyright (c) 2024-2026 NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/runtime.h"
@@ -452,7 +452,7 @@ static void parsec_map_operator_startup_fn(parsec_context_t *context,
     /**
      * Generate one local task per core. Each task will then take care of creating all
      * the remaining tasks for the same column of the matrix, and upon completion of
-     * all tasks on the column htey will move to the next row. The row index is marshalled
+     * all tasks on the column they will move to the next row. The row index is marshalled
      * using atomic operations to avoid conflicts between generators for different
      * completed tasks.
      */
@@ -520,6 +520,10 @@ __parsec_map_operator_destructor(parsec_map_operator_taskpool_t* tp)
         free(tp->super.taskpool_name);
         tp->super.taskpool_name = NULL;
     }
+    if( NULL != tp->super.task_classes_array ) {
+        free(tp->super.task_classes_array);
+        tp->super.task_classes_array = NULL;
+    }
 }
 
 PARSEC_OBJ_CLASS_INSTANCE(parsec_map_operator_taskpool_t, parsec_taskpool_t,
@@ -553,4 +557,3 @@ parsec_map_operator_New(const parsec_tiled_matrix_t* src,
     (void)parsec_taskpool_reserve_id((parsec_taskpool_t *)tp);
     return (parsec_taskpool_t*)tp;
 }
-

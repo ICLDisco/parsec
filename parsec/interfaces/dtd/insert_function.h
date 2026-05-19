@@ -2,6 +2,7 @@
  * Copyright (c) 2015-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  **/
 /**
  *
@@ -82,27 +83,42 @@ typedef struct {
 typedef struct parsec_dtd_task_class_s  parsec_dtd_task_class_t;
 
 /**
- * @brief Create a new Arena Datatype for DTD
+ * @brief Attach an Arena Datatype for DTD
  * @details Create a new unique Arena Datatype identifier,
- *    @id, and a new Arena Datatype; Associates the new Arena
+ *    @id, and a sets it in the pre-allocated Datatype; Associates the new Arena
  *    Datatype with the context @p ctx and the unique id @p id.
  *    This function is thread-safe per context, but not
  *    thread-safe if called in parallel on the same context.
  *
  * @param ctx the context in which the arena datatype exists.
+ * @param adt the Arena Datatype to attach, the adt must already be constructed
  * @param id Ignored as input. As output: the unique ID assigned
- *    to this new Arena Datatype.
- * @return the new Arena Datatype, or NULL if there was an error
- *    (e.g. no more memory or too many arena datatypes created
- *    within this context.) id is untouched if NULL is returned.
+ *    to this Arena Datatype.
+ * @return PARSEC_SUCCESS, or PARSEC_ERR_OUT_OF_RESOURCE if the adt was
+ * not attached (e.g. no more memory or too many arena datatypes created
+ *    within this context.) id and adt are untouched if an error is returned.
  */
-parsec_arena_datatype_t *parsec_dtd_create_arena_datatype(parsec_context_t *ctx, int *id);
+int parsec_dtd_attach_arena_datatype(parsec_context_t *ctx, parsec_arena_datatype_t *adt, int *id);
+
+/**
+ * @brief detach the Arena Datatype from its association to the
+ *    unique identifier
+ * @details This function is only valid if @p id is the unique
+ *    identifier associated to an Arena Datatype in @p ctx. This
+ *    function detaches the Arena Datatype from its association with the
+ *    identifier. The Arena Datatype is not freed.
+ * @param ctx the context in which the Arena Datatype exists
+ * @param id the unique identifier of the Arena Datatype to release
+ * @return The detached Arena Datatype in case of success, or NULL if
+ * there was an error.
+ */
+parsec_arena_datatype_t *parsec_dtd_detach_arena_datatype(parsec_context_t *ctx, int id);
 
 /**
  * @brief returns the Arena Datatype associated with this identifier
  *    in this context
  * @details This function is thread-safe as long as the Arena Datatype
- *    associated with this @p id in this @p ctx is not removed in parallel.
+ *    associated with this @p id in this @p ctx is not detached in parallel.
  * @param ctx the context in which the Arena Datatype exists
  * @param id the unique identifier of the Arena Datatype
  * @return the existing Arena Datatype, or NULL if there was an
@@ -111,18 +127,20 @@ parsec_arena_datatype_t *parsec_dtd_create_arena_datatype(parsec_context_t *ctx,
 parsec_arena_datatype_t *parsec_dtd_get_arena_datatype(parsec_context_t *ctx, int id);
 
 /**
- * @brief release the Arena Datatype and its association to the
- *    unique identifier
- * @details This function is only valid if @p id is the unique
- *    identifier associated to an Arena Datatype in @p ctx. This
- *    function releases the Arena Datatype and its association with the
- *    identifier.
+ * @brief detach and free the Arena Datatype associated with this identified,
+ * and the free the type assigned to the Arena Datatype
+ * @details This is a convenience function that detach and free the Arena
+ *   Datatype, and free its internal members (i.e., the arena, the opaque_dtt).
+ *   In some circumstances (e.g., persistent datatypes) calling this function
+ *   is not appropriate as it also free the datatype. In this case users should
+ *   call parsec_dtd_detach_arena_datatype and parsec_arena_datatype_destruct
+ *   themselves instead.
  * @param ctx the context in which the Arena Datatype exists
- * @param id the unique identifier of the Arena Datatype to release
- * @return PARSEC_SUCCESS in case of success, or an error code
- *    otherwise.
+ * @param id the unique identifier of the Arena Datatype
+ * @return PARSEC_SUCCESS or PARSEC_ERR_VALUE_OUT_OF_BOUNDS if the id is
+ *   invalid.
  */
-int parsec_dtd_destroy_arena_datatype(parsec_context_t *ctx, int id);
+int parsec_dtd_free_arena_datatype(parsec_context_t *ctx, int id);
 
 /**
  * Users can use this two variables to control the sliding window of task insertion.
@@ -170,26 +188,26 @@ typedef struct parsec_dtd_taskpool_s     parsec_dtd_taskpool_t;
 typedef parsec_hook_return_t (parsec_dtd_funcptr_t)(parsec_execution_stream_t *, parsec_task_t *);
 
 /**
- * This function is used to retrieve the parameters passed during insertion of a task.
- * This function takes variadic parameters.
- * 1. parsec_task_t * -> The parameter list is attached with this structure.
- *                                     The User needs to pass a FLAG to specify what sort of value needs to be
- *                                     unpacked. Three types of FLAGS are supported:
- *                                     - UNPACK_VALUE
- *                                     - UNPACK_SCRATCH
- *                                     - UNPACK_DATA
- *                                     Following each FLAG the pointer to the memory location where the parameter
- *                                     will be copied needs to be given.
+ * This function is used to retrieve the parameters passed during insertion of a
+ * task. The unpacked outputs must be passed in the same order as the insertion
+ * or task-class parameters.
  *
  * There is no way to unpack individual parameters. e.g. If user wants to unpack the 3rd parameter only, they have to
  * unpack at least the first three to maintain the order in which whey were inserted. However user can unpack
- * a partial amount of parameters. To do that correctly user needs to pass 0 as the last parameter.
+ * a partial amount of parameters. Source code including this header can simply
+ * stop passing output arguments after the last parameter it needs; the macro
+ * below appends the required terminator. Code that calls the exported function
+ * symbol directly must pass (void *)0 as the last output argument when unpacking a
+ * prefix.
  *
  *  ******* THE ORDER IN WHICH THE PARAMETERS WERE PASSED DURING INSERTION NEEDS TO BE *******
  *                              STRICTLY FOLLOWED WHILE UNPACKING
  */
 void
 parsec_dtd_unpack_args( parsec_task_t *this_task, ... );
+
+#define parsec_dtd_unpack_args(this_task, ...) \
+    (parsec_dtd_unpack_args)((this_task), ##__VA_ARGS__, (void *)0)
 
 /**
  * The following macro is very specific to two dimensional matrix.
@@ -221,6 +239,30 @@ parsec_dtd_tile_of( parsec_data_collection_t *dc, parsec_data_key_t key );
 parsec_dtd_tile_t * parsec_dtd_tile_new(parsec_taskpool_t *dtd_tp, int rank);
 
 /**
+ * Thread-safety contract for DTD insertion.
+ *
+ * A DTD taskpool may be fed by multiple producer threads once all task classes
+ * used by those producers have been created, fully configured with chores, and
+ * registered in the taskpool. Task-class creation, direct-insert first use that
+ * auto-creates a task class, chore addition, and task-class release/destruction
+ * must be serialized by the application.
+ *
+ * Concurrent producers must also follow the DTD tile contract. Tile handle
+ * creation and lookup for a data collection must be externally serialized while
+ * the data collection's DTD tile table can be mutated. This includes
+ * `parsec_dtd_tile_of()`, `PARSEC_DTD_TILE_OF()`, and `PARSEC_DTD_TILE_OF_KEY()`
+ * calls for handles that might not already exist.
+ *
+ * Once the relevant tile handles have been created, producer threads may insert
+ * tasks concurrently only if they use disjoint DTD tile sets, or if the
+ * application otherwise serializes every operation that can touch the same DTD
+ * tile. Flushes are tile operations too: they must be serialized with task
+ * insertion for the same tile. A safe parallel pattern is to create all task
+ * classes and tile handles in a serialized setup phase, then let producer
+ * threads insert tasks over pre-created disjoint tile sets.
+ */
+
+/**
  * Using this function users can insert task in PaRSEC
  * 1. The parsec taskpool (parsec_dtd_taskpool_t *)
  * 2. The function pointer which will be executed as the "real computation task" being inserted.
@@ -229,8 +271,8 @@ parsec_dtd_tile_t * parsec_dtd_tile_new(parsec_taskpool_t *dtd_tp, int rank);
  * 4. The name of the task.
  * 5. Variadic type parameter. User can pass any number of parameters. The runtime will pack the
  *    parameters and attach them to the task they belong to. User can later use unpacking
- *    fuction provided to get access to the parameters.
- *    Each paramater to pass to a task should be expressed in the form of a triplet. e.g
+ *    function provided to get access to the parameters.
+ *    Each parameter to pass to a task should be expressed in the form of a triplet. e.g
  *
  *    1.      sizeof(int),             &uplo,                           VALUE,
  *
@@ -265,7 +307,7 @@ parsec_dtd_tile_t * parsec_dtd_tile_new(parsec_taskpool_t *dtd_tp, int rank);
  *                                                                  with this flag. REGION_INFO states the index
  *                                                                  of parsec_dtd_arenas array this data belongs
  *                                                                  to. AFFINITY flag is a must in distributed
- *                                                                  environemnt. This is the only way for the runtime
+ *                                                                  environment. This is the only way for the runtime
  *                                                                  to place a task in the process grid. It must be
  *                                                                  provided with only one data indicating to place
  *                                                                  the task in the rank the data resides. If
@@ -275,6 +317,17 @@ parsec_dtd_tile_t * parsec_dtd_tile_new(parsec_taskpool_t *dtd_tp, int rank);
  *
  *      *******  THIS PARAMETER MUST BE PROVIDED *******
  *      4. "0" indicates the end of parameter list. This should always be the last parameter.
+ *
+ * Direct insertion is intended for low-volume control tasks, examples, and
+ * prototyping. Performance-sensitive DTD applications should pre-create
+ * explicit task classes, register their chores, and insert tasks with
+ * `parsec_dtd_insert_task_with_task_class()` so the hot path does not repeat
+ * the direct-insert class discovery and vararg metadata setup.
+ *
+ * For direct insertion, `device_type` must name exactly one concrete CPU/GPU
+ * device type supported by the taskpool. Device masks are only accepted by
+ * `parsec_dtd_insert_task_with_task_class()`, where they select among concrete
+ * chores already registered on the task class.
  *
  */
 void
@@ -293,7 +346,9 @@ parsec_dtd_get_dev_ptr(parsec_task_t *this_task, int i);
 /**
  * This function behaves exactly like parsec_dtd_insert_task()
  * except it does not insert the task in PaRSEC and just returns it.
- * Users will need to use parsec_insert_dtd_task() to insert the task
+ * Users will need to use parsec_insert_dtd_task() to insert the task.
+ * `device_type` follows the same direct-insertion contract as
+ * parsec_dtd_insert_task(): exactly one concrete CPU/GPU device type.
  */
 parsec_task_t *
 parsec_dtd_create_task(parsec_taskpool_t  *tp,
@@ -386,11 +441,24 @@ parsec_dtd_create_task_classv(const char *name,
 void
 parsec_dtd_task_class_release(parsec_taskpool_t *tp, parsec_task_class_t *tc );
 
+/**
+ * Add one concrete chore to a DTD task class.
+ *
+ * `device_type` must name exactly one CPU/GPU device type, and that device type
+ * must be available in the taskpool. Device masks are task-insertion filters,
+ * not chore definitions.
+ */
 int parsec_dtd_task_class_add_chore(parsec_taskpool_t *tp,
                                     parsec_task_class_t *tc,
                                     int device_type,
                                     void *function);
 
+/**
+ * Insert a task using an explicit task class.
+ *
+ * Here `device_type` may be a mask: it selects among the concrete chores already
+ * registered on `tc` with parsec_dtd_task_class_add_chore().
+ */
 void
 parsec_dtd_insert_task_with_task_class(parsec_taskpool_t *tp,
                                        parsec_task_class_t *tc, int priority,

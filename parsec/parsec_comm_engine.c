@@ -5,10 +5,13 @@
  */
 
 #include <assert.h>
+#include "parsec/parsec_config.h"
 #include "parsec/parsec_mpi_funnelled.h"
 #include "parsec/remote_dep.h"
 
 parsec_comm_engine_t parsec_ce;
+
+#if defined(PARSEC_HAVE_MPI)
 
 /* This function will be called by the runtime */
 parsec_comm_engine_t *
@@ -32,3 +35,24 @@ parsec_comm_engine_fini(parsec_comm_engine_t *comm_engine)
     parsec_ce.fini(&parsec_ce);
     return PARSEC_SUCCESS;
 }
+
+#else
+
+parsec_comm_engine_t *
+parsec_comm_engine_init(parsec_context_t *parsec_context)
+{
+    parsec_ce.parsec_context = parsec_context;
+    parsec_ce.capabilites.sided = 0;
+    parsec_ce.capabilites.supports_noncontiguous_datatype = 0;
+    parsec_ce.capabilites.multithreaded = 0;
+    return &parsec_ce;
+}
+
+int
+parsec_comm_engine_fini(parsec_comm_engine_t *comm_engine)
+{
+    (void)comm_engine;
+    return PARSEC_SUCCESS;
+}
+
+#endif  /* defined(PARSEC_HAVE_MPI) */

@@ -11,5 +11,6 @@
 #include "parsec/data_dist/matrix/matrix.h"
 
 parsec_taskpool_t *merge_sort_new(parsec_tiled_matrix_t *A, int size, int nt);
+void merge_sort_free(parsec_taskpool_t *tp);
 
 #endif

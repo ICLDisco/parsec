@@ -65,12 +65,24 @@ int main(int argc, char *argv[])
         switch(c) {
         case 'P':
             P = atoi(optarg);
+            if( P <= 0 ) {
+                fprintf(stderr, "The process grid P must be >= 0 (provided %d)\n", P);
+                exit(-1);
+            }
             break;
         case 'm':
             MB = atoi(optarg);
+            if( MB <= 0 ) {
+                fprintf(stderr, "MB must be >= 0 (provided %d)\n", MB);
+                exit(-1);
+            }
             break;
         case 'n':
             NB = atoi(optarg);
+            if( NB <= 0 ) {
+                fprintf(stderr, "NB must be >= 0 (provided %d)\n", NB);
+                exit(-1);
+            }
             break;
         case 'M':
             M = atoi(optarg);
@@ -152,6 +164,9 @@ int main(int argc, char *argv[])
     for(int i = 0; i < UDF_TT_MAX; i++) {
         printf("Rank %d - user function defined for '%s': iterator is called %d times (%g / tile)\n", rank, UDF_TASKTYPE_NAME[i], calls[i], (double)calls[i]/(double)A.super.nb_local_tiles);
     }
+
+    parsec_data_free(A.mat);
+    parsec_tiled_matrix_destroy((parsec_tiled_matrix_t*)&A);
 
     parsec_fini(&parsec);
 

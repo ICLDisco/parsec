@@ -2,7 +2,7 @@
  * Copyright (c) 2012-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
- * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
+ * Copyright (c) 2024-2026 NVIDIA Corporation.  All rights reserved.
  */
 
 #if !defined(PARSEC_CONFIG_H_HAS_BEEN_INCLUDED)
@@ -40,15 +40,11 @@ BEGIN_C_DECLS
  * Arena-datatype management.
  */
 struct parsec_arena_datatype_s {
+    parsec_object_t           super;
     parsec_arena_t           *arena;       /**< allocator for this datatype */
     parsec_datatype_t         opaque_dtt;  /**< datatype */
     parsec_hash_table_item_t  ht_item;     /**< sometimes, arena datatype are stored in hash tables */
 };
-
-int parsec_arena_datatype_construct(parsec_arena_datatype_t *adt,
-                                   size_t elem_size,
-                                   size_t alignment,
-                                   parsec_datatype_t opaque_dtt);
 
 /* NULL terminated local hostname of the current PaRSEC process */
 PARSEC_DECLSPEC extern const char* parsec_hostname;
@@ -141,7 +137,7 @@ struct parsec_taskpool_s {
                                                     *   so on). Also, its value is increase by one for all the tasks
                                                     *   in the taskpool. This extra reference will be removed upon
                                                     *   completion of all tasks.
-                                                    *   WARNING: thiis field may only be modified through the
+                                                    *   WARNING: this field may only be modified through the
                                                     *   termination detection module API (tdm below). */
     parsec_context_t*           context;   /**< The PaRSEC context on which this taskpool was enqueued */
     parsec_termdet_monitor_t    tdm;       /**< Termination detection structures and pointer to module */
@@ -187,7 +183,7 @@ PARSEC_DECLSPEC PARSEC_OBJ_CLASS_DECLARATION(parsec_taskpool_t);
 #define PARSEC_DEPENDENCIES_FLAG_ALLOCATED  0x04
 
 /* When providing user-defined functions to count the number of tasks,
- * the user can return PARSEC_UNDETERMINED_NB_TASKS to say explicitely
+ * the user can return PARSEC_UNDETERMINED_NB_TASKS to say explicitly
  * that they will call the object termination function themselves.
  */
 #define PARSEC_UNDETERMINED_NB_TASKS (0x0fffffff)

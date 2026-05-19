@@ -3,7 +3,7 @@ extern "C" %{
  * Copyright (c) 2019-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
- * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
+ * Copyright (c) 2024-2026 NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/parsec_config.h"
@@ -40,12 +40,14 @@ stage_stride_in(parsec_gpu_task_t *gtask,
     int i;
     for(i = 0; i < task->task_class->nb_flows; i++){
         if(flow_mask & (1U << i)){
-            copy_in = task->data[i].data_in;
+            copy_in = gtask->sources[i];  /* task->data[i].data_in can be the CPU version,
+                                             but  parsec_device_data_stage_in already selected the best
+                                             source for this input, so use it instead. */
             copy_out = task->data[i].data_out;
             dc = (parsec_tiled_matrix_t*)gtask->flow_dc[i];
             elem_sz = parsec_datadist_getsizeoftype(dc->mtype);
             in_elem_dev = (parsec_device_gpu_module_t*)parsec_mca_device_get( copy_in->device_index);
-            if(in_elem_dev->super.type != PARSEC_DEV_CUDA ){
+            if( !(in_elem_dev->super.type & PARSEC_DEV_CUDA) ) {
                 /* copy width bytes heigth times, skipping pitch - width bytes every time */
                 size_t dpitch = dc->mb * elem_sz;
                 size_t spitch = dc->llm * elem_sz;
@@ -59,10 +61,10 @@ stage_stride_in(parsec_gpu_task_t *gtask,
                                                        cudaMemcpyHostToDevice,
                                                        cuda_stream->cuda_stream );
                 PARSEC_CUDA_CHECK_ERROR( "cudaMemcpyAsync", ret, { return PARSEC_ERROR; } );
-            }else{
+            } else {
                 ret = (cudaError_t)cudaMemcpyAsync( copy_out->device_private,
                                                     copy_in->device_private,
-                                                    copy_in->original->nb_elts,
+                                                    gtask->flow_nb_elts[i],
                                                     cudaMemcpyDeviceToDevice,
                                                     cuda_stream->cuda_stream );
                 PARSEC_CUDA_CHECK_ERROR( "cudaMemcpyAsync", ret, { return PARSEC_ERROR; } );
@@ -91,7 +93,7 @@ stage_stride_out(parsec_gpu_task_t *gtask,
             copy_out = copy_in->original->device_copies[0];
             dc = (parsec_tiled_matrix_t*)gtask->flow_dc[i];
             elem_sz = parsec_datadist_getsizeoftype(dc->mtype);
-            /* copy width bytes heigth times, skipping pitch - width bytes every time */
+            /* copy width bytes height times, skipping pitch - width bytes every time */
             size_t dpitch = dc->llm * elem_sz;
             size_t spitch = dc->mb * elem_sz;
             size_t width  = dc->mb * elem_sz;
@@ -117,6 +119,23 @@ typedef void (*cublas_dgemm_t) ( char TRANSA, char TRANSB, int m, int n, int k,
 /* Pre-declare function used as a property of some parameterized task */
 static int64_t gemm_time_estimate(const parsec_task_t *task, parsec_device_module_t *dev);
 
+static int
+stage_custom_batch_match(parsec_gpu_task_t *candidate,
+                         parsec_gpu_task_t *batch_head,
+                         void *callback_data)
+{
+    int *how_many = (int *)callback_data;
+
+    if( (*how_many < 5) &&
+        (batch_head->ec->task_class == candidate->ec->task_class) ) {
+        (*how_many)++;
+        PARSEC_DEBUG_VERBOSE(10, parsec_debug_output,
+                             "Add task %p to the %p batch\n",
+                             candidate, batch_head);
+        return 0;
+    }
+    return 1;
+}
 %}
 
 %option no_taskpool_instance = true  /* can be anything */
@@ -146,8 +165,21 @@ RW A <- descA(m, k)
      -> A TASK_CHECK(m,k)
 
 BODY [type=CUDA
+      batch = true
       dyld=cublasDgemm dyldtype=cublas_dgemm_t]
 {
+    int how_many = 1;
+    int nb_batched = parsec_gpu_task_collect_batch(gpu_stream, gpu_task,
+                                                   stage_custom_batch_match,
+                                                   &how_many);
+    if( nb_batched < 0 ) {
+        return nb_batched;
+    }
+    if( nb_batched > 0 ) {
+        PARSEC_DEBUG_VERBOSE(10, parsec_debug_output,
+                             "submit multiple tasks into one %p on stream %s{%p}\n",
+                             gpu_task, gpu_stream->name, (void*)gpu_stream);
+    }
     double lalpha = 1.0;
     double lbeta  = 2.0;
     int tempmm = descA->mb;
@@ -155,14 +187,22 @@ BODY [type=CUDA
 
     cublasStatus_t status;
     cublasSetKernelStream( parsec_body.stream );
-    parsec_body.dyld_fn(  'N', 'N',
-                         tempmm, tempmm, tempmm,
-                         lalpha, (double*)A, ldam,
-                                 (double*)A, ldam,
-                         lbeta,  (double*)A, ldam );
-    status = cublasGetError();
-    PARSEC_CUDA_CHECK_ERROR( "cublasDgemm", status,
-                            {return PARSEC_HOOK_RETURN_ERROR;} );
+
+    parsec_gpu_task_t* current_gpu_task = gpu_task;
+    do {
+        __parsec_stage_custom_TASK_GPU_task_t *task = (__parsec_stage_custom_TASK_GPU_task_t*)current_gpu_task->ec;
+        _f_A = task->data._f_A.data_out;
+        A = PARSEC_DATA_COPY_GET_PTR(_f_A);
+        parsec_body.dyld_fn(  'N', 'N',
+                            tempmm, tempmm, tempmm,
+                            lalpha, (double*)A, ldam,
+                                    (double*)A, ldam,
+                            lbeta,  (double*)A, ldam );
+        status = cublasGetError();
+        PARSEC_CUDA_CHECK_ERROR( "cublasDgemm", status,
+                                {return PARSEC_HOOK_RETURN_ERROR;} );
+        current_gpu_task = (parsec_gpu_task_t*)current_gpu_task->list_item.list_next;
+    } while( current_gpu_task != gpu_task );
 }
 END
 

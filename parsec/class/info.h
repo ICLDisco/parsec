@@ -14,7 +14,7 @@
 /**
  * @remarks
  *
- *   info.h / info.c implement optional informations managed as
+ *   info.h / info.c implement optional information managed as
  *    a key-value store, where keys are strings, and values are
  *    arbitrary pointers, for the parsec_class_t / parsec_object_t.
  *   Current implementation targets efficiency when the number of
@@ -201,7 +201,7 @@ void parsec_info_object_array_init(parsec_info_object_array_t *oa, parsec_info_t
  *   @param[IN]    info: the value of the info
  *   @return the old value of the info, or (void*)-1 if a parameter is invalid.
  *
- * @remark obj should belong to a descendent of the class that registered the
+ * @remark obj should belong to a descendant of the class that registered the
  *    info with this iid
  */
 void *parsec_info_set(parsec_info_object_array_t *oa, parsec_info_id_t iid, void *info);
@@ -217,7 +217,7 @@ void *parsec_info_set(parsec_info_object_array_t *oa, parsec_info_id_t iid, void
  *   @return the value of the info object after the operation completed, 
  *           or (void*)-1 if a parameter is invalid.
  *
- * @remark obj should belong to a descendent of the class that registered the
+ * @remark obj should belong to a descendant of the class that registered the
  *    info with this iid
  */
 void *parsec_info_test_and_set(parsec_info_object_array_t *oa, parsec_info_id_t iid, void *info, void *old);
@@ -230,7 +230,7 @@ void *parsec_info_test_and_set(parsec_info_object_array_t *oa, parsec_info_id_t 
  *   @param[IN] iid: the index of the info to get
  *   @return the value of the info, or PARSEC_INFO_ID_UNDEFINED if a parameter is invalid.
  *
- * @remark obj should belong to a descendent of the class that registered the
+ * @remark obj should belong to a descendant of the class that registered the
  *    info with this iid
  */
 void *parsec_info_get(parsec_info_object_array_t *oa, parsec_info_id_t info_id);

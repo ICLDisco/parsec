@@ -416,7 +416,7 @@ double* parsec_redistribute_bound(parsec_context_t *parsec,
             total_local_rank[0] = total_local_rank[i];
     }
 
-    /* Check calculate corretness */
+    /* Check calculate correctness */
     assert( (long long int)size_row * size_col == total_remote / 2 + total_local );   
 
     results[0] = 8.0 * total_remote / 2 * sizeof(DTYPE);
@@ -426,6 +426,18 @@ double* parsec_redistribute_bound(parsec_context_t *parsec,
     results[4] = (double)total_nb_message_remote;
     results[5] = (double)total_nb_message_local;
     results[6] = 8.0 * total_remote_rank[0] * sizeof(DTYPE);
+
+    free(sum_remote);
+    free(sum_local);
+    free(sum_remote_rank_send);
+    free(sum_remote_rank_receive);
+    free(sum_local_rank);
+    free(sum_nb_message_remote);
+    free(sum_nb_message_local);
+    free(total_remote_rank_send);
+    free(total_remote_rank_receive);
+    free(total_local_rank);
+    free(total_remote_rank);
 
 #if defined(PARSEC_DEBUG_NOISIER)
     if( 0 == (unsigned int)dcY->super.myrank ) { 

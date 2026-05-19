@@ -318,7 +318,7 @@ parsec_installdirs_open(void)
     SET_FIELD(PARSEC_INSTALL_PREFIX, pkgincludedir, "/include/parsec");
 #endif  /* defined(__WINDOS__) */
 
-    /* Now get anyting specified by the environment */
+    /* Now get anything specified by the environment */
     parsec_installdirs_from_env();
 
     /* expand out all the fields */

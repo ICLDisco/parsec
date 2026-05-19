@@ -2,7 +2,9 @@
  * Copyright (c) 2019-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2024-2026 NVIDIA Corporation.  All rights reserved.
  */
+
 #include "parsec.h"
 #include "parsec/execution_stream.h"
 #include "parsec/data_distribution.h"
@@ -15,7 +17,7 @@ static void __parsec_stress_destructor( parsec_taskpool_t *tp )
 {
     parsec_stress_taskpool_t *stress_taskpool = (parsec_stress_taskpool_t *)tp;
     parsec_matrix_block_cyclic_t *dcA;
-    parsec_del2arena( & stress_taskpool->arenas_datatypes[PARSEC_stress_DEFAULT_ADT_IDX] );
+    parsec_matrix_arena_datatype_destruct_free_type( & stress_taskpool->arenas_datatypes[PARSEC_stress_DEFAULT_ADT_IDX] );
     parsec_data_free(stress_taskpool->_g_descA->mat);
     dcA = stress_taskpool->_g_descA;
     parsec_tiled_matrix_destroy( (parsec_tiled_matrix_t*)stress_taskpool->_g_descA );
@@ -46,7 +48,7 @@ parsec_taskpool_t* testing_stress_New( parsec_context_t *ctx, int depth, int mb 
         nb = 0;
         for(dev = 0; dev < (int)parsec_nb_devices; dev++) {
             parsec_device_module_t *device = parsec_mca_device_get(dev);
-            if( PARSEC_DEV_CUDA == device->type ) {
+            if( PARSEC_DEV_CUDA & device->type ) {
                 dev_index[nb++] = device->device_index;
             }
         }
@@ -73,10 +75,7 @@ parsec_taskpool_t* testing_stress_New( parsec_context_t *ctx, int depth, int mb 
 
     testing_handle = parsec_stress_new(dcA, ctx->nb_nodes, nb, dev_index);
 
-    parsec_add2arena( &testing_handle->arenas_datatypes[PARSEC_stress_DEFAULT_ADT_IDX],
-                             parsec_datatype_double_complex_t,
-                             PARSEC_MATRIX_FULL, 1, mb, mb, mb,
-                             PARSEC_ARENA_ALIGNMENT_SSE, -1 );
+    parsec_matrix_adt_define_square( &testing_handle->arenas_datatypes[PARSEC_stress_DEFAULT_ADT_IDX],
+                             parsec_datatype_double_complex_t, mb );
     return &testing_handle->super;
 }
-

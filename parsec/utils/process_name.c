@@ -2,9 +2,12 @@
  * Copyright (c) 2014-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
 #include "parsec/parsec_config.h"
+#if defined(PARSEC_HAVE_UNISTD_H)
 #include <unistd.h>
+#endif
 #include <string.h>
 #include <limits.h>
 #include <stdio.h>
@@ -25,6 +28,7 @@ char *parsec_process_name(void) {
         return strdup(name);
     }
 #else
+#if defined(PARSEC_HAVE_READLINK)
     size_t len = PATH_MAX;
     ret = readlink("/proc/self/exe", name, len);
     if(-1 == ret) {
@@ -32,9 +36,12 @@ char *parsec_process_name(void) {
         return strdup(name);
     }
     name[ret] = '\0';
+#else
+    ret = snprintf(name, PATH_MAX, "parsec-app");
+    (void)ret;
+#endif
 #endif
     sname = strrchr(name, PARSEC_PATH_SEP[0]);
     if(NULL == sname) return strdup(name);
     else return strdup(sname+1);
 }
-

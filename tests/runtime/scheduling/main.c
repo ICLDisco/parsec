@@ -92,7 +92,7 @@ int main(int argc, char *argv[])
     dcA = create_and_distribute_data(rank, world, MAXNT, 1);
     parsec_data_collection_set_key(dcA, "A");
 
-    printf("#Embarrasingly Parallel Empty Tasks\n");
+    printf("#Embarrassingly Parallel Empty Tasks\n");
     printf("#Level\tNumber of tasks (per level)\tAvg\tStdev\n");
     for( level = 1; level <= MAXLEVEL; level *= 2) {
         for( nt = 1; nt <= MAXNT; nt *= 2 ) {
@@ -118,7 +118,7 @@ int main(int argc, char *argv[])
                 end = take_time();
                 PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
-                parsec_taskpool_free(ep);
+                ep_free(ep);
 
                 val = (double)diff_time(start, end);
                 sum = sum + val;

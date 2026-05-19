@@ -56,6 +56,9 @@
 #ifdef PARSEC_PROF_TRACE
 #include "parsec/profiling.h"
 #endif
+#if defined(PARSEC_PROF_TRACE_NVTX)
+#include "parsec/profiling_nvtx.h"
+#endif
 
 #include "parsec/parsec_hwloc.h"
 #ifdef PARSEC_HAVE_HWLOC
@@ -175,7 +178,7 @@ static void __parsec_taskpool_constructor(parsec_taskpool_t* tp)
     tp->nb_task_classes = 0;
     tp->priority = 0;
     tp->nb_pending_actions = 0;
-    tp->context = NULL;  /* not atached to any context */
+    tp->context = NULL;  /* not attached to any context */
     tp->startup_hook = NULL;
     tp->task_classes_array = NULL;
     tp->on_enqueue = NULL;
@@ -209,8 +212,8 @@ PARSEC_OBJ_CLASS_INSTANCE(parsec_taskpool_t, parsec_list_item_t,
                           __parsec_taskpool_constructor, __parsec_taskpool_destructor);
 
 static void __parsec_task_constructor(parsec_task_t* task) {
-    /* no allocation here, only initalizations: the task_t will be constructed
-     * multiple times when push-poped from the mempool */
+    /* no allocation here, only initializations: the task_t will be constructed
+     * multiple times when push-popped from the mempool */
     task->selected_device = NULL;
     task->selected_chore = -1;
     task->load = 0;
@@ -389,9 +392,13 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     char *parsec_enable_profiling = NULL;  /* profiling file prefix when PARSEC_PROF_TRACE is on */
     int slow_option_used = 0;
 #if defined(PARSEC_PROF_TRACE)
+    int profiling_file_requested = 0;
     int profiling_id = 0;
-#endif
     int profiling_enabled = 0;
+#if defined(PARSEC_PROF_TRACE_NVTX)
+    int profiling_nvtx_enabled = 0;
+#endif
+#endif
 
     gethostname(parsec_hostname_array, sizeof(parsec_hostname_array));
     parsec_app_name = parsec_process_name();
@@ -675,7 +682,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
 
     parsec_mca_param_reg_string_name("profile", "filename",
 #if defined(PARSEC_PROF_TRACE)
-                                    "Path to the profiling file (<none> to disable, <app> for app name, <*> otherwise)",
+                                    "Path to the profiling file/archive for file-based profiling substrates (<none> to disable, <app> for app name, <*> otherwise). NVTX does not require this.",
                                     false, false,
 #else
                                     "Path to the profiling file (unused due to profiling being turned off during building)",
@@ -683,26 +690,45 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
 #endif  /* defined(PARSEC_PROF_TRACE) */
                                     "<none>", &parsec_enable_profiling);
 #if defined(PARSEC_PROF_TRACE)
-    if( (0 != strncasecmp(parsec_enable_profiling, "<none>", 6)) && (0 == parsec_profiling_init( profiling_id )) ) {
+    profiling_file_requested = (0 != strncasecmp(parsec_enable_profiling, "<none>", 6));
+#if defined(PARSEC_PROF_TRACE_NVTX)
+    profiling_nvtx_enabled = parsec_profiling_nvtx_register_mca();
+#endif
+    if( (profiling_file_requested
+#if defined(PARSEC_PROF_TRACE_NVTX)
+         || profiling_nvtx_enabled
+#endif
+        ) && (0 == parsec_profiling_init( profiling_id )) ) {
         int i, l;
         char *cmdline_info = NULL;
 
-        /* Use either the app name (argv[0]) or the user provided filename */
-        if( 0 == strncmp(parsec_enable_profiling, "<app>", 5) ) {
-            /* Specialize the profiling filename to avoid collision with other instances */
-            ret = asprintf( &cmdline_info, "%s_%d", parsec_app_name, (int)getpid() );
-            if (ret < 0) {
-                cmdline_info = strdup(parsec_app_name);
+        if( profiling_file_requested ) {
+            /* Use either the app name (argv[0]) or the user provided filename */
+            if( 0 == strncmp(parsec_enable_profiling, "<app>", 5) ) {
+                /* Specialize the profiling filename to avoid collision with other instances */
+                ret = asprintf( &cmdline_info, "%s_%d", parsec_app_name, (int)getpid() );
+                if (ret < 0) {
+                    cmdline_info = strdup(parsec_app_name);
+                }
+                ret = parsec_profiling_dbp_start( cmdline_info, parsec_app_name );
+                free(cmdline_info);
+            } else {
+                ret = parsec_profiling_dbp_start( parsec_enable_profiling, parsec_app_name );
             }
-            ret = parsec_profiling_dbp_start( cmdline_info, parsec_app_name );
-            free(cmdline_info);
-        } else {
-            ret = parsec_profiling_dbp_start( parsec_enable_profiling, parsec_app_name );
-        }
-        if( ret != 0 ) {
-            parsec_warning("Profiling framework deactivated because of error %s.", parsec_profiling_strerror());
-        } else {
-            profiling_enabled = 1;
+            if( ret != 0 ) {
+                parsec_warning("Profiling file substrate deactivated because of error %s.", parsec_profiling_strerror());
+#if defined(PARSEC_PROF_TRACE_NVTX)
+                if( !profiling_nvtx_enabled ) {
+                    (void)parsec_profiling_fini();
+                    goto profiling_setup_done;
+                }
+#else
+                (void)parsec_profiling_fini();
+                goto profiling_setup_done;
+#endif
+            } else {
+                profiling_enabled = 1;
+            }
         }
 
         l = strlen(parsec_app_name);  /* use the known application name */
@@ -762,6 +788,8 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
         parsec_profiling_add_dictionary_keyword( "Device delegate", "fill:#EAE7C6",
                                                 0, NULL,
                                                 &device_delegate_begin, &device_delegate_end);
+profiling_setup_done:
+        ;
     }
 #endif  /* PARSEC_PROF_TRACE */
     assert (NULL != parsec_enable_profiling);
@@ -775,6 +803,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     (void)parsec_remote_dep_init(context);
 
     PARSEC_PINS_INIT(context);
+#if defined(PARSEC_PROF_TRACE)
     if(profiling_enabled && (0 == parsec_pins_nb_modules_enabled())) {
         if(parsec_debug_rank == 0)
             parsec_warning("*** PaRSEC Profiling warning: creating profile file as requested,\n"
@@ -782,6 +811,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
                            "*** Activate the MCA PINS Module task_profiler to get the previous behavior\n"
                            "***   ( --mca mca_pins task_profiler )\n");
     }
+#endif  /* defined(PARSEC_PROF_TRACE) */
 
 #if defined(PARSEC_PROF_GRAPHER)
     if(parsec_dot_file) {
@@ -1799,7 +1829,7 @@ parsec_release_dep_fct(parsec_execution_stream_t *es,
      * Check that we don't forward a NULL data to someone else. This
      * can be done only on the src node, since the dst node can
      * check for datatypes without knowing the data yet.
-     * By checking now, we allow for the data to be created any time bfore we
+     * By checking now, we allow for the data to be created any time before we
      * actually try to transfer it.
      */
     if( PARSEC_UNLIKELY((data->data == NULL) &&
@@ -1888,7 +1918,7 @@ parsec_release_dep_fct(parsec_execution_stream_t *es,
     if( (arg->action_mask & PARSEC_ACTION_RELEASE_LOCAL_DEPS) &&
         (es->virtual_process->parsec_context->my_rank == dst_rank) ) {
         /* Copying data in data-repo if there is data .
-         * We are doing this in order for dtd to be able to track control dependences.
+         * We are doing this in order for dtd to be able to track control dependencies.
          * Usage count of the repo is dealt with when setting up reshape promises.
          */
         parsec_release_local_OUT_dependencies(es,
@@ -2141,7 +2171,11 @@ void parsec_taskpool_sync_ids_context( intptr_t comm )
  * id at all ranks. */
 void parsec_taskpool_sync_ids( void )
 {
+#if defined(DISTRIBUTED) && defined(PARSEC_HAVE_MPI)
   parsec_taskpool_sync_ids_context( (intptr_t)MPI_COMM_WORLD );
+#else
+  parsec_taskpool_sync_ids_context( (intptr_t)0 );
+#endif
 }
 
 /* Unregister the taskpool with the engine. This make the taskpool_id available for
@@ -2781,8 +2815,8 @@ int parsec_context_query(parsec_context_t *context, parsec_context_query_cmd_t c
     switch(cmd) {
         case PARSEC_CONTEXT_QUERY_NODES:
             switch (parsec_communication_engine_up) {
-                case 0: return 0;  /* context not ready for distributed runs, and lacking datatype chandling capabilities */
-                case 1: return 1;  /* single node runs, but the context has datatype management capabilties */
+                case 0: return 0;  /* context not ready for distributed runs, and lacking datatype handling capabilities */
+                case 1: return 1;  /* single node runs, but the context has datatype management capabilities */
                 case 2: return PARSEC_ERR_NOT_FOUND; /* we are in a distributed run, but the MPI engine is not yet ready, so the nb_nodes might not be accurate */
                 case 3: return context->nb_nodes;
             }
@@ -2830,4 +2864,3 @@ int parsec_context_query(parsec_context_t *context, parsec_context_query_cmd_t c
     }
     return PARSEC_ERR_NOT_SUPPORTED;  /* unknown command */
 }
-

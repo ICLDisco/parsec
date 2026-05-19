@@ -2,6 +2,7 @@
  * Copyright (c) 2018-2022 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -11,6 +12,9 @@
  */
 
 #include "parsec/parsec_config.h"
+#if defined(PARSEC_HAVE_CLOCK_GETTIME_MONOTONIC)
+#include <time.h>
+#endif
 #include "parsec/parsec_internal.h"
 #include "parsec/include/parsec/execution_stream.h"
 #include "parsec/utils/debug.h"
@@ -99,9 +103,11 @@ typedef struct parsec_termdet_fourcounter_monitor_s {
     uint32_t stats_nb_recv_msg;                 /**< Statistics: number of messages received */
     uint32_t stats_nb_sent_bytes;               /**< Statistics: number of bytes sent */
     uint32_t stats_nb_recv_bytes;               /**< Statistics: number of bytes received */
-    struct timeval stats_time_start;
-    struct timeval stats_time_last_idle;
-    struct timeval stats_time_end;
+#if defined(PARSEC_HAVE_CLOCK_GETTIME_MONOTONIC)
+    struct timespec stats_time_start;
+    struct timespec stats_time_last_idle;
+    struct timespec stats_time_end;
+#endif
 } parsec_termdet_fourcounter_monitor_t;
 
 
@@ -109,6 +115,23 @@ static void parsec_termdet_fourcounter_msg_down(parsec_termdet_fourcounter_msg_d
 static void parsec_termdet_fourcounter_msg_up(parsec_termdet_fourcounter_msg_up_t *msg, int src, parsec_taskpool_t *tp);
 
 parsec_list_t parsec_termdet_fourcounter_delayed_messages;
+
+#if defined(PARSEC_HAVE_CLOCK_GETTIME_MONOTONIC)
+static inline unsigned long long
+parsec_termdet_fourcounter_timespec_sub(const struct timespec *end,
+                                        const struct timespec *start)
+{
+    time_t sec = end->tv_sec - start->tv_sec;
+    long nsec = end->tv_nsec - start->tv_nsec;
+
+    if( nsec < 0 ) {
+        sec--;
+        nsec += 1000000000L;
+    }
+
+    return ((unsigned long long)sec * 1000000ULL) + (unsigned long long)(nsec / 1000L);
+}
+#endif
 
 static int parsec_termdet_fourcounter_msg_dispatch_taskpool(parsec_taskpool_t *tp, parsec_comm_engine_t *ce,
                                                             long unsigned int tag,  void *msg,
@@ -253,7 +276,10 @@ static void parsec_termdet_fourcounter_monitor_taskpool(parsec_taskpool_t *tp,
     tp->nb_pending_actions = 0;
 
     parsec_atomic_rwlock_init(&tpm->rw_lock);
-    gettimeofday(&tpm->stats_time_start, NULL);
+#if defined(PARSEC_HAVE_CLOCK_GETTIME_MONOTONIC)
+    clock_gettime(CLOCK_MONOTONIC, &tpm->stats_time_start);
+    tpm->stats_time_last_idle = tpm->stats_time_start;
+#endif
 }
 
 static void parsec_termdet_fourcounter_unmonitor_taskpool(parsec_taskpool_t *tp)
@@ -370,7 +396,9 @@ static void parsec_termdet_fourcounter_send_up_messages(parsec_termdet_fourcount
         tpm->last_acc_received_at_root = tpm->acc_received;
         if( msg_down.result ) {
             PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "TERMDET-4C:\tTermination detected on root decision");
-            gettimeofday(&tpm->stats_time_end, NULL);
+#if defined(PARSEC_HAVE_CLOCK_GETTIME_MONOTONIC)
+            clock_gettime(CLOCK_MONOTONIC, &tpm->stats_time_end);
+#endif
             tpm->state = PARSEC_TERMDET_FOURCOUNTER_TERMINATED;
             tp->tdm.callback(tp);
         } else {
@@ -408,7 +436,9 @@ static void parsec_termdet_fourcounter_check_state_workload_changed(parsec_termd
 {
     if(tp->nb_tasks == 0 && tp->nb_pending_actions == 0) {
         /* We are now IDLE */
-        gettimeofday(&tpm->stats_time_last_idle, NULL);
+#if defined(PARSEC_HAVE_CLOCK_GETTIME_MONOTONIC)
+        clock_gettime(CLOCK_MONOTONIC, &tpm->stats_time_last_idle);
+#endif
         if( tpm->state == PARSEC_TERMDET_FOURCOUNTER_BUSY_WAITING_FOR_PARENT) {
             PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "TERMDET-4C:\tProcess changed state for IDLE_WAITING_FOR_PARENT");
             tpm->state = PARSEC_TERMDET_FOURCOUNTER_IDLE_WAITING_FOR_PARENT;
@@ -635,7 +665,9 @@ static void parsec_termdet_fourcounter_msg_down(parsec_termdet_fourcounter_msg_d
 
     if(msg->result) {
         assert(tpm->state == PARSEC_TERMDET_FOURCOUNTER_IDLE_WAITING_FOR_PARENT);
-        gettimeofday(&tpm->stats_time_end, NULL);
+#if defined(PARSEC_HAVE_CLOCK_GETTIME_MONOTONIC)
+        clock_gettime(CLOCK_MONOTONIC, &tpm->stats_time_end);
+#endif
         tpm->state = PARSEC_TERMDET_FOURCOUNTER_TERMINATED;
         PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "TERMDET-4C:\tTermination detected on DOWN(true) message");
         parsec_atomic_rwlock_wrunlock(&tpm->rw_lock);
@@ -683,15 +715,17 @@ static void parsec_termdet_fourcounter_msg_up(parsec_termdet_fourcounter_msg_up_
 static int parsec_termdet_fourcounter_write_stats(parsec_taskpool_t *tp, FILE *fp)
 {
     parsec_termdet_fourcounter_monitor_t *tpm;
-    struct timeval t1, t2;
+    unsigned long long idle_us = 0ULL, wall_us = 0ULL;
     assert(NULL != tp->tdm.module);
     assert(&parsec_termdet_fourcounter_module.module == tp->tdm.module);
     tpm = (parsec_termdet_fourcounter_monitor_t *)tp->tdm.monitor;
 
-    timersub(&tpm->stats_time_end, &tpm->stats_time_last_idle, &t1);
-    timersub(&tpm->stats_time_end, &tpm->stats_time_start, &t2);
+#if defined(PARSEC_HAVE_CLOCK_GETTIME_MONOTONIC)
+    idle_us = parsec_termdet_fourcounter_timespec_sub(&tpm->stats_time_end, &tpm->stats_time_last_idle);
+    wall_us = parsec_termdet_fourcounter_timespec_sub(&tpm->stats_time_end, &tpm->stats_time_start);
+#endif
 
-    fprintf(fp, "NP: %d M: 4C Rank: %d Taskpool#: %d #Transitions_Busy_to_Idle: %u #Transitions_Idle_to_Busy: %u #Times_Credit_was_Borrowed: 0 #Times_Credit_was_Flushed: 0 #Times_a_message_was_Delayed: 0 #Times_credit_was_merged: 0 #SentCtlMsg: %u #RecvCtlMsg: %u SentCtlBytes: %u RecvCtlBytes: %u WallTime: %u.%06u Idle2End: %u.%06u\n",
+    fprintf(fp, "NP: %d M: 4C Rank: %d Taskpool#: %d #Transitions_Busy_to_Idle: %u #Transitions_Idle_to_Busy: %u #Times_Credit_was_Borrowed: 0 #Times_Credit_was_Flushed: 0 #Times_a_message_was_Delayed: 0 #Times_credit_was_merged: 0 #SentCtlMsg: %u #RecvCtlMsg: %u SentCtlBytes: %u RecvCtlBytes: %u WallTime: %llu.%06llu Idle2End: %llu.%06llu\n",
             tp->context->nb_nodes,
             tp->context->my_rank,
             tp->taskpool_id,
@@ -701,8 +735,8 @@ static int parsec_termdet_fourcounter_write_stats(parsec_taskpool_t *tp, FILE *f
             tpm->stats_nb_recv_msg,
             tpm->stats_nb_sent_bytes,
             tpm->stats_nb_recv_bytes,
-            (unsigned int)t2.tv_sec, (unsigned int)t2.tv_usec,
-            (unsigned int)t1.tv_sec, (unsigned int)t1.tv_usec);
+            wall_us / 1000000ULL, wall_us % 1000000ULL,
+            idle_us / 1000000ULL, idle_us % 1000000ULL);
 
     return PARSEC_SUCCESS;
 }

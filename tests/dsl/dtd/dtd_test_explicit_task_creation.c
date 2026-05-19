@@ -2,6 +2,7 @@
  * Copyright (c) 2017-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
 
 /* parsec things */
@@ -93,10 +94,9 @@ int main(int argc, char ** argv)
 
     parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new(  );
 
-    adt = parsec_dtd_create_arena_datatype(parsec, &TILE_FULL);
-    parsec_arena_datatype_construct( adt,
-                                     nb*sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
-                                     MPI_INT );
+    adt = parsec_matrix_adt_new_rect(
+            parsec_datatype_int32_t, nb, 1, nb);
+    parsec_dtd_attach_arena_datatype(parsec, adt, &TILE_FULL);
 
     dcA = create_and_distribute_data(rank, world, nb, nt);
     parsec_data_collection_set_key((parsec_data_collection_t *)dcA, "A");
@@ -154,9 +154,8 @@ int main(int argc, char ** argv)
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
     parsec_taskpool_free( dtd_tp );
-    parsec_del2arena(adt);
-    PARSEC_OBJ_RELEASE(adt->arena);
-    parsec_dtd_destroy_arena_datatype(parsec, TILE_FULL);
+
+    parsec_dtd_free_arena_datatype(parsec, TILE_FULL);
 
     parsec_dtd_data_collection_fini( A );
     free_data(dcA);

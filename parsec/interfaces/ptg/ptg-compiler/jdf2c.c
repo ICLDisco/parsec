@@ -2,7 +2,7 @@
  * Copyright (c) 2009-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
- * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
+ * Copyright (c) 2024-2026 NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/parsec_config.h"
@@ -116,7 +116,7 @@ static void coutput(const char *format, ...)
     va_end(ap);
 
     if( len == -1 ) {
-        fprintf(stderr, "Unable to ouptut a string: %s\n", strerror(errno));
+        fprintf(stderr, "Unable to output a string: %s\n", strerror(errno));
     } else if( 0 < len ) {
 #if (defined(__WINDOWS__) || defined(__CYGWIN__)) && !defined(__MINGW64__)
         char *start = res, *end;
@@ -280,7 +280,7 @@ static inline int function_has_data_output( const jdf_function_entry_t *f )
  * dump_string:
  *  general function to use with UTIL_DUMP_LIST_FIELD.
  *  Transforms a single field pointing to an existing char * in the char *
- * @param [IN] elt: pointer to the char * (format useable by UTIL_DUMP_LIST_FIELD)
+ * @param [IN] elt: pointer to the char * (format usable by UTIL_DUMP_LIST_FIELD)
  * @param [IN] _:   ignored pointer to abide by UTIL_DUMP_LIST_FIELD format
  * @return the char * pointed by elt
  */
@@ -1320,7 +1320,7 @@ static void jdf_coutput_prettycomment(char marker, const char *format, ...)
     for(i = 0; i < 5; i++)
         coutput("%c", marker);
     coutput("%s%s", indent(ls/2), v);  /* indent drop two spaces */
-    coutput("%s", indent(rs/2));       /* dont merge these two calls. Read the comment on the indent function */
+    coutput("%s", indent(rs/2));       /* don't merge these two calls. Read the comment on the indent function */
     for(i = 0; i < 5; i++)
         coutput("%c", marker);
     coutput("*/\n\n");
@@ -1331,7 +1331,7 @@ static void jdf_coutput_prettycomment(char marker, const char *format, ...)
 
 /**
  * Generate typedef for the tasks struct based on the locals and flows
- * of each task familly. Right now these tasks typedefs are not used
+ * of each task family. Right now these tasks typedefs are not used
  * anywhere, instead we always use the generic task structure.
  */
 static inline char* jdf_generate_task_typedef(void **elt, void* arg)
@@ -1710,7 +1710,7 @@ static int jdf_expr_is_range( const jdf_expr_t *e )
 /**
  * Generates a highly optimized function for an expression. If the expression is
  * constant or an inlined code no local variables are generated. If the
- * expresion is a constant then it is directly returned, if the expression is an
+ * expression is a constant then it is directly returned, if the expression is an
  * inlined function then a call to the original accessor is generated
  * instead. This function only generates the code without generating the
  * corresponding parsec_expr_t.
@@ -2061,7 +2061,7 @@ static void jdf_generate_affinity( const jdf_t *jdf, const jdf_function_entry_t 
     ai.holder = "this_task->locals.";
     ai.expr = NULL;
     coutput("%s\n"
-            "  /* Silent Warnings: should look into predicate to know what variables are usefull */\n"
+            "  /* Silent Warnings: should look into predicate to know what variables are useful */\n"
             "%s\n"
             "  ref->dc = (parsec_data_collection_t *)"TASKPOOL_GLOBAL_PREFIX"_g_%s;\n"
             "  /* Compute data key */\n"
@@ -2243,7 +2243,7 @@ static int jdf_generate_initfinal_data( const jdf_t *jdf,
         ai.holder = "this_task->locals.";
         ai.expr = NULL;
         coutput("%s\n"
-                "    /* Silent Warnings: should look into predicate to know what variables are usefull */\n"
+                "    /* Silent Warnings: should look into predicate to know what variables are useful */\n"
                 "    (void)__parsec_tp;\n"
                 "%s\n",
                 UTIL_DUMP_LIST(sa1, f->locals, next,
@@ -2791,7 +2791,7 @@ static int jdf_generate_dataflow( const jdf_t *jdf, const jdf_function_entry_t* 
  * Parse the whole dependency list and identify any possible combination
  * that will allow this task (based on its inputs) to be executed as a
  * startup task. In other words, if there is any tuple of the execution
- * space, which leads to all inputs being ready, either comming directly
+ * space, which leads to all inputs being ready, either coming directly
  * from the matrix or due to write-only status.
  *
  * @Return: If the task cannot be a startup task, then the pint
@@ -3153,6 +3153,12 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
 
     coutput("%s  if( NULL != ((parsec_data_collection_t*)"TASKPOOL_GLOBAL_PREFIX"_g_%s)->vpid_of ) {\n"
             "%s    vpid = ((parsec_data_collection_t*)"TASKPOOL_GLOBAL_PREFIX"_g_%s)->vpid_of((parsec_data_collection_t*)"TASKPOOL_GLOBAL_PREFIX"_g_%s, %s);\n"
+            "%s    if( vpid >= context->nb_vp ) {\n"
+            "%s       char tmp[128];\n"
+            "%s       parsec_output(parsec_debug_output, \"VPID %%d for task %%s is too large (> %%d the number of VP in the context)\",\n"
+            "%s                     vpid, parsec_task_snprintf(tmp, 128, (parsec_task_t *)this_task), context->nb_vp);\n"
+            "%s       vpid = vpid %% context->nb_vp;\n"
+            "%s    }\n"
             "%s    assert(context->nb_vp >= vpid);\n"
             "%s  } else {\n"
             "%s    vpid = (vpid + 1) %% context->nb_vp;  /* spread the initial joy */\n"
@@ -3164,6 +3170,12 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
             UTIL_DUMP_LIST(sa2, f->predicate->parameters, next,
                            dump_expr, (void*)&info1,
                            "", "", ", ", ""),
+            indent(nesting),
+            indent(nesting),
+            indent(nesting),
+            indent(nesting),
+            indent(nesting),
+            indent(nesting),
             indent(nesting),
             indent(nesting),
             indent(nesting),
@@ -3727,7 +3739,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
                     break;
             inner_vl = vl;
             if(NULL != inner_vl) {
-                /* As we can re-use a local definition alias for different deps or calls,
+                /* As we can reuse a local definition alias for different deps or calls,
                  * and all that gets nested but stored in the same cell of the assignment,
                  * we need to restore last value left by the level above */
                 for(ld = inner_vl->expr->local_variables; NULL != ld; ld = ld->next) {
@@ -3939,21 +3951,27 @@ jdf_generate_function_incarnation_list( const jdf_t *jdf,
     jdf_def_list_t* dyld_property;
     jdf_def_list_t* evaluate_property = NULL;
     jdf_def_list_t* device_property = NULL;
-     char* dev_upper;
+    jdf_def_list_t* batch_property = NULL;
 
     (void)jdf;
     string_arena_add_string(sa, "static const __parsec_chore_t __%s_chores[] ={\n", base_name);
     do {
+        char* dev_upper;
         jdf_find_property(body->properties, "type", &type_property);
         jdf_find_property(body->properties, "dyld", &dyld_property);
         jdf_find_property(body->properties, JDF_BODY_PROP_EVALUATE, &evaluate_property);
+        jdf_find_property(body->properties, "batch", &batch_property);
         if( NULL == type_property) {
             dev_upper = strdup_upper("CPU");
         } else {
             dev_upper = strdup_upper(type_property->expr->jdf_var);
         }
         string_arena_add_string(sa, "#if defined(PARSEC_HAVE_DEV_%s_SUPPORT)\n", dev_upper);
-        string_arena_add_string(sa, "    { .type     = PARSEC_DEV_%s,\n", dev_upper);
+        string_arena_add_string(sa, "    { .type     = PARSEC_DEV_%s", dev_upper);
+        if( NULL != batch_property ) {
+            string_arena_add_string(sa, " | PARSEC_DEV_CHORE_ALLOW_BATCH");
+        }
+        string_arena_add_string(sa, ",\n");
         if( NULL == dyld_property ) {
             string_arena_add_string(sa, "      .dyld     = NULL,\n");
         } else {
@@ -3962,7 +3980,7 @@ jdf_generate_function_incarnation_list( const jdf_t *jdf,
             if ( NULL == dyld_proptotype_property ) {
                 fprintf(stderr,
                         "Internal Error: function prototype (dyldtype) of dyld function (%s) is not defined in %s body of task %s at line %d\n",
-                        dyld_property->expr->jdf_var, type_property->expr->jdf_var, f->fname, JDF_OBJECT_LINENO( body ) );
+                        dyld_property->expr->jdf_var, dev_upper, f->fname, JDF_OBJECT_LINENO( body ) );
                 assert( NULL != dyld_proptotype_property );
             }
             string_arena_add_string(sa, "      .dyld     = \"%s\",\n", dyld_property->expr->jdf_var);
@@ -3981,7 +3999,6 @@ jdf_generate_function_incarnation_list( const jdf_t *jdf,
         string_arena_add_string(sa, "      .hook     = (parsec_hook_t*)hook_of_%s_%s },\n", base_name, dev_upper);
         string_arena_add_string(sa, "#endif  /* defined(PARSEC_HAVE_DEV_%s_SUPPORT) */\n", dev_upper);
         free(dev_upper);
-
         body = body->next;
     } while (NULL != body);
     string_arena_add_string(sa,
@@ -4205,7 +4222,6 @@ static void jdf_generate_one_function( const jdf_t *jdf, jdf_function_entry_t *f
     }
 
     jdf_generate_function_properties( jdf, f, sa );
-
 #if defined(PARSEC_SCHED_DEPS_MASK)
     use_mask = 1;
 #else
@@ -4488,7 +4504,7 @@ static void jdf_generate_startup_hook( const jdf_t *jdf )
             "    parsec_task_class_t* tc = (parsec_task_class_t*)__parsec_tp->super.super.task_classes_array[i];\n"
             "    __parsec_chore_t* chores = (__parsec_chore_t*)tc->incarnations;\n"
             "    uint32_t idx = 0, j;\n"
-            "    for( j = 0; PARSEC_DEV_NONE != chores[j].type; j++ ) {\n"
+            "    for( j = 0; PARSEC_DEV_NONE != (chores[j].type & PARSEC_DEV_ANY_TYPE); j++ ) {\n"
             "      if( !(supported_dev & chores[j].type) ) continue;\n"
             "      if( j != idx ) {\n"
             "        chores[idx] = chores[j];\n"
@@ -4547,12 +4563,7 @@ static void jdf_generate_destructor( const jdf_t *jdf )
             "  }\n"
             "  free(__parsec_tp->super.super.task_classes_array); __parsec_tp->super.super.task_classes_array = NULL;\n"
             "  __parsec_tp->super.super.nb_task_classes = 0;\n"
-            "\n"
-            "  for(i = 0; i < (uint32_t)__parsec_tp->super.arenas_datatypes_size; i++) {\n"
-            "    if( NULL != __parsec_tp->super.arenas_datatypes[i].arena ) {\n"
-            "      PARSEC_OBJ_RELEASE(__parsec_tp->super.arenas_datatypes[i].arena);\n"
-            "    }\n"
-            "  }\n");
+            "\n");
 
     coutput("  /* Destroy the data repositories for this object */\n");
     for( f = jdf->functions; NULL != f; f = f->next ) {
@@ -4677,7 +4688,7 @@ static void jdf_generate_constructor( const jdf_t* jdf )
     coutput("  for( i = 0; i < __parsec_tp->super.super.nb_task_classes; i++ ) {\n"
             "    __parsec_tp->super.super.task_classes_array[i] = tc = malloc(sizeof(parsec_task_class_t));\n"
             "    memcpy(tc, %s_task_classes[i], sizeof(parsec_task_class_t));\n"
-            "    for( j = 0; PARSEC_DEV_NONE != tc->incarnations[j].type; j++);  /* compute the number of incarnations */\n"
+            "    for( j = 0; PARSEC_DEV_NONE != (tc->incarnations[j].type & PARSEC_DEV_ANY_TYPE); j++);  /* compute the number of incarnations */\n"
             "    tc->incarnations = (__parsec_chore_t*)malloc((j+1) * sizeof(__parsec_chore_t));\n    "
             "    memcpy((__parsec_chore_t*)tc->incarnations, %s_task_classes[i]->incarnations, (j+1) * sizeof(__parsec_chore_t));\n\n"
             "    /* Add a placeholder for initialization and startup task */\n"
@@ -4743,7 +4754,18 @@ static void jdf_generate_constructor( const jdf_t* jdf )
         } else {
             coutput("  __parsec_tp->super.arenas_datatypes_size = %d;\n", datatype_index);
         }
-        coutput("  memset(&__parsec_tp->super.arenas_datatypes[0], 0, __parsec_tp->super.arenas_datatypes_size*sizeof(parsec_arena_datatype_t));\n");
+        /* we CONSTRUCT the adts, but we don't DESTRUCT them (in the
+         * generated destructor) because the adt CONSTRUCT is done in two
+         * stages, one in the generated code runs the generic constructor, then
+         * the user code calls the parameterized constructor (that attaches the
+         * datatype). Thus, for symmetry the user code is also responsible for calling
+         * the destructor.
+         * The statically constructed arena_datatype_t can be overwritten by
+         * the user without leaking memory.
+         */
+        coutput("  for(i = 0; i < (uint32_t)__parsec_tp->super.arenas_datatypes_size; i++) {\n"
+                "    PARSEC_OBJ_CONSTRUCT(&__parsec_tp->super.arenas_datatypes[i], parsec_arena_datatype_t);\n"
+                "  }\n");
     }
 
     coutput("  /* If profiling is enabled, the keys for profiling */\n"
@@ -4827,6 +4849,7 @@ static void jdf_generate_new_function( const jdf_t* jdf )
         coutput("  __parsec_tp->initial_number_tasks = 0;\n");
     }
 
+
     string_arena_init(sa1);
     string_arena_init(sa2);
     coutput("/* Prevent warnings related to not used hidden global variables */\n"
@@ -4864,7 +4887,7 @@ static void jdf_generate_hashfunction_for(const jdf_t *jdf, const jdf_function_e
             string_arena_init(sa_range_multiplier);
             for(vl = f->locals; vl != NULL; vl = vl->next) {
                 if( local_is_parameter(f, vl) != NULL ) {
-                    coutput("  __parsec_id += (assignment->%s.value - __parsec_tp->%s_%s_min)%s;\n", vl->name, f->fname, vl->name,
+                    coutput("  __parsec_id += ((uint64_t)assignment->%s.value - __parsec_tp->%s_%s_min)%s;\n", vl->name, f->fname, vl->name,
                             string_arena_get_string(sa_range_multiplier));
                     string_arena_add_string(sa_range_multiplier, " * __parsec_tp->%s_%s_range", f->fname, vl->name);
                 }
@@ -6008,7 +6031,7 @@ static void jdf_generate_code_call_final_write(const jdf_t *jdf,
 
         coutput("%s  data_t_desc = data_of_%s(%s);\n"
                 "%s  if( (NULL != this_task->data._f_%s.data_out) && (this_task->data._f_%s.data_out->original != data_t_desc) ) {\n"
-                "%s    /* Writting back using remote_type */;\n"
+                "%s    /* Writing back using remote_type */;\n"
                 "%s    parsec_dep_data_description_t data;\n"
                 "%s    data.data         = this_task->data._f_%s.data_out;\n"
                 "%s    data.local.arena        = %s;\n"
@@ -6728,8 +6751,8 @@ static void jdf_generate_code_hook_gpu(const jdf_t *jdf,
         coutput("  /* Pointer to dynamic gpu function */\n"
                 "  {\n"
                 "    int chore_idx = 0;\n"
-                "    for ( ; PARSEC_DEV_NONE != this_task->task_class->incarnations[chore_idx].type; ++chore_idx) {\n"
-                "      if (this_task->task_class->incarnations[chore_idx].type == PARSEC_DEV_%s) break;\n"
+                "    for ( ; PARSEC_DEV_NONE != (this_task->task_class->incarnations[chore_idx].type & PARSEC_DEV_ANY_TYPE); ++chore_idx) {\n"
+                "      if (this_task->task_class->incarnations[chore_idx].type & PARSEC_DEV_%s) break;\n"
                 "    }\n"
                 "    /* The void* cast prevents the compiler from complaining about the type change */\n"
                 "    parsec_body.dyld_fn = (%s)(void*)this_task->task_class->incarnations[chore_idx].dyld_fn;\n"
@@ -7188,21 +7211,8 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
             "{\n"
             "  PARSEC_PINS(es, RELEASE_DEPS_BEGIN, (parsec_task_t *)this_task);"
             "  const __parsec_%s_internal_taskpool_t *__parsec_tp = (const __parsec_%s_internal_taskpool_t *)this_task->taskpool;\n"
-            "  parsec_release_dep_fct_arg_t arg;\n"
-            "  int __vp_id;\n"
             "  int consume_local_repo = 0;\n"
-            "  arg.action_mask = action_mask;\n"
-            "  arg.output_entry = NULL;\n"
-            "  arg.output_repo = NULL;\n"
-            "#if defined(DISTRIBUTED)\n"
-            "  arg.remote_deps = deps;\n"
-            "#endif  /* defined(DISTRIBUTED) */\n"
             "  assert(NULL != es);\n"
-            "  if( action_mask & PARSEC_ACTION_RELEASE_LOCAL_DEPS )"
-            "    arg.ready_lists = alloca(sizeof(parsec_task_t *) * es->virtual_process->parsec_context->nb_vp);\n"
-            "  else\n"
-            "    arg.ready_lists = NULL;\n"
-            "  for( __vp_id = 0; __vp_id < es->virtual_process->parsec_context->nb_vp; arg.ready_lists[__vp_id++] = NULL );\n"
             "  (void)__parsec_tp; (void)deps;\n",
             name, parsec_get_name(jdf, f, "task_t"),
             jdf_basename, jdf_basename);
@@ -7213,9 +7223,22 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
 
     if( !(f->flags & JDF_FUNCTION_FLAG_NO_SUCCESSORS) ) {
 
-        coutput("  arg.output_repo = %s_repo;\n", f->fname);
-        coutput("  arg.output_entry = this_task->repo_entry;\n");
-        coutput("  arg.output_usage = 0;\n");
+        coutput("  parsec_release_dep_fct_arg_t arg;\n"
+                "  arg.action_mask = action_mask;\n"
+                "  arg.output_entry = NULL;\n"
+                "  arg.output_repo = NULL;\n"
+                "#if defined(DISTRIBUTED)\n"
+                "  arg.remote_deps = deps;\n"
+                "#endif  /* defined(DISTRIBUTED) */\n"
+                "  arg.ready_lists = NULL;\n"
+                "  if( action_mask & PARSEC_ACTION_RELEASE_LOCAL_DEPS ) {\n"
+                "    arg.ready_lists = alloca(sizeof(parsec_task_t *) * es->virtual_process->parsec_context->nb_vp);\n"
+                "    for( int __vp_id = 0; __vp_id < es->virtual_process->parsec_context->nb_vp; arg.ready_lists[__vp_id++] = NULL );\n"
+                "  }\n"
+                "  arg.output_repo = %s_repo;\n"
+                "  arg.output_entry = this_task->repo_entry;\n"
+                "  arg.output_usage = 0;\n",
+                f->fname);
 
         coutput("  if( action_mask & (PARSEC_ACTION_RELEASE_LOCAL_DEPS | PARSEC_ACTION_GET_REPO_ENTRY) ) {\n"
                 "    arg.output_entry = data_repo_lookup_entry_and_create( es, arg.output_repo, %s((const parsec_taskpool_t*)__parsec_tp, (const parsec_assignment_t*)&this_task->locals));\n"
@@ -7227,7 +7250,7 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
                 "  }\n",
                 jdf_property_get_string(f->properties, JDF_PROP_UD_MAKE_KEY_FN_NAME, NULL));
 
-        /* We need 2 iterate_successors calls so that all reshapping info is
+        /* We need 2 iterate_successors calls so that all reshaping info is
          * setup before it is consumed by any local successor.
          */
         coutput("  if(action_mask & ( PARSEC_ACTION_RESHAPE_ON_RELEASE | PARSEC_ACTION_RESHAPE_REMOTE_ON_RELEASE ) ){\n");
@@ -7251,9 +7274,9 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
                 f->fname);
         if(jdf_uses_dynamic_termdet(jdf)) {
             coutput("    {\n"
-                    "      /* Using Dynamic Termination Detection, the DSL is reponsible of counting the number of tasks scheduled before scheduling them */\n"
+                    "      /* Using Dynamic Termination Detection, the DSL is responsible for counting the number of tasks scheduled before scheduling them */\n"
                     "      int __nb_tasks = 0;\n"
-                    "      for(__vp_id = 0; __vp_id < es->virtual_process->parsec_context->nb_vp; __vp_id++) {\n"
+                    "      for(int __vp_id = 0; __vp_id < es->virtual_process->parsec_context->nb_vp; __vp_id++) {\n"
                     "        if( NULL == arg.ready_lists[__vp_id] ) continue;\n"
                     "        _LIST_ITEM_ITERATOR(arg.ready_lists[__vp_id], &arg.ready_lists[__vp_id]->super, __item, __nb_tasks++);"
                     "      }\n"
@@ -7411,7 +7434,7 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
         if( NULL == nl ) {
             /* This definition is not a parameter: just dump it's computation. */
             /**
-             * If we have to execute code possibly comming from the user then we need to instantiate
+             * If we have to execute code possibly coming from the user then we need to instantiate
              * the entire stack of the target function, including the local variables.
              */
             assert(el == NULL);
@@ -7449,7 +7472,7 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
                     if( NULL != call_ld ) {
                         assert( call_ld == ld );
                         call_ld = jdf_expr_lv_next(call->local_defs, call_ld);
-                        continue; /* This local define was alredy issued above as part of the call */
+                        continue; /* This local define was already issued above as part of the call */
                     }
                     string_arena_add_string(sa_open, "%s%s  {\n"
                                             "%s%s    int %s;\n",
@@ -7743,7 +7766,7 @@ jdf_generate_code_iterate_successors_or_predecessors(const jdf_t *jdf,
 
             string_arena_init(sa_datatype);
             /*********************************/
-            /* LOCAL DATATYPE FOR RESHAPPING */
+            /* LOCAL DATATYPE FOR RESHAPING */
             /*********************************/
             if( JDF_FLOW_TYPE_CTL & fl->flow_flags ) {
                 string_arena_add_string(sa_tmp_arena, "NULL");
@@ -8213,7 +8236,7 @@ static void jdf_check_user_defined_internals(jdf_t *jdf)
             rc = asprintf(&tmp, JDF2C_NAMESPACE"key_fns_%s", f->fname);
             if (rc == -1) {
                 jdf_fatal(JDF_OBJECT_LINENO(f->properties),
-                          "Out of ressource to generate the function name key_fns_%s\n", f->fname);
+                          "Out of resources to generate the function name key_fns_%s\n", f->fname);
                 exit(1);
             }
             (void)jdf_add_string_property(&f->properties, JDF_PROP_UD_HASH_STRUCT_NAME, tmp);
@@ -8227,7 +8250,7 @@ static void jdf_check_user_defined_internals(jdf_t *jdf)
             rc = asprintf(&tmp, JDF2C_NAMESPACE"make_key_%s", f->fname);
             if (rc == -1) {
                 jdf_fatal(JDF_OBJECT_LINENO(f->properties),
-                          "Out of ressource to generate the function name make_key_%s\n", f->fname);
+                          "Out of resources to generate the function name make_key_%s\n", f->fname);
                 exit(1);
             }
             (void)jdf_add_string_property(&f->properties, JDF_PROP_UD_MAKE_KEY_FN_NAME, tmp);
@@ -8446,7 +8469,7 @@ int jdf2c(const char *output_c, const char *output_h, const char *_jdf_basename,
      * the rename in subsequent operations (see PR#32 for the discussion).
      * As an alternative, we use pipes between jdf2c and the system spawned
      * indent/awk commands, so that we can spare the rename and rely on a
-     * classic fsync on the output to ensure visibilitiy.
+     * classic fsync on the output to ensure visibility.
      */
     int child = -1;
     int cpipefd[2] = {-1,-1};
@@ -8631,4 +8654,3 @@ static char* strdup_lower(const char *str) {
     }
     return ret;
 }
-

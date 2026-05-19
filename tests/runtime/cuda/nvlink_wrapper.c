@@ -63,7 +63,7 @@ __parsec_nvlink_destructor( parsec_nvlink_taskpool_t* nvlink_taskpool)
     int g, dev;
     parsec_matrix_block_cyclic_t *userM;
     parsec_matrix_block_cyclic_t *dcA;
-    parsec_del2arena( & nvlink_taskpool->arenas_datatypes[PARSEC_nvlink_DEFAULT_ADT_IDX] );
+    parsec_matrix_arena_datatype_destruct_free_type( & nvlink_taskpool->arenas_datatypes[PARSEC_nvlink_DEFAULT_ADT_IDX] );
     parsec_data_free(nvlink_taskpool->_g_descA->mat);
     parsec_info_unregister(&parsec_per_stream_infos, nvlink_taskpool->_g_CuHI, NULL);
     dcA = nvlink_taskpool->_g_descA;
@@ -72,7 +72,7 @@ __parsec_nvlink_destructor( parsec_nvlink_taskpool_t* nvlink_taskpool)
     userM = nvlink_taskpool->_g_userM;
     for(g = 0, dev = 0; dev < (int)parsec_nb_devices; dev++) {
         parsec_device_cuda_module_t *cuda_device = (parsec_device_cuda_module_t*)parsec_mca_device_get(dev);
-        if( PARSEC_DEV_CUDA == cuda_device->super.super.type ) {
+        if( PARSEC_DEV_CUDA & cuda_device->super.super.type ) {
             parsec_data_t *dta = ((parsec_dc_t*)userM)->data_of((parsec_dc_t*)userM, g, userM->super.super.myrank);
             parsec_data_copy_t *gpu_copy = parsec_data_get_copy(dta, cuda_device->super.super.device_index);
             cudaError_t status = cudaSetDevice( cuda_device->cuda_index );
@@ -108,7 +108,7 @@ parsec_taskpool_t* testing_nvlink_New( parsec_context_t *ctx, int depth, int mb 
     nb = 0;
     for(dev = 0; dev < (int)parsec_nb_devices; dev++) {
         parsec_device_module_t *device = parsec_mca_device_get(dev);
-        if( PARSEC_DEV_CUDA == device->type ) {
+        if( PARSEC_DEV_CUDA & device->type ) {
             dev_index[nb++] = device->device_index;
         }
     }
@@ -144,6 +144,7 @@ parsec_taskpool_t* testing_nvlink_New( parsec_context_t *ctx, int depth, int mb 
     /* GEMM1 tasks will create one data copy per GPU, and work on those.
      * see nvlink.jdf:MAKE_C tasks */
 
+
     /* userM is a user-managed matrix: the user creates the data copies
      * only on the GPU they want the GEMM2 to run. To simplify the code,
      * we use parsec_matrix_block_cyclic that requires to also have a CPU data
@@ -168,7 +169,7 @@ parsec_taskpool_t* testing_nvlink_New( parsec_context_t *ctx, int depth, int mb 
      * in the JDF, this also pins the task on the GPU that we chose to host the tile */
     for(int g = 0, dev = 0; dev < (int)parsec_nb_devices; dev++) {
         parsec_device_cuda_module_t *cuda_device = (parsec_device_cuda_module_t*)parsec_mca_device_get(dev);
-        if( PARSEC_DEV_CUDA == cuda_device->super.super.type ) {
+        if( PARSEC_DEV_CUDA & cuda_device->super.super.type ) {
             /* We get the data from the data collection */
             parsec_data_t *dta = ((parsec_dc_t*)userM)->data_of((parsec_dc_t*)userM, g, ctx->my_rank);
             /* The corresponding data copy on CPU RAM */
@@ -198,10 +199,8 @@ parsec_taskpool_t* testing_nvlink_New( parsec_context_t *ctx, int depth, int mb 
 
     testing_handle = parsec_nvlink_new(dcA, userM, ctx->nb_nodes, CuHI, nb, dev_index);
 
-    parsec_add2arena( &testing_handle->arenas_datatypes[PARSEC_nvlink_DEFAULT_ADT_IDX],
-                             parsec_datatype_double_complex_t,
-                             PARSEC_MATRIX_FULL, 1, mb, mb, mb,
-                             PARSEC_ARENA_ALIGNMENT_SSE, -1 );
+    parsec_matrix_adt_define_square(&testing_handle->arenas_datatypes[PARSEC_nvlink_DEFAULT_ADT_IDX],
+                                    parsec_datatype_double_complex_t, mb);
 
     return &testing_handle->super;
 }

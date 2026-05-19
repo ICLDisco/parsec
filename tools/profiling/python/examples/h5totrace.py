@@ -59,7 +59,7 @@ def print_event_names(store):
         print(line)
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='convert an HDF5 profile file (and optionnaly a DOT file) into a PAJE trace')
+    parser = argparse.ArgumentParser(description='convert an HDF5 profile file (and optionally a DOT file) into a PAJE trace')
     parser.add_argument('--h5', help='HDF5 input file', required=1, dest='input')
     parser.add_argument('--dot', help='DOT input file (should match the run of the HDF5 input file)', dest='dot')
     parser.add_argument('--out', help='Output file name', dest='output')
@@ -389,4 +389,3 @@ if __name__ == '__main__':
     paje.endTrace();
 
     sys.exit(0)
-

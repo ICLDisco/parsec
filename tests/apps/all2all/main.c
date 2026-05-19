@@ -51,7 +51,7 @@ int main(int argc, char *argv[])
     rc = parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
-    parsec_taskpool_free(a2a);
+    a2a_free(a2a);
     parsec_fini(&parsec);
     free_data(dcA);
     free_data(dcB);

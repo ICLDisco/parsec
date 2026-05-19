@@ -33,10 +33,16 @@ parsec_taskpool_t* merge_sort_new(parsec_tiled_matrix_t *A, int nb, int nt)
     /* As the datatype is parsec_datatype_int32_t all communications to/from
      * this arena should use the count property or they will exchange a
      * single integer. */
-    parsec_arena_datatype_construct( &tp->arenas_datatypes[PARSEC_merge_sort_DEFAULT_ADT_IDX],
+    parsec_arena_datatype_set_type( &tp->arenas_datatypes[PARSEC_merge_sort_DEFAULT_ADT_IDX],
                                      nb*sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
                                      parsec_datatype_int32_t);
 
     return (parsec_taskpool_t*)tp;
 }
 
+void merge_sort_free(parsec_taskpool_t *tp)
+{
+    parsec_merge_sort_taskpool_t *merge_sort_tp = (parsec_merge_sort_taskpool_t*)tp;
+    PARSEC_OBJ_DESTRUCT(&merge_sort_tp->arenas_datatypes[PARSEC_merge_sort_DEFAULT_ADT_IDX]);
+    parsec_taskpool_free(tp);
+}

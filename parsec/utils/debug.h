@@ -108,7 +108,7 @@ extern void (*parsec_weaksym_exit)(int status);
         parsec_debug_colorize, "\033[0m", ##__VA_ARGS__);            \
 } while(0)
 
-/* Use when some INFORMATION can be usefull for the end-user. */
+/* Use when some INFORMATION can be useful for the end-user. */
 #define parsec_inform(FMT, ...) do {                                 \
     parsec_output_verbose(0, 0,                                      \
         "%.*si@%05d%.*s " FMT,                                       \

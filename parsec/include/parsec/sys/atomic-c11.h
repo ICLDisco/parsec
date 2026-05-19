@@ -188,7 +188,7 @@ typedef union {
     int atomic_external_aligner;
 } parsec_atomic_lock_t;
 static_assert(sizeof(volatile int) >= sizeof(volatile atomic_flag),
-    "The type size for atomic_flag is larger than expected. Please report this error to PaRSEC developpers."
+    "The type size for atomic_flag is larger than expected. Please report this error to PaRSEC developers."
     "You may compile without C11 atomic support (-DSUPPORT_C11=OFF in cmake) to fallback on other atomic types.");
 
 #  define PARSEC_ATOMIC_HAS_ATOMIC_INIT

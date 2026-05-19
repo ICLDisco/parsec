@@ -2,7 +2,7 @@
  * Copyright (c) 2009-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
- * Copyright (c) 2023      NVIDIA CORPORATION. All rights reserved.
+ * Copyright (c) 2023-2026 NVIDIA Corporation.  All rights reserved.
  */
 #ifndef __USE_PARSEC_REMOTE_DEP_H__
 #define __USE_PARSEC_REMOTE_DEP_H__
@@ -72,7 +72,7 @@ struct parsec_dep_type_description_s {
  * where the data is allocated from, or will be allocated from. It also contains the
  * pointer to the buffer involved in the communication (or NULL if the data will be
  * allocated before the reception). Finally, it contains the triplet allowing a correct send
- * or receive operation: the memory layout, the number fo repetitions and the displacement
+ * or receive operation: the memory layout, the number of repetitions and the displacement
  * from the data pointer where the operation will start. If the memory layout is NULL the
  * one attached to the arena must be used instead.
  */
@@ -426,18 +426,29 @@ extern int parsec_comm_puts;
 static inline void
 remote_dep_rank_to_bit(int rank, uint32_t *bank, uint32_t *bit, int root)
 {
+#if defined(DISTRIBUTED)
     uint32_t nb_nodes = parsec_remote_dep_context.max_nodes_number;
     uint32_t _rank = (rank + nb_nodes - root) % nb_nodes;
     *bank = _rank / (8 * sizeof(uint32_t));
     *bit =  _rank % (8 * sizeof(uint32_t));
+#else
+    (void)rank; (void)root;
+    *bank = 0;
+    *bit = 0;
+#endif
 }
 
 static inline void
 remote_dep_bit_to_rank(int *rank, uint32_t bank, uint32_t bit, int root)
 {
+#if defined(DISTRIBUTED)
     int nb_nodes = parsec_remote_dep_context.max_nodes_number;
     uint32_t _rank = bank * (8 * sizeof(uint32_t)) + bit;
     *rank = (_rank + root) % nb_nodes;
+#else
+    (void)bank; (void)bit; (void)root;
+    *rank = 0;
+#endif
 }
 
 #endif /* __USE_PARSEC_REMOTE_DEP_H__ */

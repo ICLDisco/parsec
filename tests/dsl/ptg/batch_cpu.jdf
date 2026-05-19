@@ -1,0 +1,148 @@
+extern "C" %{
+/*
+ * Copyright (c) 2024      The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
+ */
+
+#include <assert.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include "parsec/mca/device/device.h"
+#include "batch_cpu.h"
+
+#define TYPE PARSEC_MATRIX_INTEGER
+
+static int
+has_cpu_batch_chore(parsec_taskpool_t *tp)
+{
+    for( unsigned int i = 0; i < tp->nb_task_classes; i++ ) {
+        const parsec_task_class_t *tc = tp->task_classes_array[i];
+        const __parsec_chore_t *chores;
+
+        if( NULL == tc ) {
+            continue;
+        }
+        chores = tc->incarnations;
+        for( int j = 0; PARSEC_DEV_NONE != (chores[j].type & PARSEC_DEV_ANY_TYPE); j++ ) {
+            if( (chores[j].type & PARSEC_DEV_CPU) &&
+                (chores[j].type & PARSEC_DEV_CHORE_ALLOW_BATCH) ) {
+                return 1;
+            }
+        }
+    }
+    return 0;
+}
+%}
+
+DATA [type = "parsec_data_collection_t*"]
+N    [type = int]
+
+BATCH_CPU(k)
+
+  k = 0 .. N-1
+
+  : DATA(k, 0)
+
+  RW TILE <- DATA(k, 0)
+          -> DATA(k, 0)
+
+BODY [batch=true]
+{
+    assert(NULL != TILE);
+    ((int*)TILE)[0] = k + 1;
+}
+END
+
+extern "C" %{
+
+int main(int argc, char **argv)
+{
+    parsec_batch_cpu_taskpool_t *tp;
+    parsec_matrix_block_cyclic_t descA;
+    parsec_arena_datatype_t adt;
+    parsec_datatype_t dt;
+    parsec_context_t *parsec;
+    int n = 32, rc;
+    int rank = 0;
+    int ret = 0;
+
+#if defined(PARSEC_HAVE_MPI)
+    {
+        int provided;
+        MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
+        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    }
+#endif
+
+    if( NULL != argv[1] ) {
+        n = atoi(argv[1]);
+    }
+    if( n <= 0 ) {
+        n = 32;
+    }
+
+    parsec = parsec_init(-1, &argc, &argv);
+    assert(NULL != parsec);
+
+    parsec_matrix_block_cyclic_init(&descA, TYPE, PARSEC_MATRIX_TILE,
+                                    rank,
+                                    1, 1, n, 1,
+                                    0, 0, n, 1, 1, 1, 1, 1, 0, 0);
+    descA.mat = parsec_data_allocate(descA.super.nb_local_tiles *
+                                     descA.super.bsiz *
+                                     parsec_datadist_getsizeoftype(TYPE));
+    memset(descA.mat, 0, descA.super.nb_local_tiles *
+                         descA.super.bsiz *
+                         parsec_datadist_getsizeoftype(TYPE));
+
+    parsec_translate_matrix_type(TYPE, &dt);
+    PARSEC_OBJ_CONSTRUCT(&adt, parsec_arena_datatype_t);
+    parsec_matrix_adt_define_rect(&adt, dt, 1, 1, 1);
+
+    tp = parsec_batch_cpu_new((parsec_data_collection_t*)&descA, n);
+    assert(NULL != tp);
+    if( !has_cpu_batch_chore(&tp->super) ) {
+        parsec_warning("The generated PTG task class does not expose a CPU batch chore\n");
+        ret = 1;
+        goto cleanup;
+    }
+    tp->arenas_datatypes[PARSEC_batch_cpu_DEFAULT_ADT_IDX] = adt;
+    PARSEC_OBJ_RETAIN(adt.arena);
+
+    rc = parsec_context_start(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_start");
+
+    rc = parsec_context_add_taskpool(parsec, (parsec_taskpool_t*)tp);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
+
+    rc = parsec_context_wait(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
+
+    for( int i = 0; i < n; i++ ) {
+        if( ((int*)descA.mat)[i] != i + 1 ) {
+            parsec_warning("Rank %d found value %d at position %d, expected %d\n",
+                           rank, ((int*)descA.mat)[i], i, i + 1);
+            ret = 1;
+            break;
+        }
+    }
+
+  cleanup:
+    parsec_taskpool_free(&tp->super);
+    free(descA.mat);
+    PARSEC_OBJ_RELEASE(adt.arena);
+    parsec_matrix_arena_datatype_destruct_free_type(&adt);
+    parsec_fini(&parsec);
+
+#if defined(PARSEC_HAVE_MPI)
+    MPI_Finalize();
+#endif
+
+    return ret;
+}
+
+%}

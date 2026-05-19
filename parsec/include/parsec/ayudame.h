@@ -79,7 +79,7 @@
   }
 
 /**
- * The excution has been completed and the task will be removed from
+ * The execution has been completed and the task will be removed from
  * the system.
  */
 #define PARSEC_AYU_TASK_COMPLETE(TASK) \
@@ -89,7 +89,7 @@
 
 /**
  * Call this macro only when the task execution has failed. If the task
- * is resubmited, it should go through all the steps again.
+ * is resubmitted, it should go through all the steps again.
  */
 #define PARSEC_AYU_TASK_FAILED(TASK) \
   if( AYU_event ) { \

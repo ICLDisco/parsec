@@ -2,7 +2,7 @@
  * Copyright (c) 2009-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
- * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
+ * Copyright (c) 2024-2026 NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/runtime.h"
@@ -73,17 +73,14 @@ static void check_translate_outoforder(parsec_lifo_t *l1,
                                     const char *lifo1name,
                                     const char *lifo2name)
 {
-    static unsigned char *seen = NULL;
+    unsigned char *seen;
     unsigned int e;
     elt_t *elt;
 
     printf(" - pop them from %s, check they are ok, push them back in %s, and check they are all there\n",
            lifo1name, lifo2name);
 
-    if( NULL == seen )
-        seen = (unsigned char *)calloc(1, NBELT);
-    else
-        memset(seen, 0, NBELT);
+    seen = (unsigned char *)calloc(1, NBELT);
 
     for(e = 0; e < NBELT; e++) {
         elt = (elt_t *)parsec_lifo_pop( l1 );
@@ -101,6 +98,7 @@ static void check_translate_outoforder(parsec_lifo_t *l1,
     if( (elt = (elt_t*)parsec_lifo_pop( l1 )) != NULL ) 
         fatal(" ! Error: unexpected element of base %u in %s: it should be empty\n",
               elt->base, lifo1name);
+    free(seen);
 }
 
 static void check_translate_inorder(parsec_lifo_t *l1,
@@ -315,7 +313,7 @@ int main(int argc, char *argv[])
         if( elt == NULL ) 
             fatal(" ! Error: list lifo2 is supposed to be non empty, but it is!\n");
         if( elt == p )
-            fatal(" ! I keep poping the same element in the list at element %u... It is now officially a frying pan\n",
+            fatal(" ! I keep popping the same element in the list at element %u... It is now officially a frying pan\n",
                   ch);
         ch++;
         p = elt;
@@ -335,6 +333,10 @@ int main(int argc, char *argv[])
         free(elt);
     }
 
+    PARSEC_OBJ_DESTRUCT(&lifo2);
+    PARSEC_OBJ_DESTRUCT(&lifo1);
+
+    free(times);
     free(threads);
 
     printf(" - all tests passed\n");

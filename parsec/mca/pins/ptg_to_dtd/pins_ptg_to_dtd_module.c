@@ -2,7 +2,7 @@
  * Copyright (c) 2013-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
- * Copyright (c) 2023      NVIDIA Corporation.  All rights reserved.
+ * Copyright (c) 2023-2026 NVIDIA Corporation.  All rights reserved.
  */
 
 /**
@@ -12,7 +12,7 @@
  * executed. Upon completion each of these tasks will trigger the completion of the
  * corresponding PTG task.
  *
- * The main complextity here is to synchronize the 2 parsec_taskpool_t, the one that the upper
+ * The main complexity here is to synchronize the 2 parsec_taskpool_t, the one that the upper
  * level is manipulation (possible waiting on), and the one we create for internal purposes.
  */
 #include "parsec/parsec_config.h"
@@ -86,7 +86,7 @@ copy_chores(parsec_taskpool_t *tp, parsec_dtd_taskpool_t *dtd_tp)
             parsec_hook_t **hook_not_const = (parsec_hook_t **)&(tp->task_classes_array[i]->incarnations[j].hook);
 
             /* saving the CPU hook only */
-            if (tp->task_classes_array[i]->incarnations[j].type == PARSEC_DEV_CPU) {
+            if (tp->task_classes_array[i]->incarnations[j].type & PARSEC_DEV_CPU) {
                 dtd_tp->actual_hook[i].hook = tp->task_classes_array[i]->incarnations[j].hook;
             }
             /* copying the fake hook in all the hooks (CPU, GPU etc) */
@@ -132,11 +132,11 @@ static int pins_taskpool_complete_callback(parsec_taskpool_t* ptg_tp, void* void
 }
 
 /**
- * This PINS callback is triggered everytime the PaRSEC runtime is notified
- * about the eixtence of a new parsec_taskpool_t. For each taskpool not corresponding
+ * This PINS callback is triggered every time the PaRSEC runtime is notified
+ * about the existence of a new parsec_taskpool_t. For each taskpool not corresponding
  * to a DTD version, we create a DTD taskpool, a placeholder where all intermediary
  * tasks will belong to. As we need to be informed about the completion of the PTG
- * taskpool, we highjack the completion_callback and register our own function.
+ * taskpool, we hijack the completion_callback and register our own function.
  */
 static void pins_taskpool_init_ptg_to_dtd(parsec_taskpool_t *ptg_tp)
 {
@@ -312,8 +312,8 @@ parsec_dtd_taskpool_insert_task_ptg_to_dtd( parsec_dtd_taskpool_t  *dtd_tp,
         free(params);
 
         __parsec_chore_t *incarnations = (__parsec_chore_t *)tc->incarnations;
-        for(int i = 0; PARSEC_DEV_NONE != incarnations[i].type; i++ ) {
-            if( PARSEC_DEV_CPU == incarnations[i].type ) {
+        for(int i = 0; PARSEC_DEV_NONE != (incarnations[i].type & PARSEC_DEV_ANY_TYPE); i++ ) {
+            if( PARSEC_DEV_CPU & incarnations[i].type ) {
                 incarnations[i] = dtd_chore_for_testing;
             }
         }
@@ -399,7 +399,7 @@ fake_hook_for_testing(parsec_execution_stream_t *es,
         return PARSEC_HOOK_RETURN_ASYNC;
     }
 
-    /* Successful in ataining the lock, now we will pop all the tasks out of the list and put it
+    /* Successful in attaining the lock, now we will pop all the tasks out of the list and put it
      * in our local list.
      */
     for( this_task = (parsec_task_t*)local_list;

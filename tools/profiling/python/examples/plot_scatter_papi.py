@@ -303,7 +303,7 @@ if __name__ == '__main__':
             unit_modify = convert_units(units, args.display_units)
             units = args.display_units
         elif args.display_units == 'ms':
-            print('Graphs will display time in miliseconds.')
+            print('Graphs will display time in milliseconds.')
             unit_modify = convert_units(units, args.display_units)
             units = args.display_units
         elif args.display_units == 'us':
@@ -316,7 +316,7 @@ if __name__ == '__main__':
             units = args.display_units
         else:
             print('\'' + args.display_units +'\' is not an accepted unit.')
-            print('Accepted units are ns (nanoseconds), us (microseconds), ms (miliseconds), and s (seconds).')
+            print('Accepted units are ns (nanoseconds), us (microseconds), ms (milliseconds), and s (seconds).')
             print('Units will remain \'' + units + '\'.')
     print('Conversion Factor: ' + str(unit_modify))
 

@@ -56,7 +56,7 @@ void *thread_fct(void *_)
         }
     }
     if( nbcounters == 0 ) {
-        fprintf(stderr, "SDE_QUICK_TEST:: no counter succesfully defined, bailing out (have you set PAPI_SDE_QUICK_TEST environment variables?)\n");
+        fprintf(stderr, "SDE_QUICK_TEST:: no counter successfully defined, bailing out (have you set PAPI_SDE_QUICK_TEST environment variables?)\n");
         return NULL;
     }
 

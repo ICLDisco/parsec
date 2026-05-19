@@ -2,7 +2,7 @@
  * Copyright (c) 2013-2022 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
- * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
+ * Copyright (c) 2024-2026 NVIDIA Corporation.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -83,9 +83,6 @@ static int flow_lhq_init(parsec_execution_stream_t* ces, struct parsec_barrier_t
                 sched_obj->system_queue = PARSEC_MCA_SCHED_LOCAL_QUEUES_OBJECT(vp->execution_streams[0])->system_queue;
             }
 
-            sched_obj->nb_hierarch_queues = vp->nb_cores;
-            sched_obj->hierarch_queues = (parsec_hbbuffer_t **)malloc(sched_obj->nb_hierarch_queues * sizeof(parsec_hbbuffer_t*) );
-
             sched_obj->nb_hierarch_queues = parsec_hwloc_nb_levels();
             sched_obj->hierarch_queues = (parsec_hbbuffer_t **)malloc(sched_obj->nb_hierarch_queues * sizeof(parsec_hbbuffer_t*) );
         }
@@ -130,7 +127,7 @@ static int flow_lhq_init(parsec_execution_stream_t* ces, struct parsec_barrier_t
             }
         }
         for(t = 0; t < vp->nb_cores; t++) {
-            /* Last, the default task queue is the first hierarch queue of each es */
+            /* Last, the default task queue is the first hierarchical queue of each es */
             es = vp->execution_streams[t];
             sched_obj = (parsec_mca_sched_local_queues_scheduler_object_t*)es->scheduler_object;
             sched_obj->task_queue = sched_obj->hierarch_queues[0];
@@ -251,6 +248,13 @@ static void sched_lhq_remove( parsec_context_t *master )
             }
 
             sched_obj->task_queue = NULL;
+            if( es->th_id == 0 ) {
+                PARSEC_OBJ_DESTRUCT(sched_obj->system_queue);
+                free(sched_obj->system_queue);
+            }
+            sched_obj->system_queue = NULL;
+            free(sched_obj->hierarch_queues);
+            sched_obj->hierarch_queues = NULL;
 
             free(es->scheduler_object);
             es->scheduler_object = NULL;

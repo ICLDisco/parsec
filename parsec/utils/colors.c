@@ -16,7 +16,7 @@ static unsigned int color_seed = 1789;
 
 /**
  * A simple solution to generate different color tables for each rank. For a
- * more detailed and visualy appealing solution take a look at
+ * more detailed and visually appealing solution take a look at
  * http://phrogz.net/css/distinct-colors.html
  * and http://en.wikipedia.org/wiki/HSV_color_space
  */
@@ -93,4 +93,3 @@ char *parsec_unique_color(int index, int colorspace)
     snprintf(color, 8, "#%02x%02x%02x", (int)(255.0*r), (int)(255.0*g), (int)(255.0*b));
     return strdup(color);
 }
-

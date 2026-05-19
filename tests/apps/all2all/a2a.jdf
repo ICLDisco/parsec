@@ -126,13 +126,18 @@ parsec_taskpool_t *a2a_new(parsec_tiled_matrix_t *A, parsec_tiled_matrix_t *B, i
 
     tp = parsec_a2a_new(A, B, repeat, worldsize);
 
-    parsec_add2arena_rect( &tp->arenas_datatypes[PARSEC_a2a_DEFAULT_ADT_IDX],
+    parsec_matrix_adt_define_rect( &tp->arenas_datatypes[PARSEC_a2a_DEFAULT_ADT_IDX],
                                   parsec_datatype_int32_t,
                                   size, 1, size);
 
-
-
     return (parsec_taskpool_t*)tp;
+}
+
+void a2a_free(parsec_taskpool_t *tp)
+{
+    parsec_a2a_taskpool_t *a2a_tp = (parsec_a2a_taskpool_t*)tp;
+    parsec_matrix_arena_datatype_destruct_free_type(&a2a_tp->arenas_datatypes[PARSEC_a2a_DEFAULT_ADT_IDX]);
+    parsec_taskpool_free(tp);
 }
 
 %}

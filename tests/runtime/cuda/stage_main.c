@@ -56,8 +56,8 @@ int main(int argc, char *argv[])
     }
 
     /* Test: comparing results when:
-        - tile matrix transfered to GPU with default stage_in/stage_out
-        - lapack matrix transfered to GPU with custum stage_in/stage_out */
+        - tile matrix transferred to GPU with default stage_in/stage_out
+        - lapack matrix transferred to GPU with custom stage_in/stage_out */
 
     MB = NB = 1;
     M = N = 1;

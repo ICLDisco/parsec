@@ -20,7 +20,7 @@
  *          Specifies on which part of matrix A, the operator must be
  *          applied
  *          = PARSEC_MATRIX_FULL:  All matrix is referenced.
- *          = PARSEC_MATRIX_UPPER: Only upper part is refrenced.
+ *          = PARSEC_MATRIX_UPPER: Only upper part is referenced.
  *          = PARSEC_MATRIX_LOWER: Only lower part is referenced.
  *
  * @param[in,out] A
@@ -69,27 +69,25 @@ parsec_apply_New( parsec_matrix_uplo_t uplo,
 
     switch( A->mtype ) {
     case PARSEC_MATRIX_COMPLEX_DOUBLE    :
-        parsec_add2arena( &parsec_app->arenas_datatypes[PARSEC_apply_DEFAULT_ADT_IDX],
-                          parsec_datatype_double_complex_t,
-                          PARSEC_MATRIX_FULL, 1, A->mb, A->nb, A->mb, PARSEC_ARENA_ALIGNMENT_SSE, -1);
+        parsec_matrix_adt_define_square( &parsec_app->arenas_datatypes[PARSEC_apply_DEFAULT_ADT_IDX],
+                          parsec_datatype_double_complex_t, A->mb);
         break;
     case PARSEC_MATRIX_COMPLEX_FLOAT     :
-        parsec_add2arena( &parsec_app->arenas_datatypes[PARSEC_apply_DEFAULT_ADT_IDX],
-                          parsec_datatype_complex_t,
-                          PARSEC_MATRIX_FULL, 1, A->mb, A->nb, A->mb, PARSEC_ARENA_ALIGNMENT_SSE, -1);
+        parsec_matrix_adt_define_square( &parsec_app->arenas_datatypes[PARSEC_apply_DEFAULT_ADT_IDX],
+                          parsec_datatype_complex_t, A->mb);
         break;
     case PARSEC_MATRIX_DOUBLE       :
-        parsec_add2arena( &parsec_app->arenas_datatypes[PARSEC_apply_DEFAULT_ADT_IDX], parsec_datatype_double_t,
-                          PARSEC_MATRIX_FULL, 1, A->mb, A->nb, A->mb, PARSEC_ARENA_ALIGNMENT_SSE, -1);
+        parsec_matrix_adt_define_square( &parsec_app->arenas_datatypes[PARSEC_apply_DEFAULT_ADT_IDX],
+                          parsec_datatype_double_t, A->mb);
         break;
     case PARSEC_MATRIX_FLOAT        :
-        parsec_add2arena( &parsec_app->arenas_datatypes[PARSEC_apply_DEFAULT_ADT_IDX], parsec_datatype_float_t,
-                          PARSEC_MATRIX_FULL, 1, A->mb, A->nb, A->mb, PARSEC_ARENA_ALIGNMENT_SSE, -1);
+        parsec_matrix_adt_define_square( &parsec_app->arenas_datatypes[PARSEC_apply_DEFAULT_ADT_IDX],
+                          parsec_datatype_float_t, A->mb);
         break;
     case PARSEC_MATRIX_INTEGER          :
     default:
-        parsec_add2arena( &parsec_app->arenas_datatypes[PARSEC_apply_DEFAULT_ADT_IDX], parsec_datatype_int_t,
-                          PARSEC_MATRIX_FULL, 1, A->mb, A->nb, A->mb, PARSEC_ARENA_ALIGNMENT_SSE, -1);
+        parsec_matrix_adt_define_square( &parsec_app->arenas_datatypes[PARSEC_apply_DEFAULT_ADT_IDX],
+                          parsec_datatype_int_t, A->mb);
     }
     return (parsec_taskpool_t*)parsec_app;
 }
@@ -112,7 +110,7 @@ parsec_apply_Destruct( parsec_taskpool_t *tp )
 {
     parsec_apply_taskpool_t *omap = (parsec_apply_taskpool_t *)tp;
 
-    parsec_del2arena( &omap->arenas_datatypes[PARSEC_apply_DEFAULT_ADT_IDX] );
+    parsec_matrix_arena_datatype_destruct_free_type( &omap->arenas_datatypes[PARSEC_apply_DEFAULT_ADT_IDX] );
 
     parsec_taskpool_free(tp);
 }
@@ -132,7 +130,7 @@ parsec_apply_Destruct( parsec_taskpool_t *tp )
  *          Specifies on which part of matrix A, the operator must be
  *          applied
  *          = PARSEC_MATRIX_FULL:  All matrix is referenced.
- *          = PARSEC_MATRIX_UPPER: Only upper part is refrenced.
+ *          = PARSEC_MATRIX_UPPER: Only upper part is referenced.
  *          = PARSEC_MATRIX_LOWER: Only lower part is referenced.
  *
  * @param[in,out] A

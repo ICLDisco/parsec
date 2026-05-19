@@ -44,11 +44,11 @@ end interface
 
   call parsec_context_wait(context, ret)
 
+  ret = touch_finalize_f08()
+
   call parsec_taskpool_free(tp)
 
   call parsec_fini(context)
-
-  ret = touch_finalize_f08()
 
   call MPI_Finalize(ret)
 

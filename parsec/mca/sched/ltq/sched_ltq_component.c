@@ -55,7 +55,7 @@ const parsec_sched_base_component_t parsec_sched_ltq_component = {
         "", /*< no reserve */
     },
     {
-        /* The component has no metada */
+        /* The component has no metadata */
         MCA_BASE_METADATA_PARAM_NONE,
         "", /*< no reserve */
     }
@@ -83,4 +83,3 @@ static int sched_ltq_component_register(void)
 
     return MCA_SUCCESS;
 }
-

@@ -33,8 +33,11 @@ s/two_dim_td_table_clone_table_structure/parsec_matrix_tabular_clone_table_struc
 # symbols in matrix.h
 s/tiled_matrix_submatrix/parsec_tiled_matrix_submatrix/g
 s/parsec_matrix_create_data/parsec_tiled_matrix_create_data/g
-s/parsec_matrix_add2arena/parsec_add2arena/g
-s/parsec_matrix_del2arena/parsec_del2arena/g
+s/parsec_matrix_add2arena/parsec_matrix_adt_define/g
+s/parsec_add2arena/parsec_matrix_adt_define/g
+s/parsec_matrix_adt_define_tile/parsec_matrix_adt_define_square/g
+s/parsec_matrix_del2arena/parsec_matrix_arena_datatype_destruct_free_type/g
+s/parsec_del2arena/parsec_matrix_arena_datatype_destruct_free_type/g
 s/parsec_matrix_data_/parsec_tiled_matrix_data_/g
 
 # vector
@@ -47,3 +50,6 @@ s/grid_2Dcyclic_/parsec_grid_2Dcyclic_/g
 # matrix ops
 s/tiled_matrix_unary_op_t/parsec_tiled_matrix_unary_op_t/g
 s/tiled_matrix_binary_op_t/parsec_tiled_matrix_binary_op_t/g
+
+# DTD arena datatypes
+s/parsec_dtd_destroy_arena_datatype/parsec_dtd_free_arena_datatype/g

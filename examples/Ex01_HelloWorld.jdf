@@ -7,7 +7,7 @@ extern "C" %{
  *    parsec_context_add_taskpool()
  *    parsec_data_collection_init()
  *
- * Can play with the HelloWorld bounds to show embarissingly parallel algorithm.
+ * Can play with the HelloWorld bounds to show embarrassingly parallel algorithm.
  *
  * @version 4.0
  * @email parsec-users@icl.utk.edu

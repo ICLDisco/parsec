@@ -256,7 +256,7 @@ LIFO_STATIC_INLINE void parsec_lifo_push( parsec_lifo_t* lifo,
         /* This is a very conservative implementation of the LIFO push,
          * where we atomically update the entire 128 bytes of the head
          * instead of just the pointer. This code is here for the sake
-         * of completness, but it should not be used as ABA problems
+         * of completeness, but it should not be used as ABA problems
          * cannot arise on push.
          */
         parsec_counted_pointer_t old_head;

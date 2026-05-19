@@ -68,7 +68,7 @@ static int my_project_startup(parsec_execution_stream_t * es,
 
 %option nb_local_tasks_fn = undetermined_nb_tasks
 
-// These are global variables that are instanciated in the main.c
+// These are global variables that are instantiated in the main.c
 treeA               [type = "tree_dist_t *"]
 // The only type known to parsec is parsec_data_collection_t
 NP                  [type = "int"]
@@ -110,7 +110,7 @@ l = 0 .. 1<<n
  // has to receive exactly two controls. But, the parent of leaf nodes
  // should receive the CTL from the PROJECT tasks and all the other
  // parent nodes receive them from END_PROPAGATE. Thus, it is not
- // possible to write a condition which explicitely says from which
+ // possible to write a condition which explicitly says from which
  // task the control was received (in other words, we cannot know if
  // the child nodes are leaves or node without more information).
  // Fortunately, we know exactly how many controls a task is waiting (2)

@@ -44,7 +44,7 @@ BEGIN_C_DECLS
  * @retval New array of environ
  *
  * Merge two environ-like arrays into a single, new array,
- * ensuring that there are no duplicate entires.  If there are
+ * ensuring that there are no duplicate entries.  If there are
  * duplicates, entries in the \em major array are favored over
  * those in the \em minor array.
  *
@@ -74,18 +74,18 @@ PARSEC_DECLSPEC char **parsec_environ_merge(char **minor, char **major);
  * @retval OPAL_EXISTS If the name already exists in \em env and
  * \em overwrite is false (and therefore the \em value was not
  * saved in \em env)
- * @retval OPAL_SUCESS If the value replaced another value or is
+ * @retval OPAL_SUCCESS If the value replaced another value or is
  * appended to \em env.
  *
  * \em env is expected to be a NULL-terminated array of pointers
  * (argv-style).  Note that unlike some implementations of
- * putenv(3), if \em value is insertted in \em env, it is copied.
+ * putenv(3), if \em value is inserted in \em env, it is copied.
  * So the caller can modify/free both \em name and \em value after
  * parsec_setenv() returns.
  *
  * The \em env array will be grown if necessary.
  *
- * It is permissable to invoke this function with the
+ * It is permissible to invoke this function with the
  * system-defined \em environ variable.  For example:
  *
  * \code
@@ -98,7 +98,7 @@ PARSEC_DECLSPEC char **parsec_environ_merge(char **minor, char **major);
  * environment.  This may very well lead to a memory leak, so its
  * use is strongly discouraged.
  *
- * It is also permissable to call this function with an empty \em
+ * It is also permissible to call this function with an empty \em
  * env, as long as it is pre-initialized with NULL:
  *
  * \code

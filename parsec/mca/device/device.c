@@ -2,7 +2,7 @@
  * Copyright (c) 2013-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
- * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
+ * Copyright (c) 2024-2026 NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/parsec_config.h"
@@ -46,6 +46,8 @@ static parsec_device_module_t **modules_activated = NULL;
 
 static mca_base_component_t **device_components = NULL;
 
+static int parsec_device_enable_batching = !!PARSEC_HAVE_DEV_CAPABILITY_BATCH;
+
 /**
  * Load balance skew we are willing to accept to favor RO data reuse
  * on GPU: a value of 20% means that we will schedule tasks on the preferred
@@ -58,6 +60,12 @@ static float load_balance_skew;
  * 0 means that tasks execute on CPU **only if they cannot execute on GPUs**
  */
 static int parsec_device_load_balance_allow_cpu = 0;
+
+/**
+ * Whether to skip input and output stream events that are not strictly
+ * necessary (enabled by default).
+ */
+int parsec_device_skip_empty_events = 1;
 
 /**
  * @brief Estimates how many nanoseconds this_task will run on devid
@@ -112,7 +120,7 @@ int parsec_select_best_device( parsec_task_t* this_task ) {
 
     /* Run the evaluates for the incarnation types to determine if they can
      * execute this task */
-    for(chore_id = 0; PARSEC_DEV_NONE != tc->incarnations[chore_id].type; chore_id++) {
+    for(chore_id = 0; PARSEC_DEV_NONE != (tc->incarnations[chore_id].type & PARSEC_DEV_ANY_TYPE); chore_id++) {
         if( 0 == (this_task->chore_mask & (1<<chore_id)) ) continue;
         if( NULL == tc->incarnations[chore_id].hook ) continue; /* dyld hook not found during initialization */
 
@@ -121,7 +129,7 @@ int parsec_select_best_device( parsec_task_t* this_task ) {
             if( PARSEC_HOOK_RETURN_DONE != rc ) {
                 if( PARSEC_HOOK_RETURN_NEXT != rc ) {
                     PARSEC_DEBUG_VERBOSE(5, parsec_device_output, "Failed to evaluate %s[%d] chore %d",
-                                         tmp, tc->incarnations[chore_id].type,
+                                         tmp, tc->incarnations[chore_id].type & PARSEC_DEV_ANY_TYPE,
                                          chore_id);
                 }
                 /* Mark this chore as tested */
@@ -129,10 +137,11 @@ int parsec_select_best_device( parsec_task_t* this_task ) {
                 continue;
             }
         }
-        valid_types |= tc->incarnations[chore_id].type; /* the eval accepted the type, but no device specified yet */
-        if( NULL != this_task->selected_device ) { /* When Evaluate picked a device, abide by it */
+        valid_types |= (tc->incarnations[chore_id].type & PARSEC_DEV_ANY_TYPE); /* the eval accepted the type, but no device specified yet */
+        /* Evaluate may have picked a device, abide by it */
+        if( NULL != this_task->selected_device ) {
             assert( (1<<this_task->selected_device->device_index) & tp->devices_index_mask /* only valid devices! */ );
-            assert( this_task->selected_device->type & valid_types /* only valid device types! */ );
+            assert( this_task->selected_device->type & valid_types );
             PARSEC_DEBUG_VERBOSE(30, parsec_device_output, "%s: Task %s evaluate set selected_device %d:%s",
                                  __func__, tmp, this_task->selected_device->device_index, this_task->selected_device->name);
             goto device_selected;
@@ -145,7 +154,7 @@ int parsec_select_best_device( parsec_task_t* this_task ) {
     if (PARSEC_DEV_CPU == valid_types) { /* shortcut for CPU only tasks */
         this_task->selected_device = dev = parsec_mca_device_get(0);
         this_task->load = 0;
-        for(chore_id = 0; tc->incarnations[chore_id].type != PARSEC_DEV_CPU; chore_id++);
+        for(chore_id = 0; !(tc->incarnations[chore_id].type & PARSEC_DEV_CPU); chore_id++);
         this_task->selected_chore = chore_id;
         PARSEC_DEBUG_VERBOSE(80, parsec_device_output, "%s: Task %s cpu-only task set selected_device %d:%s",
                              __func__, tmp, dev->device_index, dev->name);
@@ -233,6 +242,8 @@ int parsec_select_best_device( parsec_task_t* this_task ) {
             dev = parsec_mca_device_get(dev_index);
             /* Skip the device if no incarnations for its type */
             if(!(dev->type & valid_types)) continue;
+            /* Skip recursive devices: time estimates are computed on the associated CPU device */
+            if(dev->type & PARSEC_DEV_RECURSIVE) continue;
 
             eta = dev->device_load + time_estimate(this_task, dev);
             if( best_eta > eta ) {
@@ -253,14 +264,14 @@ int parsec_select_best_device( parsec_task_t* this_task ) {
             goto no_valid_device;
 
         this_task->selected_device = parsec_mca_device_get(best_index);
-        assert( this_task->selected_device->type != PARSEC_DEV_RECURSIVE );
+        assert( !(this_task->selected_device->type & PARSEC_DEV_RECURSIVE) );
     }
 
 device_selected:
     dev = this_task->selected_device;
     assert( NULL != dev );
     assert( tp->devices_index_mask & (1 << dev->device_index) );
-    for(chore_id = 0; tc->incarnations[chore_id].type != dev->type; chore_id++)
+    for(chore_id = 0; !(tc->incarnations[chore_id].type & dev->type); chore_id++)
         assert(PARSEC_DEV_NONE != tc->incarnations[chore_id].type /* we have selected this device, so there *must* be an incarnation that matches */);
     this_task->selected_chore = chore_id;
     this_task->load = time_estimate(this_task, dev);
@@ -307,6 +318,21 @@ PARSEC_OBJ_CLASS_INSTANCE(parsec_device_module_t, parsec_object_t,
  * regardless of which GPU backends were compiled in. */
 int32_t parsec_gpu_mem_evict_upper = 95;
 int32_t parsec_gpu_mem_evict_lower = 80;
+
+int
+parsec_mca_device_type_supports_batch(uint32_t device_type)
+{
+#if PARSEC_HAVE_DEV_CAPABILITY_BATCH
+    const uint32_t batch_capable_types = PARSEC_DEV_CUDA | PARSEC_DEV_HIP | PARSEC_DEV_LEVEL_ZERO;
+    uint32_t type = device_type & PARSEC_DEV_ANY_TYPE;
+
+    return parsec_device_enable_batching && (0 != type) &&
+           (0 == (type & ~batch_capable_types));
+#else
+    (void)device_type;
+    return 0;
+#endif  /* PARSEC_HAVE_DEV_CAPABILITY_BATCH */
+}
 
 int parsec_mca_device_init(void)
 {
@@ -362,9 +388,19 @@ int parsec_mca_device_init(void)
     (void)parsec_mca_param_reg_int_name("device", "load_balance_skew",
                                         "Allow load balancing to skew by x%% to favor data reuse",
                                         false, false, parsec_device_load_balance_skew, NULL);
+    (void)parsec_mca_param_reg_int_name("device", "skip_empty_events",
+                                        "Skip recording events on input and output streams "
+                                        "that are not strictly necessary (enabled)",
+                                        false, false, parsec_device_skip_empty_events,
+                                        &parsec_device_skip_empty_events);
     (void)parsec_mca_param_reg_int_name("device", "load_balance_allow_cpu",
                                         "Allow load balancing tasks with GPU incarnations to CPU cores",
                                         false, false, parsec_device_load_balance_allow_cpu, NULL);
+    (void)parsec_mca_param_reg_int_name("device", "enable_batching",
+                                        "Boolean to allow batched task execution on all devices",
+                                        false, !parsec_device_enable_batching,
+                                        parsec_device_enable_batching,
+                                        &parsec_device_enable_batching);
     if( 0 < (rc = parsec_mca_param_find("device", NULL, "load_balance_skew")) ) {
         parsec_mca_param_lookup_int(rc, &parsec_device_load_balance_skew);
     }
@@ -385,6 +421,7 @@ int parsec_mca_device_init(void)
     for(i = 0; NULL != device_components[i]; i++); /* nothing just counting */
     if( 0 == i ) {  /* no devices */
         parsec_debug_verbose(10, parsec_device_output, "No devices found on %s\n", parsec_hostname);
+        mca_components_free_user_list(parsec_device_list);
         return PARSEC_ERR_NOT_FOUND;
     }
     modules_activated = (parsec_device_module_t**)malloc(sizeof(parsec_device_module_t*) * i);
@@ -547,7 +584,7 @@ void parsec_devices_print_statistics(parsec_context_t *parsec_context, uint64_t 
 
     printf("+---------------------------------------------------------------------------------------------------------------------------------------------+\n");
     printf("|         |                    |                       Data In                              |                    Data Out                     |\n");
-    printf("|Rank %3d |  # KERNEL |    %%   |  Required  |    Transfered H2D(%%)  |    Transfered D2D(%%)  |  Required  |      Transfered(%%)  |   Evictions  |\n",
+    printf("|Rank %3d |  # KERNEL |    %%   |  Required  |   Transferred H2D(%%)  |   Transferred D2D(%%)  |  Required  |     Transferred(%%)  |   Evictions  |\n",
            (NULL == parsec_context ? parsec_debug_rank : parsec_context->my_rank));
     printf("|---------|-----------|--------|------------|-----------------------|-----------------------|------------|---------------------|--------------|\n");
     for( i = 0; i < parsec_nb_devices; i++ ) {
@@ -681,6 +718,7 @@ int parsec_mca_device_fini(void)
     }
     num_modules_activated = 0;
     free(modules_activated); modules_activated = NULL;
+    free(device_components); device_components = NULL;
 
     if( NULL != parsec_device_recursive ) {  /* Release recursive device */
         parsec_mca_device_remove(parsec_device_recursive);
@@ -803,10 +841,8 @@ int parsec_mca_device_registration_complete(parsec_context_t* context)
     for( uint32_t i = 0; i < parsec_nb_devices; i++ ) {
         parsec_device_module_t* device = parsec_devices[i];
         if( NULL == device ) continue;
-        if( PARSEC_DEV_RECURSIVE == device->type ) continue;
-        if(NULL != device->all_devices_attached)
-            device->all_devices_attached(device);
-        if( PARSEC_DEV_CPU == device->type ) {
+        if( PARSEC_DEV_RECURSIVE & device->type ) continue;
+        if( PARSEC_DEV_CPU & device->type ) {
             c = 0;
             for(int p = 0; p < context->nb_vp; p++)
                 c += context->virtual_processes[p]->nb_cores;
@@ -825,7 +861,7 @@ int parsec_mca_device_registration_complete(parsec_context_t* context)
     for( uint32_t i = 0; i < parsec_nb_devices; i++ ) {
         parsec_device_module_t* device = parsec_devices[i];
         if( NULL == device ) continue;
-        if( PARSEC_DEV_RECURSIVE == device->type ) continue;
+        if( PARSEC_DEV_RECURSIVE & device->type ) continue;
         device->time_estimate_default = total_gflops_fp64/(double)device->gflops_fp64;
         parsec_debug_verbose(6, parsec_device_output, "  Dev[%d] default-time-estimate %-4"PRId64" <- double %-8"PRId64" single %-8"PRId64" tensor %-8"PRId64" half %-8"PRId64" %s",
                              i, device->time_estimate_default, device->gflops_fp64, device->gflops_fp32, device->gflops_tf32, device->gflops_fp16, device->gflops_guess? "GUESSED": "");
@@ -851,7 +887,7 @@ static int cpu_weights(parsec_device_module_t* device, int nstreams)
     float freq = 0.f;
     float fp_ipc = 0.f;
     float dp_ipc = 0.f;
-    char cpu_model[256]="Unkown";
+    char cpu_model[256]="Unknown";
     char *simd = NULL;
 
 #if defined(__linux__)
@@ -1014,7 +1050,7 @@ device_taskpool_register_static(parsec_device_module_t* device, parsec_taskpool_
             continue;
         __parsec_chore_t* chores = (__parsec_chore_t*)tc->incarnations;
         for( j = 0; NULL != chores[j].hook; j++ ) {
-            if( chores[j].type != device->type )
+            if( !(chores[j].type & device->type) )
                 continue;
             if(  NULL != chores[j].dyld_fn ) {
                 continue;  /* the function has been set for another device of the same type */

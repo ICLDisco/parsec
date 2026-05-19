@@ -50,7 +50,7 @@ int parsec_bindthread(int cpu, int ht)
             return -1;
         }
     }
-#else /* We bind thread ourself in funtion of architecture */
+#else /* We bind thread ourself in function of architecture */
 
 #if defined(PARSEC_HAVE_SCHED_SETAFFINITY)
     {
@@ -107,4 +107,3 @@ int parsec_bindthread_mask(hwloc_cpuset_t cpuset)
     return parsec_hwloc_bind_on_mask_index(cpuset);
 }
 #endif
-

@@ -153,7 +153,7 @@ static int tree_dist_key_to_string(parsec_data_collection_t *desc, parsec_data_k
 }
 
 /***********************************************************************************************
- * Utilitiy functions to move on the tree
+ * Utility functions to move on the tree
  ***********************************************************************************************/
 
 void tree_dist_insert_node(tree_dist_t *tree, node_t *node, int n, int l)
@@ -314,13 +314,26 @@ void tree_dist_node_free(void *item, void*cb_data)
     tree_dist_node_t *tnode = (tree_dist_node_t*)item;
     tree_dist_t *tree = (tree_dist_t*)cb_data;
     parsec_hash_table_nolock_remove(&tree->nodes, tnode->ht_item.key);
+    if(NULL != tnode->data) {
+        parsec_data_destroy(tnode->data);
+    }
     free(tnode);
 }
 
 void tree_dist_free(tree_dist_t *tree)
 {
+    tree_buffer_t *buffer;
+
     parsec_hash_table_for_all(&tree->nodes, tree_dist_node_free, tree);
-    if(NULL != tree->buffers) free(tree->buffers);
+    parsec_hash_table_fini(&tree->nodes);
+    while(NULL != tree->buffers) {
+        buffer = tree->buffers;
+        tree->buffers = buffer->prev;
+        free(buffer->buffer);
+        free(buffer);
+    }
+    pthread_mutex_destroy(&tree->buffer_lock);
+    parsec_type_free(&tree->super.default_dtt);
     parsec_data_collection_destroy(&tree->super);
     free(tree);
 }

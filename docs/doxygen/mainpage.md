@@ -1,3 +1,7 @@
+<!--
+Copyright (c) 2026 NVIDIA Corporation.  All rights reserved.
+-->
+
 PaRSEC Documentation {#mainpage}
 ================================
 
@@ -23,7 +27,8 @@ PaRSEC exposes a [public API](@ref parsec_public), that feature:
 - a set of programming interfaces:
 
   - [Dynamic Tasks Discovery (DTD)](@ref DTD_INTERFACE), that uses an
-  inspector/executor model to build the DAG of tasks at runtime
+  inspector/executor model to build the DAG of tasks at runtime. See the
+  [DTD model guide](@ref dtd_model) for the application-level workflow.
   - [Parameterized Task Graphs (PTG)](https://bitbucket.org/icldistcomp/parsec/wiki/writejdf), that
   provides an intermediate representation of the DAG of tasks at
   compile time
@@ -33,7 +38,9 @@ task runtime system, schedule DAGs of Tasks in it, and expose the user
 data to the task system
 - [A profiling system](@ref parsec_public_profiling) to build traces
 of the execution at runtime, providing performance information
-feedback to the application or to the user
+feedback to the application or to the user. See the
+[profiling how-to](@ref parsec_profiling_howto) for build and runtime
+collection examples for the PaRSEC binary trace format, OTF2, and NVTX.
 
 ## <a name="parsecdev">PaRSEC Developer and Advanced Usage Documentation</a> ###
 [(Return to Table of Contents](#toc)]
@@ -72,6 +79,9 @@ subdirectory of the source. It is separated in a few modules:
      - [Virtual Processes](@ref parsec_internal_virtualprocess) allow to
    isolate groups of threads and avoid work stealing between threads
    belonging to different virtual processes.
+     - [Device task batching](@ref task_batching) documents how
+   accelerator submit hooks can combine compatible ready tasks into one
+   batched device operation.
     - [The Internal Runtime Module](@ref parsec_internal_runtime) holds
     all other functions and data structures that allow to build the
     PaRSEC runtime system.
@@ -117,4 +127,3 @@ following components have specific documentation:
 
  - [schedulers](@ref parsec/mca/sched/sched.h) in `parsec/mca/sched`
  - [PaRSEC INStrumentation](@ref parsec/mca/pins/pins.h) in `parsec/mca/pins`
-

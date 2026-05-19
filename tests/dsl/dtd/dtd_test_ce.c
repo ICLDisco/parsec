@@ -213,7 +213,7 @@ get_end(parsec_comm_engine_t *ce,
     return 1;
 }
 
-/* This funciton was passed from rank 0 to rank 1 as the notification
+/* This function was passed from rank 0 to rank 1 as the notification
  * function to be called when the GET is over for clean up on rank 0.
  * The memory_handle of rank 0 was also sent to rank 1 to be sent back
  * as the callback data.
