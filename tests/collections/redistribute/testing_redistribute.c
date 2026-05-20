@@ -295,6 +295,7 @@ testing_redistribute_make_device_resident(testing_redistribute_matrix_t *matrix)
             parsec_data_t *data;
             parsec_data_copy_t *cpu_copy;
             parsec_data_copy_t *gpu_copy;
+            size_t data_size;
             uint32_t owner = dc->rank_of(dc, m, n);
 
             if( owner != dc->myrank ) {
@@ -302,6 +303,7 @@ testing_redistribute_make_device_resident(testing_redistribute_matrix_t *matrix)
             }
 
             data = dc->data_of(dc, m, n);
+            data_size = data->span;
             cpu_copy = parsec_data_get_copy(data, 0);
             gpu_copy = parsec_data_get_copy(data, device_index);
 
@@ -309,11 +311,11 @@ testing_redistribute_make_device_resident(testing_redistribute_matrix_t *matrix)
                 gpu_copy = PARSEC_OBJ_NEW(parsec_data_copy_t);
                 gpu_copy->dtt = dc->default_dtt;
                 gpu_copy->release_cb = testing_redistribute_cuda_release;
-                status = cudaMalloc(&gpu_copy->device_private, data->nb_elts);
+                status = cudaMalloc(&gpu_copy->device_private, data_size);
                 if( cudaSuccess != status ) {
                     PARSEC_OBJ_RELEASE(gpu_copy);
                     fprintf(stderr, "ERROR: cudaMalloc(%zu) failed: %s\n",
-                            data->nb_elts, cudaGetErrorString(status));
+                            data_size, cudaGetErrorString(status));
                     return PARSEC_ERROR;
                 }
                 parsec_data_copy_attach(data, gpu_copy, device_index);
@@ -321,11 +323,11 @@ testing_redistribute_make_device_resident(testing_redistribute_matrix_t *matrix)
 
             status = cudaMemcpy(gpu_copy->device_private,
                                 cpu_copy->device_private,
-                                data->nb_elts,
+                                data_size,
                                 cudaMemcpyHostToDevice);
             if( cudaSuccess != status ) {
                 fprintf(stderr, "ERROR: cudaMemcpy(host to device, %zu) failed: %s\n",
-                        data->nb_elts, cudaGetErrorString(status));
+                        data_size, cudaGetErrorString(status));
                 return PARSEC_ERROR;
             }
             parsec_data_transfer_ownership_to_copy(data, device_index, PARSEC_FLOW_ACCESS_RW);
