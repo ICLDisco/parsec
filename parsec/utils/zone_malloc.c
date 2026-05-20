@@ -105,6 +105,22 @@ void* zone_malloc_fini(zone_malloc_t** gdata)
     (*gdata)->unit_size = 0;
     (*gdata)->base = NULL;
 
+    /* Release all chunk_list nodes still in the rbtree, including the
+     * whole-pool node created in zone_malloc_init. */
+    zone_malloc_chunk_list_t* fl;
+    while ((*gdata)->rbtree.root != (*gdata)->rbtree.nil) {
+        fl = (zone_malloc_chunk_list_t*)(*gdata)->rbtree.root;
+        parsec_rbtree_remove(&(*gdata)->rbtree, (*gdata)->rbtree.root);
+        PARSEC_OBJ_RELEASE(fl);
+    }
+
+    /* Release chunk_list nodes retired to the free list.  These are already
+     * out of the rbtree, so no tree operation is needed. */
+    while (!parsec_lifo_nolock_is_empty(&(*gdata)->rbtree_free_list)) {
+        fl = (zone_malloc_chunk_list_t*)parsec_lifo_nolock_pop(&(*gdata)->rbtree_free_list);
+        PARSEC_OBJ_RELEASE(fl);
+    }
+
     parsec_rbtree_fini(&(*gdata)->rbtree);
     free(*gdata);
     *gdata = NULL;
