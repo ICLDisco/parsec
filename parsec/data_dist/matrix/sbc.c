@@ -302,7 +302,7 @@ static parsec_data_t* parsec_matrix_sbc_data_of_key(parsec_data_collection_t *de
 static int32_t parsec_matrix_sbc_vpid_of(parsec_data_collection_t *desc, ...)
 {
     int m, n, position;
-    int nbvp = vpmap_get_nb_vp();
+    int nbvp = parsec_vpmap_get_nb_vp();
     va_list ap;
     parsec_matrix_sbc_t *dc = (parsec_matrix_sbc_t *)desc;
 
