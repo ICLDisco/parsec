@@ -893,9 +893,10 @@ remote_dep_get_datatypes(parsec_execution_stream_t* es,
         }
     } else {
         parsec_task_t task;
-        task.taskpool   = origin->taskpool;
-        int idx, *data_sizes = (int*)origin->eager_msg;
+        uint32_t idx;
+        uint32_t *data_sizes = (uint32_t*)origin->eager_msg;
 
+        task.taskpool   = origin->taskpool;
         task.priority = 0;  /* unknown yet */
         task.task_class = task.taskpool->task_classes_array[origin->msg.task_class_id];
         for(i = 0; i < task.task_class->nb_flows;
@@ -910,8 +911,28 @@ remote_dep_get_datatypes(parsec_execution_stream_t* es,
          * mask. However, in order to be able to use the above iterator we need to
          * be able to identify the dep_index for each particular datatype index, and
          * call the iterate_successors on each of the dep_index sets.
+         *
+         * The activation output_mask is a propagation mask, not a compact list of
+         * payloads for this rank. It can contain bits for dependencies that must
+         * continue through the remote-dependency tree but that this process will
+         * not consume locally. The eager header, on the other hand, carries byte
+         * sizes in payload order: data_sizes[0] is the number of reserved slots
+         * and data_sizes[1..] contains meaningful sizes only for non-control data
+         * actually sent to this rank.
+         *
+         * This means data_sizes[] must not be indexed by the output_mask bits. We
+         * still have to preload src_count before iterate_successors(), because
+         * get_datatype() may need the remote size to build the local receive
+         * datatype. When no payload entry remains, src_count is set to zero for
+         * this propagation-only candidate. A non-zero size is consumed only if
+         * the iterator finds a local non-control dependency.
+         * remote_dep_mpi_retrieve_datatype() records that by adding the dependency
+         * bit to incoming_mask, while a control dependency is identified by a zero
+         * dst_count. Only then can idx advance to the next payload size.
          */
         for(k = idx = 0; origin->msg.output_mask>>k; k++) {
+            remote_dep_datakey_t incoming_mask;
+
             if(!(origin->msg.output_mask & (1U<<k))) continue;
             for(local_mask = i = 0; NULL != task.task_class->out[i]; i++ ) {
                 if(!(task.task_class->out[i]->flow_datatype_mask & (1U<<k))) continue;
@@ -922,17 +943,26 @@ remote_dep_get_datatypes(parsec_execution_stream_t* es,
             }
 
             origin->output[k].data.remote.src_datatype = origin->output[k].data.remote.dst_datatype = PARSEC_DATATYPE_NULL;
+            origin->output[k].data.remote.src_count = origin->output[k].data.remote.dst_count = 0;
             assert(idx <= data_sizes[0]);
-            origin->output[k].data.remote.src_count = data_sizes[idx+1];
+            origin->output[k].data.remote.src_count = (idx < data_sizes[0]) ? data_sizes[idx+1] : 0;
             PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream,
-                                 "MPI:\tRetrieve datatype with mask 0x%x (remote_dep_get_datatypes) remote size %d",
+                                 "MPI:\tRetrieve datatype with mask 0x%x (remote_dep_get_datatypes) remote size %u",
                                  local_mask, origin->output[k].data.remote.src_count);
+            incoming_mask = origin->incoming_mask;
             task.task_class->iterate_successors(es, &task,
                                                 local_mask,
                                                 remote_dep_mpi_retrieve_datatype,
                                                 origin);
-            idx++;
+            if( (origin->incoming_mask & ~incoming_mask & (1U<<k)) &&
+                (0 != origin->output[k].data.remote.dst_count) ) {
+                assert(idx < data_sizes[0]);
+                idx++;
+            } else {
+                origin->output[k].data.remote.src_count = 0;
+            }
         }
+        assert(idx <= data_sizes[0]);
     }
 
     /**
