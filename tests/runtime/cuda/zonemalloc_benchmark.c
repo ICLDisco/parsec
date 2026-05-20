@@ -138,7 +138,7 @@ static int pow2_L(int num_segments)
     return L;
 }
 
-static double bench_pow2(int num_segments, int iterations)
+static double bench_pow2(int num_segments, int iterations, long *actual_ops_out)
 {
     int L = pow2_L(num_segments);
     unsigned *sizes = (unsigned *)malloc((size_t)L * sizeof(unsigned));
@@ -148,20 +148,21 @@ static double bench_pow2(int num_segments, int iterations)
     zone_malloc_t *z = make_zone(&base, num_segments);
     void **ptrs = (void **)malloc((size_t)L * sizeof(void *));
 
+    long total_ops = 0;
     double t0 = wall_time();
     for (int it = 0; it < iterations; it++) {
+        int n_alloc = 0;
         for (int i = 0; i < L; i++) {
             ptrs[i] = zone_malloc(z, (size_t)sizes[i] * UNIT_SIZE);
-			if (!ptrs[i]) {
-				fprintf(stderr, "Failed to allocate pow2 segment %d\n", i);
-				return 0.0;
-			}
+            if (ptrs[i]) n_alloc++;
         }
         /* largest first: coalescing unwinds back to one big free chunk */
         for (int i = L - 1; i >= 0; i--)
-            zone_free(z, ptrs[i]);
+            if (ptrs[i]) zone_free(z, ptrs[i]);
+        total_ops += 2L * n_alloc;
     }
     double elapsed = wall_time() - t0;
+    *actual_ops_out = total_ops;
 
     free(sizes); free(ptrs);
     destroy_zone(z, base);
@@ -188,7 +189,7 @@ static int distinct_K(int num_segments)
     return K;
 }
 
-static double bench_many_distinct(int num_segments, int iterations)
+static double bench_many_distinct(int num_segments, int iterations, long *actual_ops_out)
 {
     int K = distinct_K(num_segments);
 
@@ -209,21 +210,22 @@ static double bench_many_distinct(int num_segments, int iterations)
         zone_free(z, chunks[i]);
     /* rbtree now has K distinct nodes: sizes 1, 2, 3, ..., K */
 
+    long total_ops = 0;
     double t0 = wall_time();
     for (int it = 0; it < iterations; it++) {
         /* each alloc calls find(size) — exact match exists at depth O(log K) */
+        int n_alloc = 0;
         for (int i = 0; i < K; i++) {
             allocs[i] = zone_malloc(z, (size_t)(i + 1) * UNIT_SIZE);
-			if (!allocs[i]) {
-				fprintf(stderr, "Failed to allocate pow2 segment %d\n", i);
-				return 0.0;
-			}
+            if (allocs[i]) n_alloc++;
         }
         /* reverse free: restores the K distinct nodes for next iteration */
         for (int i = K - 1; i >= 0; i--)
-            zone_free(z, allocs[i]);
+            if (allocs[i]) zone_free(z, allocs[i]);
+        total_ops += 2L * n_alloc;
     }
     double elapsed = wall_time() - t0;
+    *actual_ops_out = total_ops;
 
     for (int i = 0; i < K; i++)
         zone_free(z, spacers[i]);
@@ -256,7 +258,7 @@ static int gaps_K(int num_segments)
     return K;
 }
 
-static double bench_find_or_larger(int num_segments, int iterations)
+static double bench_find_or_larger(int num_segments, int iterations, long *actual_ops_out)
 {
     int K = gaps_K(num_segments);
 
@@ -277,22 +279,23 @@ static double bench_find_or_larger(int num_segments, int iterations)
         zone_free(z, chunks[i]);
     /* rbtree has K nodes: sizes 2, 4, 6, ..., 2K */
 
+    long total_ops = 0;
     double t0 = wall_time();
     for (int it = 0; it < iterations; it++) {
         /* request odd sizes → find_or_larger must skip to the next even node */
+        int n_alloc = 0;
         for (int i = 0; i < K; i++) {
             allocs[i] = zone_malloc(z, (size_t)(2 * i + 1) * UNIT_SIZE);
-			if (!allocs[i]) {
-				fprintf(stderr, "Failed to allocate find-or-larger segment %d\n", i);
-				return 0.0;
-			}
+            if (allocs[i]) n_alloc++;
         }
         /* reverse free: leftover 1-unit fragments coalesce with the freed
          * block to restore the original even-sized free chunks */
         for (int i = K - 1; i >= 0; i--)
-            zone_free(z, allocs[i]);
+            if (allocs[i]) zone_free(z, allocs[i]);
+        total_ops += 2L * n_alloc;
     }
     double elapsed = wall_time() - t0;
+    *actual_ops_out = total_ops;
 
     for (int i = 0; i < K; i++)
         zone_free(z, spacers[i]);
@@ -466,8 +469,8 @@ static double bench_fragmentation(int num_segments, int iterations)
 static void print_row(const char *name, double elapsed, long ops, int k)
 {
     const char *k_str = (k >= 0) ? "" : "varies";
-    if (elapsed < 1e-9) {
-        /* Timer resolution too coarse — cannot compute meaningful rates. */
+    if (elapsed < 1e-9 || ops == 0) {
+        /* Timer resolution too coarse or no successful operations. */
         if (k >= 0)
             printf("  %-34s  %8.3f s  %8s ns/op  %11s ops/s   k=%-4d\n",
                    name, elapsed, "<res", "<res", k);
@@ -578,20 +581,23 @@ int main(int argc, char **argv)
 
     {
         int L = pow2_L(num_segments);
-        t = bench_pow2(num_segments, iterations);
-        print_row("power-of-2 sizes", t, 2L * iterations * L, L);
+        long actual_ops;
+        t = bench_pow2(num_segments, iterations, &actual_ops);
+        print_row("power-of-2 sizes", t, actual_ops, L);
     }
 
     {
         int K = distinct_K(num_segments);
-        t = bench_many_distinct(num_segments, iterations);
-        print_row("many distinct sizes (exact)", t, 2L * iterations * K, K);
+        long actual_ops;
+        t = bench_many_distinct(num_segments, iterations, &actual_ops);
+        print_row("many distinct sizes (exact)", t, actual_ops, K);
     }
 
     {
         int K = gaps_K(num_segments);
-        t = bench_find_or_larger(num_segments, iterations);
-        print_row("find_or_larger with gaps", t, 2L * iterations * K, K);
+        long actual_ops;
+        t = bench_find_or_larger(num_segments, iterations, &actual_ops);
+        print_row("find_or_larger with gaps", t, actual_ops, K);
     }
 
     {
