@@ -1,7 +1,9 @@
+# Copyright (c) 2026 NVIDIA Corporation.  All rights reserved.
+
 find_package (Python COMPONENTS Interpreter)
 if(Python_FOUND AND PARSEC_PYTHON_TOOLS AND PARSEC_PROF_TRACE AND MPI_C_FOUND)
   # BW test
-  parsec_addtest_cmd(profiling/bw_generate_prof:mp ${MPI_TEST_CMD_LIST} 2 apps/pingpong/bw_test -n 10 -f 10 -l 2097152 -- --mca profile_filename bw  --mca mca_pins task_profiler)
+  parsec_addtest_cmd(profiling/bw_generate_prof:mp ${MPI_TEST_CMD_LIST} 2 apps/pingpong/bw_test -n 10 -f 10 -l 2097152 -u 2097152 -- --mca profile_filename bw  --mca mca_pins task_profiler)
   set_property(TEST profiling/bw_generate_prof:mp PROPERTY FIXTURES_SETUP bw_prof_files)
 
   set(TMPPYTHONPATH "${PROJECT_BINARY_DIR}/tools/profiling/python/python.test/")
@@ -39,7 +41,7 @@ if(Python_FOUND AND PARSEC_PYTHON_TOOLS AND PARSEC_PROF_TRACE AND MPI_C_FOUND)
 
   if(PARSEC_PROF_GRAPHER)
     # BW with DOT test; do not use the same file names as BW tests to avoid requiring serialization of tests (RESOURCE_LOCK)
-    parsec_addtest_cmd(profiling/bwd_generate_prof_and_dot:mp ${MPI_TEST_CMD_LIST} 2 apps/pingpong/bw_test -n 3 -f 2 -l 2097152 -- --mca profile_filename bwd  --mca mca_pins task_profiler --mca profile_dot bwd)
+    parsec_addtest_cmd(profiling/bwd_generate_prof_and_dot:mp ${MPI_TEST_CMD_LIST} 2 apps/pingpong/bw_test -n 3 -f 2 -l 2097152 -u 2097152 -- --mca profile_filename bwd  --mca mca_pins task_profiler --mca profile_dot bwd)
     set_property(TEST profiling/bwd_generate_prof_and_dot:mp PROPERTY FIXTURES_SETUP bwd_prof_and_dot_files)
 
     parsec_addtest_cmd(profiling/bwd_generate_hdf5 ${SHM_TEST_CMD_LIST}
