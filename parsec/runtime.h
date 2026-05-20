@@ -162,6 +162,12 @@ typedef enum parsec_hook_return_e {
  * execution context. Several contexts can coexist on disjoint resources
  * at the same time.
  *
+ * If the selected communication backend needs an external process runtime
+ * and that runtime has not been initialized by the application, parsec_init()
+ * may initialize it. In that case, parsec_fini() releases the runtime during
+ * communication backend finalization. For example, the MPI backend initializes
+ * MPI on demand and finalizes MPI only if PaRSEC initialized it.
+ *
  * @param[in]    nb_cores the number of cores to use
  * @param[inout] pargc a pointer to the number of arguments passed in pargv
  * @param[inout] pargv an argv-like NULL terminated array of arguments to pass to
@@ -248,7 +254,8 @@ void parsec_abort( parsec_context_t* pcontext, int status);
  * @details
  * Complete all pending operations on the execution context, and release
  * all associated resources. Threads and accelerators attached to this
- * context will be released.
+ * context will be released. If parsec_init() initialized the selected
+ * communication backend's process runtime, parsec_fini() finalizes it.
  *
  * @param[inout] pcontext a pointer to the PaRSEC context to finalize
  * @return PARSEC_SUCCESS on success
@@ -309,11 +316,18 @@ typedef enum parsec_context_query_cmd_e {
  * @brief Query PaRSEC context's properties.
  *
  * @details
- * Query properties of the runtime, such as number of devices of a certain type
- * or number of cores available to the context.
+ * Query properties of the runtime, such as the rank and size known by the
+ * selected communication engine, the number of devices of a certain type, or
+ * the number of cores available to the context.
+ *
+ * PARSEC_CONTEXT_QUERY_RANK and PARSEC_CONTEXT_QUERY_NODES are valid after
+ * parsec_init() returns. The selected communication backend owns how those
+ * values are discovered, so callers should use these queries instead of
+ * assuming MPI_COMM_WORLD.
  *
  * @param[in] context the PaRSEC context
- * @param[in] device_type the type of device the query is about
+ * @param[in] cmd the property to query
+ * @param[in] ... optional arguments required by the selected query command
  * @return PARSEC_ERR_NOT_SUPPORTED if the command is not supported, PARSEC_ERR_NOT_FOUND
  *         if the correct answer cannot yet be returned (such as when the PaRSEC context
  *         has not yet properly been initialized), or the answer to the query (always

@@ -3003,7 +3003,7 @@ int parsec_context_query(parsec_context_t *context, parsec_context_query_cmd_t c
         case PARSEC_CONTEXT_QUERY_NODES:
             switch (parsec_communication_engine_up) {
                 case 0: return 0;  /* context not ready for distributed runs, and lacking datatype handling capabilities */
-                case 1: return 1;  /* single node runs, but the context has datatype management capabilities */
+                case 1: return context->nb_nodes;  /* communication engine initialized, but not necessarily awake */
                 case 2: return PARSEC_ERR_NOT_FOUND; /* we are in a distributed run, but the MPI engine is not yet ready, so the nb_nodes might not be accurate */
                 case 3: return context->nb_nodes;
             }

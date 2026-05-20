@@ -72,6 +72,19 @@ PARSEC_OBJ_CLASS_INSTANCE(mpi_funnelled_mem_reg_handle_t, parsec_list_item_t,
  * if the layer has been initialized or not.
  */
 static int MAX_MPI_TAG = -1, mca_tag_ub = -1;
+/*
+ * Track MPI ownership explicitly. Applications that initialized MPI keep
+ * ownership of MPI_Finalize(); PaRSEC only finalizes MPI when the MPI backend
+ * had to initialize it during parsec_init().
+ */
+static int mpi_funnelled_initialized_mpi = 0;
+/*
+ * context->comm_ctx is also owned by the MPI backend when the backend installs
+ * the default communicator or duplicates a user-provided communicator through
+ * set_ctx().  The communication engine may later replace that duplicate with
+ * parsec_ce_mpi_comm, which has its own lifetime.
+ */
+static int mpi_funnelled_context_comm_owned = 0;
 static volatile int __VAL_NEXT_TAG = 0;
 #if INT_MAX == INT32_MAX
 #define next_tag_cas(t, o, n) parsec_atomic_cas_int32(t, o, n)
@@ -100,6 +113,45 @@ reread:
         __VAL_NEXT_TAG = __next_tag;
     }
     return __tag;
+}
+
+static const char *
+mpi_funnelled_thread_level_name(int level)
+{
+    switch(level) {
+    case MPI_THREAD_SINGLE:     return "MPI_THREAD_SINGLE";
+    case MPI_THREAD_FUNNELED:   return "MPI_THREAD_FUNNELED";
+    case MPI_THREAD_SERIALIZED: return "MPI_THREAD_SERIALIZED";
+    case MPI_THREAD_MULTIPLE:   return "MPI_THREAD_MULTIPLE";
+    default:                    return "MPI_THREAD_UNKNOWN";
+    }
+}
+
+static int
+mpi_funnelled_requested_thread_level(void)
+{
+    /*
+     * When PaRSEC owns MPI initialization, ask MPI for the strongest guarantee.
+     * The existing comm_thread_multiple logic still decides whether PaRSEC uses
+     * concurrent MPI access internally, but applications and tests may call MPI
+     * collectives after parsec_init() while PaRSEC is active.
+     */
+    return MPI_THREAD_MULTIPLE;
+}
+
+static void
+mpi_funnelled_release_context_comm(parsec_context_t *context)
+{
+    if( mpi_funnelled_context_comm_owned && (-1 != context->comm_ctx) ) {
+        MPI_Comm comm = (MPI_Comm)context->comm_ctx;
+
+        if( (MPI_COMM_NULL != comm) &&
+            (MPI_COMM_WORLD != comm) ) {
+            MPI_Comm_free(&comm);
+        }
+        context->comm_ctx = -1;
+        mpi_funnelled_context_comm_owned = 0;
+    }
 }
 
 /* Count and protect the internal building of the arrays of AM */
@@ -544,8 +596,14 @@ static int parsec_mpi_set_ctx(parsec_comm_engine_t* ce, intptr_t opaque_comm_ctx
         assert( -1 != context->comm_ctx );
         MPI_Comm_free((MPI_Comm*)&context->comm_ctx);
     }
+    mpi_funnelled_release_context_comm(context);
+
     rc = MPI_Comm_dup((MPI_Comm)opaque_comm_ctx, &comm);
+    if( MPI_SUCCESS != rc ) {
+        return PARSEC_ERROR;
+    }
     context->comm_ctx = (intptr_t)comm;
+    mpi_funnelled_context_comm_owned = 1;
     parsec_ce_am_design_version++;  /* signal need for update */
     /* We need to know who we are and how many others are there, in order to
      * correctly initialize the communication engine at the next start. */
@@ -651,29 +709,78 @@ static int mpi_funneled_init_once(parsec_context_t* context)
 parsec_comm_engine_t *
 mpi_funnelled_init(parsec_context_t *context)
 {
-    int i, rc, is_mpi_up = 0, thread_level_support;
+    int i, rc, is_mpi_up = 0, is_mpi_finalized = 0;
+    int requested_thread_level, thread_level_support;
 
-    MPI_Initialized(&is_mpi_up);
-    if( 0 == is_mpi_up ) {
-        /**
-         * MPI is not up.  The MPI backend cannot provide communication or the
-         * MPI datatype operations used by the current distributed build.
-         */
+    if( (MPI_SUCCESS != MPI_Finalized(&is_mpi_finalized)) ||
+        is_mpi_finalized ) {
         context->nb_nodes = 1;
-        parsec_communication_engine_up = -1;  /* No communications supported */
-        parsec_fatal("MPI was not initialized. This version of PaRSEC was compiled with MPI datatype support and needs MPI to execute.\n"
-                     "\t* Please initialize MPI in the application (MPI_Init/MPI_Init_thread) before initializing PaRSEC.\n"
-                     "\t* Alternatively, compile a version of PaRSEC without MPI (-DPARSEC_DIST_WITH_MPI=OFF in ccmake)\n");
+        parsec_communication_engine_up = -1;
+        parsec_fatal("MPI was already finalized before PaRSEC initialized the MPI communication backend.\n");
         return NULL;
     }
 
-    MPI_Query_thread(&thread_level_support);
+    if( MPI_SUCCESS != MPI_Initialized(&is_mpi_up) ) {
+        context->nb_nodes = 1;
+        parsec_communication_engine_up = -1;
+        parsec_fatal("PaRSEC could not query the MPI initialization state.\n");
+        return NULL;
+    }
+    if( 0 == is_mpi_up ) {
+        /*
+         * Tests and applications that only need PaRSEC's communication backend
+         * should not have to initialize MPI themselves.  Initialize MPI lazily
+         * here, and remember ownership so mpi_funnelled_fini() can perform the
+         * matching MPI_Finalize().
+         */
+        requested_thread_level = mpi_funnelled_requested_thread_level();
+        rc = MPI_Init_thread(NULL, NULL, requested_thread_level, &thread_level_support);
+        if( MPI_SUCCESS != rc ) {
+            context->nb_nodes = 1;
+            parsec_communication_engine_up = -1;  /* No communications supported */
+            parsec_fatal("PaRSEC failed to initialize MPI for the MPI communication backend.\n");
+            return NULL;
+        }
+        mpi_funnelled_initialized_mpi = 1;
+        PARSEC_DEBUG_VERBOSE(4, parsec_comm_output_stream,
+                             "MPI backend initialized MPI: requested %s, provided %s",
+                             mpi_funnelled_thread_level_name(requested_thread_level),
+                             mpi_funnelled_thread_level_name(thread_level_support));
+    } else {
+        MPI_Query_thread(&thread_level_support);
+    }
+
     if( thread_level_support == MPI_THREAD_SINGLE ||
         thread_level_support == MPI_THREAD_FUNNELED ) {
         parsec_warning("MPI was not initialized with the appropriate level of thread support.\n"
                        "\t* Current level is %s, while MPI_THREAD_SERIALIZED or MPI_THREAD_MULTIPLE is needed\n"
                        "\t* to guarantee correctness of the PaRSEC runtime.\n",
-                       thread_level_support == MPI_THREAD_SINGLE ? "MPI_THREAD_SINGLE" : "MPI_THREAD_FUNNELED");
+                       mpi_funnelled_thread_level_name(thread_level_support));
+    }
+
+    /* Establish rank/size as soon as MPI is available, including the case
+     * where this backend initialized MPI on behalf of parsec_init().
+     */
+    if( -1 == context->comm_ctx ) {
+        MPI_Comm comm;
+
+        /*
+         * Keep PaRSEC isolated from application-level MPI communicator changes.
+         * Even when the MPI backend initialized MPI itself, MPI_COMM_WORLD is
+         * duplicated before being stored in the PaRSEC context.
+         */
+        rc = MPI_Comm_dup(MPI_COMM_WORLD, &comm);
+        if( MPI_SUCCESS != rc ) {
+            context->nb_nodes = 1;
+            parsec_communication_engine_up = -1;
+            parsec_fatal("PaRSEC failed to duplicate MPI_COMM_WORLD for the MPI communication backend.\n");
+            return NULL;
+        }
+        context->comm_ctx = (intptr_t)comm;
+        mpi_funnelled_context_comm_owned = 1;
+        MPI_Comm_size( comm, (int*)&(context->nb_nodes));
+        MPI_Comm_rank( comm, (int*)&(context->my_rank));
+        parsec_debug_rank = context->my_rank;
     }
 
     if( -1 == MAX_MPI_TAG )
@@ -728,13 +835,6 @@ mpi_funnelled_init(parsec_context_t *context)
     parsec_ce.capabilites.supports_noncontiguous_datatype = 1;
     parsec_ce.capabilites.multithreaded = (thread_level_support >= MPI_THREAD_MULTIPLE);
 
-    /* Define some sensible values. We assume the application will initialize PaRSEC using
-     * the entire MPI_COMM_WORLD, but we need to prepare some decent default values. */
-    if( -1 == context->comm_ctx ) {
-        MPI_Comm_size( MPI_COMM_WORLD, (int*)&(context->nb_nodes));
-        MPI_Comm_rank( MPI_COMM_WORLD, (int*)&(context->my_rank));
-        context->comm_ctx = (intptr_t)MPI_COMM_WORLD;
-    }
     /* Register for internal GET and PUT AMs */
     parsec_ce.tag_register(PARSEC_CE_MPI_FUNNELLED_GET_TAG_INTERNAL,
                            mpi_funnelled_internal_get_am_callback,
@@ -798,6 +898,9 @@ mpi_funnelled_fini(parsec_comm_engine_t *ce)
             MPI_Comm_free(&parsec_ce_mpi_am_comm[i]);
         }
         ce->parsec_context->comm_ctx = -1; /* We use -1 for the opaque comm_ctx, rather than the MPI specific MPI_COMM_NULL */
+        mpi_funnelled_context_comm_owned = 0;
+    } else {
+        mpi_funnelled_release_context_comm(ce->parsec_context);
     }
     assert(MPI_COMM_NULL == parsec_ce_mpi_comm );  /* no communicator */
     assert(MPI_COMM_NULL == parsec_ce_mpi_am_comm[0] );  /* no communicator */
@@ -805,6 +908,16 @@ mpi_funnelled_fini(parsec_comm_engine_t *ce)
     size_of_total_reqs = 0;
     mpi_funnelled_last_active_req = 0;
     mpi_funnelled_static_req_idx = 0;
+
+    if( mpi_funnelled_initialized_mpi ) {
+        int is_mpi_finalized = 0;
+
+        if( (MPI_SUCCESS == MPI_Finalized(&is_mpi_finalized)) &&
+            !is_mpi_finalized ) {
+            MPI_Finalize();
+        }
+        mpi_funnelled_initialized_mpi = 0;
+    }
 
     return 1;
 }
@@ -1496,7 +1609,7 @@ int
 mpi_no_thread_enable(parsec_comm_engine_t *ce)
 {
     parsec_context_t *context = ce->parsec_context;
-    int i;
+    int i, rc;
 
     /* Did anything changed that would require a reconstruction of the management structures? */
     assert(-1 != context->comm_ctx);
@@ -1569,8 +1682,16 @@ mpi_no_thread_enable(parsec_comm_engine_t *ce)
     }
 #endif /* defined(PARSEC_HAVE_MPI_OVERTAKE) */
     /* There is no need to enable overtake for the AM communicator */
-    MPI_Comm_dup_with_info((MPI_Comm) context->comm_ctx, info, &parsec_ce_mpi_comm);
+    MPI_Comm input_comm = (MPI_Comm)context->comm_ctx;
+    rc = MPI_Comm_dup_with_info(input_comm, info, &parsec_ce_mpi_comm);
     MPI_Info_free(&info);
+    if( MPI_SUCCESS != rc ) {
+        return PARSEC_ERROR;
+    }
+    if( mpi_funnelled_context_comm_owned ) {
+        MPI_Comm_free(&input_comm);
+        mpi_funnelled_context_comm_owned = 0;
+    }
     /* Replace the provided communicator with a pointer to the PaRSEC duplicate */
     context->comm_ctx = (uintptr_t)parsec_ce_mpi_comm;
 
