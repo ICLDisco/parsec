@@ -2,6 +2,7 @@
  * Copyright (c) 2009-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
 #ifndef __USE_PARSEC_COMM_ENGINE_H__
 #define __USE_PARSEC_COMM_ENGINE_H__
@@ -159,6 +160,38 @@ typedef int (*parsec_ce_taskpool_sync_ids_fn_t)(parsec_comm_engine_t *comm_engin
                                                 intptr_t comm_ctx,
                                                 uint32_t *next_taskpool_id);
 
+typedef enum parsec_ce_reduce_op_e {
+    PARSEC_CE_REDUCE_OP_MAX = 0,
+    PARSEC_CE_REDUCE_OP_SUM
+} parsec_ce_reduce_op_t;
+
+/**
+ * In-place reduction of @p count elements of type @p dtt across the processes
+ * of this backend that share the node of the calling process.
+ *
+ * Collective over that node-local group. @p nb_local reports its size, and a
+ * @p count of 0 only queries it. A backend that cannot tell which of its
+ * processes are node-local leaves this entry point NULL.
+ */
+typedef int (*parsec_ce_node_reduce_fn_t)(parsec_comm_engine_t *comm_engine,
+                                          void *buffer, int count,
+                                          parsec_datatype_t dtt,
+                                          parsec_ce_reduce_op_t op,
+                                          int *nb_local);
+
+/**
+ * Describe, in human readable form, how the distributed environment was
+ * brought up: the thread level the backend was initialized with, and whether
+ * the backend or the application owns that initialization.
+ *
+ * @param[in] comm_engine the communication engine
+ * @param[in] len the size of @p description, including the final nul
+ * @param[out] description where to write the description
+ * @return the number of characters written, or a negative PaRSEC error code
+ */
+typedef int (*parsec_ce_describe_fn_t)(parsec_comm_engine_t *comm_engine,
+                                       size_t len, char *description);
+
 /**
  * This function realize a data reshaping, by conceptually packing the dst
  * into src.
@@ -207,6 +240,8 @@ struct parsec_comm_engine_s {
     parsec_ce_can_serve_fn_t               can_serve;
     parsec_ce_send_active_message_fn_t     send_am;
     parsec_ce_taskpool_sync_ids_fn_t       taskpool_sync_ids;
+    parsec_ce_node_reduce_fn_t             node_reduce;
+    parsec_ce_describe_fn_t                describe;
 };
 
 /* global comm_engine */

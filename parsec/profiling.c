@@ -2,6 +2,7 @@
  * Copyright (c) 2009-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/parsec_config.h"
@@ -649,6 +650,11 @@ int parsec_profiling_init( int process_id )
     return 0;
 }
 
+void parsec_profiling_set_process_id( int process_id )
+{
+    parsec_profiling_process_id = process_id;
+}
+
 void parsec_profiling_start(void)
 {
     if(start_called)
@@ -660,6 +666,49 @@ void parsec_profiling_start(void)
     parsec_start_time = take_time();
 }
 
+/**
+ * Give @p sprof the buffer freelist it needs to store events into the backend
+ * file. Streams created before that file exists are attached by
+ * parsec_profiling_dbp_start() when it opens the file.
+ */
+static int profiling_stream_attach_file_backend(parsec_profiling_stream_t *sprof)
+{
+    tl_freelist_t *t_fl;
+    tl_freelist_buffer_t *e;
+
+    assert( NULL == sprof->buffers_freelist );
+    assert( event_buffer_size != 0 );
+
+    t_fl = (tl_freelist_t*)malloc(sizeof(tl_freelist_t));
+    if( NULL == t_fl ) {
+        return PARSEC_ERR_OUT_OF_RESOURCE;
+    }
+    pthread_mutex_init(&t_fl->lock, NULL);
+    e = (tl_freelist_buffer_t*)profiling_allocate_new_buffer();
+    if( NULL == e ) {
+        free(t_fl);
+        return PARSEC_ERR_OUT_OF_RESOURCE;
+    }
+    e->next = NULL;
+    t_fl->first = e;
+    t_fl->nb_allocated = 1;
+    for(int i = 1; i < parsec_profiling_per_thread_buffer_freelist_min; i++) {
+        e->next = (tl_freelist_buffer_t*)profiling_allocate_new_buffer();
+        assert(NULL != e->next);
+        e = e->next;
+        e->next = NULL;
+        t_fl->nb_allocated++;
+    }
+    sprof->buffers_freelist = t_fl;
+
+    /* To trigger a buffer allocation at first creation of an event */
+    sprof->next_event_position = event_buffer_size;
+    /* Allocate the first page to save time on the first event tracing */
+    switch_event_buffer(sprof);
+
+    return PARSEC_SUCCESS;
+}
+
 parsec_profiling_stream_t* parsec_profiling_stream_init( size_t length, const char *format, ...)
 {
     parsec_profiling_stream_t *sprof;
@@ -668,49 +717,16 @@ parsec_profiling_stream_t* parsec_profiling_stream_init( size_t length, const ch
     int file_backend_enabled = (-1 != file_backend_fd);
 
     if( !__profile_initialized ) return NULL;
-#if defined(PARSEC_PROF_TRACE_NVTX)
-    if( !file_backend_enabled && !parsec_profiling_nvtx_is_enabled() ) {
-#else
-    if( !file_backend_enabled ) {
-#endif
-        set_last_error("Profiling system: parsec_profiling_stream_init: call before a profiling substrate was started");
-        return NULL;
-    }
     if( file_backend_enabled && (0 == file_backend_extendable) ) {
         set_last_error("Profiling system: parsec_profiling_stream_init called on a blocked backend");
         return NULL;
     }
 
-    sprof = (parsec_profiling_stream_t*)malloc( sizeof(parsec_profiling_stream_t) +
-                                                (file_backend_enabled ? length : 0) );
+    sprof = (parsec_profiling_stream_t*)malloc( sizeof(parsec_profiling_stream_t) + length );
     if( NULL == sprof ) {
         set_last_error("Profiling system: parsec_profiling_stream_init: unable to allocate %u bytes", length);
         fprintf(stderr, "*** %s\n", parsec_profiling_strerror());
         return NULL;
-    }
-
-    sprof->buffers_freelist = NULL;
-    if( file_backend_enabled ) {
-        sprof->buffers_freelist = (tl_freelist_t*)malloc(sizeof(tl_freelist_t));
-        tl_freelist_t *t_fl = sprof->buffers_freelist;
-        tl_freelist_buffer_t *e;
-        pthread_mutex_init(&t_fl->lock, NULL);
-        e = (tl_freelist_buffer_t*)profiling_allocate_new_buffer();
-        if( NULL == e ) {
-            free(sprof->buffers_freelist);
-            free(sprof);
-            return NULL;
-        }
-        e->next = NULL;
-        t_fl->first = e;
-        t_fl->nb_allocated = 1;
-        for(rc = 1; rc < parsec_profiling_per_thread_buffer_freelist_min; rc++) {
-            e->next = (tl_freelist_buffer_t*)profiling_allocate_new_buffer();
-            assert(NULL != e->next);
-            e = e->next;
-            e->next = NULL;
-            t_fl->nb_allocated++;
-        }
     }
 
     PARSEC_OBJ_CONSTRUCT(sprof, parsec_list_item_t);
@@ -718,13 +734,8 @@ parsec_profiling_stream_t* parsec_profiling_stream_init( size_t length, const ch
     rc = vasprintf(&sprof->hr_id, format, ap); assert(rc!=-1); (void)rc;
     va_end(ap);
 
-    if( file_backend_enabled ) {
-        assert( event_buffer_size != 0 );
-        /* To trigger a buffer allocation at first creation of an event */
-        sprof->next_event_position = event_buffer_size;
-    } else {
-        sprof->next_event_position = 0;
-    }
+    sprof->buffers_freelist = NULL;
+    sprof->next_event_position = 0;
     sprof->nb_events = 0;
 
     sprof->infos = NULL;
@@ -738,9 +749,9 @@ parsec_profiling_stream_t* parsec_profiling_stream_init( size_t length, const ch
 
     parsec_list_push_back( &threads, (parsec_list_item_t*)sprof );
 
+    /* Without a backend file the stream cannot record anything yet. */
     if( file_backend_enabled ) {
-        /* Allocate the first page to save time on the first event tracing */
-        switch_event_buffer(sprof);
+        profiling_stream_attach_file_backend(sprof);
     }
 
     memset(sprof->thread_perf, 0, sizeof(parsec_profiling_perf_t)*PERF_MAX);
@@ -1637,6 +1648,15 @@ int parsec_profiling_dbp_start( const char *basefile, const char *hr_info )
         return PARSEC_ERROR;
     }
 #endif
+
+    /* Streams created before the file existed are still missing their
+     * storage. */
+    PARSEC_LIST_ITERATOR(&threads, it, {
+        parsec_profiling_stream_t *sprof = (parsec_profiling_stream_t*)it;
+        if( NULL == sprof->buffers_freelist ) {
+            profiling_stream_attach_file_backend(sprof);
+        }
+    });
 
     /* Reset the error system without printing it on stderr */
     snprintf(parsec_profiling_last_error, MAX_PROFILING_ERROR_STRING_LEN, "Profiling system: success");
