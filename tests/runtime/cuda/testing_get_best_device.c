@@ -2,6 +2,7 @@
  * Copyright (c) 2019-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
 
 #include "cuda_test_internal.h"
@@ -40,7 +41,7 @@ static int matrix_init_ops(parsec_execution_stream_t *es,
 int main(int argc, char *argv[])
 {
     parsec_context_t* parsec;
-    int rank, nodes, ch;
+    int rank, nodes, ch, rc;
     int pargc = 0;
     char **pargv;
 
@@ -67,7 +68,7 @@ int main(int argc, char *argv[])
             case 'g': nb_gpus = atoi(optarg); break;
             case '?': case 'h': default:
                 fprintf(stderr,
-                        "-m : initialize MPI_THREAD_MULTIPLE (default: 0/no)\n"
+                        "-m : request multiple-thread support from the test runtime (default: 0/no)\n"
                         "-N : column dimension (N) of the matrices (default: 8)\n"
                         "-t : row dimension (MB) of the tiles (default: 4)\n"
                         "-s : rows of tiles in a k-cyclic distribution (default: 1)\n"
@@ -81,19 +82,6 @@ int main(int argc, char *argv[])
         }
     }
 
-#if defined(PARSEC_HAVE_MPI)
-    {
-        int provided;
-        int requested = m? MPI_THREAD_MULTIPLE: MPI_THREAD_SERIALIZED;
-        MPI_Init_thread(&argc, &argv, requested, &provided);
-    }
-    MPI_Comm_size(MPI_COMM_WORLD, &nodes);
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-#else
-    nodes = 1;
-    rank = 0;
-#endif
-
     pargc = 0; pargv = NULL;
     for(int i = 1; i < argc; i++) {
         if( strcmp(argv[i], "--") == 0 ) {
@@ -106,23 +94,21 @@ int main(int argc, char *argv[])
 #if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
     extern char **environ;
     char *value;
-    if( nb_gpus < 1 && 0 == rank ) {
-        fprintf(stderr, "Warning: if run on GPUs, please set --gpus=value bigger than 0\n");
-    }
     asprintf(&value, "%d", nb_gpus);
     parsec_setenv_mca_param( "device_cuda_enabled", value, &environ );
     free(value);
 #endif
 
-    /* Initialize PaRSEC */
-    parsec = parsec_init(cores, &pargc, &pargv);
+    rc = parsec_tests_context_init(cores,
+                                   m ? PARSEC_TEST_THREAD_MULTIPLE : PARSEC_TEST_THREAD_SERIALIZED,
+                                   &pargc, &pargv, &parsec, &rank, &nodes);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_init");
 
-    if( NULL == parsec ) {
-        /* Failed to correctly initialize. In a correct scenario report
-         * upstream, but in this particular case bail out.
-         */
-        exit(-1);
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
+    if( nb_gpus < 1 && 0 == rank ) {
+        fprintf(stderr, "Warning: if run on GPUs, please set --gpus=value bigger than 0\n");
     }
+#endif
 
     /* If the number of cores has not been defined as a parameter earlier
      * update it with the default parameter computed in parsec_init. */
@@ -151,9 +137,9 @@ int main(int argc, char *argv[])
                   (parsec_tiled_matrix_unary_op_t)matrix_init_ops, NULL);
 
     /* Main routines */
-    SYNC_TIME_START(); 
+    SYNC_TIME_START(parsec);
     info = parsec_get_best_device_check(parsec, (parsec_tiled_matrix_t *)&dcA);
-    SYNC_TIME_PRINT(rank, ("Get_best_device" "\tN= %d NB= %d "
+    SYNC_TIME_PRINT(parsec, rank, ("Get_best_device" "\tN= %d NB= %d "
                            "PxQ= %d %d KPxKQ= %d %d cores= %d nb_gpus= %d\n",
                            N, NB, P, nodes/P, KP, KQ, cores, parsec_nb_devices-2)); 
 
@@ -166,11 +152,8 @@ int main(int argc, char *argv[])
     parsec_tiled_matrix_destroy((parsec_tiled_matrix_t*)&dcA);
 
     /* Clean up parsec*/
-    parsec_fini(&parsec);
-
-#ifdef PARSEC_HAVE_MPI
-    MPI_Finalize();
-#endif
+    rc = parsec_tests_context_fini(&parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_fini");
 
     return (0 == info)? EXIT_SUCCESS: EXIT_FAILURE;
 }

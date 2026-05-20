@@ -1,8 +1,14 @@
+#
+# Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
+#
+
 if(TARGET parsec-ptgpp)
   parsec_addtest_executable(C touch_ex SOURCES touch_ex.c)
+  target_link_libraries(touch_ex PRIVATE tests_runtime_common)
   target_ptg_sources(touch_ex PRIVATE "touch.jdf")
 
   parsec_addtest_executable(C touch_ex_inline SOURCES touch_ex.c)
+  target_link_libraries(touch_ex_inline PRIVATE tests_runtime_common)
   target_ptg_sources(touch_ex_inline PRIVATE "touch.jdf")
   target_compile_definitions(touch_ex_inline PRIVATE BUILDING_PARSEC)
   target_compile_options(touch_ex_inline PRIVATE ${PARSEC_ATOMIC_SUPPORT_OPTIONS})
@@ -26,3 +32,6 @@ endif(TARGET parsec-ptgpp)
 parsec_addtest_executable(C init_fini SOURCES init_fini.c)
 parsec_addtest_executable(C operator SOURCES operator.c)
 parsec_addtest_executable(C compose SOURCES compose.c)
+target_link_libraries(init_fini PRIVATE tests_runtime_common)
+target_link_libraries(operator PRIVATE tests_runtime_common)
+target_link_libraries(compose PRIVATE tests_runtime_common)

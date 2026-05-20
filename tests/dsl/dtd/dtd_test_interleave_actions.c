@@ -2,11 +2,8 @@
  * Copyright (c) 2020-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
-
-#if defined(PARSEC_HAVE_MPI)
-#include "mpi.h"
-#endif  /* defined(PARSEC_HAVE_MPI) */
 
 #include <getopt.h>
 
@@ -15,6 +12,7 @@
 #include "parsec/data_dist/matrix/matrix.h"
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "tests/tests_data.h"
+#include "tests/tests_runtime.h"
 
 /* IDs for the Arena Datatypes */
 static int TILE_FULL;
@@ -107,18 +105,6 @@ int main(int argc, char **argv) {
     pargc = argc - optind;
     pargv = argv + optind;
 
-    #if defined(PARSEC_HAVE_MPI)
-   {
-      int provided;
-      MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
-   }
-   MPI_Comm_size(MPI_COMM_WORLD, &world);
-   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-#else
-   world = 1;
-   rank = 0;
-#endif
-
    int nb = 1;
    int nt = 1;
 
@@ -126,7 +112,10 @@ int main(int argc, char **argv) {
    nt = 1;
 
    int ncores = -1;
-   parsec_context = parsec_init(ncores, &pargc, &pargv);
+   ret = parsec_tests_context_init(ncores, PARSEC_TEST_THREAD_SERIALIZED,
+                                   &pargc, &pargv,
+                                   &parsec_context, &rank, &world);
+   PARSEC_CHECK_ERROR(ret, "parsec_tests_context_init");
 
    if(world == 1) {
        parsec_warning("*** This test only makes sense with at least two nodes");
@@ -219,11 +208,8 @@ int main(int argc, char **argv) {
 
    parsec_taskpool_free( dtd_tp );
 
-   parsec_fini(&parsec_context);
-
-#ifdef PARSEC_HAVE_MPI
-   MPI_Finalize();
-#endif
+   ret = parsec_tests_context_fini(&parsec_context);
+   PARSEC_CHECK_ERROR(ret, "parsec_tests_context_fini");
 
    return 0;
 }

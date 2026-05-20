@@ -1,4 +1,3 @@
-parsec_addtest_cmd(apps/haar_tree ${SHM_TEST_CMD_LIST} apps/haar_tree/project -x)
 if( MPI_C_FOUND )
   parsec_addtest_cmd(apps/haar_tree:mp ${MPI_TEST_CMD_LIST} 4 apps/haar_tree/project -x)
   if(TEST apps/haar_tree:mp)

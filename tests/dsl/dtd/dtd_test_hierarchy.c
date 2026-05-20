@@ -2,6 +2,7 @@
  * Copyright (c) 2017-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA CORPORATION. All rights reserved.
  */
 
 /* parsec things */
@@ -19,10 +20,6 @@
 #if defined(PARSEC_HAVE_STRING_H)
 #include <string.h>
 #endif  /* defined(PARSEC_HAVE_STRING_H) */
-
-#if defined(PARSEC_HAVE_MPI)
-#include <mpi.h>
-#endif  /* defined(PARSEC_HAVE_MPI) */
 
 /* This testing shows graph pruning as well as hierarchical execution.
  * The only restriction is the parsec_taskpool_wait() before parsec_context_wait()
@@ -106,24 +103,14 @@ int main(int argc, char ** argv)
     int rank, world, cores = -1, rc;
     parsec_arena_datatype_t *adt;
 
-#if defined(PARSEC_HAVE_MPI)
-    {
-        int provided;
-        MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
-    }
-    MPI_Comm_size(MPI_COMM_WORLD, &world);
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-#else
-    world = 1;
-    rank = 0;
-#endif
+    rc = parsec_tests_context_init(cores, PARSEC_TEST_THREAD_SERIALIZED,
+                                   &argc, &argv, &parsec, &rank, &world);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_init");
 
     int m;
     int nb, nt;
     parsec_tiled_matrix_t *dcA;
     parsec_taskpool_t *dtd_tp;
-
-    parsec = parsec_init( cores, &argc, &argv );
 
     dtd_tp = parsec_dtd_taskpool_new();
 
@@ -144,7 +131,7 @@ int main(int argc, char ** argv)
     parsec_data_collection_t *A = (parsec_data_collection_t *)dcA;
     parsec_dtd_data_collection_init(A);
 
-    SYNC_TIME_START();
+    SYNC_TIME_START(parsec);
     rc = parsec_context_start( parsec );
     PARSEC_CHECK_ERROR(rc, "parsec_context_start");
 
@@ -167,7 +154,7 @@ int main(int argc, char ** argv)
     rc = parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
-    SYNC_TIME_PRINT(rank, ("\n") );
+    SYNC_TIME_PRINT(parsec, rank, ("\n") );
 
     parsec_dtd_free_arena_datatype(parsec, TILE_FULL);
     parsec_dtd_data_collection_fini( A );
@@ -175,11 +162,8 @@ int main(int argc, char ** argv)
 
     parsec_taskpool_free( dtd_tp );
 
-    parsec_fini(&parsec);
-
-#ifdef PARSEC_HAVE_MPI
-    MPI_Finalize();
-#endif
+    rc = parsec_tests_context_fini(&parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_fini");
 
     return 0;
 }

@@ -11,6 +11,7 @@
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "parsec/interfaces/dtd/insert_function_internal.h"
 #include "parsec/mca/device/device.h"
+#include "tests/tests_runtime.h"
 
 // The file is not compiled if CUDA is not present or CUBLAS is not found
 #include "parsec/mca/device/cuda/device_cuda.h"
@@ -45,10 +46,6 @@ extern void cblas_dgemm(const CBLAS_LAYOUT layout, const CBLAS_TRANSPOSE TransA,
                         const CBLAS_INDEX lda, const double  *B, const CBLAS_INDEX ldb,
                         const double beta, double  *C, const CBLAS_INDEX ldc);
 #endif
-
-#if defined(PARSEC_HAVE_MPI)
-#include <mpi.h>
-#endif  /* defined(PARSEC_HAVE_MPI) */
 
 #include <unistd.h>
 #include <getopt.h>
@@ -914,19 +911,9 @@ int main(int argc, char **argv)
     int M = 16 * mb, N = 16 * nb, K = 16 * kb;
     double min_perf=0.0;
     int runs = 5;
+    int ncores = -1; /* Use all available cores */
     int debug=-1;
-
-#if defined(PARSEC_HAVE_MPI)
-    {
-        int provided;
-        MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
-    }
-    MPI_Comm_size(MPI_COMM_WORLD, &world);
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-#else
-    world = 1;
-    rank = 0;
-#endif
+    int show_help = 0;
 
     while( 1 ) {
         int option_index = 0;
@@ -1023,53 +1010,65 @@ int main(int argc, char **argv)
                 break;
             case 'h':
             case '?':
-                if( 0 == rank ) {
-                    fprintf(stderr,
-                            "Usage %s [flags] [-- <parsec options>]\n"
-                            " Nota Bene: this test should not be used to evaluate performance of GEMM!\n"
-                            "    Use DPLASMA or other linear algebra libraries written on top of PaRSEC to evaluate this.\n"
-                            "\n"
-                            " Compute pdgemm on a process grid of PxQ, using all available GPUs on each\n"
-                            " node (modulo parsec options), using DTD. Compute C += AxB, where A is MxK\n"
-                            " tiled in mb x kb, B is KxN tiled in kb x nb, and C is MxN tiled in mb x nb\n"
-                            " Executes nruns iterations of the GEMM operation.\n"
-                            " flags:\n"
-                            "   --M|-M  / --K|-K  / --N|-N:   set M, K and N (resp.)\n"
-                            "   --mb|-m / --kb/-k / --nb|-n:  set mb, kb and nb (resp.)\n"
-                            "   --nruns|-t:                   set the number of runs to do\n"
-                            "   --device|-d:                  which device to use (CPU or GPU)\n"
-                            "   --batch|-b:                   enable CUDA batch collection and submit\n"
-                            "                                 the collected GEMMs one by one\n"
-                            "   --batch-mode|-B:              CUDA batching mode: none, one-by-one,\n"
-                            "                                 or cublas (default: %s)\n"
-                            "   --batch-size|-S:              maximum number of GEMM tasks per CUDA\n"
-                            "                                 batch (default: %d)\n"
-                            "   --batch-slots|-L:             maximum number of in-flight cuBLAS\n"
-                            "                                 batched submissions per stream (default: %d)\n"
-                            "   --verbose|-v:                 display which GEMM runs on which GPU\n"
-                            "                                 as execution is unfolding\n"
-                            "   --help|-h|-?:                 display this help\n"
-                            "   --debug|-D:                   blocks the process passed as parameter and\n"
-                            "                                 waits for gdb to connect to it\n"
-                            "   --Alarm|-A:                   sets the expected minimum performance for a\n"
-                            "                                 single GPU (kills the process if it takes longer\n"
-                            "                                 than the time corresponding to the expected\n"
-                            "                                 performance to complete the product)\n"
-                            "\n"
-                            " Nota Bene: this test should not be used to evaluate performance of GEMM!\n"
-                            "    Use DPLASMA or other linear algebra libraries written on top of PaRSEC to evaluate this.\n"
-                            "\n",
-                            argv[0], gemm_cuda_batch_mode_name(),
-                            cuda_max_batch_size, cuda_max_submitted_batches);
-                }
-#if defined(PARSEC_HAVE_MPI)
-                MPI_Finalize();
-#endif
-                exit(0);
+                show_help = 1;
+                break;
+        }
+        if( show_help ) {
+            break;
         }
     }
     int pargc = argc - optind;
     char **pargv = argv + optind;
+
+    rc = parsec_tests_context_init(ncores, PARSEC_TEST_THREAD_SERIALIZED,
+                                   &pargc, &pargv,
+                                   &parsec_context, &rank, &world);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_init");
+
+    if( show_help ) {
+        if( 0 == rank ) {
+            fprintf(stderr,
+                    "Usage %s [flags] [-- <parsec options>]\n"
+                    " Nota Bene: this test should not be used to evaluate performance of GEMM!\n"
+                    "    Use DPLASMA or other linear algebra libraries written on top of PaRSEC to evaluate this.\n"
+                    "\n"
+                    " Compute pdgemm on a process grid of PxQ, using all available GPUs on each\n"
+                    " node (modulo parsec options), using DTD. Compute C += AxB, where A is MxK\n"
+                    " tiled in mb x kb, B is KxN tiled in kb x nb, and C is MxN tiled in mb x nb\n"
+                    " Executes nruns iterations of the GEMM operation.\n"
+                    " flags:\n"
+                    "   --M|-M  / --K|-K  / --N|-N:   set M, K and N (resp.)\n"
+                    "   --mb|-m / --kb/-k / --nb|-n:  set mb, kb and nb (resp.)\n"
+                    "   --nruns|-t:                   set the number of runs to do\n"
+                    "   --device|-d:                  which device to use (CPU or GPU)\n"
+                    "   --batch|-b:                   enable CUDA batch collection and submit\n"
+                    "                                 the collected GEMMs one by one\n"
+                    "   --batch-mode|-B:              CUDA batching mode: none, one-by-one,\n"
+                    "                                 or cublas (default: %s)\n"
+                    "   --batch-size|-S:              maximum number of GEMM tasks per CUDA\n"
+                    "                                 batch (default: %d)\n"
+                    "   --batch-slots|-L:             maximum number of in-flight cuBLAS\n"
+                    "                                 batched submissions per stream (default: %d)\n"
+                    "   --verbose|-v:                 display which GEMM runs on which GPU\n"
+                    "                                 as execution is unfolding\n"
+                    "   --help|-h|-?:                 display this help\n"
+                    "   --debug|-D:                   blocks the process passed as parameter and\n"
+                    "                                 waits for gdb to connect to it\n"
+                    "   --Alarm|-A:                   sets the expected minimum performance for a\n"
+                    "                                 single GPU (kills the process if it takes longer\n"
+                    "                                 than the time corresponding to the expected\n"
+                    "                                 performance to complete the product)\n"
+                    "\n"
+                    " Nota Bene: this test should not be used to evaluate performance of GEMM!\n"
+                    "    Use DPLASMA or other linear algebra libraries written on top of PaRSEC to evaluate this.\n"
+                    "\n",
+                    argv[0], gemm_cuda_batch_mode_name(),
+                    cuda_max_batch_size, cuda_max_submitted_batches);
+        }
+        rc = parsec_tests_context_fini(&parsec_context);
+        PARSEC_CHECK_ERROR(rc, "parsec_tests_context_fini");
+        return 0;
+    }
 
     if( -1 == P )
         P = (int)sqrt(world);
@@ -1088,19 +1087,13 @@ int main(int argc, char **argv)
         while(loop) { sleep(1); }
     }
 
-    // Number of CPU cores involved
-    int ncores = -1; // Use all available cores
-    parsec_context = parsec_init(ncores, &pargc, &pargv);
-
     int *gpu_device_index = NULL;
     if( PARSEC_DEV_CUDA == device ) {
         nbgpus = get_nb_gpu_devices();
         rc = !(nbgpus >= 1);
         if( rc != 0 ) {
             fprintf(stderr, "Rank %d doesn't have CUDA accelerators\n", rank);
-#if defined(PARSEC_HAVE_MPI)
-            MPI_Abort(MPI_COMM_WORLD, 0);
-#endif
+            parsec_tests_abort(parsec_context, 0);
             return -1;
         }
         gpu_device_index = get_gpu_device_index();
@@ -1119,9 +1112,7 @@ int main(int argc, char **argv)
         rc = preallocate_cuda_stream_states();
         if( PARSEC_SUCCESS != rc ) {
             fprintf(stderr, "Failed to preallocate CUDA GEMM stream states\n");
-#if defined(PARSEC_HAVE_MPI)
-            MPI_Abort(MPI_COMM_WORLD, rc);
-#endif
+            parsec_tests_abort(parsec_context, rc);
             return rc;
         }
     }
@@ -1176,11 +1167,8 @@ int main(int argc, char **argv)
     destroy_matrix(dcB);
     destroy_matrix(dcC);
 
-    parsec_fini(&parsec_context);
-
-#if defined(PARSEC_HAVE_MPI)
-    MPI_Finalize();
-#endif
+    rc = parsec_tests_context_fini(&parsec_context);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_fini");
 
     return ret;
 }

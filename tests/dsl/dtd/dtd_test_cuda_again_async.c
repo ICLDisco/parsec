@@ -2,6 +2,7 @@
  * Copyright (c) 2023      The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec.h"
@@ -10,10 +11,7 @@
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "parsec/interfaces/dtd/insert_function_internal.h"
 #include "tests/tests_data.h"
-
-#if defined(PARSEC_HAVE_MPI)
-#include <mpi.h>
-#endif  /* defined(PARSEC_HAVE_MPI) */
+#include "tests/tests_runtime.h"
 
 void parsec_dtd_pack_args( parsec_task_t *this_task, ... )
 {
@@ -124,21 +122,11 @@ int main(int argc, char* argv[])
 {
     int ret;
     parsec_context_t *parsec_context = NULL;
-    int rank, world;
+    int world;
 
-#if defined(PARSEC_HAVE_MPI)
-    {
-        int provided;
-        MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
-    }
-    MPI_Comm_size(MPI_COMM_WORLD, &world);
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-#else
-    world = 1;
-    rank = 0;
-#endif
-
-    parsec_context = parsec_init(-1, NULL, NULL);
+    ret = parsec_tests_context_init(-1, PARSEC_TEST_THREAD_SERIALIZED,
+                                    NULL, NULL, &parsec_context, NULL, &world);
+    PARSEC_CHECK_ERROR(ret, "parsec_tests_context_init");
     // Create new DTD taskpool
     parsec_taskpool_t *tp = parsec_dtd_taskpool_new();
 
@@ -192,9 +180,6 @@ int main(int argc, char* argv[])
 
     parsec_taskpool_free(tp);
 
-    parsec_fini(&parsec_context);
-
-#if defined(PARSEC_HAVE_MPI)
-    MPI_Finalize();
-#endif
+    ret = parsec_tests_context_fini(&parsec_context);
+    PARSEC_CHECK_ERROR(ret, "parsec_tests_context_fini");
 }

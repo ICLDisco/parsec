@@ -2,6 +2,7 @@
  * Copyright (c) 2009-2022 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/runtime.h"
@@ -9,6 +10,8 @@
 #include "parsec/arena.h"
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "parsec/datatype.h"
+#include "parsec/utils/debug.h"
+#include "tests/tests_runtime.h"
 #include <math.h>
 #include "parsec/data_dist/matrix/reduce.h"
 
@@ -42,15 +45,6 @@ int main( int argc, char* argv[] )
     char **pargv;
 
 
-#if defined(PARSEC_HAVE_MPI)
-    {
-        int provided;
-        MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
-    }
-    MPI_Comm_size(MPI_COMM_WORLD, &world);
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-#endif
-
     pargc = 0; pargv = NULL;
     for(i = 1; i < argc; i++) {
         if( strcmp(argv[i], "--") == 0 ) {
@@ -60,7 +54,10 @@ int main( int argc, char* argv[] )
         }
     }
 
-    parsec = parsec_init(cores, &pargc, &pargv);
+    rc = parsec_tests_context_init(cores, PARSEC_TEST_THREAD_SERIALIZED,
+                                   &pargc, &pargv,
+                                   &parsec, &rank, &world);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_init");
 
     parsec_matrix_block_cyclic_init( &dcA, PARSEC_MATRIX_FLOAT, PARSEC_MATRIX_TILE,
                                rank, nb, 1, ln, 1, 0, 0, ln, 1,
@@ -96,11 +93,8 @@ int main( int argc, char* argv[] )
     parsec_data_free(dcA.mat);
     parsec_tiled_matrix_destroy((parsec_tiled_matrix_t*)&dcA);
 
-    parsec_fini(&parsec);
-
-#if defined(PARSEC_HAVE_MPI)
-    MPI_Finalize();
-#endif  /* defined(PARSEC_HAVE_MPI) */
+    rc = parsec_tests_context_fini(&parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_fini");
 
     return 0;
 }

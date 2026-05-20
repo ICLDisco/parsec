@@ -3,7 +3,7 @@ extern "C" %{
  * Copyright (c) 2017-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation. All rights
  *                         reserved.
- *
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
 #include "redistribute_test.h"
 
@@ -377,10 +377,22 @@ double* parsec_redistribute_bound(parsec_context_t *parsec,
     long long int *total_remote_rank = (long long int *)calloc(world_size, sizeof(long long int));
 
     MPI_Barrier( MPI_COMM_WORLD );
-    MPI_Allreduce(&sum_remote[0], &total_remote, 1, MPI_LONG_LONG_INT, MPI_SUM, MPI_COMM_WORLD);
-    MPI_Allreduce(&sum_local[0], &total_local, 1, MPI_LONG_LONG_INT, MPI_SUM, MPI_COMM_WORLD);
-    MPI_Allreduce(&sum_nb_message_remote[0], &total_nb_message_remote, 1, MPI_LONG_LONG_INT, MPI_SUM, MPI_COMM_WORLD);
-    MPI_Allreduce(&sum_nb_message_local[0], &total_nb_message_local, 1, MPI_LONG_LONG_INT, MPI_SUM, MPI_COMM_WORLD);
+    int reduce_rc = parsec_tests_allreduce(parsec, &sum_remote[0], &total_remote, 1,
+                                           parsec_datatype_int64_t,
+                                           PARSEC_TESTS_REDUCE_SUM);
+    PARSEC_CHECK_ERROR(reduce_rc, "parsec_tests_allreduce");
+    reduce_rc = parsec_tests_allreduce(parsec, &sum_local[0], &total_local, 1,
+                                       parsec_datatype_int64_t,
+                                       PARSEC_TESTS_REDUCE_SUM);
+    PARSEC_CHECK_ERROR(reduce_rc, "parsec_tests_allreduce");
+    reduce_rc = parsec_tests_allreduce(parsec, &sum_nb_message_remote[0], &total_nb_message_remote, 1,
+                                       parsec_datatype_int64_t,
+                                       PARSEC_TESTS_REDUCE_SUM);
+    PARSEC_CHECK_ERROR(reduce_rc, "parsec_tests_allreduce");
+    reduce_rc = parsec_tests_allreduce(parsec, &sum_nb_message_local[0], &total_nb_message_local, 1,
+                                       parsec_datatype_int64_t,
+                                       PARSEC_TESTS_REDUCE_SUM);
+    PARSEC_CHECK_ERROR(reduce_rc, "parsec_tests_allreduce");
     MPI_Allgather( &sum_remote_rank_send[0], 1, MPI_LONG_LONG_INT, total_remote_rank_send, 1, MPI_LONG_LONG_INT, MPI_COMM_WORLD);
     MPI_Allgather( &sum_remote_rank_receive[0], 1, MPI_LONG_LONG_INT, total_remote_rank_receive, 1, MPI_LONG_LONG_INT, MPI_COMM_WORLD);
     MPI_Allgather( &sum_local_rank[0], 1, MPI_LONG_LONG_INT, total_local_rank, 1, MPI_LONG_LONG_INT, MPI_COMM_WORLD);

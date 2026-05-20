@@ -6,6 +6,7 @@
  */
 
 #include "parsec/runtime.h"
+#include "tests/tests_runtime.h"
 #include "rtt_wrapper.h"
 #include "rtt_data.h"
 #if defined(PARSEC_HAVE_STRING_H)
@@ -15,9 +16,6 @@
 #include <stdlib.h>
 #include <sys/time.h>
 #include <unistd.h>
-#if defined(PARSEC_HAVE_MPI)
-#include <mpi.h>
-#endif  /* defined(PARSEC_HAVE_MPI) */
 #include "parsec/utils/debug.h"
 
 static int next_message_size(int current, int upper)
@@ -55,18 +53,6 @@ int main(int argc, char *argv[])
     parsec_data_collection_t *dcA;
     parsec_taskpool_t *rtt;
 
-#if defined(PARSEC_HAVE_MPI)
-    {
-        int provided;
-        MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
-    }
-    MPI_Comm_size(MPI_COMM_WORLD, &world);
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-#else
-    world = 1;
-    rank = 0;
-#endif
-
     while ((ch = getopt(argc, argv, "n:l:u:h")) != -1) {
         switch (ch) {
             case 'n': loops = atoi(optarg); break;
@@ -99,7 +85,10 @@ int main(int argc, char *argv[])
         }
     }
 
-    parsec = parsec_init(-1, &pargc, &pargv);
+    rc = parsec_tests_context_init(-1, PARSEC_TEST_THREAD_SERIALIZED,
+                                   &pargc, &pargv,
+                                   &parsec, &rank, &world);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_init");
 
     nb = loops * world;
     for(idx = 0, size = start_length; ; idx++) {
@@ -114,9 +103,10 @@ int main(int argc, char *argv[])
         rc = parsec_context_add_taskpool(parsec, rtt);
         PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
 
-#if defined(PARSEC_HAVE_MPI)
-        MPI_Barrier(MPI_COMM_WORLD);
-#endif
+        rc = parsec_tests_barrier(parsec);
+        if( (PARSEC_SUCCESS != rc) && (PARSEC_ERR_NOT_IMPLEMENTED != rc) ) {
+            PARSEC_CHECK_ERROR(rc, "parsec_tests_barrier");
+        }
         gettimeofday(&tstart, NULL);
 
         rc = parsec_context_start(parsec);
@@ -125,9 +115,10 @@ int main(int argc, char *argv[])
         rc = parsec_context_wait(parsec);
         PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
-#if defined(PARSEC_HAVE_MPI)
-        MPI_Barrier(MPI_COMM_WORLD);
-#endif
+        rc = parsec_tests_barrier(parsec);
+        if( (PARSEC_SUCCESS != rc) && (PARSEC_ERR_NOT_IMPLEMENTED != rc) ) {
+            PARSEC_CHECK_ERROR(rc, "parsec_tests_barrier");
+        }
         gettimeofday(&tend, NULL);
 
         if( 0 == rank ) {
@@ -145,11 +136,8 @@ int main(int argc, char *argv[])
         size = next_message_size(size, end_length);
     }
 
-    parsec_fini(&parsec);
-
-#ifdef PARSEC_HAVE_MPI
-    MPI_Finalize();
-#endif
+    rc = parsec_tests_context_fini(&parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_fini");
 
     return 0;
 }

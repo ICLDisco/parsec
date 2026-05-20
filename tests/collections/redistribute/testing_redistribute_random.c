@@ -142,7 +142,7 @@ int main(int argc, char *argv[])
                      (parsec_tiled_matrix_unary_op_t)redistribute_init_ops, &op_args);
 
         /* Timer start */
-        SYNC_TIME_START();
+        SYNC_TIME_START(parsec);
 
         /* Main part, call parsec_redistribute; double is default, which could be
          * changed in parsec/data_dist/matrix/redistribute/redistribute_internal.h
@@ -161,7 +161,7 @@ int main(int argc, char *argv[])
         /* Timer end */
         if( time ) {
 #if PRINT_MORE
-            SYNC_TIME_PRINT(rank, ("\"testing_redistribute_PTG\""
+            SYNC_TIME_PRINT(parsec, rank, ("\"testing_redistribute_PTG\""
                                    "\tRedistributed Size: m= %d n= %d"
                                    "\tSource: P= %d Q= %d M= %d N= %d MB= %d NB= %d I= %d J=%d SMB= %d SNB= %d"
                                    "\tTarget: PR= %d QR= %d MR= %d NR= %d MBR= %d NBR= %d i= %d j=%d SMBR= %d SNBR= %d"
@@ -169,7 +169,7 @@ int main(int argc, char *argv[])
                                    size_row, size_col, P, Q, M, N, MB, NB, disi_Y, disj_Y, SMB, SNB,
                                    PR, QR, MR, NR, MBR, NBR, disi_T, disj_T, SMBR, SNBR, cores));
 #else
-            SYNC_TIME_STOP();
+            SYNC_TIME_STOP(parsec);
 #endif
             time_ptg = sync_time_elapsed;
         }
@@ -215,7 +215,7 @@ int main(int argc, char *argv[])
                       (parsec_tiled_matrix_unary_op_t)redistribute_init_ops, &op_args_dtd);
 
         /* Timer start */
-        SYNC_TIME_START();
+        SYNC_TIME_START(parsec);
 
         /* Main part, call parsec_redistribute_dtd; double is default, which could be
          * changed in parsec/data_dist/matrix/redistribute/redistribute_internal.h
@@ -228,7 +228,7 @@ int main(int argc, char *argv[])
         /* Timer end */
         if( time ) {
 #if PRINT_MORE
-            SYNC_TIME_PRINT(rank, ("\"testing_redistribute_DTD\""
+            SYNC_TIME_PRINT(parsec, rank, ("\"testing_redistribute_DTD\""
                                    "\tRedistributed Size: m= %d n= %d"
                                    "\tSource: P= %d Q= %d M= %d N= %d MB= %d NB= %d I= %d J=%d SMB= %d SNB= %d"
                                    "\tTarget: PR= %d QR= %d MR= %d NR= %d MBR= %d NBR= %d i= %d j=%d SMBR= %d SNBR= %d"
@@ -236,7 +236,7 @@ int main(int argc, char *argv[])
                                    size_row, size_col, P, Q, M, N, MB, NB, disi_Y, disj_Y, SMB, SNB,
                                    PR, QR, MR, NR, MBR, NBR, disi_T, disj_T, SMBR, SNBR, cores));
 #else
-            SYNC_TIME_STOP();
+            SYNC_TIME_STOP(parsec);
 #endif
             time_dtd = sync_time_elapsed;
         }
@@ -272,7 +272,7 @@ int main(int argc, char *argv[])
 
         if( time ) {
             /* Timer start */
-            SYNC_TIME_START();
+            SYNC_TIME_START(parsec);
 
             /* Call parsec_redistribute_bound to get time bound */
             results = parsec_redistribute_bound(parsec, (parsec_tiled_matrix_t *)&dcY,
@@ -282,7 +282,7 @@ int main(int argc, char *argv[])
 
             /* Timer end */
 #if PRINT_MORE
-            SYNC_TIME_PRINT(rank, ("\"testing_redistribute_bound\""
+            SYNC_TIME_PRINT(parsec, rank, ("\"testing_redistribute_bound\""
                                    "\tRedistributed Size: m= %d n= %d"
                                    "\tSource: P= %d Q= %d M= %d N= %d MB= %d NB= %d I= %d J=%d SMB= %d SNB= %d"
                                    "\tTarget: PR= %d QR= %d MR= %d NR= %d MBR= %d NBR= %d i= %d j=%d SMBR= %d SNBR= %d"
@@ -290,7 +290,7 @@ int main(int argc, char *argv[])
                                    size_row, size_col, P, Q, M, N, MB, NB, disi_Y, disj_Y, SMB, SNB,
                                    PR, QR, MR, NR, MBR, NBR, disi_T, disj_T, SMBR, SNBR, cores));
 #else
-            SYNC_TIME_STOP();
+            SYNC_TIME_STOP(parsec);
 #endif
         }
 

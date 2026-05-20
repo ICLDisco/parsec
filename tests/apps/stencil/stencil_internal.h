@@ -2,6 +2,7 @@
  * Copyright (c) 2019-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation. All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
 /* includes parsec headers */
 #include "parsec.h"
@@ -17,10 +18,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-
-#if defined(PARSEC_HAVE_MPI)
-#include <mpi.h>
-#endif
 
 /* Flops */
 #define FLOPS_STENCIL_1D(n) ( (DTYPE)(iter) * (2*(2*R+1)) * (DTYPE)(n) )

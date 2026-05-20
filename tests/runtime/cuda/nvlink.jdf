@@ -3,7 +3,7 @@ extern "C" %{
  * Copyright (c) 2019-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
- * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
+ * Copyright (c) 2024-2026 NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/parsec_config.h"
@@ -16,9 +16,6 @@ extern "C" %{
 #include <assert.h>
 #include <stdarg.h>
 #include <sys/time.h>
-#if defined(PARSEC_HAVE_MPI)
-#include <mpi.h>
-#endif  /* defined(PARSEC_HAVE_MPI) */
 #if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
 #include "parsec/mca/device/device.h"
 #include <cublas_v2.h>

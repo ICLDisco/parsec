@@ -2,16 +2,14 @@
  * Copyright (c) 2019-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
 #include <unistd.h>
 #include <getopt.h>
 
 #include "parsec/runtime.h"
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
-
-#if defined(PARSEC_HAVE_MPI)
-#include <mpi.h>
-#endif  /* defined(PARSEC_HAVE_MPI) */
+#include "tests/tests_runtime.h"
 
 #include "udf_wrapper.h"
 
@@ -30,6 +28,7 @@ int main(int argc, char *argv[])
     parsec_udf_taskpool_t *udf_tp;
     int largc;
     char **largv;
+    int rc;
 
     static struct option long_options[] = {
         {"P",     required_argument, 0, 'P'},
@@ -43,19 +42,7 @@ int main(int argc, char *argv[])
     };
     int option_index = 0, c;
     int P = -1, MB = -1, NB = 1, M = -1, N = 1;
-
-#if defined(PARSEC_HAVE_MPI)
-    {
-        int provided;
-        MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
-    }
-    MPI_Comm_size(MPI_COMM_WORLD, &world);
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-#else
-    world = 1;
-    rank = 0;
-    P = 1;
-#endif
+    int show_help = 0;
 
     while(1) {
         option_index = 0;
@@ -94,36 +81,38 @@ int main(int argc, char *argv[])
             cores = atoi(optarg);
             break;
         case 'h':
-            if( 0 == rank ) {
-                fprintf(stderr,
-                        "Usage: %s [-M <M>] [-N <N>] [-m <MB>] [-n <NB>] [-P <P>]\n"
-                        " Display how many times a probe function is called to build a basic PTG\n"
-                        "  M:  number of rows in the matrix (default N)\n"
-                        "  N:  number of columns in the matrix\n"
-                        "  MB: number of rows in a tile (default NB)\n"
-                        "  NB: number of columns in a tile\n"
-                        "  P:  number of rows of processes in the 2D grid (default np, must divide np)\n"
-                        "  c:  number of computing threads to create per rank (default one per core)\n"
-                        "\n", argv[0]);
-#if defined(PARSEC_HAVE_MPI)
-                MPI_Abort(MPI_COMM_WORLD, 1);
-#endif
-                exit(1);
-            }
-#if defined(PARSEC_HAVE_MPI)
-            MPI_Barrier(MPI_COMM_WORLD); /**< Will let the other ranks wait for the MPI_Abort */
-#endif
+            show_help = 1;
             break; /**< To silent warnings */
+        }
+        if( show_help ) {
+            break;
         }
     }
 
     largc = argc - optind;
     largv = argv + optind;
-    parsec = parsec_init(cores, &largc, &largv);
-    if( NULL == parsec ) {
-        exit(-1);
-    }
+    rc = parsec_tests_context_init(cores, PARSEC_TEST_THREAD_SERIALIZED,
+                                   &largc, &largv,
+                                   &parsec, &rank, &world);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_init");
 
+    if( show_help ) {
+        if( 0 == rank ) {
+            fprintf(stderr,
+                    "Usage: %s [-M <M>] [-N <N>] [-m <MB>] [-n <NB>] [-P <P>]\n"
+                    " Display how many times a probe function is called to build a basic PTG\n"
+                    "  M:  number of rows in the matrix (default N)\n"
+                    "  N:  number of columns in the matrix\n"
+                    "  MB: number of rows in a tile (default NB)\n"
+                    "  NB: number of columns in a tile\n"
+                    "  P:  number of rows of processes in the 2D grid (default np, must divide np)\n"
+                    "  c:  number of computing threads to create per rank (default one per core)\n"
+                    "\n", argv[0]);
+        }
+        rc = parsec_tests_context_fini(&parsec);
+        PARSEC_CHECK_ERROR(rc, "parsec_tests_context_fini");
+        return 1;
+    }
 
     if( -1 == MB )
         MB = NB;
@@ -134,13 +123,9 @@ int main(int argc, char *argv[])
     if( -1 == N || -1 == NB ) {
         if( 0 == rank ) {
             fprintf(stderr, "Incorrect usage, see --help\n");
-#if defined(PARSEC_HAVE_MPI)
-            MPI_Abort(MPI_COMM_WORLD, 1);
-#endif
+            parsec_tests_abort(parsec, 1);
         }
-#if defined(PARSEC_HAVE_MPI)
-        MPI_Barrier(MPI_COMM_WORLD); /**< Will let the other ranks wait for the MPI_Abort */
-#endif
+        (void)parsec_tests_barrier(parsec); /**< Will let the other ranks wait for the abort */
         exit(1);
     }
 
@@ -168,11 +153,8 @@ int main(int argc, char *argv[])
     parsec_data_free(A.mat);
     parsec_tiled_matrix_destroy((parsec_tiled_matrix_t*)&A);
 
-    parsec_fini(&parsec);
-
-#ifdef PARSEC_HAVE_MPI
-    MPI_Finalize();
-#endif
+    rc = parsec_tests_context_fini(&parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_fini");
 
     return 0;
 }

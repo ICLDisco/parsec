@@ -16,9 +16,6 @@
 #include <string.h>
 #include <unistd.h>
 #include <inttypes.h>
-#if defined(PARSEC_HAVE_MPI)
-#include <mpi.h>
-#endif
 #include "parsec/class/list.h"
 #include "parsec/os-spec-timing.h"
 
@@ -261,13 +258,6 @@ int main(int argc, char *argv[])
     min_time = 0;
     max_time = 0xffffffff;
 
-#if defined(PARSEC_HAVE_MPI)
-    {
-        int provided;
-        MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
-    }
-#endif
-
     while( (ch = getopt(argc, argv, "c:n:N:h?")) != -1 ) {
         switch(ch) {
         case 'c': {
@@ -391,8 +381,5 @@ int main(int argc, char *argv[])
 
     printf(" - all tests passed\n");
 
-#if defined(PARSEC_HAVE_MPI)
-    MPI_Finalize();
-#endif
     return 0;
 }
