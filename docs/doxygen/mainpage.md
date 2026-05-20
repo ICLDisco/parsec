@@ -36,6 +36,9 @@ PaRSEC exposes a [public API](@ref parsec_public), that feature:
 - [A runtime system](@ref parsec_public_runtime), to initialize the
 task runtime system, schedule DAGs of Tasks in it, and expose the user
 data to the task system
+- [A binding system how-to](@ref parsec_binding_howto) to configure,
+display, and reason about thread binding and scheduler-provided CPU
+resource masks at runtime.
 - [A profiling system](@ref parsec_public_profiling) to build traces
 of the execution at runtime, providing performance information
 feedback to the application or to the user. See the

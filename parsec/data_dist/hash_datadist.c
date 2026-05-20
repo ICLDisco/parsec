@@ -43,7 +43,7 @@ parsec_hash_datadist_t *parsec_hash_datadist_create(int np, int myrank)
     o->hash = (parsec_hash_datadist_entry_t **)calloc(DEFAULT_HASH_SIZE,
                                                      sizeof(parsec_hash_datadist_entry_t *));
 
-    assert(vpmap_get_nb_vp() > 0);
+    assert(parsec_vpmap_get_nb_vp() > 0);
 
     return o;
 }

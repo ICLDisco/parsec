@@ -149,10 +149,16 @@ struct parsec_context_s {
     int comm_th_core;  /* if specified on the MCA subsystem it holds the core where the
                         * communication thread is to be bound.
                         */
-    /* Indicates the HWLOC bitmap of all hardware cores that are described by the MCA
-     * thread location variables.
+    /* Indicates the HWLOC bitmap of all hardware cores that are allowed based
+     * on the process binding constraints imposed by the batch scheduler (or
+     * other startup executable such as mpirun).
      */
     hwloc_cpuset_t cpuset_allowed_mask;
+    /* Indicates the HWLOC bitmap of hardware resources that are currently used
+     * by parsec threads. This includes all threads, including the
+     * communication thread.
+     */
+    hwloc_cpuset_t cpuset_used_mask;
     /* Describe the HWLOC bitmap for all cores that are part of cpuset_allowed_mask
      * but were not used to currently bind computational threads.
      */
