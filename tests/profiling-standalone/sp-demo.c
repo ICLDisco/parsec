@@ -2,6 +2,7 @@
  * Copyright (c) 2016-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
 
 /**
@@ -30,9 +31,10 @@
 #include <pthread.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <string.h>
 #include "parsec/profiling.h"
-
-#include <mpi.h>
+#include "parsec/utils/debug.h"
+#include "tests/tests_runtime.h"
 
 #define NB_THREADS         4
 #define EVENTS_PER_THREAD 10
@@ -136,24 +138,43 @@ int main(int argc, char *argv[])
 {
     int i, rc;
     per_thread_info_t thread_info[NB_THREADS];
-    int mpi_rank;
+    int rank;
+    parsec_context_t *parsec;
+    int parsec_argc = 0;
+    char **parsec_argv = NULL;
 
-    MPI_Init(&argc, &argv); // MPI is only needed if using OTF2 as a backend. It can be ignored otherwise.
-    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+    for(i = 1; i < argc; i++) {
+        if( 0 == strcmp(argv[i], "--") ) {
+            parsec_argc = argc - i;
+            parsec_argv = argv + i;
+            argc = i;
+            break;
+        }
+    }
+
+    rc = parsec_tests_context_init(1, PARSEC_TEST_THREAD_SERIALIZED,
+                                   &parsec_argc, &parsec_argv,
+                                   &parsec, &rank, NULL);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_init");
 
     /** First, there is a sequential part (no threads) */
 
     /** We initialize the system */
-    parsec_profiling_init(mpi_rank);
+    parsec_profiling_init(rank);
 
-    /** MPI should be initialized before the dbp_start call, if it is a distributed application
+    /** The test runtime should be initialized before the dbp_start call, if it is a distributed application
      *  first argument sp is the base name for the trace file
-     *   It will be named sp-<%d>.prof-XXXX where <%d> is the MPI rank (0 if no MPI), and XXXXX is a random value
+     *   It will be named sp-<%d>.prof-XXXX where <%d> is the process rank,
+     *   and XXXXX is a random value.
      *  second argument "Demonstration..." is a human readable string to qualify the trace
      */
     rc = parsec_profiling_dbp_start( "sp", "Demonstration of basic PaRSEC profiling system" );
-    if( 0 != rc )
+    if( 0 != rc ) {
+        parsec_profiling_fini();
+        rc = parsec_tests_context_fini(&parsec);
+        PARSEC_CHECK_ERROR(rc, "parsec_tests_context_fini");
         return 0;
+    }
 
     /** Each Event type must be defined before any event is traced
      *  They are defined by being added to a dictionary.
@@ -200,5 +221,7 @@ int main(int argc, char *argv[])
     parsec_profiling_dbp_dump();
     parsec_profiling_fini();
 
-    MPI_Finalize();
+    rc = parsec_tests_context_fini(&parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_fini");
+    return 0;
 }

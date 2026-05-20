@@ -3,6 +3,7 @@ extern "C" %{
  * Copyright (c)      2022 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
 
 #include <sys/time.h>
@@ -10,6 +11,7 @@ extern "C" %{
 #include <string.h>
 #include <stdlib.h>
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include "tests/tests_runtime.h"
 
 /**
  * This test uses a User-Triggered-Termination (UTT) to detect
@@ -110,20 +112,12 @@ int main( int argc, char** argv )
     int ret;
     int nt;
 
-#ifdef PARSEC_HAVE_MPI
-    {
-        int provided;
-        MPI_Init_thread(NULL, NULL, MPI_THREAD_SERIALIZED, &provided);
-        MPI_Comm_size(MPI_COMM_WORLD, &ws);
-        MPI_Comm_rank(MPI_COMM_WORLD, &mr);
-    }
-#endif
-    nt = 2*ws;
+    rc = parsec_tests_context_init(-1, PARSEC_TEST_THREAD_SERIALIZED,
+                                   &argc, &argv,
+                                   &parsec, &mr, &ws);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_init");
 
-    parsec = parsec_init(-1, &argc, &argv);
-    if( NULL == parsec ) {
-        exit(-1);
-    }
+    nt = 2*ws;
 
     /**
      * Build the data and the arena to hold it up.
@@ -175,11 +169,8 @@ int main( int argc, char** argv )
     free(descA.mat);
     parsec_matrix_adt_free( & adt );
 
-    parsec_fini( &parsec);
-
-#ifdef PARSEC_HAVE_MPI
-    MPI_Finalize();
-#endif
+    rc = parsec_tests_context_fini(&parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_fini");
 
     return ret;
 }

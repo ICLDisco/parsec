@@ -19,6 +19,8 @@
 #include <string.h>
 #include <stdio.h>
 #include "parsec/profiling.h"
+#include "parsec/utils/debug.h"
+#include "tests/tests_runtime.h"
 
 #if !defined(timersub)
 #define timersub(a, b, result) do {                \
@@ -30,8 +32,6 @@
         }                                                   \
     } while(0)
 #endif
-
-#include <mpi.h>
 
 typedef struct {
     pthread_t                  pthread_id;
@@ -94,14 +94,28 @@ static void *run_thread(void *_arg)
 
 int main(int argc, char *argv[])
 {
-    int i, opt;
+    int i, opt, rc;
     per_thread_info_t *thread_info;
     int nbthreads = 1;
     char *filename = NULL;
-    int mpi_rank;
+    int rank;
+    parsec_context_t *parsec;
+    int parsec_argc = 0;
+    char **parsec_argv = NULL;
 
-    MPI_Init(&argc, &argv);
-    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+    for(i = 1; i < argc; i++) {
+        if( 0 == strcmp(argv[i], "--") ) {
+            parsec_argc = argc - i;
+            parsec_argv = argv + i;
+            argc = i;
+            break;
+        }
+    }
+
+    rc = parsec_tests_context_init(1, PARSEC_TEST_THREAD_SERIALIZED,
+                                   &parsec_argc, &parsec_argv,
+                                   &parsec, &rank, NULL);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_init");
 
     while ((opt = getopt(argc, argv, "f:n:N:h?")) != -1) {
         switch (opt) {
@@ -117,6 +131,8 @@ int main(int argc, char *argv[])
         default: /* '?' */
             fprintf(stderr, "Usage: %s [-f filename] [-n number of threads] [-N number of tasks per thread]\n",
                     argv[0]);
+            rc = parsec_tests_context_fini(&parsec);
+            PARSEC_CHECK_ERROR(rc, "parsec_tests_context_fini");
             exit(EXIT_FAILURE);
         }
     }
@@ -128,9 +144,13 @@ int main(int argc, char *argv[])
     }
 
     if( profiling ) {
-        parsec_profiling_init(mpi_rank);
-        if( parsec_profiling_dbp_start(filename, "PaRSEC profiling system performance evaluation" ) == -1 )
+        parsec_profiling_init(rank);
+        if( parsec_profiling_dbp_start(filename, "PaRSEC profiling system performance evaluation" ) == -1 ) {
+            parsec_profiling_fini();
+            rc = parsec_tests_context_fini(&parsec);
+            PARSEC_CHECK_ERROR(rc, "parsec_tests_context_fini");
             exit(EXIT_FAILURE);
+        }
 
         parsec_profiling_add_dictionary_keyword("Event", "#FF0000", 0, NULL, &event_startkey, &event_endkey);
     }
@@ -162,7 +182,8 @@ int main(int argc, char *argv[])
     }
     free(thread_info);
 
-    MPI_Finalize();
+    rc = parsec_tests_context_fini(&parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_fini");
 
     exit(EXIT_SUCCESS);
 }

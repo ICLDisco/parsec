@@ -2,18 +2,17 @@
  * Copyright (c) 2009-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/runtime.h"
 #include "parsec/utils/debug.h"
+#include "tests/tests_runtime.h"
 #include "branching_wrapper.h"
 #include "branching_data.h"
 #if defined(PARSEC_HAVE_STRING_H)
 #include <string.h>
 #endif  /* defined(PARSEC_HAVE_STRING_H) */
-#if defined(PARSEC_HAVE_MPI)
-#include <mpi.h>
-#endif  /* defined(PARSEC_HAVE_MPI) */
 
 volatile int32_t nb_taskA = 0;
 volatile int32_t nb_taskB = 0;
@@ -27,18 +26,9 @@ int main(int argc, char *argv[])
     parsec_data_collection_t *dcA;
     parsec_taskpool_t *branching;
 
-#if defined(PARSEC_HAVE_MPI)
-    {
-        int provided;
-        MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
-    }
-    MPI_Comm_size(MPI_COMM_WORLD, &world);
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-#else
-    world = 1;
-    rank = 0;
-#endif
-    parsec = parsec_init(cores, &argc, &argv);
+    rc = parsec_tests_context_init(cores, PARSEC_TEST_THREAD_SERIALIZED,
+                                   &argc, &argv, &parsec, &rank, &world);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_init");
 
     size = 256;
     if(argc != 2) {
@@ -66,20 +56,23 @@ int main(int argc, char *argv[])
 
     free_data(dcA);
 
-    parsec_fini(&parsec);
     int gnbA = nb_taskA, gnbB = nb_taskB, gnbC = nb_taskC;
-#if defined(PARSEC_HAVE_MPI)
-    MPI_Allreduce(MPI_IN_PLACE, &gnbA, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-    MPI_Allreduce(MPI_IN_PLACE, &gnbB, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-    MPI_Allreduce(MPI_IN_PLACE, &gnbC, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-#endif
+    rc = parsec_tests_allreduce(parsec, NULL, &gnbA, 1,
+                                parsec_datatype_int_t, PARSEC_TESTS_REDUCE_SUM);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_allreduce");
+    rc = parsec_tests_allreduce(parsec, NULL, &gnbB, 1,
+                                parsec_datatype_int_t, PARSEC_TESTS_REDUCE_SUM);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_allreduce");
+    rc = parsec_tests_allreduce(parsec, NULL, &gnbC, 1,
+                                parsec_datatype_int_t, PARSEC_TESTS_REDUCE_SUM);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_allreduce");
+
     printf("nb = %d, nb_taskA = %d, nb_taskB = %d, nb_taskC = %d -- %s\n", nb, 
            gnbA, gnbB, gnbC,
            gnbA == nb && gnbB == 2*nb && gnbC == nb ? "SUCCESS" : "FAILURE!");
 
-#ifdef PARSEC_HAVE_MPI
-    MPI_Finalize();
-#endif
+    rc = parsec_tests_context_fini(&parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_fini");
 
     if( gnbA == nb &&
         gnbB == 2*nb &&
