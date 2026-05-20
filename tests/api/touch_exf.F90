@@ -2,13 +2,13 @@
 ! Copyright (c) 2021-2024 The University of Tennessee and The University
 !                         of Tennessee Research Foundation.  All rights
 !                         reserved.
+! Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
 !
 
 PROGRAM TOUCH_EXF
 
   use, INTRINSIC :: ISO_C_BINDING, only : c_int
   use parsec_f08_interfaces
-  use mpi
 
 interface
   function touch_initialize_f08(block, n) BIND(C, name="touch_initialize")
@@ -26,13 +26,11 @@ interface
   end function touch_finalize_f08
 end interface
 
-  integer BLOCK, N, mpith, ret
+  integer BLOCK, N, ret
   parameter (BLOCK=10, N=100)
 
   type(parsec_context_t) :: context
   type(parsec_taskpool_t)  :: tp
-
-  call MPI_Init_thread(MPI_THREAD_MULTIPLE, mpith, ret)
 
   call parsec_init(1, context)
 
@@ -49,8 +47,6 @@ end interface
   call parsec_taskpool_free(tp)
 
   call parsec_fini(context)
-
-  call MPI_Finalize(ret)
 
   call exit(ret)
 END

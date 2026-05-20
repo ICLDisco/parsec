@@ -3,6 +3,7 @@ extern "C" %{
  * Copyright (c) 2017-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation. All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
 #include "redistribute_test.h"
 
@@ -328,7 +329,8 @@ int parsec_redistribute_check(parsec_context_t *parsec,
 	T_g = (DTYPE *)calloc(size_row*size_col, sizeof(DTYPE));
     }
 
-    MPI_Barrier(MPI_COMM_WORLD);
+    int barrier_rc = parsec_tests_barrier(parsec);
+    PARSEC_CHECK_ERROR(barrier_rc, "parsec_tests_barrier");
 
     parsec_redistribute_check = parsec_redistribute_check_New(
                                   (parsec_tiled_matrix_t *)dcY,
