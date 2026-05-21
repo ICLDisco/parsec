@@ -2,6 +2,7 @@
  * Copyright (c) 2009-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/parsec_config.h"
@@ -412,6 +413,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     char **ctx_environ = NULL;
     char **env_variable, *env_name, *env_value;
     char *parsec_enable_profiling = NULL;  /* profiling file prefix when PARSEC_PROF_TRACE is on */
+    int parsec_argv_start = 0;
     int slow_option_used = 0;
 #if defined(PARSEC_PROF_TRACE)
     int profiling_file_requested = 0;
@@ -448,8 +450,34 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
                              "Show the usage text.");
     parsec_mca_cmd_line_setup(cmd_line);
 
-    if( (NULL != pargc) && (0 != *pargc) ) {
-        ret = parsec_cmd_line_parse(cmd_line, true, *pargc, *pargv);
+    if( (NULL != pargc) && (NULL != pargv) && (NULL != *pargv) && (0 != *pargc) ) {
+        int parsec_cmd_argc;
+        char **parsec_cmd_argv;
+
+        /* The public parsec_init() API takes a list of PaRSEC options, not a
+         * process argv. The command-line parser follows the traditional argv
+         * convention and skips argv[0], so build the small argv shape it needs
+         * internally. Existing callers that pass main(argc, argv), or a slice
+         * starting with "--", remain accepted for compatibility.
+         */
+        if( 0 == strcmp((*pargv)[0], "--") ||
+            '-' != (*pargv)[0][0] ) {
+            parsec_argv_start = 1;
+        }
+        parsec_cmd_argc = *pargc - parsec_argv_start + 1;
+        parsec_cmd_argv = (char**)malloc((size_t)(parsec_cmd_argc + 1) * sizeof(char*));
+        if( NULL == parsec_cmd_argv ) {
+            PARSEC_OBJ_RELEASE(cmd_line);
+            return NULL;
+        }
+        parsec_cmd_argv[0] = parsec_app_name;
+        for(int i = parsec_argv_start; i < *pargc; i++) {
+            parsec_cmd_argv[i - parsec_argv_start + 1] = (*pargv)[i];
+        }
+        parsec_cmd_argv[parsec_cmd_argc] = NULL;
+
+        ret = parsec_cmd_line_parse(cmd_line, true, parsec_cmd_argc, parsec_cmd_argv);
+        free(parsec_cmd_argv);
         if (PARSEC_SUCCESS != ret) {
             fprintf(stderr, "%s: command line error (%d)\n", parsec_app_name, ret);
         }
@@ -726,16 +754,16 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
         }
 
         l = strlen(parsec_app_name);  /* use the known application name */
-        if( NULL != pargc ) {
-            for(i = 1; i < *pargc; i++) {
+        if( (NULL != pargc) && (NULL != pargv) && (NULL != *pargv) ) {
+            for(i = parsec_argv_start; i < *pargc; i++) {
                 l += strlen( (*pargv)[i] ) + 1;
             }
         }
         cmdline_info = (char*)malloc(l + 1);
         sprintf(cmdline_info, "%s", parsec_app_name);
         l = strlen(parsec_app_name);
-        if( NULL != pargc ) {
-            for(i = 1; i < *pargc; i++) {
+        if( (NULL != pargc) && (NULL != pargv) && (NULL != *pargv) ) {
+            for(i = parsec_argv_start; i < *pargc; i++) {
                 sprintf(cmdline_info + l, " %s", (*pargv)[i]);
                 l += strlen( (*pargv)[i] ) + 1;
             }
