@@ -2,6 +2,7 @@
  * Copyright (c) 2017-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
 /* Naive star-based reduce-bcast allreduce; just an example, so keep it
  * simple... */
@@ -19,14 +20,11 @@
 #include "parsec/data_internal.h"
 #include "parsec/execution_stream.h"
 #include "parsec/utils/debug.h"
+#include "tests/tests_runtime.h"
 
 #if defined(PARSEC_HAVE_STRING_H)
 #include <string.h>
 #endif  /* defined(PARSEC_HAVE_STRING_H) */
-
-#if defined(PARSEC_HAVE_MPI)
-#include <mpi.h>
-#endif  /* defined(PARSEC_HAVE_MPI) */
 
 static int verbose = 0;
 
@@ -90,25 +88,12 @@ int main(int argc, char **argv)
 {
     parsec_context_t* parsec;
     parsec_arena_datatype_t *adt;
-    int rc, nb, nt;
+    int rc, nb, nt = 0;
     int rank, world, cores = -1, root = 0;
     int i;
     parsec_tiled_matrix_t *dcA;
 
-#if defined(PARSEC_HAVE_MPI)
-    {
-        int provided;
-        MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
-    }
-    MPI_Comm_size(MPI_COMM_WORLD, &world);
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-#else
-    world = 1;
-    rank = 0;
-#endif
-
     nb = 1; /* tile_size */
-    nt = world*10; /* total no. of tiles */
     verbose = 0;
 
     int pargc = 0; char **pargv = NULL;
@@ -120,7 +105,7 @@ int main(int argc, char **argv)
         }
         if( 0 == strncmp(argv[i], "-n=", 3) ) {
             nt = strtol(argv[i]+3, NULL, 10);
-            if( 0 >= nt ) nt = world*10;  /* set to default value */
+            if( 0 >= nt ) nt = 0;  /* set to default value after rank discovery */
             continue;
         }
         if( 0 == strncmp(argv[i], "-v", 2) ) {
@@ -129,9 +114,13 @@ int main(int argc, char **argv)
         }
     }
 
-    parsec = parsec_init( cores, &pargc, &pargv );
-    if( NULL == parsec ) {
-        return -1;
+    rc = parsec_tests_context_init(cores, PARSEC_TEST_THREAD_SERIALIZED,
+                                   &pargc, &pargv,
+                                   &parsec, &rank, &world);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_init");
+
+    if( 0 >= nt ) {
+        nt = world*10; /* total no. of tiles */
     }
 
     parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new(  );
@@ -231,11 +220,8 @@ int main(int argc, char **argv)
     parsec_tiled_matrix_destroy(dcA);
     free(dcA);
 
-    parsec_fini(&parsec);
-
-#ifdef PARSEC_HAVE_MPI
-    MPI_Finalize();
-#endif
+    rc = parsec_tests_context_fini(&parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_fini");
 
     return 0;
 }

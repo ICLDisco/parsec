@@ -3,18 +3,18 @@ extern "C" %{
  * Copyright (c) 2019-2022 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec.h"
 #include "parsec/data_distribution.h"
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include "parsec/utils/debug.h"
+#include "tests/tests_runtime.h"
 #include <sys/time.h>
 #include <string.h>
 #include <stdlib.h>
 #include <math.h>
-#if defined(PARSEC_HAVE_MPI)
-#include <mpi.h>
-#endif
 
 #define TYPE  PARSEC_MATRIX_INTEGER
 parsec_taskpool_t* kcyclic_taskpool(parsec_matrix_block_cyclic_t* A,
@@ -33,17 +33,10 @@ int main( int argc, char** argv )
     parsec_matrix_block_cyclic_t descCA;
     int rc;
 
-#if defined(PARSEC_HAVE_MPI)
-    int required = MPI_THREAD_MULTIPLE, provided = 0;
-    MPI_Init_thread(&argc, &argv, required, &provided);
-    MPI_Comm_size(MPI_COMM_WORLD, &nodes);
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-#endif
-
-    parsec = parsec_init(1, &argc, &argv);
-    if( NULL == parsec ) {
-        exit(-2);
-    }
+    rc = parsec_tests_context_init(1, PARSEC_TEST_THREAD_MULTIPLE,
+                                   &argc, &argv,
+                                   &parsec, &rank, &nodes);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_init");
     n *= nodes; /* scale it */
     p = sqrt(nodes);
 
@@ -93,14 +86,12 @@ int main( int argc, char** argv )
 
     kcyclic_taskpool_free(tp);
 
-    parsec_fini( &parsec);
+    rc = parsec_tests_context_fini(&parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_fini");
 
     free(descA.mat);
     free(descCA.mat);
 
-#if defined(PARSEC_HAVE_MPI)
-    MPI_Finalize();
-#endif
     return 0;
 }
 

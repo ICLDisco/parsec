@@ -3,6 +3,7 @@ extern "C" %{
  * Copyright (c) 2023      The University of Tennessee and The University
  *                         of Tennessee Research Foundation. All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
 
 #include <sys/time.h>
@@ -11,6 +12,7 @@ extern "C" %{
 #include <stdlib.h>
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "parsec/data_dist/matrix/subtile.h"
+#include "tests/tests_runtime.h"
 
 #include "recursive.h" /* generated header */
 
@@ -101,13 +103,6 @@ int main( int argc, char** argv )
     parsec_context_t *parsec;
     int ni = NN, level = 3, i = 1, rc;
 
-#ifdef PARSEC_HAVE_MPI
-    {
-        int provided;
-        MPI_Init_thread(NULL, NULL, MPI_THREAD_SERIALIZED, &provided);
-    }
-#endif
-
     int pargc = 0; char **pargv = NULL;
     for( i = 1; i < argc; i++) {
         if( 0 == strncmp(argv[i], "--", 3) ) {
@@ -129,10 +124,9 @@ int main( int argc, char** argv )
         }
     }
 
-    parsec = parsec_init(-1, &pargc, &pargv);
-    if( NULL == parsec ) {
-       exit(-1);
-    }
+    rc = parsec_tests_context_init(-1, PARSEC_TEST_THREAD_SERIALIZED,
+                                   &pargc, &pargv, &parsec, NULL, NULL);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_init");
 
     /**
      * Build the data and the arena to hold it up.
@@ -169,11 +163,8 @@ int main( int argc, char** argv )
     free(descA.mat);
     parsec_matrix_adt_free(&adt);
 
-    parsec_fini( &parsec);
-
-#ifdef PARSEC_HAVE_MPI
-    MPI_Finalize();
-#endif
+    rc = parsec_tests_context_fini(&parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_fini");
 
     return 0;
 }

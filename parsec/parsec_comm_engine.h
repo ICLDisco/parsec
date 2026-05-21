@@ -150,6 +150,14 @@ typedef int (*parsec_ce_unpack_fn_t)(parsec_comm_engine_t *ce,
 
 typedef int (*parsec_ce_sync_fn_t)(parsec_comm_engine_t *comm_engine);
 typedef int (*parsec_ce_can_serve_fn_t)(parsec_comm_engine_t *comm_engine);
+/**
+ * Synchronize the next taskpool id across the processes known by a backend.
+ * The runtime owns the taskpool registry lock and storage; the backend only
+ * updates next_taskpool_id to the globally agreed value.
+ */
+typedef int (*parsec_ce_taskpool_sync_ids_fn_t)(parsec_comm_engine_t *comm_engine,
+                                                intptr_t comm_ctx,
+                                                uint32_t *next_taskpool_id);
 
 /**
  * This function realize a data reshaping, by conceptually packing the dst
@@ -169,7 +177,9 @@ typedef int (*parsec_ce_reshape_fn_t)(parsec_comm_engine_t* ce,
 
 struct parsec_comm_engine_capabilites_s {
     unsigned int sided : 2; /* Valid values are 1 and 2 */
+    /** The backend can register and move non-contiguous datatypes directly. */
     unsigned int supports_noncontiguous_datatype : 1;
+    /** The backend can safely be called concurrently by worker threads. */
     unsigned int multithreaded : 1;
 };
 
@@ -196,6 +206,7 @@ struct parsec_comm_engine_s {
     parsec_ce_sync_fn_t                    sync;
     parsec_ce_can_serve_fn_t               can_serve;
     parsec_ce_send_active_message_fn_t     send_am;
+    parsec_ce_taskpool_sync_ids_fn_t       taskpool_sync_ids;
 };
 
 /* global comm_engine */

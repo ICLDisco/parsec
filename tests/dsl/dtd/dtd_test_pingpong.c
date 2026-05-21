@@ -2,6 +2,7 @@
  * Copyright (c) 2009-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
 #include "parsec/runtime.h"
 
@@ -10,6 +11,7 @@
 #include <stdio.h>
 
 #include "tests/tests_data.h"
+#include "tests/tests_runtime.h"
 #include "tests/tests_timing.h"
 #include "parsec/interfaces/dtd/insert_function_internal.h"
 #include "parsec/utils/debug.h"
@@ -17,10 +19,6 @@
 #if defined(PARSEC_HAVE_STRING_H)
 #include <string.h>
 #endif  /* defined(PARSEC_HAVE_STRING_H) */
-
-#if defined(PARSEC_HAVE_MPI)
-#include <mpi.h>
-#endif  /* defined(PARSEC_HAVE_MPI) */
 
 double time_elapsed;
 double sync_time_elapsed;
@@ -81,34 +79,22 @@ int main(int argc, char **argv)
     parsec_tiled_matrix_t *dcA;
     parsec_arena_datatype_t *adt;
 
-#if defined(PARSEC_HAVE_MPI)
-    {
-        int provided;
-        MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
-        if(MPI_THREAD_MULTIPLE > provided) {
-            parsec_fatal( "This benchmark requires MPI_THREAD_MULTIPLE because it uses simultaneously MPI within the PaRSEC runtime, and in the main program loop (in SYNC_TIME_START)");
-        }
-    }
-    MPI_Comm_size(MPI_COMM_WORLD, &world);
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-#else
-    world = 1;
-    rank = 0;
-#endif
-
-    if( world != 2 ) {
-        parsec_fatal( "Nope! world is not right, we need exactly two MPI process. "
-                      "Try with \"mpirun -np 2 .....\"\n" );
-    }
-
-    nb = 1; /* tile_size */
-    nt = 2; /* total no. of tiles */
-
     if(argv[1] != NULL){
         cores = atoi(argv[1]);
     }
 
-    parsec = parsec_init( cores, &argc, &argv );
+    rc = parsec_tests_context_init(cores, PARSEC_TEST_THREAD_MULTIPLE,
+                                   &argc, &argv,
+                                   &parsec, &rank, &world);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_init");
+
+    if( world != 2 ) {
+        parsec_fatal( "Nope! world is not right, we need exactly two processes. "
+                      "Try with a two-process launcher.\n" );
+    }
+
+    nb = 1; /* tile_size */
+    nt = 2; /* total no. of tiles */
 
     parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new();
 
@@ -221,7 +207,7 @@ int main(int argc, char **argv)
         parsec_data_collection_t *A = (parsec_data_collection_t *)dcA;
         parsec_dtd_data_collection_init(A);
 
-        SYNC_TIME_START();
+        SYNC_TIME_START(parsec);
         for( j = 0; j < repeat_pingpong; j++ ) {
             parsec_dtd_insert_task(dtd_tp, task_rank_0, 0, PARSEC_DEV_CPU, "task_for_timing_0",
                                    PASSED_BY_REF, PARSEC_DTD_TILE_OF_KEY(A, 0), PARSEC_INOUT | TILE_FULL | PARSEC_AFFINITY,
@@ -238,7 +224,7 @@ int main(int argc, char **argv)
 
         rc = parsec_context_wait(parsec);
         PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
-        SYNC_TIME_PRINT(rank, ("\tSize of message : %zu bytes\tTime for each pingpong : %12.5f\n", sizes[i]*sizeof(int), sync_time_elapsed/repeat_pingpong));
+        SYNC_TIME_PRINT(parsec, rank, ("\tSize of message : %zu bytes\tTime for each pingpong : %12.5f\n", sizes[i]*sizeof(int), sync_time_elapsed/repeat_pingpong));
 
         parsec_dtd_free_arena_datatype(parsec, TILE_FULL);
         parsec_dtd_data_collection_fini( A );
@@ -247,11 +233,8 @@ int main(int argc, char **argv)
         parsec_taskpool_free(dtd_tp);
     }
 
-    parsec_fini(&parsec);
-
-#ifdef PARSEC_HAVE_MPI
-    MPI_Finalize();
-#endif
+    rc = parsec_tests_context_fini(&parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_fini");
 
     return 0;
 }

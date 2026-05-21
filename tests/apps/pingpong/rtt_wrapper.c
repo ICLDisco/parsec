@@ -11,9 +11,6 @@
 #include "parsec/arena.h"
 #include "parsec/mca/device/device.h"
 
-#if defined(PARSEC_HAVE_MPI)
-#include <mpi.h>
-#endif
 #include <stdio.h>
 
 #include "rtt.h"
@@ -45,11 +42,7 @@ parsec_taskpool_t *rtt_new(parsec_data_collection_t *A, int size, int nb)
 {
     parsec_rtt_taskpool_t *tp = NULL;
     parsec_datatype_t block;
-    int worldsize = 1;
-
-#if defined(PARSEC_HAVE_MPI)
-    MPI_Comm_size(MPI_COMM_WORLD, &worldsize);
-#endif
+    int worldsize = (int)A->nodes;
 
     if( nb <= 0 || size <= 0 ) {
         fprintf(stderr, "To work, RTT must do at least one round time trip of at least one byte\n");

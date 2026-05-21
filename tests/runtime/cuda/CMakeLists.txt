@@ -10,16 +10,19 @@ if(PARSEC_HAVE_CUDA)
   else( NOT TARGET CUDA::cublas )
 
     parsec_addtest_executable(C nvlink SOURCES nvlink_main.c nvlink_wrapper.c)
+    target_link_libraries(nvlink PRIVATE tests_runtime_common)
     target_include_directories(nvlink PRIVATE $<$<NOT:${PARSEC_BUILD_INPLACE}>:${CMAKE_CURRENT_SOURCE_DIR}>)
     target_ptg_sources(nvlink PRIVATE "nvlink.jdf")
     target_link_libraries(nvlink PRIVATE CUDA::cublas)
 
     parsec_addtest_executable(C stress SOURCES stress_main.c stress_wrapper.c)
+    target_link_libraries(stress PRIVATE tests_runtime_common)
     target_include_directories(stress PRIVATE $<$<NOT:${PARSEC_BUILD_INPLACE}>:${CMAKE_CURRENT_SOURCE_DIR}>)
     target_ptg_sources(stress PRIVATE "stress.jdf")
     target_link_libraries(stress PRIVATE CUDA::cublas)
 
     parsec_addtest_executable(C stage SOURCES stage_main.c)
+    target_link_libraries(stage PRIVATE tests_runtime_common)
     target_include_directories(stage PRIVATE $<$<NOT:${PARSEC_BUILD_INPLACE}>:${CMAKE_CURRENT_SOURCE_DIR}>)
     target_ptg_sources(stage PRIVATE "stage_custom.jdf")
     target_link_libraries(stage PRIVATE CUDA::cublas)
@@ -28,6 +31,7 @@ if(PARSEC_HAVE_CUDA)
 
   # Testing for getting best device
   parsec_addtest_executable(C testing_get_best_device SOURCES "testing_get_best_device.c")
+  target_link_libraries(testing_get_best_device PRIVATE tests_runtime_common)
   target_include_directories(testing_get_best_device PRIVATE $<$<NOT:${PARSEC_BUILD_INPLACE}>:${CMAKE_CURRENT_SOURCE_DIR}>)
   target_ptg_sources(testing_get_best_device PRIVATE "get_best_device_check.jdf")
 

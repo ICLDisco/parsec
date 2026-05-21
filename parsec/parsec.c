@@ -988,6 +988,7 @@ int parsec_version( int* version_major, int* version_minor, int* version_release
 
 int parsec_version_ex( size_t len, char* version_string) {
     int ret;
+    char *comm_components = mca_components_list_compiled("comm");
     char *sched_components = mca_components_list_compiled("sched");
     char *device_components = mca_components_list_compiled("device");
     char *pins_components = mca_components_list_compiled("pins");
@@ -1058,18 +1059,7 @@ int parsec_version_ex( size_t len, char* version_string) {
         "no"
 #endif /*PARSEC_PROF_TRACE*/
         ,
-#if defined(PARSEC_HAVE_MPI)
-        "mpi"
-#if defined(PARSEC_HAVE_MPI_20)
-        "2"
-#endif
-#if defined(PARSEC_DIST_THREAD)
-        "+thread_multiple"
-#endif
-#else  /* defined(PARSEC_HAVE_MPI) */
-        "single process only"
-#endif
-        ,
+        comm_components,
         device_components,
         sched_components,
 #if defined(PARSEC_HAVE_HWLOC)
@@ -1118,6 +1108,7 @@ int parsec_version_ex( size_t len, char* version_string) {
         CMAKE_PARSEC_C_COMPILER,
         CMAKE_PARSEC_C_FLAGS
     );
+    free(comm_components);
     free(device_components);
     free(sched_components);
     free(pins_components);
@@ -2197,16 +2188,30 @@ void parsec_taskpool_sync_ids_context( intptr_t comm )
     parsec_atomic_lock( &taskpool_array_lock );
     idx = (int)taskpool_array_pos;
     msz = (int)taskpool_array_size;
-#if defined(DISTRIBUTED) && defined(PARSEC_HAVE_MPI)
-    int mpi_is_on;
-    MPI_Initialized(&mpi_is_on);
-    if( mpi_is_on ) {
-        MPI_Allreduce( MPI_IN_PLACE, &idx, 1, MPI_INT, MPI_MAX, (MPI_Comm)comm );
-        while (idx >= msz){
-            msz <<= 1;
-        }
+#if defined(DISTRIBUTED)
+    int rc = PARSEC_ERR_NOT_IMPLEMENTED;
+    if( NULL != parsec_ce.taskpool_sync_ids ) {
+        rc = parsec_ce.taskpool_sync_ids(&parsec_ce, comm, &idx);
     }
-#endif
+#if defined(PARSEC_HAVE_MPI)
+    /*
+     * Keep the legacy direct MPI path for applications that synchronize
+     * taskpool ids before the communication engine has been selected.
+     */
+    int mpi_is_on;
+    if( (PARSEC_ERR_NOT_IMPLEMENTED == rc) &&
+        (NULL == parsec_ce.taskpool_sync_ids) &&
+        (MPI_SUCCESS == MPI_Initialized(&mpi_is_on)) && mpi_is_on ) {
+        MPI_Allreduce( MPI_IN_PLACE, &idx, 1, MPI_INT, MPI_MAX, (MPI_Comm)comm );
+        rc = PARSEC_SUCCESS;
+    }
+#endif  /* defined(PARSEC_HAVE_MPI) */
+    while( (PARSEC_SUCCESS == rc) && (idx >= msz) ) {
+        msz <<= 1;
+    }
+#else
+    (void)comm;
+#endif  /* defined(DISTRIBUTED) */
     if( msz > taskpool_array_size ) {
         taskpool_array = (parsec_taskpool_t**)realloc(taskpool_array, msz * sizeof(parsec_taskpool_t*) );
         /* NULLify all the new elements */
@@ -2998,7 +3003,7 @@ int parsec_context_query(parsec_context_t *context, parsec_context_query_cmd_t c
         case PARSEC_CONTEXT_QUERY_NODES:
             switch (parsec_communication_engine_up) {
                 case 0: return 0;  /* context not ready for distributed runs, and lacking datatype handling capabilities */
-                case 1: return 1;  /* single node runs, but the context has datatype management capabilities */
+                case 1: return context->nb_nodes;  /* communication engine initialized, but not necessarily awake */
                 case 2: return PARSEC_ERR_NOT_FOUND; /* we are in a distributed run, but the MPI engine is not yet ready, so the nb_nodes might not be accurate */
                 case 3: return context->nb_nodes;
             }
