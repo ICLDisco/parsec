@@ -243,6 +243,20 @@ parsec_gpu_create_w2r_task(parsec_device_gpu_module_t *gpu_device,
         /* get the next item before altering the next pointer */
         item = (parsec_list_item_t*)item->list_next;  /* conversion needed for volatile */
         if( 0 == gpu_copy->readers ) {
+            if( NULL == gpu_copy->original->device_copies[0] ) {
+                /* This background write-to-read cleanup task has no producer
+                 * or receiver flow attached to it, so it cannot recover the
+                 * arena/datatype needed to recreate a missing CPU mirror. Leave
+                 * GPU-only self-contained data for the real successor pushout,
+                 * where the receiving flow can be queried with get_datatype().
+                 */
+                PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
+                                     "D2H[%d:%s]: skip GPU-only copy %p [%p]; no host mirror and no receiver flow metadata",
+                                     gpu_device->super.device_index, gpu_device->super.name,
+                                     gpu_copy, gpu_copy->original);
+                parsec_atomic_unlock( &gpu_copy->original->lock );
+                continue;
+            }
             if( PARSEC_UNLIKELY(NULL == d2h_task) ) {  /* allocate on-demand */
                 d2h_task = (parsec_gpu_d2h_task_t*)parsec_thread_mempool_allocate(es->context_mempool);
                 if( PARSEC_UNLIKELY(NULL == d2h_task) ) { /* we're running out of memory. Bail out. */

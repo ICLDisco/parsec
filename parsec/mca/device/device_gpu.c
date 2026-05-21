@@ -14,9 +14,11 @@
 #include "parsec/execution_stream.h"
 #include "parsec/utils/argv.h"
 #include "parsec/parsec_internal.h"
+#include "parsec/remote_dep.h"
 #include "parsec/scheduling.h"
 
 #include <limits.h>
+#include <stdlib.h>
 #include <string.h>
 
 #define PARSEC_DEVICE_DATA_COPY_ATOMIC_SENTINEL 1024
@@ -39,10 +41,122 @@ static int parsec_gpu_profiling_initiated = 0;
 int parsec_gpu_output_stream = -1;
 int parsec_gpu_verbosity;
 
+typedef struct parsec_gpu_host_mirror_lookup_s {
+    const parsec_flow_t            *producer_flow;
+    parsec_dep_data_description_t   datatype;
+    int                             found;
+} parsec_gpu_host_mirror_lookup_t;
+
+static parsec_ontask_iterate_t
+parsec_device_gpu_retrieve_host_mirror_datatype(parsec_execution_stream_t *es,
+                                                const parsec_task_t *newcontext,
+                                                const parsec_task_t *oldcontext,
+                                                const parsec_dep_t *dep,
+                                                parsec_dep_data_description_t *data,
+                                                int rank_src, int rank_dst, int vpid_dst,
+                                                data_repo_t *successor_repo, parsec_key_t successor_repo_key,
+                                                void *param)
+{
+    parsec_gpu_host_mirror_lookup_t *lookup = (parsec_gpu_host_mirror_lookup_t*)param;
+    uint32_t flow_mask;
+    int rc;
+
+    (void)data; (void)rank_src; (void)rank_dst; (void)vpid_dst;
+    (void)successor_repo; (void)successor_repo_key;
+
+    if( dep->belongs_to->flow_index != lookup->producer_flow->flow_index ) {
+        return PARSEC_ITERATE_CONTINUE;
+    }
+
+    /* This mirrors the receive side of the communication engine: ask the
+     * successor task which datatype it expects on the input flow that receives
+     * this producer output, then use the returned remote descriptor as the
+     * layout for the temporary host copy.
+     */
+    flow_mask = (1U << dep->flow->flow_index) | 0x80000000U;
+    rc = newcontext->task_class->get_datatype(es, newcontext, oldcontext,
+                                              &flow_mask, &lookup->datatype);
+    if( PARSEC_HOOK_RETURN_NEXT != rc ) {
+        return PARSEC_ITERATE_CONTINUE;
+    }
+
+    lookup->found = 1;
+    return PARSEC_ITERATE_STOP;
+}
+
+static parsec_data_copy_t *
+parsec_device_gpu_ensure_host_mirror(parsec_execution_stream_t *es,
+                                     const parsec_task_t *producer,
+                                     const parsec_flow_t *producer_flow,
+                                     parsec_data_copy_t *gpu_copy)
+{
+    parsec_data_t *original = gpu_copy->original;
+    parsec_data_copy_t *cpu_copy = original->device_copies[0];
+    parsec_gpu_host_mirror_lookup_t lookup;
+    uint32_t action_mask = 0;
+    int rc;
+
+    if( NULL != cpu_copy ) {
+        return cpu_copy;
+    }
+
+    /* A self-contained NEW data item can start on the CPU, move to the GPU,
+     * and then legitimately lose its CPU copy once the CPU-side reference
+     * count reaches zero. If a later GPU task must push that data to a CPU
+     * successor, or to a communication backend that cannot send directly from
+     * device memory, the GPU copy is still the authoritative copy but there is
+     * no host mirror left to receive the D2H transfer.
+     *
+     * Recreate the missing host copy as if this data had just arrived from a
+     * remote dependency: find the successor flow that receives this producer
+     * flow, call that task class get_datatype() hook, and allocate the CPU
+     * buffer from the returned arena. This preserves the DSL-selected arena,
+     * count, and datatype instead of inventing an anonymous host allocation.
+     *
+     * The caller holds original->lock while installing the mirror.
+     */
+    memset(&lookup, 0, sizeof(lookup));
+    lookup.producer_flow = producer_flow;
+
+    if( PARSEC_TASKPOOL_TYPE_DTD == producer->taskpool->taskpool_type ) {
+        action_mask = 1U << producer_flow->flow_index;
+    } else {
+        for( int j = 0; (j < MAX_DEP_OUT_COUNT) && (NULL != producer_flow->dep_out[j]); j++ ) {
+            action_mask |= 1U << producer_flow->dep_out[j]->dep_index;
+        }
+    }
+    producer->task_class->iterate_successors(es, producer,
+                                             action_mask,
+                                             parsec_device_gpu_retrieve_host_mirror_datatype,
+                                             &lookup);
+    if( !lookup.found ) {
+        return NULL;
+    }
+
+    cpu_copy = parsec_data_copy_new(original, 0, lookup.datatype.remote.dst_datatype,
+                                    PARSEC_DATA_FLAG_PARSEC_OWNED |
+                                    PARSEC_DATA_FLAG_PARSEC_MANAGED |
+                                    PARSEC_DATA_FLAG_ARENA);
+    if( NULL == cpu_copy ) {
+        return NULL;
+    }
+    rc = parsec_arena_allocate_device_private(cpu_copy, lookup.datatype.remote.arena,
+                                              lookup.datatype.remote.dst_count, 0,
+                                              lookup.datatype.remote.dst_datatype);
+    if( PARSEC_SUCCESS != rc ) {
+        PARSEC_DATA_COPY_RELEASE(cpu_copy);
+        return NULL;
+    }
+    cpu_copy->coherency_state = PARSEC_DATA_COHERENCY_INVALID;
+    cpu_copy->version = (0 < gpu_copy->version) ? gpu_copy->version - 1 : 0;
+    return cpu_copy;
+}
+
 /* The return value of these functions is either a parsec_hook_return_t for <= 0 values,
  * or a positive number which represents that something has been scheduled on the gpu_stream
  */
 typedef int(*parsec_gpu_step_function_t)(parsec_device_gpu_module_t  *gpu_device,
+                                         parsec_execution_stream_t    *es,
                                          parsec_gpu_task_t           *gpu_task,
                                          parsec_gpu_exec_stream_t    *gpu_stream);
 /**
@@ -1097,10 +1211,18 @@ parsec_device_data_reserve_space( parsec_device_gpu_module_t* gpu_device,
                                   parsec_gpu_task_t *gpu_task )
 {
     parsec_task_t *this_task = gpu_task->ec;
-    parsec_gpu_data_copy_t* temp_loc[MAX_PARAM_COUNT], *gpu_elem, *lru_gpu_elem;
+    parsec_gpu_data_copy_t* temp_loc[MAX_PARAM_COUNT] = { NULL }, *gpu_elem, *lru_gpu_elem;
     parsec_data_t* master, *oldmaster;
     const parsec_flow_t *flow;
     int data_avail_epoch = 0, copy_readers_update = 0;
+    /* A writable flow may already have the right GPU copy selected while that
+     * copy is still being filled by the input stream. In that case all data
+     * dependencies are located, but the task must not execute until stream
+     * ordering makes the transfer complete. Track this separately from memory
+     * allocation failures so we can preserve existing bindings and only undo
+     * temporary reservations made during this reserve_space() pass.
+     */
+    int pending_write_transfer = 0;
     parsec_gpu_data_copy_t *gpu_mem_lru_cycling = NULL;
     uint32_t i, j;
 
@@ -1140,6 +1262,19 @@ parsec_device_data_reserve_space( parsec_device_gpu_module_t* gpu_device,
                                  flow->name, i, input_copy,
                                  input_copy->data_transfer_status == PARSEC_DATA_STATUS_UNDER_TRANSFER ? " [in transfer]" : "");
             this_task->data[i].data_out = input_copy;
+            if( (PARSEC_DATA_STATUS_UNDER_TRANSFER == input_copy->data_transfer_status) &&
+                (0 != (PARSEC_FLOW_ACCESS_WRITE & flow->flow_flags)) ) {
+                /* The selected input/output copy is already the device-local
+                 * one. Keep it attached to the task, but postpone execution
+                 * until the input stream records completion and the next
+                 * reserve attempt can transfer write ownership safely.
+                 */
+                pending_write_transfer = 1;
+                PARSEC_DEBUG_VERBOSE(20, parsec_gpu_output_stream,
+                                     "GPU[%d:%s]:%s:\tLocal write flow under transfer for copy %p; deferring task readiness",
+                                     gpu_device->super.device_index, gpu_device->super.name, task_name,
+                                     input_copy);
+            }
             continue;
         }
         master   = this_task->data[i].data_in->original;
@@ -1158,27 +1293,19 @@ parsec_device_data_reserve_space( parsec_device_gpu_module_t* gpu_device,
                 /* The data is under transfer, which is fine for RO data: the
                  * stage-in path reports the already-queued transfer as work so
                  * the input stream event is still recorded. For WRITE flows,
-                 * delay ownership bookkeeping until the queued input transfer
-                 * reaches its event; transfer_ownership rejects write accesses
-                 * to copies still marked UNDER_TRANSFER.
+                 * the copy already satisfies the placement requirement but
+                 * cannot be written yet. Keep data_out set to the selected GPU
+                 * copy and retry later instead of forgetting the binding; the
+                 * completion callback bumps data_avail_epoch so the task will
+                 * re-enter reserve_space() after the stream-ordered transfer
+                 * is visible.
                  */
                 if (0 != (PARSEC_FLOW_ACCESS_WRITE & flow->flow_flags)) {
-                    this_task->data[i].data_out = NULL;
+                    pending_write_transfer = 1;
                     PARSEC_DEBUG_VERBOSE(20, parsec_gpu_output_stream,
-                                        "GPU[%d:%s]:%s:\tWrite flow under transfer for copy %p",
-                                        gpu_device->super.device_index, gpu_device->super.name, task_name,
-                                        gpu_elem);
-                    for (j = 0; j <= i; ++j) {
-                        if (temp_loc[j] == NULL) continue;
-                        if( 0 == (temp_loc[j]->flags & PARSEC_DATA_FLAG_PARSEC_OWNED) ) continue;
-                        PARSEC_DEBUG_VERBOSE(20, parsec_gpu_output_stream,
-                                            "GPU[%d:%s]:%s:\tAdd copy %p [ref_count %d] back to the LRU list",
-                                            gpu_device->super.device_index, gpu_device->super.name, task_name,
-                                            temp_loc[j], temp_loc[j]->super.super.obj_reference_count);
-                        parsec_list_push_front(&gpu_device->gpu_mem_lru, (parsec_list_item_t*)temp_loc[j]);
-                    }
-                    parsec_atomic_unlock(&master->lock);
-                    return PARSEC_HOOK_RETURN_AGAIN;
+                                         "GPU[%d:%s]:%s:\tWrite flow under transfer for copy %p; deferring task readiness",
+                                         gpu_device->super.device_index, gpu_device->super.name, task_name,
+                                         gpu_elem);
                 }
 
             }
@@ -1446,6 +1573,38 @@ parsec_device_data_reserve_space( parsec_device_gpu_module_t* gpu_device,
         assert(0 != (gpu_elem->flags & PARSEC_DATA_FLAG_PARSEC_OWNED) );
         parsec_atomic_unlock(&master->lock);
     }
+    if( pending_write_transfer ) {
+        /* Existing GPU copies can remain attached to the task while it waits
+         * for a writable input transfer to complete. Copies created
+         * speculatively during this pass are tracked in temp_loc[] and must be
+         * returned to the GPU LRU exactly like an ordinary reservation retry.
+         */
+        for( j = 0; j < gpu_task->nb_flows; j++ ) {
+            /* This flow could be a control flow or an existing GPU copy. */
+            if( NULL == temp_loc[j] ) continue;
+            this_task->data[j].data_out = NULL;  /* reset the data out */
+            /* This flow could be non-parsec-owned, in which case we can't reclaim it */
+            if( 0 == (temp_loc[j]->flags & PARSEC_DATA_FLAG_PARSEC_OWNED) ) continue;
+            PARSEC_DEBUG_VERBOSE(20, parsec_gpu_output_stream,
+                                 "GPU[%d:%s]:%s:\tAdd copy %p [ref_count %d] back to the LRU list",
+                                 gpu_device->super.device_index, gpu_device->super.name, task_name,
+                                 temp_loc[j], temp_loc[j]->super.super.obj_reference_count);
+            /* push them at the head to reach them again at the next iteration */
+            parsec_list_push_front(&gpu_device->gpu_mem_lru, (parsec_list_item_t*)temp_loc[j]);
+        }
+        /* The task's GPU dependencies are located, but at least one writable
+         * copy is still being filled on the input stream. Keep pre-existing
+         * data_in/data_out bindings in place and retry after the transfer
+         * completion bumps data_avail_epoch. If this pass also freed GPU
+         * memory while searching for reservations, bump the epoch before
+         * returning so other delayed tasks are not stuck behind the old view of
+         * available data/memory.
+         */
+        if( data_avail_epoch ) {
+            gpu_device->data_avail_epoch++;
+        }
+        return PARSEC_HOOK_RETURN_AGAIN;
+    }
     if( data_avail_epoch ) {
         gpu_device->data_avail_epoch++;
     }
@@ -1528,10 +1687,16 @@ parsec_default_gpu_stage_out(parsec_gpu_task_t        *gtask,
         if(flow_mask & (1U << i)){
             src_copy = task->data[i].data_out;
             dst_copy = src_copy->original->device_copies[0];
+            if( NULL == dst_copy ) {
+                /* Kernel-pop normally materializes a host mirror before
+                 * calling the default stage-out path. Keep this guard here for
+                 * direct/custom callers so a missing CPU target fails cleanly
+                 * instead of dereferencing a NULL device_copies[0].
+                 */
+                return PARSEC_HOOK_RETURN_ERROR;
+            }
             dst_dev = (parsec_device_gpu_module_t*)parsec_mca_device_get(dst_copy->device_index);
             src_dev = (parsec_device_gpu_module_t*)parsec_mca_device_get(src_copy->device_index);
-            assert(dst_copy->data_transfer_status != PARSEC_DATA_STATUS_UNDER_TRANSFER);
-            dst_copy->data_transfer_status = PARSEC_DATA_STATUS_UNDER_TRANSFER;
             count = (src_copy->original->span <= dst_copy->original->span) ? src_copy->original->span : dst_copy->original->span;
             if( (src_dev->super.type & PARSEC_DEV_ANY_TYPE) == (dst_dev->super.type & PARSEC_DEV_ANY_TYPE) ) {
                 assert( src_dev->peer_access_mask & (1 << dst_dev->super.device_index) );
@@ -2232,6 +2397,13 @@ parsec_device_callback_complete_push(parsec_device_gpu_module_t   *gpu_device,
             /* only the task who did the PUSH can modify the status */
             parsec_atomic_lock(&task->data[i].data_out->original->lock);
             task->data[i].data_out->data_transfer_status = PARSEC_DATA_STATUS_COMPLETE_TRANSFER;
+            /* A completed input transfer makes this device copy usable even if
+             * no GPU memory was freed. Wake tasks that previously backed off on
+             * UNDER_TRANSFER and cached the old data availability epoch; they
+             * must re-enter reserve_space() to revalidate the preserved
+             * data_out binding.
+             */
+            gpu_device->data_avail_epoch++;
             parsec_data_end_transfer_ownership_to_copy(task->data[i].data_out->original,
                                                        gpu_device->super.device_index,
                                                        flow->flow_flags);
@@ -2419,6 +2591,7 @@ parsec_device_callback_complete_push(parsec_device_gpu_module_t   *gpu_device,
  */
 static inline int
 parsec_device_progress_stream( parsec_device_gpu_module_t* gpu_device,
+                               parsec_execution_stream_t* es,
                                parsec_gpu_exec_stream_t* stream,
                                parsec_gpu_step_function_t progress_fct,
                                parsec_gpu_task_t* task,
@@ -2491,7 +2664,7 @@ parsec_device_progress_stream( parsec_device_gpu_module_t* gpu_device,
     assert( NULL == stream->tasks[stream->start] );
 
   schedule_task:
-    rc = progress_fct( gpu_device, task, stream );
+    rc = progress_fct( gpu_device, es, task, stream );
     if( 0 == rc && parsec_device_skip_empty_events ) {
 #if defined(PARSEC_PROF_TRACE)
         if( stream->prof_event_track_enable ) {
@@ -2571,6 +2744,7 @@ parsec_device_progress_stream( parsec_device_gpu_module_t* gpu_device,
  */
 static int
 parsec_device_kernel_push( parsec_device_gpu_module_t      *gpu_device,
+                           parsec_execution_stream_t       *es,
                            parsec_gpu_task_t               *gpu_task,
                            parsec_gpu_exec_stream_t        *gpu_stream)
 {
@@ -2580,8 +2754,15 @@ parsec_device_kernel_push( parsec_device_gpu_module_t      *gpu_device,
 #if defined(PARSEC_DEBUG_NOISIER)
     char tmp[MAX_TASK_STRLEN];
 #endif
+    (void)es;
 
-    /* if no changes were made to the available memory don't waste time */
+    /* If no changes were made to the available memory/data state, avoid
+     * immediately rewalking the same reservation path. This shortcut is safe
+     * only if every state change that can make a previous reservation failure
+     * succeed bumps data_avail_epoch. In particular, transfer completion must
+     * bump the epoch, otherwise a task that deferred readiness after seeing
+     * UNDER_TRANSFER can livelock here without re-entering reserve_space().
+     */
     if( gpu_task->last_data_check_epoch == gpu_device->data_avail_epoch )
         return PARSEC_HOOK_RETURN_AGAIN;
     PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
@@ -2691,6 +2872,7 @@ parsec_device_kernel_push( parsec_device_gpu_module_t      *gpu_device,
  */
 static int
 parsec_device_kernel_exec( parsec_device_gpu_module_t      *gpu_device,
+                           parsec_execution_stream_t       *es,
                            parsec_gpu_task_t               *gpu_task,
                            parsec_gpu_exec_stream_t        *gpu_stream)
 {
@@ -2704,6 +2886,7 @@ parsec_device_kernel_exec( parsec_device_gpu_module_t      *gpu_device,
                          gpu_device->super.device_index, gpu_device->super.name, parsec_task_snprintf(tmp, MAX_TASK_STRLEN,
                          (parsec_task_t *) this_task), gpu_stream->name);
 #endif /* defined(PARSEC_DEBUG_NOISIER) */
+    (void)es;
 #if defined(PARSEC_PROF_TRACE)
     if (gpu_stream->prof_event_track_enable &&
         (0 == gpu_task->prof_key_end)) {
@@ -2759,6 +2942,7 @@ parsec_device_kernel_exec( parsec_device_gpu_module_t      *gpu_device,
  */
 static int
 parsec_device_kernel_pop( parsec_device_gpu_module_t   *gpu_device,
+                          parsec_execution_stream_t    *es,
                           parsec_gpu_task_t            *gpu_task,
                           parsec_gpu_exec_stream_t     *gpu_stream)
 {
@@ -2778,16 +2962,36 @@ parsec_device_kernel_pop( parsec_device_gpu_module_t   *gpu_device,
             /* If the gpu copy is not owned by parsec, we don't manage it at all */
             if( 0 == (gpu_copy->flags & PARSEC_DATA_FLAG_PARSEC_OWNED) ) continue;
             original = gpu_copy->original;
+            parsec_atomic_lock(&original->lock);
+            /* Background D2H cleanup has no successor flow to query for an
+             * arena/datatype, so it can only use an already-existing host
+             * mirror. Task pushout below can materialize a missing mirror from
+             * the receiving flow metadata.
+             */
+            parsec_data_copy_t *cpu_copy = original->device_copies[0];
+            parsec_atomic_unlock(&original->lock);
+            if( NULL == cpu_copy ) {
+                parsec_warning("GPU[%d:%s]: unable to find host mirror for D2H transfer of copy %p\n",
+                               gpu_device->super.device_index, gpu_device->super.name, gpu_copy);
+                return_code = PARSEC_HOOK_RETURN_DISABLE;
+                goto release_and_return_error;
+            }
+            assert(cpu_copy->data_transfer_status != PARSEC_DATA_STATUS_UNDER_TRANSFER);
             rc = gpu_task->stage_out ? gpu_task->stage_out(gpu_task, (1U << i), gpu_stream): PARSEC_SUCCESS;
             if(PARSEC_SUCCESS != rc) {
                 parsec_warning( "GPU[%d:%s]: gpu_task->stage_out from device rc=%d @%s:%d\n"
                                 "\tdata %s <<%p>> -> <<%p>>\n",
                                 gpu_device->super.device_index, gpu_device->super.name, rc, __func__, __LINE__,
                                 this_task->task_class->out[i]->name,
-                                gpu_copy->device_private, original->device_copies[0]->device_private);
+                                gpu_copy->device_private, cpu_copy->device_private);
                 return_code = PARSEC_HOOK_RETURN_DISABLE;
                 goto release_and_return_error;
             }
+            /* stage_out only enqueues the device-to-host transfer. The runtime
+             * owns the copy state transition so custom stage_out callbacks do
+             * not need to know about the GPU copy-transfer bookkeeping.
+             */
+            cpu_copy->data_transfer_status = PARSEC_DATA_STATUS_UNDER_TRANSFER;
             how_many++;
         }
         return how_many;
@@ -2883,12 +3087,28 @@ parsec_device_kernel_pop( parsec_device_gpu_module_t   *gpu_device,
 
             assert( PARSEC_DATA_COHERENCY_OWNED == gpu_copy->coherency_state );
             if( gpu_task->pushout & (1 << i) ) {
+                parsec_data_copy_t *cpu_copy;
                 /* TODO: make sure no readers are working on the CPU version */
                 original = gpu_copy->original;
+                /* Pushout means the runtime needs a host-visible copy after
+                 * this GPU task. For self-contained temporaries, the original
+                 * CPU copy may have been released earlier when it no longer
+                 * had local successors. Materialize the mirror lazily instead
+                 * of assuming device_copies[0] survived the GPU propagation.
+                 */
+                cpu_copy = parsec_device_gpu_ensure_host_mirror(es, this_task, flow, gpu_copy);
+                if( NULL == cpu_copy ) {
+                    parsec_warning("GPU[%d:%s]: unable to create host mirror for data <%s:%x> copy %p\n",
+                                   gpu_device->super.device_index, gpu_device->super.name,
+                                   flow->name, original->key, gpu_copy);
+                    return_code = PARSEC_HOOK_RETURN_DISABLE;
+                    parsec_atomic_unlock(&original->lock);
+                    goto release_and_return_error;
+                }
                 PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
                                     "GPU[%d:%s]:\tMove D2H data <%s:%x> copy %p [ref_count %d] -- D:%p -> H:%p requested",
                                     gpu_device->super.device_index, gpu_device->super.name, flow->name, original->key, gpu_copy, gpu_copy->super.super.obj_reference_count,
-                                     (void*)gpu_copy->device_private, original->device_copies[0]->device_private);
+                                     (void*)gpu_copy->device_private, cpu_copy->device_private);
 #if defined(PARSEC_PROF_TRACE)
                 if( gpu_stream->prof_event_track_enable ) {
                     if(gpu_device->trackable_events & PARSEC_PROFILE_GPU_TRACK_DATA_OUT) {
@@ -2914,17 +3134,23 @@ parsec_device_kernel_pop( parsec_device_gpu_module_t   *gpu_device,
                 }
 #endif
                 /* Move the data back into main memory */
+                assert(cpu_copy->data_transfer_status != PARSEC_DATA_STATUS_UNDER_TRANSFER);
                 rc = gpu_task->stage_out? gpu_task->stage_out(gpu_task, (1U << flow->flow_index), gpu_stream): PARSEC_SUCCESS;
                 if( PARSEC_SUCCESS != rc ) {
                     parsec_warning( "GPU[%d:%s]: gpu_task->stage_out from device rc=%d @%s:%d\n"
                                     "\tdata %s <<%p>> -> <<%p>>\n",
                                     gpu_device->super.device_index, gpu_device->super.name, rc, __func__, __LINE__,
                                     this_task->task_class->out[i]->name,
-                                    gpu_copy->device_private, original->device_copies[0]->device_private);
+                                    gpu_copy->device_private, cpu_copy->device_private);
                     return_code = PARSEC_HOOK_RETURN_DISABLE;
                     parsec_atomic_unlock(&original->lock);
                     goto release_and_return_error;
                 }
+                /* stage_out only enqueues the device-to-host transfer. The runtime
+                 * owns the copy state transition so custom stage_out callbacks do
+                 * not need to know about the GPU copy-transfer bookkeeping.
+                 */
+                cpu_copy->data_transfer_status = PARSEC_DATA_STATUS_UNDER_TRANSFER;
                 gpu_device->super.data_out_to_host += span; /* TODO: not hardcoded, use datatype size */
                 how_many++;
             } else {
@@ -2954,8 +3180,7 @@ parsec_device_kernel_epilog( parsec_device_gpu_module_t *gpu_device,
                              parsec_gpu_task_t          *gpu_task )
 {
     parsec_task_t *this_task = gpu_task->ec;
-    parsec_gpu_data_copy_t     *gpu_copy, *cpu_copy;
-    parsec_data_t              *original;
+    parsec_gpu_data_copy_t     *gpu_copy;
 
 #if defined(PARSEC_DEBUG_NOISIER)
     char task_str[MAX_TASK_STRLEN];
@@ -3218,6 +3443,7 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
                              parsec_device_describe_gpu_task(tmp, MAX_TASK_STRLEN, gpu_task));
     }
     rc = parsec_device_progress_stream( gpu_device,
+                                        es,
                                         gpu_device->exec_stream[0],
                                         parsec_device_kernel_push,
                                         gpu_task, &progress_task );
@@ -3250,6 +3476,7 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
                              parsec_task_snprintf(tmp, MAX_TASK_STRLEN, gpu_task->ec));
     }
     rc = parsec_device_progress_stream( gpu_device,
+                                        es,
                                         gpu_device->exec_stream[2+exec_stream],
                                         parsec_device_kernel_exec,
                                         gpu_task, &progress_task );
@@ -3287,6 +3514,7 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
     }
     /* Task is ready to move the data back to main memory */
     rc = parsec_device_progress_stream( gpu_device,
+                                        es,
                                         gpu_device->exec_stream[1],
                                         parsec_device_kernel_pop,
                                         gpu_task, &progress_task );
