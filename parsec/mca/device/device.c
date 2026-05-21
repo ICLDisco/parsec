@@ -802,6 +802,8 @@ int parsec_mca_device_registration_complete(parsec_context_t* context)
         parsec_device_module_t* device = parsec_devices[i];
         if( NULL == device ) continue;
         if( PARSEC_DEV_RECURSIVE & device->type ) continue;
+        if( NULL != device->all_devices_attached )
+            device->all_devices_attached(device);
         if( PARSEC_DEV_CPU & device->type ) {
             c = 0;
             for(int p = 0; p < context->nb_vp; p++)
