@@ -3,30 +3,46 @@ extern "C" %{
  * Copyright (c) 2010-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
 
-   /* This simple example does not need to include anything */
+/*
+ * RTT test shared by tests/apps/pingpong and tests/runtime/cuda.
+ *
+ * The apps/pingpong test runs one CPU-only fragment chain to expose
+ * latency/round-trip behavior. The runtime/cuda test can run multiple
+ * fragment chains and restricts the same PTG to CUDA devices to exercise GPU
+ * communication.
+ */
+int rtt_verbose = 0;
 %}
 
 %option no_taskpool_instance = true  /* can be anything */
 
 NT
+FRAGS
 WS
 
-PING(k)
+PING(k, f)
 
 k = 0 .. NT-1
-: A(k % WS)
+f = 0 .. FRAGS-1
+: A(f, k % WS)
 
-RW T <- (k ==0) ? A(k % WS) : T PING(k-1)
-     -> (k< NT) ? T PING(k+1)
-     -> A(k % WS)
+RW T <- (k == 0) ? A(f, k % WS) : T PING(k-1, f)
+     -> (k < NT-1) ? T PING(k+1, f)
+     -> (k == NT-1) ? A(f, k % WS)
 
 ; 0
 
+BODY [type = CUDA]
+	if( rtt_verbose ) {
+		printf("ping(%d, %d)\n", k, f);
+	}
+END
+
 BODY
-	/* 
-	int r; MPI_Comm_rank(MPI_COMM_WORLD, &r);
-	printf("%d: PING(%d)\n", r, k);
- 	*/
+	if( rtt_verbose ) {
+		printf("ping(%d, %d)\n", k, f);
+	}
 END

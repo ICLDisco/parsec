@@ -53,6 +53,9 @@ set_property(TARGET parsec
                                      data_dist/matrix/two_dim_tabular.h
                                      data_dist/matrix/grid_2Dcyclic.h
                                      data_dist/matrix/subtile.h)
+set_property(TARGET parsec
+             APPEND PROPERTY
+                    PRIVATE_HEADER_H data_dist/matrix/apply.h)
 
 # Install the deprecated headers.
 set_property(TARGET parsec

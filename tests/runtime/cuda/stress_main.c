@@ -15,12 +15,36 @@
 #include <mpi.h>
 #endif
 
+#include <getopt.h>
+#include <stdlib.h>
+
 int main(int argc, char *argv[])
 {
     parsec_context_t *parsec = NULL;
     parsec_taskpool_t *tp;
     int size = 1;
     int rank = 0;
+    int tile_size = 1024;
+    int depth = 80;
+    int ch;
+
+    /* Parse -n (tile size) and -d (depth) before parsec_init */
+    while ((ch = getopt(argc, argv, "n:d:")) != -1) {
+        switch (ch) {
+            case 'n':
+                tile_size = atoi(optarg);
+                break;
+            case 'd':
+                depth = atoi(optarg);
+                break;
+        }
+    }
+
+    /* Shift argv in place to remove our options so parsec_init does not see them */
+    for (int i = 1; i <= argc - optind; i++) {
+        argv[i] = argv[optind + i - 1];
+    }
+    argc = argc - optind + 1;
 
 #if defined(DISTRIBUTED)
     {
@@ -33,7 +57,7 @@ int main(int argc, char *argv[])
 
     parsec = parsec_init(-1, &argc, &argv);
 
-    tp = testing_stress_New(parsec, 80, 1024);
+    tp = testing_stress_New(parsec, depth, tile_size);
     if( NULL != tp ) {
         parsec_context_add_taskpool(parsec, tp);
         parsec_context_start(parsec);

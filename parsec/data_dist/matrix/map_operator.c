@@ -297,13 +297,13 @@ static int data_lookup(parsec_execution_stream_t *es,
         this_task->data[0].data_in   = parsec_data_get_copy(src(m,n), 0);
         this_task->data[0].source_repo_entry = NULL;
         this_task->data[0].data_out  = NULL;
-        PARSEC_OBJ_RETAIN(this_task->data[0].data_in);
+        PARSEC_DATA_COPY_RETAIN(this_task->data[0].data_in);
     }
     if( NULL != __tp->dest ) {
         this_task->data[1].data_in   = parsec_data_get_copy(dest(m,n), 0);
         this_task->data[1].source_repo_entry = NULL;
         this_task->data[1].data_out  = this_task->data[1].data_in;
-        PARSEC_OBJ_RETAIN(this_task->data[1].data_in);
+        PARSEC_DATA_COPY_RETAIN(this_task->data[1].data_in);
     }
     return PARSEC_HOOK_RETURN_DONE;
 }

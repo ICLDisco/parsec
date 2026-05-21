@@ -2,6 +2,7 @@
  * Copyright (c) 2015-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
 
 #if !defined(PARSEC_CONFIG_H_HAS_BEEN_INCLUDED)
@@ -19,6 +20,7 @@
 #include "parsec/arena.h"
 #include "parsec/data.h"
 #include "parsec/class/parsec_future.h"
+#include "parsec/utils/debug.h"
 
 /**
  * This structure is the keeper of all the information regarding
@@ -30,11 +32,12 @@ struct parsec_data_s {
 
     parsec_atomic_lock_t       lock;
 
-    parsec_data_key_t          key;
     int8_t                     owner_device;
     int8_t                     preferred_device; /* Hint set from the MEMADVICE device API to define on
                                                   * which device this data should be modified RW when there
                                                   * are multiple choices. -1 means no preference. */
+    int32_t                    nb_copies;        /* How many valid copies are attached to this data */
+    parsec_data_key_t          key;
     struct parsec_data_collection_s*     dc;
     size_t                     span;          /* size in bytes of the memory layout */
     struct parsec_data_copy_s *device_copies[];  /* this array allocated according to the number of devices
@@ -48,27 +51,27 @@ PARSEC_DECLSPEC PARSEC_OBJ_CLASS_DECLARATION(parsec_data_t);
  * This structure represent a device copy of a parsec_data_t.
  */
 struct parsec_data_copy_s {
-    parsec_list_item_t          super;
+    parsec_list_item_t           super;
 
-    int8_t                      device_index;         /**< Index in the original->device_copies array */
-    parsec_data_flag_t          flags;
-    parsec_data_coherency_t     coherency_state;
+    int8_t                       device_index;         /**< Index in the original->device_copies array */
+    parsec_data_flag_t           flags;
+    parsec_data_coherency_t      coherency_state;
     /* int8_t */
 
-    int32_t                     readers;
+    int32_t                      readers;
 
-    uint32_t                    version;
+    uint32_t                     version;
 
-    struct parsec_data_copy_s   *older;                 /**< unused yet */
+    struct parsec_data_copy_s   *older;              /**< unused yet */
     parsec_data_t               *original;
     struct parsec_arena_chunk_s *arena_chunk;        /**< If this is an arena-based data, keep
                                                       *   the chunk pointer here, to avoid
                                                       *   risky pointers arithmetic (pointers misalignment
                                                       *   depending on many parameters) */
-    void                     *device_private;        /**< The pointer to the device-specific data.
+    void                        *device_private;     /**< The pointer to the device-specific data.
                                                       *   Overlay data distributions assume that arithmetic
                                                       *   can be done on these pointers. */
-    parsec_data_status_t      data_transfer_status;  /**< Have we scheduled a communication to update this data yet?
+    parsec_data_status_t         data_transfer_status;  /**< Have we scheduled a communication to update this data yet?
                                                       *   Possible values are NOT_TRANSFER, UNDER_TRANSFER, TRANSFER_COMPLETE.
                                                       *   NB: this closely follows, but is not equivalent, to
                                                       *   the coherency_flag INVALID. A data copy that is 'under transfer'
@@ -87,22 +90,81 @@ PARSEC_DECLSPEC PARSEC_OBJ_CLASS_DECLARATION(parsec_data_copy_t);
 
 #define PARSEC_DATA_GET_COPY(DATA, DEVID) \
     ((DATA)->device_copies[(DEVID)])
+
+int parsec_data_release_self_contained_data(parsec_data_t* data);
+void parsec_data_protect_cpu_mirror(parsec_data_t* data);
 /**
  * Decrease the refcount of this copy of the data. If the refcount reach
  * 0 the upper level is in charge of cleaning up and releasing all content
  * of the copy.
  */
-#define PARSEC_DATA_COPY_RELEASE(DATA)     \
+#if 0
+#define PARSEC_DATA_COPY_RELEASE(COPY)     \
     do {                                  \
-        PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "Release data copy %p at %s:%d", (DATA), __FILE__, __LINE__); \
-        PARSEC_OBJ_RELEASE((DATA));                                            \
+        PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "Release data copy %p at %s:%d", (COPY), __FILE__, __LINE__); \
+        PARSEC_OBJ_RELEASE((COPY));                                            \
+        if( (NULL != (COPY)) && (NULL != ((COPY)->original)) ) parsec_data_release_self_contained_data((COPY)->original); \
     } while(0)
 
+#define PARSEC_DATA_COPY_RETAIN(COPY)     \
+    do {                                  \
+        PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "Retain data copy %p at %s:%d", (COPY), __FILE__, __LINE__); \
+        PARSEC_OBJ_RETAIN((COPY));                                            \
+    } while(0)
+#else
+static inline void __parsec_data_copy_release(parsec_data_copy_t** copy)
+{
+    parsec_data_copy_t *data_copy = *copy;
+    parsec_data_t *original = (NULL != data_copy) ? data_copy->original : NULL;
+    int release_protected_cpu_mirror =
+        (NULL != original) &&
+        (NULL == original->dc) &&
+        (NULL != original->device_copies[0]) &&
+        (0 != (original->device_copies[0]->flags & PARSEC_DATA_FLAG_CPU_MIRROR_PROTECTED));
+    int releasing_protected_cpu_mirror =
+        release_protected_cpu_mirror && (data_copy == original->device_copies[0]);
+
+    PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "Release data copy %p at %s:%d", *copy, __FILE__, __LINE__);
+    /* A self-contained CPU mirror can be the last host-side handle for GPU
+     * propagated data. Keep that final reference until the GPU copies can be
+     * released with the rest of the self-contained data.
+     */
+    if( (NULL != data_copy) &&
+        (0 != (data_copy->flags & PARSEC_DATA_FLAG_CPU_MIRROR_PROTECTED)) &&
+        (1 == data_copy->super.super.obj_reference_count) &&
+        (NULL != original) &&
+        (NULL == original->dc) ) {
+        if( parsec_data_release_self_contained_data(original) ) {
+            *copy = NULL;
+        }
+        return;
+    }
+    PARSEC_OBJ_RELEASE(*copy);
+    if( release_protected_cpu_mirror ) {
+        if( parsec_data_release_self_contained_data(original) && releasing_protected_cpu_mirror ) {
+            *copy = NULL;
+        }
+        return;
+    }
+    if ((NULL != *copy) && (NULL != (*copy)->original) && (1 == (*copy)->super.super.obj_reference_count))
+        parsec_data_release_self_contained_data((*copy)->original);
+}
+#define PARSEC_DATA_COPY_RELEASE(COPY) \
+    __parsec_data_copy_release(&(COPY))
+
+static inline void __parsec_data_copy_retain(parsec_data_copy_t* copy)
+{
+    PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "Retain data copy %p at %s:%d", copy, __FILE__, __LINE__);
+    PARSEC_OBJ_RETAIN(copy);
+}
+#define PARSEC_DATA_COPY_RETAIN(COPY) \
+    __parsec_data_copy_retain((COPY))
+#endif  /* 0 */
 /**
  * Return the device private pointer for a datacopy.
  */
-#define PARSEC_DATA_COPY_GET_PTR(DATA) \
-    ((DATA) ? (DATA)->device_private : NULL)
+#define PARSEC_DATA_COPY_GET_PTR(COPY) \
+    ((COPY) ? (COPY)->device_private : NULL)
 
 /** @} */
 

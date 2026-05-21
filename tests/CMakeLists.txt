@@ -66,8 +66,27 @@ function(parsec_addtest_cmd target)
   endif()
   add_test(${ARGV})
   set_tests_properties(${target} PROPERTIES DEPENDS parsec_build_tests_test)
-  # enable devices only in tests that explicitly require them
-  # restrict memory use for oversubscribed runners
+  #
+  # Device policy for the test suite:
+  #
+  # Keep all accelerator backends disabled by default for every CTest entry.
+  # This prevents ordinary CPU tests from accidentally initializing CUDA, HIP,
+  # or Level Zero on shared CI machines, login nodes, and oversubscribed GPU
+  # runners. It also keeps accidental device-memory reservations small when a
+  # device backend is explicitly enabled.
+  #
+  # Tests that are meant to exercise a device must opt in through PaRSEC MCA
+  # parameters, typically after the test-specific "--" separator, for example:
+  #
+  #   -- --mca device_cuda_enabled 1 --mca device cuda
+  #
+  # This works because parsec_init() consumes the MCA arguments before device
+  # components are selected, and command-line MCA values are promoted to the
+  # process environment with override semantics. In other words, the default
+  # PARSEC_MCA_device_*_enabled=0 values below are a safety net, not a hard
+  # prohibition: explicit MCA parameters on a device test intentionally replace
+  # them before the runtime queries the device components.
+  #
   set_tests_properties(${target} PROPERTIES ENVIRONMENT
     "PARSEC_MCA_device_cuda_enabled=0;PARSEC_MCA_device_hip_enabled=0;PARSEC_MCA_device_level_zero_enabled=0;PARSEC_MCA_device_cuda_memory_use=10;PARSEC_MCA_device_hip_memory_use=10;PARSEC_MCA_device_level_zero_memory_use=10")
   # skip tests that fail because the device is not available */

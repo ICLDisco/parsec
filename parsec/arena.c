@@ -2,6 +2,7 @@
  * Copyright (c) 2010-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/parsec_config.h"
@@ -125,6 +126,7 @@ parsec_arena_get_chunk( parsec_arena_t *arena, size_t size, parsec_data_allocate
 {
     parsec_lifo_t *list = &arena->area_lifo;
     parsec_list_item_t *item;
+    const char *allocation_error = "out of resource";
     item = parsec_lifo_pop(list);
     if( NULL != item ) {
         if( arena->max_released != INT32_MAX )
@@ -134,21 +136,34 @@ parsec_arena_get_chunk( parsec_arena_t *arena, size_t size, parsec_data_allocate
         if(arena->max_used != INT32_MAX) {
             int32_t current = parsec_atomic_fetch_inc_int32(&arena->used) + 1;
             if(current > arena->max_used) {
-                (void)parsec_atomic_fetch_dec_int32(&arena->used);
-                return NULL;
+                allocation_error = "maximum allocation count reached";
+                goto allocation_failed;
             }
         }
         if( size < sizeof( parsec_list_item_t ) )
             size = sizeof( parsec_list_item_t );
         item = (parsec_list_item_t *)alloc( size );
+        if( NULL == item ) {
+            allocation_error = "allocator returned NULL";
+            goto allocation_failed;
+        }
         TRACE_MALLOC(arena_memory_alloc_key, size, item);
         PARSEC_OBJ_CONSTRUCT(item, parsec_list_item_t);
-        assert(NULL != item);
     }
     PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Arena:\tpop a data of size %zu from arena %p, aligned by %zu, base ptr %p, data ptr %p, sizeof prefix %zu(%zd)",
                 arena->elem_size, arena, arena->alignment, item, ((parsec_arena_chunk_t*)item)->data, sizeof(parsec_arena_chunk_t),
                 PARSEC_ARENA_MIN_ALIGNMENT(arena->alignment));
     return item;
+
+  allocation_failed:
+    PARSEC_DEBUG_VERBOSE(10, parsec_debug_output,
+                         "Arena:\tfailed to allocate data of size %zu from arena %p, aligned by %zu: %s (used %d max %d)",
+                         arena->elem_size, arena, arena->alignment, allocation_error, arena->used, arena->max_used);
+    if(arena->max_used != INT32_MAX) {
+        (void)parsec_atomic_fetch_dec_int32(&arena->used);
+    }
+    (void)allocation_error;
+    return NULL;
 }
 
 static void
@@ -184,6 +199,7 @@ int  parsec_arena_allocate_device_private(parsec_data_copy_t *copy,
     parsec_arena_chunk_t *chunk;
     parsec_data_t *data = copy->original;
     size_t size;
+    const char *allocation_error = "out of resource"; (void)allocation_error;
 
     assert(device == copy->device_index);
     (void)device;
@@ -197,13 +213,17 @@ int  parsec_arena_allocate_device_private(parsec_data_copy_t *copy,
         if(arena->max_used != INT32_MAX) {
             int32_t current = parsec_atomic_fetch_add_int32(&arena->used, count) + count;
             if(current > arena->max_used) {
-                (void)parsec_atomic_fetch_sub_int32(&arena->used, count);
-                return PARSEC_ERR_OUT_OF_RESOURCE;
+                allocation_error = "maximum allocation count reached";
+                goto allocation_failed;
             }
         }
         size = PARSEC_ALIGN(arena->elem_size * count + arena->alignment + sizeof(parsec_arena_chunk_t),
                             arena->alignment, size_t);
         chunk = (parsec_arena_chunk_t*)arena->data_malloc(size);
+        if(NULL == chunk) {
+            allocation_error = "allocator returned NULL";
+            goto allocation_failed;
+        }
         PARSEC_OBJ_CONSTRUCT(&chunk->item, parsec_list_item_t);
 
         TRACE_MALLOC(arena_memory_alloc_key, size, chunk);
@@ -233,45 +253,154 @@ int  parsec_arena_allocate_device_private(parsec_data_copy_t *copy,
     copy->arena_chunk = chunk;
 
     return PARSEC_SUCCESS;
+
+  allocation_failed:
+    PARSEC_DEBUG_VERBOSE(10, parsec_debug_output,
+                         "Arena:\tfailed to allocate %zu data items of size %zu from arena %p, aligned by %zu: %s (used %d max %d)",
+                         count, arena->elem_size, arena, arena->alignment, allocation_error, arena->used, arena->max_used);
+    if(arena->max_used != INT32_MAX) {
+        (void)parsec_atomic_fetch_sub_int32(&arena->used, count);
+    }
+    return PARSEC_ERR_OUT_OF_RESOURCE;
 }
 
-parsec_data_copy_t *parsec_arena_get_copy(parsec_arena_t *arena,
-                                          size_t count, int device,
-                                          parsec_datatype_t dtt)
+#include "parsec/utils/zone_malloc.h"
+#include "mca/device/device_gpu.h"
+
+#if defined(PARSEC_DEBUG)
+static int64_t parsec_countable_incoming_message = 0xF000000000000000;
+#endif  /* defined(PARSEC_DEBUG) */
+
+static inline parsec_data_copy_t *
+parsec_arena_internal_copy_new(parsec_arena_t *arena,
+                               parsec_data_t *data,
+                               size_t count, int device,
+                               parsec_datatype_t dtt)
 {
-    parsec_data_t *data;
-    parsec_data_copy_t *copy;
-    int rc;
-
-    
-    data = parsec_data_new();
+    parsec_data_copy_t *copy = NULL;
+    parsec_data_t* ldata = data;
     if( NULL == data ) {
+        ldata = parsec_data_new();
+        if( NULL == ldata ) {
+            return NULL;
+        }
+#if defined(PARSEC_DEBUG)
+        /* Name the data with a default key to facilitate debugging */
+        ldata->key = (uint64_t)parsec_atomic_fetch_inc_int64(&parsec_countable_incoming_message);
+        ldata->key |= ((uint64_t)device) << 56;
+#endif  /* defined(PARSEC_DEBUG) */
+    }
+    if( 0 == device ) {
+        copy = parsec_data_copy_new(ldata, device, dtt,
+                                    PARSEC_DATA_FLAG_PARSEC_OWNED | PARSEC_DATA_FLAG_PARSEC_MANAGED | PARSEC_DATA_FLAG_ARENA);
+        if (NULL == copy) {
+            goto free_and_return;
+        }
+        int rc = parsec_arena_allocate_device_private(copy, arena, count, device, dtt);
+        if (PARSEC_SUCCESS != rc) {
+            goto free_and_return;
+        }
+        return copy;
+    }
+    /**
+     * This part is not really nice, it breaks the separation between devices, and how their memory is
+     * managed. But, it should give nice performance improvements if the communication layer is
+     * capable of sending or receiving data directly to and from the accelerator memory. The only drawback
+     * is that once the GPU memory is full, this will fail, so the software will fall back to the
+     * prior behavior, going through the CPU memory.
+     *
+     * The deallocation is not symmetric: regular GPU task copies are released
+     * by the GPU management code, while self-contained temporaries are released
+     * with their owning parsec_data_t.
+     */
+    parsec_device_gpu_module_t *gpu_device = (parsec_device_gpu_module_t *)parsec_mca_device_get(device);
+    if (NULL == gpu_device) {
+        goto free_and_return;
+    }
+    size_t size = count * arena->elem_size;
+    void *device_private;
+#if defined(PARSEC_GPU_ALLOC_PER_TILE)
+    int rc = gpu_device->memory_allocate(gpu_device, size, &device_private);
+    if( PARSEC_SUCCESS != rc ) {
+        PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Arena:\tallocate data copy on device %d of size %zu failed (out of memory)\n",
+                             device, size);
+        goto free_and_return;
+    }
+#else
+    device_private = zone_malloc(gpu_device->memory, size);
+    if( NULL == device_private ) {
+        PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Arena:\tallocate data copy on device %d of size %zu from zone %p failed (out of memory)\n",
+                             device, size, (void *)gpu_device->memory);
+        goto free_and_return;
+    }
+#endif
+    copy = parsec_data_copy_new(ldata, device, dtt,
+                                PARSEC_DATA_FLAG_PARSEC_OWNED | PARSEC_DATA_FLAG_PARSEC_MANAGED);
+    if (NULL == copy) {
+#if defined(PARSEC_GPU_ALLOC_PER_TILE)
+        gpu_device->memory_free(gpu_device, device_private);
+        PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Arena:\tallocate data copy on device %d of size %zu failed to allocate copy (out of memory)\n",
+                             device, size);
+#else
+        PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Arena:\tallocate data copy on device %d of size %zu from zone %p failed to allocate copy (out of memory)\n",
+                             device, size, (void *)gpu_device->memory);
+        zone_free(gpu_device->memory, device_private);
+#endif
+        goto free_and_return;
+    }
+    copy->dtt = dtt;
+    copy->device_private = device_private;
+#if defined(PARSEC_GPU_ALLOC_PER_TILE)
+    copy->arena_chunk = NULL;
+    PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Arena:\tallocate data copy on device %d of size %zu, data ptr %p",
+                         device, size, (void*)copy->device_private);
+#else
+    copy->arena_chunk = (parsec_arena_chunk_t*)gpu_device->memory;
+    PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Arena:\tallocate data copy on device %d of size %zu from zone %p, data ptr %p",
+                         device, size, (void*)copy->arena_chunk, (void*)copy->device_private);
+#endif
+    copy->version = 0;
+    copy->coherency_state = PARSEC_DATA_COHERENCY_INVALID;
+    copy->original->owner_device = device;
+    copy->original->preferred_device = device;
+    return copy;
+  free_and_return:
+    if( NULL != copy )
+        PARSEC_OBJ_RELEASE(copy);
+    if( NULL == data)
+        PARSEC_OBJ_RELEASE(ldata); /* release the locally allocated data */
+    return NULL;
+}
+
+parsec_data_copy_t *
+parsec_arena_get_new_copy(parsec_arena_t *arena,
+                          size_t count, int device,
+                          parsec_datatype_t dtt)
+{
+    parsec_data_copy_t *dev0_copy, *copy;
+
+    dev0_copy = parsec_arena_internal_copy_new(arena, NULL, count, 0 /* first allocate the copy on the device 0 */, dtt);
+    if( NULL == dev0_copy ) {
         return NULL;
     }
-
-    copy = parsec_data_copy_new( data, device, dtt,
-                                 PARSEC_DATA_FLAG_ARENA |
-                                 PARSEC_DATA_FLAG_PARSEC_OWNED |
-                                 PARSEC_DATA_FLAG_PARSEC_MANAGED);
-
-    if(NULL == copy) {
-        PARSEC_OBJ_RELEASE(data);
-        return NULL;
+    dev0_copy->coherency_state = PARSEC_DATA_COHERENCY_INVALID;
+    dev0_copy->version = 0;  /* start from somewhere */
+    if( 0 == device ) {
+        /* Device 0 (CPU) copy is special: it belongs to the user in the current design,
+         * so we must not release the original here.
+         */
+        return dev0_copy;
     }
 
-    rc = parsec_arena_allocate_device_private(copy, arena, count, device, dtt);
-
+    copy = parsec_arena_internal_copy_new(arena, dev0_copy->original, count, device, dtt);
+    if( NULL == copy ) {
+        copy = dev0_copy;  /* return the main memory data copy */
+    }
     /* This data is going to be released once all copies are released
      * It does not exist without at least a copy, and we don't give the
      * pointer to the user, so we must remove our retain from it
      */
-    PARSEC_OBJ_RELEASE(data);
-
-    if( PARSEC_SUCCESS != rc ) {
-        PARSEC_OBJ_RELEASE(copy);
-        return NULL;
-    }
-
+    PARSEC_OBJ_RELEASE(dev0_copy->original);
     return copy;
 }
 

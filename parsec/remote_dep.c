@@ -200,6 +200,7 @@ inline void remote_deps_free(parsec_remote_deps_t* deps)
         for(a = 0; a < (parsec_remote_dep_context.max_nodes_number + 31)/32; a++)
             deps->output[k].rank_bits[a] = 0;
         deps->output[k].count_bits = 0;
+        deps->output[k].data.preferred_device = 0;
 #if defined(PARSEC_DEBUG_PARANOID)
         deps->output[k].data.data   = NULL;
         deps->output[k].data.local.arena  = NULL;
@@ -493,7 +494,7 @@ int parsec_remote_dep_activate(parsec_execution_stream_t* es,
             /* This assert is not correct anymore, we don't need an arena to send to a remote
              * assert(NULL != output->data.remote.arena);*/
             assert( !parsec_is_CTL_dep(&output->data) );
-            PARSEC_OBJ_RETAIN(output->data.data);
+            PARSEC_DATA_COPY_RETAIN(output->data.data);
         }
 
         for( array_index = count = 0; count < remote_deps->output[i].count_bits; array_index++ ) {

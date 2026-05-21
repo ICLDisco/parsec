@@ -2,6 +2,7 @@
  * Copyright (c) 2009-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/parsec_config.h"
@@ -15,6 +16,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <limits.h>
+#include <inttypes.h>
 #if defined(PARSEC_HAVE_GEN_H)
 #include <libgen.h>
 #endif  /* defined(PARSEC_HAVE_GEN_H) */
@@ -222,6 +224,10 @@ static void __parsec_task_constructor(parsec_task_t* task) {
     task->selected_chore = -1;
     task->load = 0;
     task->status = PARSEC_TASK_STATUS_NONE;
+#if defined(PARSEC_DEBUG_NOISIER)
+    /* used during task_snprintf for non-fully initialized task_t */
+    memset(&task->data, 0, MAX_PARAM_COUNT * sizeof(parsec_data_pair_t));
+#endif
 }
 
 /*
@@ -407,6 +413,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     char **ctx_environ = NULL;
     char **env_variable, *env_name, *env_value;
     char *parsec_enable_profiling = NULL;  /* profiling file prefix when PARSEC_PROF_TRACE is on */
+    int parsec_argv_start = 0;
     int slow_option_used = 0;
 #if defined(PARSEC_PROF_TRACE)
     int profiling_file_requested = 0;
@@ -443,8 +450,34 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
                              "Show the usage text.");
     parsec_mca_cmd_line_setup(cmd_line);
 
-    if( (NULL != pargc) && (0 != *pargc) ) {
-        ret = parsec_cmd_line_parse(cmd_line, true, *pargc, *pargv);
+    if( (NULL != pargc) && (NULL != pargv) && (NULL != *pargv) && (0 != *pargc) ) {
+        int parsec_cmd_argc;
+        char **parsec_cmd_argv;
+
+        /* The public parsec_init() API takes a list of PaRSEC options, not a
+         * process argv. The command-line parser follows the traditional argv
+         * convention and skips argv[0], so build the small argv shape it needs
+         * internally. Existing callers that pass main(argc, argv), or a slice
+         * starting with "--", remain accepted for compatibility.
+         */
+        if( 0 == strcmp((*pargv)[0], "--") ||
+            '-' != (*pargv)[0][0] ) {
+            parsec_argv_start = 1;
+        }
+        parsec_cmd_argc = *pargc - parsec_argv_start + 1;
+        parsec_cmd_argv = (char**)malloc((size_t)(parsec_cmd_argc + 1) * sizeof(char*));
+        if( NULL == parsec_cmd_argv ) {
+            PARSEC_OBJ_RELEASE(cmd_line);
+            return NULL;
+        }
+        parsec_cmd_argv[0] = parsec_app_name;
+        for(int i = parsec_argv_start; i < *pargc; i++) {
+            parsec_cmd_argv[i - parsec_argv_start + 1] = (*pargv)[i];
+        }
+        parsec_cmd_argv[parsec_cmd_argc] = NULL;
+
+        ret = parsec_cmd_line_parse(cmd_line, true, parsec_cmd_argc, parsec_cmd_argv);
+        free(parsec_cmd_argv);
         if (PARSEC_SUCCESS != ret) {
             fprintf(stderr, "%s: command line error (%d)\n", parsec_app_name, ret);
         }
@@ -721,16 +754,16 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
         }
 
         l = strlen(parsec_app_name);  /* use the known application name */
-        if( NULL != pargc ) {
-            for(i = 1; i < *pargc; i++) {
+        if( (NULL != pargc) && (NULL != pargv) && (NULL != *pargv) ) {
+            for(i = parsec_argv_start; i < *pargc; i++) {
                 l += strlen( (*pargv)[i] ) + 1;
             }
         }
         cmdline_info = (char*)malloc(l + 1);
         sprintf(cmdline_info, "%s", parsec_app_name);
         l = strlen(parsec_app_name);
-        if( NULL != pargc ) {
-            for(i = 1; i < *pargc; i++) {
+        if( (NULL != pargc) && (NULL != pargv) && (NULL != *pargv) ) {
+            for(i = parsec_argv_start; i < *pargc; i++) {
                 sprintf(cmdline_info + l, " %s", (*pargv)[i]);
                 l += strlen( (*pargv)[i] ) + 1;
             }
@@ -1262,7 +1295,7 @@ int parsec_fini( parsec_context_t** pcontext )
 #endif  /* PARSEC_PROF_TRACE */
 
     /* PAPI SDE needs to process the shutdown before resources exposed to it are freed.
-     * This includes scheduling resources, so SDE needs to be finalized before the 
+     * This includes scheduling resources, so SDE needs to be finalized before the
      * computation threads leave */
     PARSEC_PAPI_SDE_FINI();
 
@@ -1590,7 +1623,7 @@ parsec_update_deps_with_counter(parsec_taskpool_t *tp,
     (void)origin;
     (void)origin_flow;
     (void)dest_flow;
-    
+
     if( 0 == *deps ) {
         dep_new_value = parsec_check_IN_dependencies_with_counter(tp, task) - 1;
         if( parsec_atomic_cas_int32( deps, 0, dep_new_value ) == 1 )
@@ -1753,7 +1786,7 @@ parsec_release_local_OUT_dependencies(parsec_execution_stream_t* es,
             PARSEC_COPY_EXECUTION_CONTEXT(new_context, task);
             PARSEC_AYU_ADD_TASK(new_context);
 
-            PARSEC_DEBUG_VERBOSE(6, parsec_debug_output,
+            PARSEC_DEBUG_VERBOSE(7, parsec_debug_output,
                    "%s becomes ready from %s on thread %d:%d, with mask 0x%04x",
                    tmp1,
                    parsec_task_snprintf(tmp2, MAX_TASK_STRLEN, origin),
@@ -1877,20 +1910,20 @@ parsec_release_dep_fct(parsec_execution_stream_t *es,
 #ifdef PARSEC_RESHAPE_BEFORE_SEND_TO_REMOTE
                     /* Now everything is a reshaping entry */
                     /* Check if we need to reshape before sending */
-                    if(parsec_is_CTL_dep(output->data)){ /* CTL DEP */
+                    if(parsec_is_CTL_dep(output->data)) { /* CTL DEP */
                         output->data.data_future = NULL;
                         output->data.repo = NULL;
                         output->data.repo_key = -1;
-                    }else{
+                    } else {
                         /* Get reshape from whatever repo it has been set up into */
                         output->data.data_future = (parsec_datacopy_future_t*)target_dc;
                         output->data.repo = target_repo;
                         output->data.repo_key = target_repo_entry->ht_item.key;
                         PARSEC_DEBUG_VERBOSE(4, parsec_debug_output,
-                                         "th%d RESHAPE_PROMISE SETUP FOR REMOTE DEPS [%p:%p] for INLINE REMOTE %s fut %p",
-                                         es->th_id, output->data.data, (output->data.data)->dtt,
-                                         (target_repo == successor_repo? "UNFULFILLED" : "FULFILLED"),
-                                         output->data.data_future);
+                                             "th%d RESHAPE_PROMISE SETUP FOR REMOTE DEPS [%p:%p] for INLINE REMOTE %s fut %p",
+                                             es->th_id, output->data.data, (output->data.data)->dtt,
+                                             (target_repo == successor_repo? "UNFULFILLED" : "FULFILLED"),
+                                             output->data.data_future);
                     }
 #endif
                 } else {
@@ -1980,10 +2013,20 @@ parsec_task_snprintf( char* str, size_t size,
                            task->locals[i].value );
         if( index >= size ) return str;
     }
-    index += snprintf(str + index, size - index, "]<%d>", task->priority );
+    index += snprintf(str + index, size - index, "]<%d> keys = {", task->priority );
+    if( index >= size ) return str;
+    for( i = 0; i < tc->nb_flows; i++ ) {
+        char *prefix = (i == 0) ? "" : ", ";
+        if ((NULL == task->data[i].data_in) || (NULL == task->data[i].data_in->original))
+            index += snprintf(str + index, size - index, "%s*", prefix);
+        else
+            index += snprintf(str + index, size - index, "%s%"PRIx64, prefix, task->data[i].data_in->original->key);
+        if( index >= size ) return str;
+    }
+    index += snprintf(str + index, size - index, "}" );
     if( index >= size ) return str;
     if( NULL != task->taskpool ) {
-        index += snprintf(str + index, size - index, "{%u}", task->taskpool->taskpool_id );
+        index += snprintf(str + index, size - index, " {tp: %u}", task->taskpool->taskpool_id );
         if( index >= size ) return str;
     }
     return str;
@@ -2122,6 +2165,7 @@ int parsec_taskpool_reserve_id( parsec_taskpool_t* tp )
     tp->taskpool_id = idx;
     assert( NOTASKPOOL == taskpool_array[idx] );
     parsec_atomic_unlock( &taskpool_array_lock );
+    PARSEC_DEBUG_VERBOSE(5, parsec_debug_output, "Taskpool %s received id %d", tp->taskpool_name, tp->taskpool_id);
     return idx;
 }
 
@@ -2248,7 +2292,7 @@ int parsec_taskpool_enable(parsec_taskpool_t* tp,
     }
 
     if( 0 != distributed ) {
-        PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Register a new taskpool %p: %d with the comm engine", tp, tp->taskpool_id);
+        PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Register a new taskpool %s: %d with the comm engine", tp->taskpool_name, tp->taskpool_id);
         (void)parsec_remote_dep_new_taskpool(tp);
     }
     return PARSEC_HOOK_RETURN_DONE;

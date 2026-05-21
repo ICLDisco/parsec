@@ -1,3 +1,6 @@
+#
+# Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
+#
 set(PINGPONG_GPU_KERNEL_SOURCES)
 
 if(PARSEC_HAVE_CUDA)
@@ -32,6 +35,11 @@ if(PARSEC_HAVE_CUDA)
     set_source_files_properties(ping_kernel.cu PROPERTIES LANGUAGE CUDA)
     list(APPEND PINGPONG_GPU_KERNEL_SOURCES ping_kernel.cu)
   endif(CMAKE_CUDA_COMPILER)
+  # Testing for communications to and from GPU
+  parsec_addtest_executable(C cuda_rtt SOURCES rtt_main.c)
+  target_include_directories(cuda_rtt PRIVATE $<$<NOT:${PARSEC_BUILD_INPLACE}>:${CMAKE_CURRENT_SOURCE_DIR}>)
+  target_link_libraries(cuda_rtt PRIVATE m)
+  target_ptg_sources(cuda_rtt PRIVATE "${PROJECT_SOURCE_DIR}/tests/apps/pingpong/rtt.jdf")
 endif(PARSEC_HAVE_CUDA)
 
 if(PARSEC_HAVE_HIP)
