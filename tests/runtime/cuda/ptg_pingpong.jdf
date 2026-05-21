@@ -108,8 +108,11 @@ TOKEN_GPU(k, l)
 
 : dist(r, d)
 
-RW D <- D LOAD_DIST(r, d)
-     -> dist(r, d)
+/* D is only a placement anchor: all TOKEN_GPU tasks targeting the same device
+ * share it, and the GPU body never modifies it. Keep it read-only so the GPU
+ * runtime does not race multiple tasks trying to push the same anchor back.
+ */
+READ D <- D LOAD_DIST(r, d)
 RW T <- l == 0 ? T TOKEN_CPU(k)
      <- l == 1 ? T TOKEN_GPU(k, 0)
      -> l == 0 ? T TOKEN_GPU(k, 1)
