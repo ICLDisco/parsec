@@ -2,11 +2,13 @@
  * Copyright (c) 2018-2022 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec.h"
 #include "parsec/execution_stream.h"
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include "tests/tests_runtime.h"
 #include <string.h>
 
 #define TYPE  PARSEC_MATRIX_INTEGER
@@ -24,9 +26,7 @@ parsec_operator_print_id( struct parsec_execution_stream_s *es,
     va_list ap;
     int m, n, rank = 0;
 
-#if defined(PARSEC_HAVE_MPI)
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-#endif
+    rank = parsec_context_query(es->virtual_process->parsec_context, PARSEC_CONTEXT_QUERY_RANK);
 
     va_start(ap, op_data);
     m = va_arg(ap, int);
@@ -43,15 +43,6 @@ int main(int argc, char* argv[])
     parsec_context_t* parsec;
     parsec_taskpool_t *tp1, *tp2, *tp3;
     int nodes, rank, rc, i = 0;
-
-#if defined(PARSEC_HAVE_MPI)
-    MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &nodes);
-    MPI_Comm_size(MPI_COMM_WORLD, &nodes);
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-#else
-    nodes = 1;
-    rank = 0;
-#endif
 
     int pargc = 0; char **pargv = NULL;
     for( i = 1; i < argc; i++) {
@@ -79,8 +70,10 @@ int main(int argc, char* argv[])
         }
     }
 
-    parsec = parsec_init(1, &pargc, &pargv);
-    assert( NULL != parsec );
+    rc = parsec_tests_context_init(1, PARSEC_TEST_THREAD_SERIALIZED,
+                                   &pargc, &pargv,
+                                   &parsec, &rank, &nodes);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_init");
 
     parsec_matrix_block_cyclic_init( &dcA, TYPE, PARSEC_MATRIX_TILE,
                                rank,
@@ -117,10 +110,7 @@ int main(int argc, char* argv[])
     parsec_data_free(dcA.mat);
     parsec_tiled_matrix_destroy((parsec_tiled_matrix_t*)&dcA);
 
-    parsec_fini(&parsec);
-
-#ifdef PARSEC_HAVE_MPI
-    MPI_Finalize();
-#endif
+    rc = parsec_tests_context_fini(&parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_fini");
     return 0;
 }

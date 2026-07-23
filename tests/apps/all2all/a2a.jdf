@@ -3,6 +3,7 @@ extern "C" %{
  * Copyright (c) 2013-2022 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  *
  * @precisions normal z -> s d c
  *
@@ -11,9 +12,6 @@ extern "C" %{
 #include "parsec/data_distribution.h"
 #include "parsec/data_dist/matrix/matrix.h"
 
-#if defined(PARSEC_HAVE_MPI)
-#include <mpi.h>
-#endif
 #include <stdio.h>
 
 int32_t always_zero()
@@ -109,15 +107,9 @@ extern "C" %{
  */
 parsec_taskpool_t *a2a_new(parsec_tiled_matrix_t *A, parsec_tiled_matrix_t *B, int size, int repeat)
 {
-    int worldsize;
+    int worldsize = (int)A->super.nodes;
     parsec_a2a_taskpool_t *tp = NULL;
     (void)size;
-
-#if defined(PARSEC_HAVE_MPI)
-    MPI_Comm_size(MPI_COMM_WORLD, &worldsize);
-#else
-    worldsize = 1;
-#endif
 
     if( repeat <= 0 ) {
         fprintf(stderr, "To work, A2A must do at least one exchange of at least one byte\n");

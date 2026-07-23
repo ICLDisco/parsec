@@ -3,14 +3,10 @@ extern "C" %{
  * Copyright (c) 2012-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
 
-#if defined(PARSEC_HAVE_MPI)
-#include <mpi.h>
-#define MY_RANK(r) int r; MPI_Comm_rank(MPI_COMM_WORLD, &r)
-#else
-#define MY_RANK(r) int r = 0
-#endif
+#define MY_RANK(dc, r) int r = (int)((dc)->myrank)
 %}
 
 %option no_taskpool_instance = true  /* can be anything */
@@ -29,7 +25,7 @@ CTL X -> X TC(0)
 ; 0
 
 BODY
-    MY_RANK(r);
+    MY_RANK(A, r);
     printf("%d: TA(%d)\n", r, k);
 END
 
@@ -43,7 +39,7 @@ CTL X -> Y TC(0)
 ; 0
 
 BODY
-    MY_RANK(r);
+    MY_RANK(A, r);
     printf("%d: TB(%d)\n", r, k);
 END
 
@@ -58,7 +54,7 @@ CTL Y <- X TB(0..NT-1)
 ; 0
 
 BODY
-    MY_RANK(r);
+    MY_RANK(A, r);
     printf("%d: TC(%d)\n", r, k);
 END
 extern "C" %{

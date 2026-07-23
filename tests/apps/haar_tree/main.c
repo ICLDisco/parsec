@@ -2,10 +2,12 @@
  * Copyright (c) 2016-2022 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
 #include "parsec/runtime.h"
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "parsec/arena.h"
+#include "tests/tests_runtime.h"
 
 #include "tree_dist.h"
 #include "project.h"
@@ -156,18 +158,6 @@ int main(int argc, char *argv[])
     uint64_t cksum = 0;
     redim_string_t *rs;
 
-#if defined(PARSEC_HAVE_MPI)
-    {
-        int provided;
-        MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
-    }
-    MPI_Comm_size(MPI_COMM_WORLD, &world);
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-#else
-    world = 1;
-    rank = 0;
-#endif
-
     pargc = 0; pargv = NULL;
     for(i = 1; i < argc; i++) {
         if( strcmp(argv[i], "--") == 0 ) {
@@ -176,7 +166,9 @@ int main(int argc, char *argv[])
             break;
         }
     }
-    parsec = parsec_init(1, &pargc, &pargv);
+    rc = parsec_tests_context_init(1, PARSEC_TEST_THREAD_SERIALIZED,
+                                   &pargc, &pargv, &parsec, &rank, &world);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_init");
 
     while ((ch = getopt(argc, argv, "xvd:m:M:f:")) != -1) {
         switch (ch) {
@@ -224,9 +216,10 @@ int main(int argc, char *argv[])
     parsec_matrix_adt_define_rect( adt,
              parsec_datatype_float_t, 2, 1, 2);
 
-#if defined(HAVE_MPI)
-    MPI_Barrier(MPI_COMM_WORLD);
-#endif
+    rc = parsec_tests_barrier(parsec);
+    if( (PARSEC_SUCCESS != rc) && (PARSEC_ERR_NOT_IMPLEMENTED != rc) ) {
+        PARSEC_CHECK_ERROR(rc, "parsec_tests_barrier");
+    }
 
     project = parsec_project_new(treeA, world, (parsec_data_collection_t*)&fakeDesc, 1e-3, be_verbose, 1.0);
     project->arenas_datatypes[PARSEC_project_DEFAULT_ADT_IDX] = *adt;
@@ -257,7 +250,7 @@ int main(int argc, char *argv[])
     rc = parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
-#if defined(HAVE_MPI)
+#if defined(PARSEC_HAVE_MPI)
     if( do_checks ) {
         uint64_t sum = 0;
         printf("Rank %d contributes with %llx\n", rank, cksum);
@@ -292,7 +285,7 @@ int main(int argc, char *argv[])
             rs_free(rs);
         }
     }
-#endif  /* defined(HAVE_MPI) */
+#endif  /* defined(PARSEC_HAVE_MPI) */
     parsec_tiled_matrix_destroy((parsec_tiled_matrix_t*)&fakeDesc);
     tree_dist_free(treeA);
 
@@ -300,11 +293,8 @@ int main(int argc, char *argv[])
     parsec_taskpool_free(&project->super);
     parsec_matrix_adt_free( &adt );
 
-    parsec_fini(&parsec);
-
-#ifdef PARSEC_HAVE_MPI
-    MPI_Finalize();
-#endif
+    rc = parsec_tests_context_fini(&parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_fini");
 
     return ret;
 }

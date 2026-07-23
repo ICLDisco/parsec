@@ -2,13 +2,10 @@
  * Copyright (c) 2017-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
 
 #include <string.h>
-
-#if defined(PARSEC_HAVE_MPI)
-#include <mpi.h>
-#endif
 
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "common.h"
@@ -42,7 +39,19 @@ int main(int argc, char *argv[])
 
     DO_INIT();
 
-    assert(cores == 2);
+    int runtime_cores = parsec_context_query(parsec, PARSEC_CONTEXT_QUERY_CORES);
+    PARSEC_CHECK_ERROR(runtime_cores, "parsec_context_query(PARSEC_CONTEXT_QUERY_CORES)");
+    if( (cores < 2) || (runtime_cores < 2) ) {
+        if( 0 == rank ) {
+            fprintf(stderr,
+                    "input_dep_single_copy_reshape requires at least two PaRSEC execution streams "
+                    "(requested %d, runtime provided %d)\n",
+                    cores, runtime_cores);
+        }
+        int fini_rc = parsec_tests_context_fini(&parsec);
+        PARSEC_CHECK_ERROR(fini_rc, "parsec_tests_context_fini");
+        return -PARSEC_ERR_DEVICE;
+    }
 
     DO_INI_DATATYPES();
 
@@ -90,11 +99,8 @@ int main(int argc, char *argv[])
     parsec_data_free(dcA_check.mat);
     parsec_tiled_matrix_destroy((parsec_tiled_matrix_t*)&dcA_check);
 
-    parsec_fini(&parsec);
-
-#ifdef PARSEC_HAVE_MPI
-    MPI_Finalize();
-#endif
+    int fini_rc = parsec_tests_context_fini(&parsec);
+    PARSEC_CHECK_ERROR(fini_rc, "parsec_tests_context_fini");
 
     return ret;
 }

@@ -3,12 +3,14 @@ extern "C" %{
  * Copyright (c) 2020-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
 #include <sys/time.h>
 #include <inttypes.h>
 #include <string.h>
 #include <stdlib.h>
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include "tests/tests_runtime.h"
 
 /**
  * This test creates asynchronous tasks to stress the profiling
@@ -168,15 +170,6 @@ int main( int argc, char** argv )
     int parsec_argc = argc, arg;
     char **parsec_argv = NULL;
 
-#ifdef PARSEC_HAVE_MPI
-    {
-        int provided;
-        MPI_Init_thread(NULL, NULL, MPI_THREAD_SERIALIZED, &provided);
-        MPI_Comm_size(MPI_COMM_WORLD, &ws);
-        MPI_Comm_rank(MPI_COMM_WORLD, &mr);
-    }
-#endif
-
 #if !defined(PARSEC_PROF_TRACE)
     fprintf(stderr, "This profiling test has been compiled with profiling disabled...\n");
     exit(1);
@@ -197,16 +190,18 @@ int main( int argc, char** argv )
         argc--;
     }
 
-    parsec = parsec_init(-1, &parsec_argc, &parsec_argv);
-    if( NULL == parsec ) {
-        exit(-1);
-    }
+    rc = parsec_tests_context_init(-1, PARSEC_TEST_THREAD_SERIALIZED,
+                                   &parsec_argc, &parsec_argv,
+                                   &parsec, &mr, &ws);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_init");
 
     if( argc > 1 ) {
         NB = atoi(argv[1]);
     }
     if(NB <= 0) {
         fprintf(stderr, "Usage: async [-v] NB [--mca profile_filename /path/to/profile --mca mca_pins task_profiler\n");
+        rc = parsec_tests_context_fini(&parsec);
+        PARSEC_CHECK_ERROR(rc, "parsec_tests_context_fini");
         return 1;
     }
 
@@ -256,11 +251,8 @@ int main( int argc, char** argv )
 
     parsec_taskpool_free( (parsec_taskpool_t*)tp );
 
-    parsec_fini( &parsec);
-
-#ifdef PARSEC_HAVE_MPI
-    MPI_Finalize();
-#endif
+    rc = parsec_tests_context_fini(&parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_fini");
 
     return 0;
 }

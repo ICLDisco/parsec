@@ -21,10 +21,6 @@
 #include <string.h>
 #endif  /* defined(PARSEC_HAVE_STRING_H) */
 
-#if defined(PARSEC_HAVE_MPI)
-#include <mpi.h>
-#endif  /* defined(PARSEC_HAVE_MPI) */
-
 /* IDs for the Arena Datatypes */
 static int TILE_FULL;
 static int32_t nb_errors = 0;
@@ -259,24 +255,11 @@ int main(int argc, char **argv)
     parsec_device_cuda_module_t **gpu_devices = NULL;
 #endif
 
-#if defined(PARSEC_HAVE_MPI)
-    {
-        int provided;
-        MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
-        if(MPI_THREAD_MULTIPLE > provided) {
-            parsec_fatal( "This benchmark requires MPI_THREAD_MULTIPLE because it uses simultaneously MPI within the PaRSEC runtime, and in the main program loop (in SYNC_TIME_START)");
-        }
-    }
-    MPI_Comm_size(MPI_COMM_WORLD, &world);
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-#else
-    world = 1;
-    rank = 0;
-#endif
-
     nb = NB; /* tile_size */
 
-    parsec = parsec_init( cores, &argc, &argv );
+    rc = parsec_tests_context_init(cores, PARSEC_TEST_THREAD_MULTIPLE,
+                                   &argc, &argv, &parsec, &rank, &world);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_init");
 #if defined(PARSEC_PROF_TRACE)
     parsec_profiling_start();
 #endif
@@ -520,11 +503,8 @@ int main(int argc, char **argv)
     parsec_dtd_free_arena_datatype(parsec, TILE_FULL);
 
     parsec_taskpool_free( dtd_tp );
-    parsec_fini(&parsec);
-
-#ifdef PARSEC_HAVE_MPI
-    MPI_Finalize();
-#endif
+    rc = parsec_tests_context_fini(&parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_fini");
 
     if(nb_errors > 0)
         return EXIT_FAILURE;

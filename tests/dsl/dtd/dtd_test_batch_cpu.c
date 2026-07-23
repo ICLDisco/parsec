@@ -8,10 +8,7 @@
 #include "parsec.h"
 #include "parsec/interfaces/dtd/insert_function_internal.h"
 #include "parsec/mca/device/device.h"
-
-#if defined(PARSEC_HAVE_MPI)
-#include <mpi.h>
-#endif
+#include "tests/tests_runtime.h"
 
 #include <assert.h>
 #include <stdlib.h>
@@ -41,14 +38,6 @@ main(int argc, char **argv)
     int expected = 0;
     int ret = 0;
 
-#if defined(PARSEC_HAVE_MPI)
-    {
-        int provided;
-        MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
-        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    }
-#endif
-
     if( NULL != argv[1] ) {
         ntasks = atoi(argv[1]);
     }
@@ -56,8 +45,9 @@ main(int argc, char **argv)
         ntasks = 32;
     }
 
-    parsec = parsec_init(-1, &argc, &argv);
-    assert(NULL != parsec);
+    rc = parsec_tests_context_init(-1, PARSEC_TEST_THREAD_SERIALIZED,
+                                   &argc, &argv, &parsec, &rank, NULL);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_init");
 
     dtd_tp = parsec_dtd_taskpool_new();
 
@@ -102,11 +92,8 @@ main(int argc, char **argv)
 
     parsec_dtd_task_class_release(dtd_tp, tc);
     parsec_taskpool_free(dtd_tp);
-    parsec_fini(&parsec);
-
-#if defined(PARSEC_HAVE_MPI)
-    MPI_Finalize();
-#endif
+    rc = parsec_tests_context_fini(&parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_fini");
 
     return ret;
 }

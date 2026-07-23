@@ -11,10 +11,7 @@
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "parsec/interfaces/dtd/insert_function_internal.h"
 #include "tests/tests_data.h"
-
-#if defined(PARSEC_HAVE_MPI)
-#include <mpi.h>
-#endif  /* defined(PARSEC_HAVE_MPI) */
+#include "tests/tests_runtime.h"
 
 static int TILE_FULL;
 
@@ -881,26 +878,18 @@ int main(int argc, char **argv)
     parsec_context_t *parsec_context = NULL;
     int rank, world;
 
-#if defined(PARSEC_HAVE_MPI)
-    {
-        int provided;
-        MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
-    }
-    MPI_Comm_size(MPI_COMM_WORLD, &world);
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-#else
-    world = 1;
-    rank = 0;
-#endif
-
     // Number of CPU cores involved
     int ncores = -1; // Use all available cores
-    parsec_context = parsec_init(ncores, &argc, &argv);
+    rc = parsec_tests_context_init(ncores, PARSEC_TEST_THREAD_SERIALIZED,
+                                   &argc, &argv,
+                                   &parsec_context, &rank, &world);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_init");
 
     rc = !(get_nb_cuda_devices() >= 1);
     print_test_result("Have CUDA accelerators", rc);
     if(rc != 0) {
-        parsec_fini(&parsec_context);
+        rc = parsec_tests_context_fini(&parsec_context);
+        PARSEC_CHECK_ERROR(rc, "parsec_tests_context_fini");
         return -1;
     }
 
@@ -941,11 +930,8 @@ int main(int argc, char **argv)
     rc = test_cuda_multiple_devices(world, rank, parsec_context);
     ret += print_test_result("cuda multiple devices", rc);
 
-    parsec_fini(&parsec_context);
-
-#if defined(PARSEC_HAVE_MPI)
-    MPI_Finalize();
-#endif
+    rc = parsec_tests_context_fini(&parsec_context);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_fini");
 
     return ret;
 }

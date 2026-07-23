@@ -168,8 +168,10 @@ mark_as_advanced(PARSEC_SCHED_DEPS_MASK)
 mark_as_advanced(PARSEC_DIST_THREAD PARSEC_DIST_PRIORITIES)
 option(PARSEC_DIST_WITH_MPI
   "Build PaRSEC for distributed memory with MPI backend (conflicts all other backends)" ON)
-if(PARSEC_DIST_WITH_MPI AND 0)
-  message(FATAL_ERROR "PARSEC_DIST_WITH_MPI and PARSEC_DIST_WITH_OTHER are mutually exclusive, please select only one")
+option(PARSEC_DIST_WITH_UCX
+  "Build PaRSEC for distributed memory with UCX backend bootstrapped by PMIx" OFF)
+if(PARSEC_DIST_WITH_MPI AND PARSEC_DIST_WITH_UCX)
+  message(FATAL_ERROR "The UCX backend currently requires PARSEC_DIST_WITH_MPI=OFF because the MPI build still exposes MPI_Datatype in the public datatype ABI")
 endif()
 option(PARSEC_MPI_IS_GPU_AWARE
        "Build PaRSEC assuming the MPI library is GPU-aware, aka. can move data directly to and from GPU memory.\
@@ -647,6 +649,17 @@ if( BUILD_PARSEC )
     endif (NOT MPI_C_FOUND)
     list(APPEND EXTRA_LIBS ${MPI_C_LIBRARIES})
   endif (PARSEC_DIST_WITH_MPI)
+  if (PARSEC_DIST_WITH_UCX)
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(PARSEC_UCX REQUIRED ucx)
+    pkg_check_modules(PARSEC_PMIX REQUIRED pmix)
+    set(PARSEC_HAVE_UCX TRUE)
+    set(PARSEC_HAVE_PMIX TRUE)
+    include_directories(BEFORE ${PARSEC_UCX_INCLUDE_DIRS} ${PARSEC_PMIX_INCLUDE_DIRS})
+    link_directories(${PARSEC_UCX_LIBRARY_DIRS} ${PARSEC_PMIX_LIBRARY_DIRS})
+    list(APPEND EXTRA_INCLUDES ${PARSEC_UCX_INCLUDE_DIRS} ${PARSEC_PMIX_INCLUDE_DIRS})
+    list(APPEND EXTRA_LIBS ${PARSEC_UCX_LIBRARIES} ${PARSEC_PMIX_LIBRARIES})
+  endif (PARSEC_DIST_WITH_UCX)
   #
   # Check to see if
   #     support for MPI 2.0 is available

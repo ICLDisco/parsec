@@ -2,13 +2,10 @@
  * Copyright (c) 2017-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
 
 #include <string.h>
-
-#if defined(PARSEC_HAVE_MPI)
-#include <mpi.h>
-#endif
 
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "common.h"
@@ -107,11 +104,8 @@ int main(int argc, char *argv[])
     parsec_data_free(dcA_check.mat);
     parsec_tiled_matrix_destroy((parsec_tiled_matrix_t*)&dcA_check);
 
-    parsec_fini(&parsec);
-
-#ifdef PARSEC_HAVE_MPI
-    MPI_Finalize();
-#endif
+    int fini_rc = parsec_tests_context_fini(&parsec);
+    PARSEC_CHECK_ERROR(fini_rc, "parsec_tests_context_fini");
 
     return ret;
 }

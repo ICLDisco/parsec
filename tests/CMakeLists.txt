@@ -1,3 +1,7 @@
+#
+# Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
+#
+
 add_custom_target(parsec_build_tests)
 add_test(parsec_build_tests "${CMAKE_COMMAND}" --build ${CMAKE_BINARY_DIR} --target parsec_build_tests)
 
@@ -100,6 +104,9 @@ check_function_exists(random PARSEC_HAVE_RANDOM)
 
 add_library(tests_common OBJECT tests_data.c)
 target_link_libraries(tests_common PRIVATE parsec)
+
+add_library(tests_runtime_common OBJECT tests_runtime.c)
+target_link_libraries(tests_runtime_common PRIVATE parsec)
 
 add_subdirectory(class)
 add_subdirectory(api)

@@ -159,9 +159,14 @@ int parsec_redistribute_check2(parsec_context_t *parsec,
         info_sum_thd += info[i];
     }
 
-    MPI_Barrier( MPI_COMM_WORLD );
-    MPI_Allreduce(&info_sum_thd, &info_total, 1, MPI_LONG_LONG_INT, MPI_SUM, MPI_COMM_WORLD);
-    MPI_Barrier( MPI_COMM_WORLD );
+    int barrier_rc = parsec_tests_barrier(parsec);
+    PARSEC_CHECK_ERROR(barrier_rc, "parsec_tests_barrier");
+    int reduce_rc = parsec_tests_allreduce(parsec, &info_sum_thd, &info_total, 1,
+                                           parsec_datatype_int64_t,
+                                           PARSEC_TESTS_REDUCE_SUM);
+    PARSEC_CHECK_ERROR(reduce_rc, "parsec_tests_allreduce");
+    barrier_rc = parsec_tests_barrier(parsec);
+    PARSEC_CHECK_ERROR(barrier_rc, "parsec_tests_barrier");
 
     if( 0 == dcY->super.myrank ) {
         if( 0LL == info_total )

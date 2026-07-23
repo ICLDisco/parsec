@@ -3,9 +3,11 @@ extern "C" %{
  * Copyright (c) 2013-2022 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include "tests/tests_runtime.h"
 #include <sys/time.h>
 #include <inttypes.h>
 #include <string.h>
@@ -142,18 +144,10 @@ int main( int argc, char** argv )
             continue;
         }
     }
-#ifdef DISTRIBUTED
-    {
-        int provided;
-        MPI_Init_thread(NULL, NULL, MPI_THREAD_SERIALIZED, &provided);
-    }
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-#endif  /* DISTRIBUTED */
-    parsec = parsec_init(cores, &pargc, &pargv);
-    if( NULL == parsec ) {
-        exit(-1);
-    }
+    rc = parsec_tests_context_init(cores, PARSEC_TEST_THREAD_SERIALIZED,
+                                   &pargc, &pargv,
+                                   &parsec, &rank, &size);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_init");
 
     /**
      * Build the data and the arena to hold it up.
@@ -216,7 +210,8 @@ int main( int argc, char** argv )
 
     free(descA.mat);
 
-    parsec_fini( &parsec);
+    rc = parsec_tests_context_fini(&parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_fini");
 
     return 0;
 }

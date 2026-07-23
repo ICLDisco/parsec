@@ -2,15 +2,13 @@
  * Copyright (c) 2009-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/runtime.h"
 #include "parsec/data_distribution.h"
 #include "parsec/arena.h"
 
-#if defined(PARSEC_HAVE_MPI)
-#include <mpi.h>
-#endif
 #include <stdio.h>
 
 #include "ctlgat.h"
@@ -40,13 +38,8 @@ PARSEC_OBJ_CLASS_INSTANCE(parsec_ctlgat_taskpool_t, parsec_taskpool_t,
  */
 parsec_taskpool_t *ctlgat_new(parsec_data_collection_t *A, int size, int nb)
 {
-    int worldsize;
+    int worldsize = (int)A->nodes;
     parsec_ctlgat_taskpool_t *tp = NULL;
-#if defined(PARSEC_HAVE_MPI)
-    MPI_Comm_size(MPI_COMM_WORLD, &worldsize);
-#else
-    worldsize = 1;
-#endif
 
     if( nb <= 0 || size <= 0 ) {
         fprintf(stderr, "To work, CTLGAT must do at least one round time trip of at least one byte\n");

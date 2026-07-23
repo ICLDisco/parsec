@@ -157,7 +157,10 @@ int reshape_set_matrix_value_position_swap(parsec_execution_stream_t *es,
     return 0;
 }
 
-int check_matrix_equal(parsec_matrix_block_cyclic_t dcA, parsec_matrix_block_cyclic_t dcA_check){
+int check_matrix_equal(parsec_context_t *parsec,
+                       parsec_matrix_block_cyclic_t dcA,
+                       parsec_matrix_block_cyclic_t dcA_check)
+{
     int ret = 0;
     for(size_t i = 0; i < (dcA_check.super.nb_local_tiles * dcA_check.super.bsiz); i++) {
         if( ((int*)dcA.mat)[i] != ((int*)dcA_check.mat)[i]){
@@ -165,9 +168,12 @@ int check_matrix_equal(parsec_matrix_block_cyclic_t dcA, parsec_matrix_block_cyc
             break;
         }
     }
-#if defined(PARSEC_HAVE_MPI)
-    MPI_Allreduce(MPI_IN_PLACE, &ret, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-#endif
+    int rc = parsec_tests_allreduce(parsec, NULL, &ret, 1,
+                                    parsec_datatype_int_t,
+                                    PARSEC_TESTS_REDUCE_SUM);
+    if( (PARSEC_SUCCESS != rc) && (PARSEC_ERR_NOT_IMPLEMENTED != rc) ) {
+        PARSEC_CHECK_ERROR(rc, "parsec_tests_allreduce");
+    }
     return ret;
 }
 

@@ -2,32 +2,25 @@
  * Copyright (c) 2024      The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
 #include "parsec.h"
-#if defined(PARSEC_HAVE_MPI)
-#include <mpi.h>
-#endif
+#include "parsec/utils/debug.h"
+#include "tests/tests_runtime.h"
 
 int main(int argc, char **argv)
 {
     parsec_context_t* parsec;
-    int rank = 0, world = 1;
+    int rc;
 
-#if defined(PARSEC_HAVE_MPI)
-    int provided;
-    MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
-    MPI_Comm_size(MPI_COMM_WORLD, &world);
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-#endif
+    rc = parsec_tests_context_init(-1, PARSEC_TEST_THREAD_SERIALIZED,
+                                   &argc, &argv, &parsec, NULL, NULL);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_init");
 
-    parsec = parsec_init( -1, &argc, &argv );
     parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new();
     parsec_taskpool_free( dtd_tp );
-    parsec_fini(&parsec);
-
-#ifdef PARSEC_HAVE_MPI
-    MPI_Finalize();
-#endif
+    rc = parsec_tests_context_fini(&parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_fini");
 
     return 0;
 }

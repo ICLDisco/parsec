@@ -12,6 +12,7 @@ extern "C" %{
 
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "parsec/mca/device/device.h"
+#include "tests/tests_runtime.h"
 #include "batch_cpu.h"
 
 #define TYPE PARSEC_MATRIX_INTEGER
@@ -70,14 +71,6 @@ int main(int argc, char **argv)
     int rank = 0;
     int ret = 0;
 
-#if defined(PARSEC_HAVE_MPI)
-    {
-        int provided;
-        MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
-        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    }
-#endif
-
     if( NULL != argv[1] ) {
         n = atoi(argv[1]);
     }
@@ -85,8 +78,9 @@ int main(int argc, char **argv)
         n = 32;
     }
 
-    parsec = parsec_init(-1, &argc, &argv);
-    assert(NULL != parsec);
+    rc = parsec_tests_context_init(-1, PARSEC_TEST_THREAD_SERIALIZED,
+                                   &argc, &argv, &parsec, &rank, NULL);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_init");
 
     parsec_matrix_block_cyclic_init(&descA, TYPE, PARSEC_MATRIX_TILE,
                                     rank,
@@ -136,11 +130,8 @@ int main(int argc, char **argv)
     free(descA.mat);
     PARSEC_OBJ_RELEASE(adt.arena);
     parsec_matrix_arena_datatype_destruct_free_type(&adt);
-    parsec_fini(&parsec);
-
-#if defined(PARSEC_HAVE_MPI)
-    MPI_Finalize();
-#endif
+    rc = parsec_tests_context_fini(&parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_fini");
 
     return ret;
 }

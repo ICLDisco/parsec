@@ -2,24 +2,25 @@
  * Copyright (c) 2015-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/parsec_config.h"
-#include "parsec/datatype.h"
+#include "parsec/datatype_module.h"
 
 #if !defined(PARSEC_HAVE_MPI)
 #error __FILE__ should only be used when MPI support is enabled.
 #endif  /* !defined(PARSEC_HAVE_MPI) */
 
-int
-parsec_type_size( parsec_datatype_t type, int *size )
+static int
+comm_mpi_datatype_size(parsec_datatype_t type, int *size)
 {
     int rc = MPI_Type_size( type, size );
     return (MPI_SUCCESS == rc ? PARSEC_SUCCESS : PARSEC_ERROR);
 }
 
-int
-parsec_type_extent( parsec_datatype_t type, ptrdiff_t* lb, ptrdiff_t* extent)
+static int
+comm_mpi_datatype_extent(parsec_datatype_t type, ptrdiff_t *lb, ptrdiff_t *extent)
 {
     int rc;
     MPI_Aint mpi_extent, mpi_lb;
@@ -33,17 +34,17 @@ parsec_type_extent( parsec_datatype_t type, ptrdiff_t* lb, ptrdiff_t* extent)
     return (MPI_SUCCESS == rc ? PARSEC_SUCCESS : PARSEC_ERROR);
 }
 
-int
-parsec_type_free( parsec_datatype_t* type )
+static int
+comm_mpi_datatype_free(parsec_datatype_t *type)
 {
     int rc = MPI_Type_free(type);
     return (MPI_SUCCESS == rc ? PARSEC_SUCCESS : PARSEC_ERROR);
 }
 
-int
-parsec_type_create_contiguous( int count,
-                               parsec_datatype_t oldtype,
-                               parsec_datatype_t* newtype )
+static int
+comm_mpi_datatype_create_contiguous(int count,
+                                    parsec_datatype_t oldtype,
+                                    parsec_datatype_t *newtype)
 {
     int rc = MPI_Type_contiguous( count, oldtype, newtype );
     if( MPI_SUCCESS != rc ) return PARSEC_ERROR;
@@ -51,12 +52,12 @@ parsec_type_create_contiguous( int count,
     return (MPI_SUCCESS == rc ? PARSEC_SUCCESS : PARSEC_ERROR);
 }
 
-int
-parsec_type_create_vector( int count,
-                           int blocklength,
-                           int stride,
-                           parsec_datatype_t oldtype,
-                           parsec_datatype_t* newtype )
+static int
+comm_mpi_datatype_create_vector(int count,
+                                int blocklength,
+                                int stride,
+                                parsec_datatype_t oldtype,
+                                parsec_datatype_t *newtype)
 {
     int rc = MPI_Type_vector( count, blocklength, stride,
                               oldtype, newtype );
@@ -65,12 +66,12 @@ parsec_type_create_vector( int count,
     return (MPI_SUCCESS == rc ? PARSEC_SUCCESS : PARSEC_ERROR);
 }
 
-int
-parsec_type_create_hvector( int count,
-                            int blocklength,
-                            ptrdiff_t stride,
-                            parsec_datatype_t oldtype,
-                            parsec_datatype_t* newtype )
+static int
+comm_mpi_datatype_create_hvector(int count,
+                                 int blocklength,
+                                 ptrdiff_t stride,
+                                 parsec_datatype_t oldtype,
+                                 parsec_datatype_t *newtype)
 {
     int rc = MPI_Type_create_hvector( count, blocklength, stride,
                                       oldtype, newtype );
@@ -79,12 +80,12 @@ parsec_type_create_hvector( int count,
     return (MPI_SUCCESS == rc ? PARSEC_SUCCESS : PARSEC_ERROR);
 }
 
-int
-parsec_type_create_indexed( int count,
-                            const int array_of_blocklengths[],
-                            const int array_of_displacements[],
-                            parsec_datatype_t oldtype,
-                            parsec_datatype_t *newtype )
+static int
+comm_mpi_datatype_create_indexed(int count,
+                                 const int array_of_blocklengths[],
+                                 const int array_of_displacements[],
+                                 parsec_datatype_t oldtype,
+                                 parsec_datatype_t *newtype)
 {
     int rc = MPI_Type_indexed( count,
                                array_of_blocklengths,
@@ -95,12 +96,12 @@ parsec_type_create_indexed( int count,
     return (MPI_SUCCESS == rc ? PARSEC_SUCCESS : PARSEC_ERROR);
 }
 
-int
-parsec_type_create_indexed_block( int count,
-                                  int blocklength,
-                                  const int array_of_displacements[],
-                                  parsec_datatype_t oldtype,
-                                  parsec_datatype_t *newtype )
+static int
+comm_mpi_datatype_create_indexed_block(int count,
+                                       int blocklength,
+                                       const int array_of_displacements[],
+                                       parsec_datatype_t oldtype,
+                                       parsec_datatype_t *newtype)
 {
     int rc = MPI_Type_create_indexed_block( count, blocklength,
                                             array_of_displacements,
@@ -110,12 +111,12 @@ parsec_type_create_indexed_block( int count,
     return (MPI_SUCCESS == rc ? PARSEC_SUCCESS : PARSEC_ERROR);
 }
 
-int
-parsec_type_create_struct( int count,
-                           const int *array_of_blocklengths,
-                           const ptrdiff_t *array_of_displacements,
-                           const parsec_datatype_t *array_of_types,
-                           parsec_datatype_t *newtype )
+static int
+comm_mpi_datatype_create_struct(int count,
+                                const int *array_of_blocklengths,
+                                const ptrdiff_t *array_of_displacements,
+                                const parsec_datatype_t *array_of_types,
+                                parsec_datatype_t *newtype)
 {
     int rc = MPI_Type_create_struct( count,
                                      array_of_blocklengths,
@@ -126,11 +127,11 @@ parsec_type_create_struct( int count,
     return (MPI_SUCCESS == rc ? PARSEC_SUCCESS : PARSEC_ERROR);
 }
 
-int
-parsec_type_create_resized( parsec_datatype_t oldtype,
-                            ptrdiff_t lb,
-                            ptrdiff_t extent,
-                            parsec_datatype_t *newtype )
+static int
+comm_mpi_datatype_create_resized(parsec_datatype_t oldtype,
+                                 ptrdiff_t lb,
+                                 ptrdiff_t extent,
+                                 parsec_datatype_t *newtype)
 {
     int rc;
 #if defined(PARSEC_HAVE_MPI_20)
@@ -146,14 +147,8 @@ parsec_type_create_resized( parsec_datatype_t oldtype,
     return (MPI_SUCCESS == rc ? PARSEC_SUCCESS : PARSEC_ERROR);
 }
 
-int parsec_type_match(parsec_datatype_t dtt1,
-                      parsec_datatype_t dtt2)
-{
-    (void)dtt1; (void)dtt2;
-    return ( dtt1 == dtt2 ? PARSEC_SUCCESS : PARSEC_ERROR);
-}
-
-int parsec_type_contiguous(parsec_datatype_t dtt)
+static int
+comm_mpi_datatype_contiguous(parsec_datatype_t dtt)
 {
     int rc;
     int num_integers, num_addresses, num_datatypes, combiner;
@@ -165,3 +160,17 @@ int parsec_type_contiguous(parsec_datatype_t dtt)
     }
     return PARSEC_ERROR;
 }
+
+const parsec_datatype_module_t parsec_comm_mpi_datatype_module = {
+    .size                 = comm_mpi_datatype_size,
+    .extent               = comm_mpi_datatype_extent,
+    .free                 = comm_mpi_datatype_free,
+    .create_contiguous    = comm_mpi_datatype_create_contiguous,
+    .create_vector        = comm_mpi_datatype_create_vector,
+    .create_hvector       = comm_mpi_datatype_create_hvector,
+    .create_indexed       = comm_mpi_datatype_create_indexed,
+    .create_indexed_block = comm_mpi_datatype_create_indexed_block,
+    .create_struct        = comm_mpi_datatype_create_struct,
+    .create_resized       = comm_mpi_datatype_create_resized,
+    .contiguous           = comm_mpi_datatype_contiguous,
+};

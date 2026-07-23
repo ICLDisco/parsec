@@ -2,6 +2,7 @@
  * Copyright (c) 2017-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
 
 /* parsec things */
@@ -19,10 +20,6 @@
 #if defined(PARSEC_HAVE_STRING_H)
 #include <string.h>
 #endif  /* defined(PARSEC_HAVE_STRING_H) */
-
-#if defined(PARSEC_HAVE_MPI)
-#include <mpi.h>
-#endif  /* defined(PARSEC_HAVE_MPI) */
 
 double time_elapsed;
 double sync_time_elapsed;
@@ -122,32 +119,19 @@ int main(int argc, char ** argv)
     int nb, nt, rc;
     parsec_tiled_matrix_t *dcA;
 
-#if defined(PARSEC_HAVE_MPI)
-    {
-        int provided;
-        MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
-        if(MPI_THREAD_MULTIPLE > provided) {
-            parsec_fatal( "This benchmark requires MPI_THREAD_MULTIPLE because it uses simultaneously MPI within the PaRSEC runtime, and in the main program loop (in SYNC_TIME_START)");
-        }
-    }
-    MPI_Comm_size(MPI_COMM_WORLD, &world);
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-#else
-    world = 1;
-    rank = 0;
-#endif
-
-    if( world != 1 ) {
-        parsec_fatal( "Nope! world is not right, we need exactly one MPI process. "
-                      "Try with \"mpirun -np 1 .....\"\n" );
-    }
-
     if(argv[1] != NULL){
         cores = atoi(argv[1]);
     }
 
     /* Creating parsec context and initializing dtd environment */
-    parsec = parsec_init( cores, &argc, &argv );
+    rc = parsec_tests_context_init(cores, PARSEC_TEST_THREAD_MULTIPLE,
+                                   &argc, &argv, &parsec, &rank, &world);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_init");
+
+    if( world != 1 ) {
+        parsec_fatal( "Nope! world is not right, we need exactly one process. "
+                      "Try with a single-process launcher.\n" );
+    }
 
     /****** Checking task generation ******/
     parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new();
@@ -214,7 +198,7 @@ int main(int argc, char ** argv)
         rc = parsec_context_add_taskpool( parsec, dtd_tp );
         PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
 
-        SYNC_TIME_START();
+        SYNC_TIME_START(parsec);
 
         if( 1 == total_flows[i] ) {
             for( j = 0; j < total_flows[i] * total_tasks; j += total_flows[i] ) {
@@ -295,7 +279,7 @@ int main(int argc, char ** argv)
         rc = parsec_taskpool_wait( dtd_tp );
         PARSEC_CHECK_ERROR(rc, "parsec_taskpool_wait");
 
-        SYNC_TIME_PRINT(rank, ("\tNo of flows : %d \tTime for each task : %lf\n\n", total_flows[i], sync_time_elapsed/total_tasks));
+        SYNC_TIME_PRINT(parsec, rank, ("\tNo of flows : %d \tTime for each task : %lf\n\n", total_flows[i], sync_time_elapsed/total_tasks));
 
         parsec_taskpool_free( dtd_tp );
         parsec_dtd_data_collection_fini( A );
@@ -307,11 +291,8 @@ int main(int argc, char ** argv)
     rc = parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
-    parsec_fini(&parsec);
-
-#ifdef PARSEC_HAVE_MPI
-    MPI_Finalize();
-#endif
+    rc = parsec_tests_context_fini(&parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_fini");
 
     return 0;
 }

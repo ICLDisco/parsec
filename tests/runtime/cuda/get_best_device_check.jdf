@@ -3,7 +3,7 @@ extern "C" %{
  * Copyright (c) 2021-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation. All rights
  *                         reserved.
- * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
+ * Copyright (c) 2024-2026 NVIDIA Corporation.  All rights reserved.
  */
 #include "cuda_test_internal.h"
 
@@ -220,7 +220,12 @@ int parsec_get_best_device_check(parsec_context_t *parsec,
 
     parsec_taskpool_free(parsec_get_best_device_check);
 
-    MPI_Allreduce(&info_tmp[0], &info, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+    int rc = parsec_tests_allreduce(parsec, &info_tmp[0], &info, 1,
+                                    parsec_datatype_int_t,
+                                    PARSEC_TESTS_REDUCE_SUM);
+    if( (PARSEC_SUCCESS != rc) && (PARSEC_ERR_NOT_IMPLEMENTED != rc) ) {
+        PARSEC_CHECK_ERROR(rc, "parsec_tests_allreduce");
+    }
 
     return info;
 }

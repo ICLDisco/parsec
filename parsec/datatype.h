@@ -2,6 +2,7 @@
  * Copyright (c) 2015-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
 
 #ifndef PARSEC_DATATYPE_H_HAS_BEEN_INCLUDED
@@ -66,9 +67,12 @@ typedef intptr_t  parsec_datatype_t;
 BEGIN_C_DECLS
 
 /**
- * Map the datatype creation to the well designed and well known MPI datatype
- * API. The datatype support remains extremely basic, providing API only for
- * basic datatypes and functions to mix them together.
+ * Datatype portability API used by communication and data-movement engines.
+ *
+ * The public parsec_type_* functions are stable entry points.  Their
+ * implementation is selected by the active communication backend, so MPI builds
+ * can keep MPI datatypes while other transports can provide another
+ * representation.
  */
 int parsec_type_size(parsec_datatype_t type,
                      int *size);
@@ -120,7 +124,8 @@ int parsec_type_match(parsec_datatype_t dtt1,
 /**
  * Routine to check if a datatype is contiguous.
  * @param[in] parsec_datatype_t datatype
- * @return PARSEC_SUCCESS if it was created with MPI_Type_contiguous, PARSEC_ERROR otherwise.
+ * @return PARSEC_SUCCESS if the selected backend recognizes it as contiguous,
+ *         PARSEC_ERROR otherwise.
  */
 int parsec_type_contiguous(parsec_datatype_t dtt);
 END_C_DECLS

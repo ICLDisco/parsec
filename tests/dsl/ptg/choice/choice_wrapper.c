@@ -2,15 +2,13 @@
  * Copyright (c) 2009-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/runtime.h"
 #include "parsec/data_distribution.h"
 #include "parsec/arena.h"
 
-#if defined(PARSEC_HAVE_MPI)
-#include <mpi.h>
-#endif
 #include <stdio.h>
 
 #include "choice.h"

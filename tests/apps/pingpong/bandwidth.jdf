@@ -24,9 +24,7 @@ extern "C" %{
 #include <sys/time.h>
 #include <unistd.h>
 
-#if defined(PARSEC_HAVE_MPI)
-#include <mpi.h>
-#endif
+#include "tests/tests_runtime.h"
 
 %}
 
@@ -180,6 +178,7 @@ int main(int argc, char *argv[])
     int rank, nodes, ch, i;
     int pargc = 0;
     char **pargv = NULL;
+    int rc;
     struct timeval tstart, tend;
     double t, bw, messages;
 
@@ -190,18 +189,6 @@ int main(int argc, char *argv[])
     int start_length = 1, end_length = 8 * 1024 * 1024;
     int cores = 1;
     int nb_runs = 1;
-
-#if defined(PARSEC_HAVE_MPI)
-    {
-        int provided;
-        MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
-    }
-    MPI_Comm_size(MPI_COMM_WORLD, &nodes);
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-#else
-    nodes = 1;
-    rank = 0;
-#endif
 
     while ((ch = getopt(argc, argv, "n:f:l:u:c:h:e:")) != -1) {
         switch (ch) {
@@ -237,14 +224,13 @@ int main(int argc, char *argv[])
             break;
         }
     }
-    /* Initialize PaRSEC */
-    parsec = parsec_init(cores, &pargc, &pargv);
 
-    if( NULL == parsec ) {
-        /* Failed to correctly initialize. In a correct scenario report
-         * upstream, but in this particular case bail out.
-         */
-        exit(-1);
+    /* Initialize PaRSEC */
+    rc = parsec_tests_context_init(cores, PARSEC_TEST_THREAD_MULTIPLE,
+                                   &pargc, &pargv, &parsec, &rank, &nodes);
+    if( PARSEC_SUCCESS != rc ) {
+        fprintf(stderr, "parsec_tests_context_init failed: %d\n", rc);
+        exit(EXIT_FAILURE);
     }
 
     /* If the number of cores has not been defined as a parameter earlier
@@ -292,9 +278,11 @@ int main(int argc, char *argv[])
                                      parsec_datatype_uint8_t, 1, size, 1);
 
             /* Time start */
-#if defined(PARSEC_HAVE_MPI)
-            MPI_Barrier(MPI_COMM_WORLD);
-#endif  /* defined(PARSEC_HAVE_MPI) */
+            rc = parsec_tests_barrier(parsec);
+            if( (PARSEC_SUCCESS != rc) && (PARSEC_ERR_NOT_IMPLEMENTED != rc) ) {
+                fprintf(stderr, "parsec_tests_barrier failed: %d\n", rc);
+                exit(EXIT_FAILURE);
+            }
             gettimeofday(&tstart, NULL);
 
             parsec_context_add_taskpool(parsec, bandwidth_taskpool);
@@ -302,9 +290,11 @@ int main(int argc, char *argv[])
             parsec_context_wait(parsec);
 
             /* Time end */
-#if defined(PARSEC_HAVE_MPI)
-            MPI_Barrier(MPI_COMM_WORLD);
-#endif  /* defined(PARSEC_HAVE_MPI) */
+            rc = parsec_tests_barrier(parsec);
+            if( (PARSEC_SUCCESS != rc) && (PARSEC_ERR_NOT_IMPLEMENTED != rc) ) {
+                fprintf(stderr, "parsec_tests_barrier failed: %d\n", rc);
+                exit(EXIT_FAILURE);
+            }
             gettimeofday(&tend, NULL);
 
             if( 0 == rank ) {
@@ -327,11 +317,11 @@ int main(int argc, char *argv[])
     parsec_tiled_matrix_destroy((parsec_tiled_matrix_t*)&Disk);
 
     /* Clean up parsec*/
-    parsec_fini(&parsec);
-
-#ifdef PARSEC_HAVE_MPI
-    MPI_Finalize();
-#endif
+    rc = parsec_tests_context_fini(&parsec);
+    if( PARSEC_SUCCESS != rc ) {
+        fprintf(stderr, "parsec_tests_context_fini failed: %d\n", rc);
+        exit(EXIT_FAILURE);
+    }
 
     return 0;
 }

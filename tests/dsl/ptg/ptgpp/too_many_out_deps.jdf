@@ -3,6 +3,7 @@ extern "C" %{
  * Copyright (c) 2020-2022 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
 
 /**
@@ -14,6 +15,7 @@ extern "C" %{
  */
 #include "tests/dsl/ptg/ptgpp/vector.h"
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include "tests/tests_runtime.h"
 
 #if MAX_DEP_OUT_COUNT > 20
 #error MAX_DEP_OUT_COUNT is too large for this test.
@@ -64,17 +66,9 @@ int main(int argc, char* argv[])
     parsec_context_t *parsec;
     int block = 10, n = 1000, rc;
 
-#ifdef PARSEC_HAVE_MPI
-    {
-        int provided;
-        MPI_Init_thread(NULL, NULL, MPI_THREAD_SERIALIZED, &provided);
-    }
-#endif
-
-    parsec = parsec_init(-1, &argc, &argv);
-    if( NULL == parsec ) {
-        exit(-1);
-    }
+    rc = parsec_tests_context_init(-1, PARSEC_TEST_THREAD_SERIALIZED,
+                                   &argc, &argv, &parsec, NULL, NULL);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_init");
 
     parsec_matrix_block_cyclic_init( &descA, TYPE, PARSEC_MATRIX_TILE,
                                0 /*rank*/,
@@ -107,9 +101,8 @@ int main(int argc, char* argv[])
     parsec_taskpool_free((parsec_taskpool_t*)tp);
     free(descA.mat);
 
-#ifdef PARSEC_HAVE_MPI
-    MPI_Finalize();
-#endif
+    rc = parsec_tests_context_fini(&parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_fini");
     return 0;
 }
 

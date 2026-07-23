@@ -2,9 +2,11 @@
  * Copyright (c) 2023-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
 #include "parsec.h"
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include "tests/tests_runtime.h"
 #include "ptg_tp.h"
 #include "dtd_tp.h"
 
@@ -22,16 +24,14 @@ int main(int argc, char *argv[]) {
     int rc;
 
     err = 0;
+    (void)argc;
+    (void)argv;
 
     parsec_context_t *parsec;
-#if defined(PARSEC_HAVE_MPI)
-    int provided;
-    MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
-    MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &world_size);
-#endif
-
-    parsec = parsec_init(-1, NULL, NULL);
+    err = parsec_tests_context_init(-1, PARSEC_TEST_THREAD_MULTIPLE,
+                                    NULL, NULL,
+                                    &parsec, &my_rank, &world_size);
+    PARSEC_CHECK_ERROR(err, "parsec_tests_context_init");
     parsec_matrix_block_cyclic_init(&A, PARSEC_MATRIX_INTEGER,
                               PARSEC_MATRIX_TILE,
                               my_rank,
@@ -107,9 +107,7 @@ int main(int argc, char *argv[]) {
     parsec_dtd_data_collection_fini(&A.super.super);
     parsec_tiled_matrix_destroy((parsec_tiled_matrix_t*)&A);
 
-    parsec_fini(&parsec);
-#if defined(PARSEC_HAVE_MPI)
-    MPI_Finalize();
-#endif
+    rc = parsec_tests_context_fini(&parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_fini");
     return err;
 }
