@@ -1327,3 +1327,10 @@ foreach( pattern_file ${pattern_files} )
   list( APPEND pattern_files_dest "${pattern_file}" )
 endforeach( pattern_file )
 add_custom_target(build_with_parsec ALL DEPENDS ${pattern_files_dest})
+
+# Optional language bindings.  Each lives in-tree (not as an outer wrapper
+# repository) so paths to tests/apps and the build tree are parent-relative.
+option(PARSEC_JULIA_BINDINGS "Build Julia bindings (PaRSEC4Julia)" OFF)
+if(PARSEC_JULIA_BINDINGS)
+  add_subdirectory(julia)
+endif()
