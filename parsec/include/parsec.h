@@ -14,6 +14,7 @@
 #include "parsec/datatype.h"
 #include "parsec/scheduling.h"
 #include "parsec/utils/debug.h"
+#include "parsec/utils/info.h"
 
 #include "parsec/interfaces/interface.h"
 #include "parsec/interfaces/dtd/insert_function.h"
