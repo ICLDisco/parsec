@@ -119,6 +119,8 @@ parsec_taskpool_t* testing_nvlink_New( parsec_context_t *ctx, int depth, int mb 
                                                  create_cublas_handle, NULL,
                                                  NULL);
     assert(CuHI != -1);
+    /* Pre-set the cublas handle for all streams */
+    parsec_info_set_all(&parsec_per_stream_infos, CuHI);
 #else
     int CuHI = -1;
 #endif
