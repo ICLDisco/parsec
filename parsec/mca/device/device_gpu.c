@@ -1759,8 +1759,11 @@ parsec_device_data_reserve_space( parsec_device_gpu_module_t* gpu_device,
 
 /**
  * @brief Generic fallback for parsec_device_memcpy_multi_async_fn_t: issues @p nb_items
- *    individual gpu->memcpy_async() calls. Does not stop at the first failure -- every
- *    item is attempted regardless, and the first error encountered (if any) is returned.
+ *    individual gpu->memcpy_async() calls. Stops at the first failure instead of
+ *    submitting the remaining items: items already issued before the failure are
+ *    genuinely queued on the stream (the caller must still account for them, e.g.
+ *    by recording an event), so continuing past a failure would only grow that set
+ *    without changing the overall (still-failing) outcome.
  *    Used by backends that do not (yet) provide a native batched copy primitive.
  */
 int
@@ -1768,14 +1771,14 @@ parsec_device_generic_memcpy_multi_async(parsec_device_gpu_module_t *gpu, parsec
                                          void **dsts, void **srcs, size_t *sizes,
                                          parsec_device_transfer_direction_t *directions, int nb_items)
 {
-    int ret, rc = PARSEC_SUCCESS;
+    int ret;
 
     for(int i = 0; i < nb_items; i++) {
         ret = gpu->memcpy_async(gpu, gpu_stream, dsts[i], srcs[i], sizes[i], directions[i]);
-        if( (PARSEC_SUCCESS == rc) && (PARSEC_SUCCESS != ret) )
-            rc = ret;
+        if( PARSEC_SUCCESS != ret )
+            return ret;
     }
-    return rc;
+    return PARSEC_SUCCESS;
 }
 
 /* Default stage_in function to transfer data to the GPU device.
