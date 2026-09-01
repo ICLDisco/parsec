@@ -362,7 +362,9 @@ static int parsec_cuda_memcpy_async(struct parsec_device_gpu_module_s *gpu, stru
  *    the semantics of the individual cudaMemcpyAsync calls this replaces); location
  *    hints are left unset since they only matter for managed memory, which PaRSEC
  *    does not use for these buffers. The cudaMemcpyBatchAsync signature dropped its
- *    failIdx parameter in CUDA 13.0; guard both forms.
+ *    failIdx parameter in CUDA 13.0; guard both forms. Neither form is asked to
+ *    report failIdx: this function's signature (parsec_device_memcpy_multi_async_fn_t)
+ *    has no partial-submission out-parameter, so there is nowhere to forward it to.
  */
 static int parsec_cuda_memcpy_multi_async(struct parsec_device_gpu_module_s *gpu, struct parsec_gpu_exec_stream_s *gpu_stream,
                                           void **dsts, void **srcs, size_t *sizes,
@@ -391,7 +393,7 @@ static int parsec_cuda_memcpy_multi_async(struct parsec_device_gpu_module_s *gpu
                                       &attrs, &attrsIdx, 1 /* numAttrs */,
                                       cuda_stream->cuda_stream);
 #else
-    cudaStatus = cudaMemcpyBatchAsync(dsts, srcs, sizes, (size_t)nb_items,
+    cudaStatus = cudaMemcpyBatchAsync(dsts, (const void *const *)srcs, sizes, (size_t)nb_items,
                                       &attrs, &attrsIdx, 1 /* numAttrs */,
                                       NULL /* failIdx: unused, we don't need to know which item failed */,
                                       cuda_stream->cuda_stream);
