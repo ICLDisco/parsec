@@ -3148,6 +3148,29 @@ parsec_device_release_copy_now(parsec_device_gpu_module_t *gpu_device, parsec_da
     PARSEC_OBJ_RELEASE(copy);
 }
 
+/**
+ * @brief Release a GPU reader held on @p source, a D2D transfer source owned by
+ *    @p src_device, on behalf of @p gpu_device. A reader was only acquired on a
+ *    GPU source, so only a GPU source has one to release. The release is done
+ *    under @p source->original->lock; parsec_gpu_data_copy_release_reader()
+ *    takes care of coordinating with the manager of @p src_device.
+ *    Both the normal D2D-completion path and any failure/cleanup path that needs
+ *    to release a D2D reader must go through this helper.
+ */
+static void
+parsec_device_release_d2d_reader(parsec_device_gpu_module_t *gpu_device,
+                                 parsec_data_copy_t *source,
+                                 parsec_device_gpu_module_t *src_device)
+{
+    if( !PARSEC_DEV_IS_GPU(src_device->super.type) )
+        return;
+
+    parsec_atomic_lock( &source->original->lock );
+    int readers = parsec_gpu_data_copy_release_reader(gpu_device, source, 1);
+    assert(readers >= 0); (void)readers;
+    parsec_atomic_unlock( &source->original->lock );
+}
+
 static int
 parsec_device_callback_complete_push(parsec_device_gpu_module_t   *gpu_device,
                                      parsec_gpu_task_t           **gpu_task,
@@ -3259,14 +3282,7 @@ parsec_device_callback_complete_push(parsec_device_gpu_module_t   *gpu_device,
                                        NULL);
             }
 #endif
-            /* A reader was only acquired on a GPU source, so only a GPU source
-             * has one to release here. */
-            if( PARSEC_DEV_IS_GPU(src_device->super.type) ) {
-                parsec_atomic_lock( &source->original->lock );
-                int readers = parsec_gpu_data_copy_release_reader(gpu_device, source, 1);
-                assert(readers >= 0);
-                parsec_atomic_unlock( &source->original->lock );
-            }
+            parsec_device_release_d2d_reader(gpu_device, source, src_device);
             continue;
         }
         PARSEC_DEBUG_VERBOSE(20, parsec_gpu_output_stream,
@@ -3520,6 +3536,11 @@ parsec_device_progress_stream( parsec_device_gpu_module_t* gpu_device,
  *    A reader was acquired for flow i iff its resolved source is GPU-resident and
  *    the flow has READ access -- this is externally derivable from
  *    gpu_task->flow_info[i].source/.flow without needing extra per-flow state.
+ *
+ *    Releases go through parsec_device_release_d2d_reader(), the same lock/manager
+ *    protocol the normal D2D-completion path uses: releasing without it can relink
+ *    the copy into the source device's LRU concurrently with that device's own
+ *    manager thread.
  */
 static inline void
 parsec_device_kernel_push_release_readers_on_failure(parsec_device_gpu_module_t *gpu_device,
@@ -3533,8 +3554,7 @@ parsec_device_kernel_push_release_readers_on_failure(parsec_device_gpu_module_t 
         if( !(flow->flow_flags & PARSEC_FLOW_ACCESS_READ) ) continue;
         parsec_device_module_t *src_dev_mod = parsec_mca_device_get(src->device_index);
         if( (NULL == src_dev_mod) || !PARSEC_DEV_IS_GPU(src_dev_mod->type) ) continue;
-        int readers = parsec_gpu_data_copy_release_reader(gpu_device, src, 1);
-        assert(readers >= 0);
+        parsec_device_release_d2d_reader(gpu_device, src, (parsec_device_gpu_module_t*)src_dev_mod);
     }
 }
 
