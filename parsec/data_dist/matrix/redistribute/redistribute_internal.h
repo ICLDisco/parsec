@@ -5,6 +5,7 @@
  */
 #include "parsec.h"
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include "parsec/data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
 #include "parsec/data_dist/matrix/two_dim_tabular.h"
 #include "parsec/data_dist/matrix/sbc.h"
 #include "parsec/data_dist/matrix/matrix.h"
@@ -86,6 +87,11 @@ redistribute_distribution_num_cols(parsec_tiled_matrix_t *dc, int size_col)
         parsec_matrix_block_cyclic_t *bc = (parsec_matrix_block_cyclic_t *)dc;
         return bc->grid.cols * bc->grid.kcols;
     }
+    if( dc->dtype & parsec_matrix_sym_block_cyclic_type ) {
+        parsec_matrix_sym_block_cyclic_t *sym =
+            (parsec_matrix_sym_block_cyclic_t *)dc;
+        return sym->grid.cols * sym->grid.kcols;
+    }
     if( dc->dtype & parsec_matrix_sbc_type ) {
         parsec_matrix_sbc_t *sbc = (parsec_matrix_sbc_t *)dc;
         return sbc->r;
@@ -125,23 +131,26 @@ redistribute_region_is_stored(parsec_tiled_matrix_t *dc,
                               int size_row, int size_col,
                               int disi, int disj)
 {
-    parsec_matrix_sbc_t *sbc;
+    parsec_matrix_uplo_t uplo;
     int m_start, m_end, n_start, n_end;
 
-    if( !(dc->dtype & parsec_matrix_sbc_type) ) {
+    if( dc->dtype & parsec_matrix_sbc_type ) {
+        uplo = ((parsec_matrix_sbc_t *)dc)->uplo;
+    } else if( dc->dtype & parsec_matrix_sym_block_cyclic_type ) {
+        uplo = ((parsec_matrix_sym_block_cyclic_t *)dc)->uplo;
+    } else {
         return 1;
     }
 
-    sbc = (parsec_matrix_sbc_t *)dc;
     m_start = disi / dc->mb;
     m_end = (disi + size_row - 1) / dc->mb;
     n_start = disj / dc->nb;
     n_end = (disj + size_col - 1) / dc->nb;
 
-    if( PARSEC_MATRIX_LOWER == sbc->uplo ) {
+    if( PARSEC_MATRIX_LOWER == uplo ) {
         return m_start >= n_end;
     }
-    if( PARSEC_MATRIX_UPPER == sbc->uplo ) {
+    if( PARSEC_MATRIX_UPPER == uplo ) {
         return n_start >= m_end;
     }
 

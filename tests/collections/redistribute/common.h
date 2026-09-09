@@ -64,6 +64,7 @@ enum iparam_t {
 
 typedef enum redistribute_distribution_e {
   REDISTRIBUTE_DIST_2DBC,
+  REDISTRIBUTE_DIST_SYM_2DBC,
   REDISTRIBUTE_DIST_SBC
 } redistribute_distribution_t;
 
