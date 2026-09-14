@@ -1,0 +1,354 @@
+extern "C" %{
+/*
+ * Copyright (c) 2026 The University of Tennessee and The University
+ *                    of Tennessee Research Foundation. All rights reserved.
+ */
+
+#include "parsec.h"
+#include "parsec/mca/device/device.h"
+#include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include "parsec/utils/mca_param.h"
+
+#include <assert.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
+#include <cuda_runtime.h>
+#endif
+#if defined(PARSEC_HAVE_DEV_HIP_SUPPORT)
+#include <hip/hip_runtime.h>
+#endif
+
+#if defined(PARSEC_HAVE_MPI)
+#include <mpi.h>
+#endif
+
+%}
+
+descA [type = "parsec_matrix_block_cyclic_t*"]
+
+/**************************************************
+ * Run one GPU task for each tile in descA.        *
+ **************************************************/
+COUNT_TASK(k)
+
+k = 0 .. descA->super.nt-1
+
+: descA(0, k)
+
+RW A <- descA(0, k)
+     -> descA(0, k)
+
+BODY [type=CUDA]
+{
+    cudaError_t status;
+
+    status = cudaMemsetAsync(A, k + 1,
+                             (size_t)descA->super.bsiz * sizeof(double),
+                             parsec_body.stream);
+    if(cudaSuccess != status) {
+        return PARSEC_HOOK_RETURN_ERROR;
+    }
+}
+END
+
+BODY [type=HIP]
+{
+    hipError_t status;
+
+    status = hipMemsetAsync(A, k + 1,
+                            (size_t)descA->super.bsiz * sizeof(double),
+                            parsec_body.stream);
+    if(hipSuccess != status) {
+        return PARSEC_HOOK_RETURN_ERROR;
+    }
+}
+END
+
+extern "C" %{
+
+static void
+matrix_init(parsec_matrix_block_cyclic_t *dcA, int rank, int count,
+            const char *key)
+{
+    const int nb = 32;
+    size_t size;
+
+    parsec_matrix_block_cyclic_init(dcA, PARSEC_MATRIX_DOUBLE,
+                                    PARSEC_MATRIX_TILE, rank,
+                                    nb, nb, nb, count * nb,
+                                    0, 0, nb, count * nb,
+                                    1, 1, 1, 1, 0, 0);
+    size = (size_t)dcA->super.nb_local_tiles *
+           (size_t)dcA->super.bsiz * sizeof(double);
+    dcA->mat = parsec_data_allocate(size);
+    assert(NULL != dcA->mat);
+    memset(dcA->mat, 0, size);
+    (void)key;
+    parsec_data_collection_set_key((parsec_data_collection_t *)dcA, key);
+}
+
+static int matrix_check(parsec_matrix_block_cyclic_t *dcA)
+{
+    parsec_data_collection_t *dc = &dcA->super.super;
+    const size_t tile_size = (size_t)dcA->super.bsiz * sizeof(double);
+    int errors = 0;
+
+    for(int k = 0; k < dcA->super.nt; k++) {
+        parsec_data_t *data = dc->data_of(dc, 0, k);
+        parsec_data_copy_t *cpu_copy = parsec_data_get_copy(data, 0);
+        const unsigned char *tile = parsec_data_copy_get_ptr(cpu_copy);
+        const unsigned char expected = (unsigned char)(k + 1);
+
+        for(size_t i = 0; i < tile_size; i++) {
+            if(tile[i] != expected) {
+                fprintf(stderr,
+                        "descriptor output mismatch for tile (0,%d), byte %zu: "
+                        "got %u, expected %u\n",
+                        k, i, (unsigned int)tile[i], (unsigned int)expected);
+                errors++;
+                break;
+            }
+        }
+    }
+    return errors;
+}
+
+static void matrix_fini(parsec_matrix_block_cyclic_t *dcA)
+{
+    parsec_data_free(dcA->mat);
+    parsec_tiled_matrix_destroy((parsec_tiled_matrix_t *)dcA);
+}
+
+static parsec_taskpool_t *
+testing_device_show_statistics_New(parsec_matrix_block_cyclic_t *dcA)
+{
+    parsec_device_show_statistics_taskpool_t *taskpool;
+
+    taskpool = parsec_device_show_statistics_new(dcA);
+    parsec_matrix_adt_define_square(
+        &taskpool->arenas_datatypes[PARSEC_device_show_statistics_DEFAULT_ADT_IDX],
+        parsec_datatype_double_t, dcA->super.mb);
+    return (parsec_taskpool_t *)taskpool;
+}
+
+static int
+testing_device_show_statistics(parsec_context_t *parsec,
+                                 parsec_matrix_block_cyclic_t *dcA)
+{
+    parsec_taskpool_t *taskpool;
+    parsec_device_show_statistics_taskpool_t *typed_taskpool;
+    int rc;
+
+    taskpool = testing_device_show_statistics_New(dcA);
+    assert(NULL != taskpool);
+
+    rc = parsec_context_add_taskpool(parsec, taskpool);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
+    rc = parsec_context_start(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_start");
+    rc = parsec_context_wait(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
+
+    typed_taskpool = (parsec_device_show_statistics_taskpool_t *)taskpool;
+    parsec_matrix_arena_datatype_destruct_free_type(
+        &typed_taskpool->arenas_datatypes[PARSEC_device_show_statistics_DEFAULT_ADT_IDX]);
+    parsec_taskpool_free(taskpool);
+    return matrix_check(dcA);
+}
+
+typedef enum {
+    STATS_EXPLICIT,
+    STATS_DEFAULT,
+    STATS_UNFINISHED,
+    STATS_OVERLAP,
+    STATS_RESET,
+    STATS_END_WITHOUT_START,
+    STATS_DISABLED
+} stats_scenario_t;
+
+static int
+parse_scenario(int *argc, char **argv, stats_scenario_t *scenario)
+{
+    *scenario = STATS_EXPLICIT;
+
+    for(int i = 1; i < *argc; i++) {
+        const char *name;
+
+        if(0 != strcmp(argv[i], "--scenario")) {
+            continue;
+        }
+        if(i + 1 == *argc) {
+            fprintf(stderr, "--scenario requires an argument\n");
+            return -1;
+        }
+
+        name = argv[i + 1];
+        if(0 == strcmp(name, "explicit")) {
+            *scenario = STATS_EXPLICIT;
+        } else if(0 == strcmp(name, "default")) {
+            *scenario = STATS_DEFAULT;
+        } else if(0 == strcmp(name, "unfinished")) {
+            *scenario = STATS_UNFINISHED;
+        } else if(0 == strcmp(name, "overlap")) {
+            *scenario = STATS_OVERLAP;
+        } else if(0 == strcmp(name, "reset")) {
+            *scenario = STATS_RESET;
+        } else if(0 == strcmp(name, "end-without-start")) {
+            *scenario = STATS_END_WITHOUT_START;
+        } else if(0 == strcmp(name, "disabled")) {
+            *scenario = STATS_DISABLED;
+        } else {
+            fprintf(stderr, "unknown statistics scenario: %s\n", name);
+            return -1;
+        }
+
+        /* Hide the test option from MPI and parsec_init(). */
+        memmove(&argv[i], &argv[i + 2],
+                (size_t)(*argc - i - 1) * sizeof(*argv));
+        *argc -= 2;
+        return 0;
+    }
+    return 0;
+}
+
+int main(int argc, char **argv)
+{
+    parsec_context_t *parsec;
+    parsec_device_statistics_t *statistics, *overlap;
+    parsec_matrix_block_cyclic_t before, measured, after;
+    stats_scenario_t scenario;
+    char *value = "1";
+    char *statistics_value;
+    int gpu_type;
+    const char *gpu_name;
+    int rank = 0, world = 1;
+    int rc, errors = 0;
+
+    if(0 != parse_scenario(&argc, argv, &scenario)) {
+        return EXIT_FAILURE;
+    }
+
+#if defined(PARSEC_HAVE_MPI)
+    {
+        int provided;
+        MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
+    }
+    MPI_Comm_size(MPI_COMM_WORLD, &world);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+#endif
+
+    extern char **environ;
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
+    parsec_setenv_mca_param("device_cuda_enabled", value, &environ);
+#endif
+#if defined(PARSEC_HAVE_DEV_HIP_SUPPORT)
+    parsec_setenv_mca_param("device_hip_enabled", value, &environ);
+#endif
+    statistics_value = (STATS_DISABLED == scenario) ? "0" : "1";
+    parsec_setenv_mca_param("device_show_statistics", statistics_value, &environ);
+
+    parsec = parsec_init(-1, &argc, &argv);
+    if(NULL == parsec) {
+        return EXIT_FAILURE;
+    }
+    assert(1 == world);
+
+#if defined(PARSEC_HAVE_DEV_HIP_SUPPORT)
+    gpu_type = PARSEC_DEV_HIP;
+    gpu_name = "HIP";
+#else
+    gpu_type = PARSEC_DEV_CUDA;
+    gpu_name = "CUDA";
+#endif
+    if(0 == parsec_context_query(parsec, PARSEC_CONTEXT_QUERY_DEVICES,
+                                 gpu_type)) {
+        parsec_warning("This test requires at least one %s device", gpu_name);
+        parsec_fini(&parsec);
+#if defined(PARSEC_HAVE_MPI)
+        MPI_Finalize();
+#endif
+        return -PARSEC_ERR_DEVICE;
+    }
+
+    /* Separate descriptors keep the three phases from sharing cached tiles. */
+    matrix_init(&before, rank, 2, "device-stats-before");
+    matrix_init(&measured, rank, 3, "device-stats-measured");
+    matrix_init(&after, rank, 5, "device-stats-after");
+
+    switch(scenario) {
+    case STATS_EXPLICIT:
+        errors += testing_device_show_statistics(parsec, &before);
+        statistics = parsec_device_show_statistics_start(parsec);
+        assert(NULL != statistics);
+        errors += testing_device_show_statistics(parsec, &measured);
+        parsec_device_show_statistics_end(parsec, statistics);
+        errors += testing_device_show_statistics(parsec, &after);
+        break;
+
+    case STATS_DEFAULT:
+        errors += testing_device_show_statistics(parsec, &before);
+        errors += testing_device_show_statistics(parsec, &measured);
+        errors += testing_device_show_statistics(parsec, &after);
+        break;
+
+    case STATS_UNFINISHED:
+        errors += testing_device_show_statistics(parsec, &before);
+        statistics = parsec_device_show_statistics_start(parsec);
+        assert(NULL != statistics);
+        errors += testing_device_show_statistics(parsec, &measured);
+        errors += testing_device_show_statistics(parsec, &after);
+        break;
+
+    case STATS_OVERLAP:
+        errors += testing_device_show_statistics(parsec, &before);
+        statistics = parsec_device_show_statistics_start(parsec);
+        assert(NULL != statistics);
+        errors += testing_device_show_statistics(parsec, &measured);
+        overlap = parsec_device_show_statistics_start(parsec);
+        assert(NULL != overlap);
+        errors += testing_device_show_statistics(parsec, &after);
+        parsec_device_show_statistics_end(parsec, overlap);
+        parsec_device_show_statistics_end(parsec, statistics);
+        break;
+
+    case STATS_RESET:
+        errors += testing_device_show_statistics(parsec, &before);
+        statistics = parsec_device_show_statistics_start(parsec);
+        assert(NULL != statistics);
+        errors += testing_device_show_statistics(parsec, &measured);
+        parsec_mca_device_reset_statistics(parsec);
+        errors += testing_device_show_statistics(parsec, &after);
+        parsec_device_show_statistics_end(parsec, statistics);
+        break;
+
+    case STATS_END_WITHOUT_START:
+        parsec_device_show_statistics_end(parsec, NULL);
+        errors += testing_device_show_statistics(parsec, &measured);
+        break;
+
+    case STATS_DISABLED:
+        errors += testing_device_show_statistics(parsec, &before);
+        statistics = parsec_device_show_statistics_start(parsec);
+        assert(NULL != statistics);
+        errors += testing_device_show_statistics(parsec, &measured);
+        parsec_device_show_statistics_end(parsec, statistics);
+        errors += testing_device_show_statistics(parsec, &after);
+        break;
+    }
+
+    matrix_fini(&before);
+    matrix_fini(&measured);
+    matrix_fini(&after);
+    rc = parsec_fini(&parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_fini");
+
+#if defined(PARSEC_HAVE_MPI)
+    MPI_Finalize();
+#endif
+    return (0 == errors) ? EXIT_SUCCESS : EXIT_FAILURE;
+}
+
+%}
