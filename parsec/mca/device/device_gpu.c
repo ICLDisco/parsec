@@ -3044,9 +3044,16 @@ parsec_device_progress_stream( parsec_device_gpu_module_t* gpu_device,
             /* the task can be withdrawn by the system */
             return rc;
         }
-        if( 0 != rc ) {
-            return PARSEC_HOOK_RETURN_AGAIN;
+        if( 0 > rc ) {
+            /* A backend event error is fatal for this device (for example,
+             * CUDA reports an asynchronous illegal-memory-access here).
+             * Retrying the same event forever only floods the log and cannot
+             * make it valid. PARSEC_ERROR and PARSEC_HOOK_RETURN_AGAIN share
+             * the same value, so remap the error at this boundary. */
+            return PARSEC_HOOK_RETURN_ERROR;
         }
+        /* The oldest event is not ready yet. Fall through so that the
+         * remaining event slots of this stream can still be filled. */
     }
 
   grab_a_task:
