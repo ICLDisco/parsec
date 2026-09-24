@@ -2,6 +2,7 @@
  * Copyright (c) 2017-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
 
 #include <string.h>
@@ -18,6 +19,10 @@
 /* Program to test the different reshaping functionalities
  * Each different test is commented on the main program.
  */
+
+/* TASK_A pairs up t=0 with t=1 through a condition variable, so the test
+ * cannot run on fewer worker threads than this. */
+#define NBTHREADS_NEEDED 2
 
 int main(int argc, char *argv[])
 {
@@ -38,11 +43,24 @@ int main(int argc, char *argv[])
     int P = 1;
     int KP = 1;
     int KQ = 1;
-    int cores = 2;
+    int cores = NBTHREADS_NEEDED;
 
     DO_INIT();
 
-    assert(cores == 2);
+    /* TASK_A(m,k,0) and TASK_A(m,k,1) rendezvous through a condition
+     * variable, so both have to be resident at once or the first one waits
+     * for a signal that can never come. Ask the context what it actually
+     * gave us rather than trusting what we requested: anything that caps the
+     * thread count turns this test into a deadlock instead of a failure. */
+    int available = parsec_context_query(parsec, PARSEC_CONTEXT_QUERY_CORES);
+    if( cores < NBTHREADS_NEEDED || available < NBTHREADS_NEEDED ) {
+        fprintf(stderr,
+                "%s needs %d worker threads, was configured for %d and "
+                "PaRSEC provided %d. Check the -c flag and the "
+                "`runtime_num_cores` parameter.\n",
+                argv[0], NBTHREADS_NEEDED, cores, available);
+        return 77;  /* ctest: skipped, rather than a deadlock */
+    }
 
     DO_INI_DATATYPES();
 

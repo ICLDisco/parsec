@@ -543,6 +543,9 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
             " instead.\n");
     }
 
+    /* Whether runtime_num_cores was configured, as opposed to left to us. */
+    int configured_max_cores = parsec_runtime_max_number_of_cores;
+
 #if defined(PARSEC_HAVE_HWLOC)
     parsec_hwloc_init();
     if( parsec_runtime_max_number_of_cores <= 0 ) {
@@ -550,16 +553,23 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     }
 #endif  /* defined(HWLOC) */
 
-    /* fix the number of used cores if necessary. Do not allow oversubscription. */
-    nb_cores = (nb_cores <= 0) ? parsec_runtime_max_number_of_cores : nb_cores;
-    if( nb_cores >= parsec_runtime_max_number_of_cores ) {
+    /* What the caller asked for takes precedence: runtime_num_cores supplies
+     * the default, it does not overrule an explicit request. Clamping the
+     * request down to it silently leaves a caller that needs a given number
+     * of threads running on fewer, which deadlocks anything that expects two
+     * of its tasks to be resident at once. */
+    if( nb_cores <= 0 ) {
         nb_cores = parsec_runtime_max_number_of_cores;
+    } else if( (configured_max_cores > 0) && (nb_cores > configured_max_cores) ) {
+        parsec_warning("Requested %d threads while the `runtime_num_cores` "
+                       "parameter allows %d. The request takes precedence.\n",
+                       nb_cores, configured_max_cores);
     }
     if( (nb_cores > parsec_hwloc_nb_real_cores()) && parsec_report_binding_issues ) {
         parsec_warning("/!\\ PERFORMANCE MIGHT BE REDUCED /!\\: "
                        "Requested binding %d threads, which is more than the physical number of cores %d.\n"
                        "\tOversubscribing cores is often slow. You should change the value of the `runtime_num_cores` parameter.\n",
-                       parsec_runtime_max_number_of_cores, parsec_hwloc_nb_real_cores());
+                       nb_cores, parsec_hwloc_nb_real_cores());
     }
 
     parsec_mca_param_reg_int_name("runtime", "bind_main_thread", "Force the binding of the thread calling parsec_init",
