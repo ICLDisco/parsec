@@ -217,6 +217,8 @@ option(PARSEC_DEBUG_NOISIER
   "Enable chatterbox-like verbose debugging (may impact performance)." OFF)
 option(PARSEC_DEBUG_HISTORY
   "Keep a summarized history of critical events in memory that can be dumped in gdb when deadlock occur." OFF)
+option(PARSEC_DEBUG_WIRE_CHECKSUM
+  "Log a fingerprint of every dependency payload on both sides of the wire, to find a transfer that delivers something other than what was sent. Hashes every byte moved and prints a line per transfer, so it is far too expensive to leave on." OFF)
 option(PARSEC_DEBUG_MEM_ADDR
   "Enable the memory access checker, if the compiler supports it." OFF)
 option(PARSEC_DEBUG_MEM_LEAK

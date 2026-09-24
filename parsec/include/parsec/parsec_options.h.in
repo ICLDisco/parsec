@@ -104,6 +104,7 @@
 #cmakedefine PARSEC_DEBUG_PARANOID
 #cmakedefine PARSEC_DEBUG_NOISIER
 #cmakedefine PARSEC_DEBUG_HISTORY
+#cmakedefine PARSEC_DEBUG_WIRE_CHECKSUM
 #cmakedefine PARSEC_LIFO_USE_ATOMICS
 
 /* profiling */

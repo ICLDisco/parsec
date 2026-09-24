@@ -93,6 +93,120 @@ remote_dep_cmd_to_string(remote_dep_wire_activate_t* origin,
     return str;
 }
 
+#if defined(PARSEC_DEBUG_WIRE_CHECKSUM)
+/**
+ * Fingerprint the bytes a dependency moves, on the sending side just before
+ * they are handed to the transport and on the receiving side once they have
+ * landed, so a transfer that delivers something other than what was sent is
+ * caught at the transfer rather than at the wrong answer it leads to.
+ *
+ * Records are identified two ways, for two different comparisons, and
+ * neither identifier can do the other's job.
+ *
+ * Within one run a send is paired with its receive by the task that emitted
+ * it, qualified by the taskpool it belongs to. A DTD task is numbered by an
+ * atomic counter as it is inserted, so that pair is unique for the length of
+ * a run, and the activation message carries both fields to the receiver
+ * already. The sender's deps pointer would be the obvious choice and is
+ * wrong: those structures come from a free list and one address names many
+ * different transfers over a run.
+ *
+ * Across two runs the task is worthless for the same reason it is useful
+ * within one, that the counter is handed out in insertion order: under
+ * untied insertion several threads insert at once and the same task wears a
+ * different number every time. What survives is the tile, the data
+ * collection and the key within it being the algorithm's own coordinates.
+ * The seed is a fixed constant and the generator is a function of those
+ * coordinates, so every run moves the same bytes for the same tile and a
+ * good log can be diffed against a bad one.
+ *
+ * Strided layouts are skipped, their holes being nobody's data, and so are
+ * reshaping transfers, where the bytes sent are not meant to equal the bytes
+ * received.
+ *
+ * This has its own CMake option rather than riding along with
+ * PARSEC_DEBUG_PARANOID because it is not a check: there is nothing to turn
+ * it down to, it reads every byte of every payload and prints a line per
+ * transfer, and what it produces is only useful to someone who is going to
+ * diff two logs with tools/wire_checksum_join.py. Nobody who enabled
+ * paranoid checks for some other reason asked for that.
+ */
+static uint64_t remote_dep_fingerprint(const void *buf, size_t len)
+{
+    const uint8_t *p = (const uint8_t*)buf;
+    uint64_t h = 14695981039346656037ULL;
+    size_t i;
+    for( i = 0; i < len; i++ ) {
+        h ^= (uint64_t)p[i];
+        h *= 1099511628211ULL;
+    }
+    return h;
+}
+
+/**
+ * Name the tile a copy belongs to, in the coordinates the algorithm uses.
+ *
+ * Naming the collection matters as much as naming the tile: a run holds
+ * several matrices at once, and tiles of A, of the copy of A kept for
+ * checking and of the right hand side would otherwise be indistinguishable.
+ * key_base carries the name the application gave it, but is only filled in
+ * when profiling is compiled in; failing that fall back on dc_id, and
+ * failing that say so rather than pretending the tiles are the same.
+ */
+static const char *remote_dep_tile_name(parsec_data_copy_t *copy, char *str, size_t len)
+{
+    parsec_data_t *data = (NULL == copy) ? NULL : copy->original;
+    char coords[64];
+    char owner[64];
+
+    if( NULL == data || NULL == data->dc ) {
+        snprintf(str, len, "anonymous");
+        return str;
+    }
+    if( NULL != data->dc->key_base ) {
+        snprintf(owner, sizeof(owner), "%s", data->dc->key_base);
+    } else if( 0 != data->dc->dc_id ) {
+        snprintf(owner, sizeof(owner), "dc%" PRIu64, (uint64_t)data->dc->dc_id);
+    } else {
+        /* Build with PARSEC_PROF_TRACE to get the application's own names. */
+        snprintf(owner, sizeof(owner), "unnamed");
+    }
+
+    if( NULL != data->dc->key_to_string &&
+        0 < data->dc->key_to_string(data->dc, data->key, coords, sizeof(coords)) ) {
+        /* key_to_string already parenthesises the coordinates. */
+        snprintf(str, len, "%s%s", owner, coords);
+    } else {
+        snprintf(str, len, "%s#%" PRIu64, owner, (uint64_t)data->key);
+    }
+    return str;
+}
+
+static void remote_dep_log_payload(const char *what, int src, int dst,
+                                   remote_dep_wire_activate_t *msg,
+                                   parsec_data_copy_t *copy, int k,
+                                   parsec_datatype_t dtt, uint64_t count)
+{
+    char tile[MAX_TASK_STRLEN], task[MAX_TASK_STRLEN];
+    void *ptr = (NULL == copy) ? NULL : PARSEC_DATA_COPY_GET_PTR(copy);
+    int size;
+    ptrdiff_t lb, extent;
+    size_t len;
+
+    if( NULL == ptr || PARSEC_DATATYPE_NULL == dtt || 0 == count ) return;
+    if( 0 != parsec_type_size(dtt, &size) || size <= 0 ) return;
+    if( 0 != parsec_type_extent(dtt, &lb, &extent) || extent != (ptrdiff_t)size ) return;
+
+    len = (size_t)size * (size_t)count;
+    parsec_inform("WIRE %s src=%d dst=%d tile=%s k=%d len=%zu hash=%016" PRIx64
+                  " tp=%u task=%s",
+                  what, src, dst, remote_dep_tile_name(copy, tile, MAX_TASK_STRLEN),
+                  k, len, remote_dep_fingerprint(ptr, len),
+                  msg->taskpool_id,
+                  remote_dep_cmd_to_string(msg, task, MAX_TASK_STRLEN));
+}
+#endif  /* defined(PARSEC_DEBUG_WIRE_CHECKSUM) */
+
 /* TODO: fix heterogeneous restriction by using proper mpi datatypes */
 #define dep_dtt parsec_datatype_int8_t
 #define dep_count sizeof(remote_dep_wire_activate_t)
@@ -1810,6 +1924,13 @@ remote_dep_mpi_put_start(parsec_execution_stream_t* es,
                             es->virtual_process->parsec_context->my_rank,
                             item->cmd.activate.peer, deps->msg, nbdtt, dtt);
 
+#if defined(PARSEC_DEBUG_WIRE_CHECKSUM)
+        remote_dep_log_payload("SEND", es->virtual_process->parsec_context->my_rank,
+                               item->cmd.activate.peer, &deps->msg,
+                               deps->output[k].data.data, k,
+                               dtt, deps->output[k].data.remote.src_count);
+#endif
+
         /* the remote side should send us 8 bytes as the callback data to be passed back to them */
         parsec_ce.put(&parsec_ce, source_memory_handle, 0,
                       remote_memory_handle, 0,
@@ -2286,6 +2407,15 @@ remote_dep_mpi_get_end_cb(parsec_comm_engine_t *ce,
 #if defined(PARSEC_PROF_TRACE)
     TAKE_TIME(es->es_profile, MPI_Data_pldr_ek, callback_data->event_id);
 #endif /* PARSEC_PROF_TRACE */
+
+#if defined(PARSEC_DEBUG_WIRE_CHECKSUM)
+    remote_dep_log_payload("RECV", deps->from, deps->taskpool->context->my_rank,
+                           &deps->msg,
+                           deps->output[callback_data->k].data.data, callback_data->k,
+                           deps->output[callback_data->k].data.remote.dst_datatype,
+                           deps->output[callback_data->k].data.remote.dst_count);
+#endif
+
     remote_dep_release_incoming(es, deps, (1U << callback_data->k));
 
     parsec_ce.mem_unregister(&callback_data->memory_handle);
