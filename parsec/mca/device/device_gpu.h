@@ -249,6 +249,32 @@ typedef int (*parsec_device_memcpy_async_fn_t)(struct parsec_device_gpu_module_s
                                                    void *dest, void *source, size_t bytes, parsec_device_transfer_direction_t direction);
 
 /**
+ * @brief Schedules the asynchronous copy of @p nb_items entries onto the GPU stream
+ *    of @p gpu_stream, as a single (ideally batched) operation. @p dsts, @p srcs,
+ *    @p sizes, and @p directions are parallel arrays of length @p nb_items:
+ *    entry i copies @p sizes[i] bytes from @p srcs[i] to @p dsts[i], transferring
+ *    across the memory spaces described by @p directions[i].
+ *
+ *    The array shape deliberately mirrors native batched copy primitives (e.g.
+ *    cudaMemcpyBatchAsync's dsts/srcs/sizes/count parameters) so that a backend
+ *    with a native batched primitive can forward these arrays directly, without
+ *    repacking them into some other layout first. @p directions is not needed by
+ *    such primitives (the copy kind is inferred from the pointers), but is kept
+ *    so that parsec_device_generic_memcpy_multi_async() -- the fallback used by
+ *    backends without a native batched primitive -- can still issue the correct
+ *    per-item memcpy_async() call.
+ *
+ * @details typically maps to a batched copy primitive (e.g. cudaMemcpyBatchAsync)
+ *    if the backend has one, or falls back to issuing @p nb_items individual
+ *    memcpy_async calls (see parsec_device_generic_memcpy_multi_async()).
+ *
+ * @return PARSEC_SUCCESS or a PARSEC error
+ */
+typedef int (*parsec_device_memcpy_multi_async_fn_t)(struct parsec_device_gpu_module_s *gpu, struct parsec_gpu_exec_stream_s *gpu_stream,
+                                                      void **dsts, void **srcs, size_t *sizes,
+                                                      parsec_device_transfer_direction_t *directions, int nb_items);
+
+/**
  * @brief Record an event on the GPU @p gpu_stream of GPU @p gpu, with index @p idx.
  *
  * @details typically maps to cudaRecordEvent or equivalent. The GPU device must have allocated
@@ -314,6 +340,7 @@ struct parsec_device_gpu_module_s {
     /* This set of base functions is used by the GPU devices to implement their Device Management Functions */
     parsec_device_set_device_fn_t       set_device;
     parsec_device_memcpy_async_fn_t     memcpy_async;
+    parsec_device_memcpy_multi_async_fn_t memcpy_multi_async;
     parsec_device_event_query_fn_t      event_query;
     parsec_device_event_record_fn_t     event_record;
     parsec_device_memory_info_fn_t      memory_info;
@@ -547,6 +574,22 @@ parsec_hook_return_t
 parsec_device_kernel_scheduler( parsec_device_module_t *module,
                                 parsec_execution_stream_t *es,
                                 void *gpu_task );
+
+/**
+ * @brief Generic fallback for parsec_device_memcpy_multi_async_fn_t: issues @p nb_items
+ *    individual gpu->memcpy_async() calls. Stops at the first failure instead of
+ *    submitting the remaining items: items already issued before the failure are
+ *    genuinely queued on the stream (the caller must still account for them, e.g.
+ *    by recording an event), so continuing past a failure would only grow that set
+ *    without changing the overall (still-failing) outcome.
+ *    Used by backends that do not (yet) provide a native batched copy primitive.
+ *
+ * @return PARSEC_SUCCESS or the PARSEC error encountered
+ */
+int
+parsec_device_generic_memcpy_multi_async(parsec_device_gpu_module_t *gpu, parsec_gpu_exec_stream_t *gpu_stream,
+                                         void **dsts, void **srcs, size_t *sizes,
+                                         parsec_device_transfer_direction_t *directions, int nb_items);
 
 /* Default stage_in function to transfer data to the GPU device.
  * Transfer transfer the <count> contiguous bytes from

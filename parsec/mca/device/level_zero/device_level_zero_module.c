@@ -438,6 +438,7 @@ int parsec_level_zero_module_init( int dev_id, parsec_device_level_zero_driver_t
     device->memory_unregister        = NULL; // TODO there seem to be no memory pinning in level_zero?
     gpu_device->set_device       = parsec_level_zero_set_device;
     gpu_device->memcpy_async     = parsec_level_zero_memcpy_async;
+    gpu_device->memcpy_multi_async = parsec_device_generic_memcpy_multi_async;
     gpu_device->event_record     = parsec_level_zero_event_record;
     gpu_device->event_query      = parsec_level_zero_event_query;
     gpu_device->memory_info      = parsec_level_zero_memory_info;

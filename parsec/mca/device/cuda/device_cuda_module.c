@@ -349,6 +349,60 @@ static int parsec_cuda_memcpy_async(struct parsec_device_gpu_module_s *gpu, stru
     return PARSEC_SUCCESS;
 }
 
+#if CUDART_VERSION >= 12080
+/**
+ * @brief Native implementation of parsec_device_memcpy_multi_async_fn_t using
+ *    cudaMemcpyBatchAsync (introduced in CUDA 12.8). @p dsts/@p srcs/@p sizes are
+ *    forwarded to cudaMemcpyBatchAsync as-is -- no repacking -- since its parameter
+ *    shape is exactly the parallel-array layout parsec_device_memcpy_multi_async_fn_t
+ *    already uses. @p directions is unused here: cudaMemcpyBatchAsync infers each
+ *    copy's kind from the pointers themselves (unified addressing), unlike the
+ *    single-item cudaMemcpyAsync which needs an explicit cudaMemcpyKind.
+ *    All items share the same cudaMemcpyAttributes (stream-ordered access, matching
+ *    the semantics of the individual cudaMemcpyAsync calls this replaces); location
+ *    hints are left unset since they only matter for managed memory, which PaRSEC
+ *    does not use for these buffers. The cudaMemcpyBatchAsync signature dropped its
+ *    failIdx parameter in CUDA 13.0; guard both forms. Neither form is asked to
+ *    report failIdx: this function's signature (parsec_device_memcpy_multi_async_fn_t)
+ *    has no partial-submission out-parameter, so there is nowhere to forward it to.
+ */
+static int parsec_cuda_memcpy_multi_async(struct parsec_device_gpu_module_s *gpu, struct parsec_gpu_exec_stream_s *gpu_stream,
+                                          void **dsts, void **srcs, size_t *sizes,
+                                          parsec_device_transfer_direction_t *directions, int nb_items)
+{
+    parsec_cuda_exec_stream_t *cuda_stream = (parsec_cuda_exec_stream_t *)gpu_stream;
+    cudaMemcpyAttributes attrs = {0};
+    size_t attrsIdx = 0;
+    cudaError_t cudaStatus;
+
+    (void)gpu;
+
+    if( 0 == nb_items )
+        return PARSEC_SUCCESS;
+
+    if (1 == nb_items) {
+        // short-cut to the single-item memcpy_async implementation, which takes
+        // into account the direction parameter and is more efficient than cudaMemcpyBatchAsync for a single item.
+        return parsec_cuda_memcpy_async(gpu, gpu_stream, dsts[0], srcs[0], sizes[0], directions[0]);
+    }
+
+    attrs.srcAccessOrder = cudaMemcpySrcAccessOrderStream;
+
+#if CUDART_VERSION >= 13000
+    cudaStatus = cudaMemcpyBatchAsync(dsts, (const void *const *)srcs, sizes, (size_t)nb_items,
+                                      &attrs, &attrsIdx, 1 /* numAttrs */,
+                                      cuda_stream->cuda_stream);
+#else
+    cudaStatus = cudaMemcpyBatchAsync(dsts, (const void *const *)srcs, sizes, (size_t)nb_items,
+                                      &attrs, &attrsIdx, 1 /* numAttrs */,
+                                      NULL /* failIdx: unused, we don't need to know which item failed */,
+                                      cuda_stream->cuda_stream);
+#endif
+    PARSEC_CUDA_CHECK_ERROR( "cudaMemcpyBatchAsync", cudaStatus, {return PARSEC_ERROR;} );
+    return PARSEC_SUCCESS;
+}
+#endif /* CUDART_VERSION >= 12080 */
+
 static int parsec_cuda_event_record(struct parsec_device_gpu_module_s *gpu, struct parsec_gpu_exec_stream_s *gpu_stream, int32_t event_idx)
 {
     parsec_cuda_exec_stream_t *cuda_stream = (parsec_cuda_exec_stream_t*)gpu_stream;
@@ -584,6 +638,11 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
     device->all_devices_attached = parsec_cuda_all_devices_attached;
     gpu_device->set_device       = parsec_cuda_set_device;
     gpu_device->memcpy_async     = parsec_cuda_memcpy_async;
+#if CUDART_VERSION >= 12080
+    gpu_device->memcpy_multi_async = parsec_cuda_memcpy_multi_async;
+#else
+    gpu_device->memcpy_multi_async = parsec_device_generic_memcpy_multi_async;
+#endif
     gpu_device->event_record     = parsec_cuda_event_record;
     gpu_device->event_query      = parsec_cuda_event_query;
     gpu_device->memory_info      = parsec_cuda_memory_info;
