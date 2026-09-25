@@ -148,8 +148,11 @@ parsec_device_gpu_ensure_host_mirror(parsec_execution_stream_t *es,
         PARSEC_DATA_COPY_RELEASE(cpu_copy);
         return NULL;
     }
+    /* The buffer is empty until the stage out the caller is about to enqueue
+     * completes, so it is left announcing no version at all. Invalid is what
+     * says it holds nothing, and it is what every reader of a copy has to
+     * consult before the version means anything. */
     cpu_copy->coherency_state = PARSEC_DATA_COHERENCY_INVALID;
-    cpu_copy->version = (0 < gpu_copy->version) ? gpu_copy->version - 1 : 0;
     return cpu_copy;
 }
 
@@ -3692,8 +3695,12 @@ parsec_device_kernel_epilog( parsec_device_gpu_module_t *gpu_device,
         if( gpu_task->pushout & (1 << i) ) {
             parsec_data_t *original = gpu_copy->original;
             parsec_gpu_data_copy_t *cpu_copy = original->device_copies[0];
-            /* Update the CPU copy to reflect the current status */
-            assert(cpu_copy->version < gpu_copy->version);
+            /* Update the CPU copy to reflect the current status. A mirror that
+             * was created for this stage out holds nothing and announces no
+             * version, so it is only the copies that do carry a value that are
+             * expected to be behind the one they are about to adopt. */
+            assert((PARSEC_DATA_COHERENCY_INVALID == cpu_copy->coherency_state) ||
+                   (cpu_copy->version < gpu_copy->version));
             cpu_copy->version = gpu_copy->version;
             cpu_copy->coherency_state = PARSEC_DATA_COHERENCY_SHARED;
             gpu_copy->coherency_state = PARSEC_DATA_COHERENCY_SHARED;
