@@ -3855,8 +3855,14 @@ parsec_device_kernel_pop( parsec_device_gpu_module_t   *gpu_device,
             }
             assert(cpu_copy->data_transfer_status != PARSEC_DATA_STATUS_UNDER_TRANSFER);
             assert(i < MAX_PARAM_COUNT);
+            /* Sanity check: MAX_PARAM_COUNT may be increased to accommodate more parameters,
+             * but the transfer_mask must still be able to represent all of them.
+             */
+            assert(i < (sizeof(transfer_mask)*8));
+            cpu_copy->data_transfer_status = PARSEC_DATA_STATUS_UNDER_TRANSFER;
             transfer_mask |= (1U << i);
             cpu_copies[i] = cpu_copy;
+            how_many++;
         }
         if( transfer_mask != 0 ) {
             rc = gpu_task->stage_out ? gpu_task->stage_out(gpu_task, transfer_mask, gpu_stream): PARSEC_SUCCESS;
@@ -3866,15 +3872,6 @@ parsec_device_kernel_pop( parsec_device_gpu_module_t   *gpu_device,
                                 this_task->task_class->name, transfer_mask);
                 return_code = PARSEC_HOOK_RETURN_DISABLE;
                 goto release_and_return_error;
-            }
-            /* stage_out only enqueues the device-to-host transfer. The runtime
-             * owns the copy state transition so custom stage_out callbacks do
-             * not need to know about the GPU copy-transfer bookkeeping.
-             */
-            for( int i = 0; i < this_task->locals[0].value; i++ ) {
-                if( !(transfer_mask & (1U << i)) ) continue;
-                cpu_copies[i]->data_transfer_status = PARSEC_DATA_STATUS_UNDER_TRANSFER;
-                how_many++;
             }
         }
         return how_many;
@@ -4023,8 +4020,10 @@ parsec_device_kernel_pop( parsec_device_gpu_module_t   *gpu_device,
                 assert(cpu_copy->data_transfer_status != PARSEC_DATA_STATUS_UNDER_TRANSFER);
                 assert(flow->flow_index < MAX_PARAM_COUNT);
                 transfer_mask |= (1U << flow->flow_index);
+                cpu_copy->data_transfer_status = PARSEC_DATA_STATUS_UNDER_TRANSFER;
                 pushout_cpu_copies[flow->flow_index] = cpu_copy;
                 pending_bytes += span; /* TODO: not hardcoded, use datatype size */
+                how_many++;
             } else {
                 assert( 0 == gpu_copy->readers );
             }
@@ -4040,20 +4039,6 @@ parsec_device_kernel_pop( parsec_device_gpu_module_t   *gpu_device,
                             this_task->task_class->name, transfer_mask);
             return_code = PARSEC_HOOK_RETURN_DISABLE;
             goto release_and_return_error;
-        }
-        /* stage_out only enqueues the device-to-host transfer. The runtime owns the
-         * copy state transition so custom stage_out callbacks do not need to know
-         * about the GPU copy-transfer bookkeeping. Re-acquire each flow's original
-         * lock briefly, matching the protection this state transition had when it
-         * used to happen inline under that same lock. */
-        for( uint32_t i = 0; i < gpu_task->nb_flows; i++ ) {
-            if( !(transfer_mask & (1U << i)) ) continue;
-            parsec_data_copy_t *cpu_copy = pushout_cpu_copies[i];
-            parsec_data_t *cpu_copy_original = cpu_copy->original;
-            parsec_atomic_lock(&cpu_copy_original->lock);
-            cpu_copy->data_transfer_status = PARSEC_DATA_STATUS_UNDER_TRANSFER;
-            parsec_atomic_unlock(&cpu_copy_original->lock);
-            how_many++;
         }
         gpu_device->super.data_out_to_host += pending_bytes;
     }
