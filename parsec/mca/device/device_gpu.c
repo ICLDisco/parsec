@@ -2031,13 +2031,15 @@ parsec_device_data_stage_in( parsec_device_gpu_module_t* gpu_device,
     transfer_from = parsec_data_start_transfer_ownership_to_copy(original, gpu_device->super.device_index, (uint8_t)type);
 
     /* If data is from NEW (it doesn't have a source_repo_entry and is not a direct data collection reference),
-     * and nobody has touched it yet, then we don't need to pull it in, we have created it already, that's enough. */
-    /*
-     * TODO: this test is not correct for anything but PTG
-     */
+     * and nobody has touched it yet, then we don't need to pull it in, we have created it already, that's enough.
+     * Having no data collection and a version of 0 does not on its own mean the
+     * source is empty: data received from a remote peer also satisfies both, and
+     * its content lives only in the host copy until it is staged in. Skip the
+     * transfer only when the source holds no value at all. */
     if( (NULL == task_data->source_repo_entry) &&
         (NULL == task_data->data_in->original->dc) &&
-        (0 == task_data->data_in->version) )
+        (0 == task_data->data_in->version) &&
+        (PARSEC_DATA_COHERENCY_INVALID == task_data->data_in->coherency_state) )
         transfer_from = -1;
 
     /* Update the transferred required_data_in size */
