@@ -152,7 +152,11 @@ static int parsec_cuda_all_devices_attached(parsec_device_module_t *device)
     source_gpu = (parsec_device_cuda_module_t*)device;
     int i = device->device_index;
     int canAccessPeer;
-    source_gpu->super.peer_access_mask = 0;
+    /* A device always reaches its own memory, whatever it can do with its
+     * peers. This bit has to be set before the mask can be abandoned below,
+     * as the rest of the runtime reads it to tell a copy that is already
+     * here from one that would have to be moved. */
+    source_gpu->super.peer_access_mask = (int16_t)(1 << i);
 
     if( ! ( (1<<i) & parsec_cuda_nvlink_mask ) )
         return PARSEC_SUCCESS; /* The user disabled NVLINK for that GPU */
@@ -162,12 +166,7 @@ static int parsec_cuda_all_devices_attached(parsec_device_module_t *device)
                             {return PARSEC_ERR_DEVICE;} );
 
     for( int j = 0; NULL != (target_gpu = (parsec_device_cuda_module_t*)parsec_device_cuda_component.modules[j]); j++ ) {
-        if( target_gpu == source_gpu ) {
-            /* always set bit for self-access */
-            source_gpu->super.peer_access_mask = (int16_t)(source_gpu->super.peer_access_mask |
-                (int16_t)(1 << target_gpu->super.super.device_index));
-            continue;
-        }
+        if( target_gpu == source_gpu ) continue;  /* self-access is already set */
         /* Communication mask */
         cudastatus = cudaDeviceCanAccessPeer( &canAccessPeer, source_gpu->cuda_index, target_gpu->cuda_index );
         PARSEC_CUDA_CHECK_ERROR( "(parsec_device_cuda_component_query) cudaDeviceCanAccessPeer", cudastatus,
