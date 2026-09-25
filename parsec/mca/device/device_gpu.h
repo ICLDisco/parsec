@@ -611,11 +611,14 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
 
 /**
  * @brief Generic fallback for parsec_device_memcpy_multi_async_fn_t: issues @p nb_items
- *    individual gpu->memcpy_async() calls. Does not stop at the first failure -- every
- *    item is attempted regardless, and the first error encountered (if any) is returned.
+ *    individual gpu->memcpy_async() calls. Stops at the first failure instead of
+ *    submitting the remaining items: items already issued before the failure are
+ *    genuinely queued on the stream (the caller must still account for them, e.g.
+ *    by recording an event), so continuing past a failure would only grow that set
+ *    without changing the overall (still-failing) outcome.
  *    Used by backends that do not (yet) provide a native batched copy primitive.
  *
- * @return PARSEC_SUCCESS or the first PARSEC error encountered
+ * @return PARSEC_SUCCESS or the PARSEC error encountered
  */
 int
 parsec_device_generic_memcpy_multi_async(parsec_device_gpu_module_t *gpu, parsec_gpu_exec_stream_t *gpu_stream,
