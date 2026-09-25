@@ -1788,6 +1788,91 @@ parsec_gpu_data_copy_release_reader(parsec_device_gpu_module_t *gpu_device,
     return readers;
 }
 
+#if defined(PARSEC_DEBUG_NOISIER)
+/**
+ * State of all the copies of a data, captured before the runtime starts
+ * mutating coherency states for a staging decision.
+ */
+typedef struct parsec_device_gpu_copy_snapshot_s {
+    char     table[1024];  /**< one entry per existing copy */
+    uint32_t newest_version;
+    int      newest_device;  /**< -1 when no copy is readable */
+    int      owner_device;
+} parsec_device_gpu_copy_snapshot_t;
+
+/** Caller must hold original->lock, or accept a best-effort read. */
+static void
+parsec_device_gpu_snapshot_copies(parsec_data_t *original,
+                                  parsec_device_gpu_copy_snapshot_t *snapshot)
+{
+    int offset = 0;
+
+    snapshot->newest_version = 0;
+    snapshot->newest_device = -1;
+    snapshot->owner_device = original->owner_device;
+
+    for( uint32_t i = 0; i < parsec_nb_devices; i++ ) {
+        parsec_data_copy_t *copy = original->device_copies[i];
+        if( NULL == copy ) continue;
+        if( (PARSEC_DATA_COHERENCY_INVALID != copy->coherency_state) &&
+            (PARSEC_DATA_STATUS_UNDER_TRANSFER != copy->data_transfer_status) &&
+            ((-1 == snapshot->newest_device) || (copy->version > snapshot->newest_version)) ) {
+            snapshot->newest_version = copy->version;
+            snapshot->newest_device = (int)i;
+        }
+        if( offset < (int)sizeof(snapshot->table) ) {
+            offset += snprintf(snapshot->table + offset, sizeof(snapshot->table) - offset,
+                               " %u:(v%u coh%d xfer%d rd%d)",
+                               i, copy->version, copy->coherency_state,
+                               copy->data_transfer_status, copy->readers);
+        }
+    }
+}
+
+/**
+ * Report which copy ends up feeding an input flow, and in which state every
+ * copy of the data was when the decision was taken. The source is reported as
+ * stale when another copy that was neither invalid nor under transfer carried
+ * a more recent version, which is the situation where the task is about to
+ * read data that has already been superseded on another device.
+ */
+static void
+parsec_device_gpu_audit_source(parsec_device_gpu_module_t *gpu_device,
+                               const parsec_flow_t *flow,
+                               parsec_gpu_task_t *gpu_task,
+                               parsec_data_t *original,
+                               const parsec_device_gpu_copy_snapshot_t *snapshot,
+                               parsec_data_copy_t *data_in,
+                               parsec_data_copy_t *effective_source,
+                               const char *decision)
+{
+    char task_name[MAX_TASK_STRLEN];
+    int stale = (-1 != snapshot->newest_device) &&
+                (effective_source->version < snapshot->newest_version);
+
+    if( !stale && (parsec_device_audit_stage_in > 1) ) return;
+
+    if( NULL != gpu_task->ec ) {
+        parsec_task_snprintf(task_name, MAX_TASK_STRLEN, gpu_task->ec);
+    } else {
+        snprintf(task_name, MAX_TASK_STRLEN, "<gpu task type %d>", gpu_task->task_type);
+    }
+
+    parsec_inform("STAGEIN%s GPU[%d:%s] %s flow %s access %s key %x: %s from dev %d v%u,"
+                  " data_in dev %d v%u, newest dev %d v%u, owner %d, copies:%s",
+                  stale ? "-STALE" : "",
+                  gpu_device->super.device_index, gpu_device->super.name,
+                  task_name, flow->name,
+                  (PARSEC_FLOW_ACCESS_WRITE & flow->flow_flags)
+                      ? ((PARSEC_FLOW_ACCESS_READ & flow->flow_flags) ? "RW" : "W") : "R",
+                  original->key, decision,
+                  effective_source->device_index, effective_source->version,
+                  data_in->device_index, data_in->version,
+                  snapshot->newest_device, snapshot->newest_version,
+                  snapshot->owner_device, snapshot->table);
+}
+#endif  /* defined(PARSEC_DEBUG_NOISIER) */
+
 /**
  * If the most current version of the data is not yet available on the GPU memory
  * schedule a transfer.
@@ -1840,6 +1925,16 @@ parsec_device_data_stage_in( parsec_device_gpu_module_t* gpu_device,
             if( PARSEC_FLOW_ACCESS_READ & type ) {
                 parsec_atomic_fetch_add_int32(&candidate->readers, 1);
             }
+#if defined(PARSEC_DEBUG_NOISIER)
+            if( parsec_device_audit_stage_in ) {
+                parsec_device_gpu_copy_snapshot_t snapshot;
+                parsec_atomic_lock( &original->lock );
+                parsec_device_gpu_snapshot_copies(original, &snapshot);
+                parsec_atomic_unlock( &original->lock );
+                parsec_device_gpu_audit_source(gpu_device, flow, gpu_task, original, &snapshot,
+                                               task_data->data_in, candidate, "INPLACE");
+            }
+#endif  /* defined(PARSEC_DEBUG_NOISIER) */
             return wait_on_input_stream ? 1 : PARSEC_HOOK_RETURN_DONE;
         }
         parsec_warning("GPU[%d:%s]:\t device_data_stage_in without a proper data_out on the device "
@@ -2028,6 +2123,14 @@ parsec_device_data_stage_in( parsec_device_gpu_module_t* gpu_device,
         source_acquired = 1;
     }
 
+#if defined(PARSEC_DEBUG_NOISIER)
+    parsec_device_gpu_copy_snapshot_t snapshot;
+    int new_data_shortcut = 0;
+    if( parsec_device_audit_stage_in ) {
+        parsec_device_gpu_snapshot_copies(original, &snapshot);
+    }
+#endif  /* defined(PARSEC_DEBUG_NOISIER) */
+
     transfer_from = parsec_data_start_transfer_ownership_to_copy(original, gpu_device->super.device_index, (uint8_t)type);
 
     /* If data is from NEW (it doesn't have a source_repo_entry and is not a direct data collection reference),
@@ -2039,8 +2142,12 @@ parsec_device_data_stage_in( parsec_device_gpu_module_t* gpu_device,
     if( (NULL == task_data->source_repo_entry) &&
         (NULL == task_data->data_in->original->dc) &&
         (0 == task_data->data_in->version) &&
-        (PARSEC_DATA_COHERENCY_INVALID == task_data->data_in->coherency_state) )
+        (PARSEC_DATA_COHERENCY_INVALID == task_data->data_in->coherency_state) ) {
         transfer_from = -1;
+#if defined(PARSEC_DEBUG_NOISIER)
+        new_data_shortcut = 1;
+#endif  /* defined(PARSEC_DEBUG_NOISIER) */
+    }
 
     /* Update the transferred required_data_in size */
     gpu_device->super.required_data_in += original->span;
@@ -2065,6 +2172,15 @@ parsec_device_data_stage_in( parsec_device_gpu_module_t* gpu_device,
                              "GPU[%d:%s]:\t\tNO Move for data copy %p v%d [ref_count %d, key %x]",
                              gpu_device->super.device_index, gpu_device->super.name,
                              gpu_elem, gpu_elem->version, gpu_elem->super.super.obj_reference_count, original->key);
+#if defined(PARSEC_DEBUG_NOISIER)
+        if( parsec_device_audit_stage_in ) {
+            /* Nothing moves, so what the task reads is the copy already sitting
+             * on this device, not the source that was selected above. */
+            parsec_device_gpu_audit_source(gpu_device, flow, gpu_task, original, &snapshot,
+                                           task_data->data_in, gpu_elem,
+                                           new_data_shortcut ? "NOMOVE-NEW" : "NOMOVE");
+        }
+#endif  /* defined(PARSEC_DEBUG_NOISIER) */
         parsec_atomic_unlock( &original->lock );
         /* TODO: data keeps the same coherence flags as before */
         return PARSEC_HOOK_RETURN_DONE;
@@ -2157,6 +2273,13 @@ parsec_device_data_stage_in( parsec_device_gpu_module_t* gpu_device,
     else
         gpu_elem->version = candidate->version;
     gpu_elem->data_transfer_status = PARSEC_DATA_STATUS_UNDER_TRANSFER;
+#if defined(PARSEC_DEBUG_NOISIER)
+    if( parsec_device_audit_stage_in ) {
+        parsec_device_gpu_audit_source(gpu_device, flow, gpu_task, original, &snapshot,
+                                       task_data->data_in, candidate,
+                                       PARSEC_DEV_IS_GPU(candidate_dev->super.type) ? "D2D" : "H2D");
+    }
+#endif  /* defined(PARSEC_DEBUG_NOISIER) */
     PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
                          "GPU[%d:%s]: GPU copy %p [ref_count %d] gets the version %d from copy %p version %d [ref_count %d]",
                          gpu_device->super.device_index, gpu_device->super.name,

@@ -202,6 +202,13 @@ extern int parsec_device_skip_empty_events;
 /** Debug: make the Nth accelerator kernel submission decline the device. */
 extern int parsec_device_inject_disable;
 #endif  /* defined(PARSEC_DEBUG) || defined(PARSEC_DEBUG_NOISIER) */
+#if defined(PARSEC_DEBUG_NOISIER)
+/** Debug: when non-zero, every accelerator input staging decision is reported,
+ *  together with the state of all the copies of the data. A value of 2 or more
+ *  restricts the report to the decisions that pick a source that is not the
+ *  most recent copy. */
+extern int parsec_device_audit_stage_in;
+#endif  /* defined(PARSEC_DEBUG_NOISIER) */
 
 /**
  * @brief Find the best device to execute the kernel based on the compute

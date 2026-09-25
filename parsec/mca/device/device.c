@@ -69,6 +69,9 @@ int parsec_device_skip_empty_events = 1;
 #if defined(PARSEC_DEBUG) || defined(PARSEC_DEBUG_NOISIER)
 int parsec_device_inject_disable = 0;
 #endif  /* defined(PARSEC_DEBUG) || defined(PARSEC_DEBUG_NOISIER) */
+#if defined(PARSEC_DEBUG_NOISIER)
+int parsec_device_audit_stage_in = 0;
+#endif  /* defined(PARSEC_DEBUG_NOISIER) */
 
 /**
  * @brief Estimates how many nanoseconds this_task will run on devid
@@ -367,6 +370,14 @@ int parsec_mca_device_init(void)
                                         false, false, parsec_device_inject_disable,
                                         &parsec_device_inject_disable);
 #endif  /* defined(PARSEC_DEBUG) || defined(PARSEC_DEBUG_NOISIER) */
+#if defined(PARSEC_DEBUG_NOISIER)
+    (void)parsec_mca_param_reg_int_name("device", "audit_stage_in",
+                                        "Debug: report the source copy selected for every accelerator "
+                                        "input staging decision (1), or only the decisions that read a "
+                                        "copy older than the most recent one (2)",
+                                        false, false, parsec_device_audit_stage_in,
+                                        &parsec_device_audit_stage_in);
+#endif  /* defined(PARSEC_DEBUG_NOISIER) */
     (void)parsec_mca_param_reg_int_name("device", "enable_batching",
                                         "Boolean to allow batched task execution on all devices",
                                         false, !parsec_device_enable_batching,
