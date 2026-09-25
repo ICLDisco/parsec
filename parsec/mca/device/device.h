@@ -192,6 +192,15 @@ extern int parsec_device_output;
  * necessary (enabled by default).
  */
 extern int parsec_device_skip_empty_events;
+/**
+ * Whether some accelerator of this process is unable to read the memory of
+ * another one. When that is the case, a copy that lives on a single
+ * accelerator is not reachable from everywhere, and the host copy is the only
+ * medium that all the devices have in common. Set once the devices are
+ * attached, and read afterwards to decide whether a value has to be mirrored
+ * on the host to remain universally available.
+ */
+extern int parsec_device_peer_mesh_incomplete;
 #if defined(PARSEC_DEBUG) || defined(PARSEC_DEBUG_NOISIER)
 /** Debug: make the Nth accelerator kernel submission decline the device. */
 extern int parsec_device_inject_disable;

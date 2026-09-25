@@ -207,24 +207,49 @@ static void parsec_device_dsl_task_t_constructor(parsec_gpu_dsl_task_t *gpu_dsl_
 PARSEC_OBJ_CLASS_INSTANCE(parsec_gpu_dsl_task_t, parsec_gpu_task_t,
                           parsec_device_dsl_task_t_constructor, NULL);
 
-#if defined(DISTRIBUTED)
 typedef struct parsec_gpu_pushout_plan_s {
     parsec_gpu_task_t *gpu_task;
     uint32_t remaining_flows;
+    int      send_from_gpu_denied;  /**< the engine cannot send from accelerator memory */
+    int      peers_incomplete;      /**< some accelerator cannot read another one */
 } parsec_gpu_pushout_plan_t;
 
+void parsec_device_gpu_discover_peer_mesh(void)
+{
+    int incomplete = 0;
+
+    /* Peer access is not required to be symmetric, and it is the consumer that
+     * decides whether it can read another device, so every device is asked
+     * about all the others. */
+    for( uint32_t consumer = 0; (consumer < parsec_nb_devices) && !incomplete; consumer++ ) {
+        parsec_device_module_t *reader = parsec_mca_device_get(consumer);
+        if( (NULL == reader) || !PARSEC_DEV_IS_GPU(reader->type) ) continue;
+        for( uint32_t producer = 0; producer < parsec_nb_devices; producer++ ) {
+            parsec_device_module_t *holder = parsec_mca_device_get(producer);
+            if( (NULL == holder) || (consumer == producer) ) continue;
+            if( !PARSEC_DEV_IS_GPU(holder->type) ) continue;
+            if( !(((parsec_device_gpu_module_t*)reader)->peer_access_mask & (1 << producer)) ) {
+                incomplete = 1;
+                break;
+            }
+        }
+    }
+    parsec_device_peer_mesh_incomplete = incomplete;
+}
+
 static parsec_ontask_iterate_t
-parsec_gpu_pushout_remote_successor(parsec_execution_stream_t *es,
-                                    const parsec_task_t *newcontext,
-                                    const parsec_task_t *oldcontext,
-                                    const parsec_dep_t *dep,
-                                    parsec_dep_data_description_t *data,
-                                    int rank_src, int rank_dst, int vpid_dst,
-                                    data_repo_t *successor_repo, parsec_key_t successor_repo_key,
-                                    void *param)
+parsec_gpu_pushout_successor(parsec_execution_stream_t *es,
+                             const parsec_task_t *newcontext,
+                             const parsec_task_t *oldcontext,
+                             const parsec_dep_t *dep,
+                             parsec_dep_data_description_t *data,
+                             int rank_src, int rank_dst, int vpid_dst,
+                             data_repo_t *successor_repo, parsec_key_t successor_repo_key,
+                             void *param)
 {
     parsec_gpu_pushout_plan_t *plan = (parsec_gpu_pushout_plan_t*)param;
     uint32_t flow_bit;
+    int needs_host_copy;
 
     (void)es; (void)newcontext; (void)oldcontext; (void)data; (void)vpid_dst;
     (void)successor_repo; (void)successor_repo_key;
@@ -237,31 +262,48 @@ parsec_gpu_pushout_remote_successor(parsec_execution_stream_t *es,
         return (0 == plan->remaining_flows) ? PARSEC_ITERATE_STOP : PARSEC_ITERATE_CONTINUE;
     }
     if( rank_src != rank_dst ) {
-        /* The communication engine is not allowed to send from GPU memory. A
-         * remote successor must therefore observe the CPU copy after stage_out.
+        /* The communication engine is not allowed to send from accelerator
+         * memory, so a remote successor must observe the CPU copy.
          */
+        needs_host_copy = plan->send_from_gpu_denied;
+    } else {
+        /* Where a local successor will be scheduled is not known here, so any
+         * accelerator is a possible destination. When one of them cannot read
+         * the memory this flow is being written to, the host copy is the only
+         * medium that reaches it.
+         */
+        needs_host_copy = plan->peers_incomplete;
+    }
+    if( needs_host_copy ) {
         plan->gpu_task->pushout |= flow_bit;
         plan->remaining_flows &= ~flow_bit;
     }
     return (0 == plan->remaining_flows) ? PARSEC_ITERATE_STOP : PARSEC_ITERATE_CONTINUE;
 }
-#endif  /* defined(DISTRIBUTED) */
 
 static void
 parsec_gpu_task_update_pushout(parsec_execution_stream_t *es,
                                parsec_gpu_task_t *gpu_task)
 {
-#if defined(DISTRIBUTED)
     const parsec_task_t *this_task = gpu_task->ec;
     const parsec_task_class_t *tc = this_task->task_class;
     parsec_gpu_pushout_plan_t plan;
     uint32_t action_mask = 0;
     int i, j;
 
-    /* This extra successor walk is only needed in degraded GPU-aware modes:
-     * mpi_gpu_aware=0 or 1 both disable direct sends from GPU memory.
+#if defined(DISTRIBUTED)
+    plan.send_from_gpu_denied = !(parsec_mpi_allow_gpu_memory_communications & PARSEC_RUNTIME_SEND_GPU_MEMORY);
+#else
+    plan.send_from_gpu_denied = 0;  /* there are no remote successors to begin with */
+#endif  /* defined(DISTRIBUTED) */
+    plan.peers_incomplete = parsec_device_peer_mesh_incomplete;
+
+    /* The walk only has something to discover when a successor could be unable
+     * to read this flow where it is being written: a remote one in the degraded
+     * GPU-aware modes, mpi_gpu_aware=0 or 1, or a local one on a machine whose
+     * accelerators are not all able to read each other.
      */
-    if( (parsec_mpi_allow_gpu_memory_communications & PARSEC_RUNTIME_SEND_GPU_MEMORY) ||
+    if( (!plan.send_from_gpu_denied && !plan.peers_incomplete) ||
         (NULL == tc->iterate_successors) ) {
         return;
     }
@@ -269,8 +311,8 @@ parsec_gpu_task_update_pushout(parsec_execution_stream_t *es,
     plan.gpu_task = gpu_task;
     plan.remaining_flows = 0;
     /* Keep pushout bits already set by upper layers, notably final writes back
-     * to data collections. This pass only discovers remote task successors that
-     * cannot consume a GPU pointer when GPU sends are disabled.
+     * to data collections. This pass only discovers task successors that cannot
+     * consume an accelerator pointer.
      */
     for( i = 0; i < tc->nb_flows; i++ ) {
         const parsec_flow_t *flow = gpu_task->flow_info[i].flow;
@@ -297,10 +339,7 @@ parsec_gpu_task_update_pushout(parsec_execution_stream_t *es,
         return;
     }
     tc->iterate_successors(es, this_task, action_mask,
-                           parsec_gpu_pushout_remote_successor, &plan);
-#else
-    (void)es; (void)gpu_task;
-#endif
+                           parsec_gpu_pushout_successor, &plan);
 }
 
 static inline int

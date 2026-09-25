@@ -66,6 +66,7 @@ static int parsec_device_load_balance_allow_cpu = 0;
  * necessary (enabled by default).
  */
 int parsec_device_skip_empty_events = 1;
+int parsec_device_peer_mesh_incomplete = 0;
 #if defined(PARSEC_DEBUG) || defined(PARSEC_DEBUG_NOISIER)
 int parsec_device_inject_disable = 0;
 #endif  /* defined(PARSEC_DEBUG) || defined(PARSEC_DEBUG_NOISIER) */

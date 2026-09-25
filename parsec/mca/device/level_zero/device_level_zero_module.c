@@ -196,6 +196,17 @@ static int parsec_level_zero_memory_allocate(struct parsec_device_gpu_module_s *
     return PARSEC_SUCCESS;
 }
 
+static int parsec_level_zero_all_devices_attached(parsec_device_module_t *device)
+{
+    parsec_device_gpu_module_t *gpu_device = (parsec_device_gpu_module_t*)device;
+
+    /* Direct transfers between devices are not implemented for this backend,
+     * so a device only ever reaches its own memory. */
+    gpu_device->peer_access_mask = (int16_t)(1 << device->device_index);
+    parsec_device_gpu_discover_peer_mesh();
+    return PARSEC_SUCCESS;
+}
+
 static int parsec_level_zero_memory_free(struct parsec_device_gpu_module_s *gpu, void *addr)
 {
     ze_result_t status;
@@ -393,6 +404,7 @@ int parsec_level_zero_module_init( int dev_id, parsec_device_level_zero_driver_t
 
     device->attach              = parsec_device_attach;
     device->detach              = parsec_device_detach;
+    device->all_devices_attached = parsec_level_zero_all_devices_attached;
     device->taskpool_register   = parsec_device_taskpool_register;
     device->taskpool_unregister = parsec_device_taskpool_unregister;
     device->data_advise         = parsec_device_data_advise;

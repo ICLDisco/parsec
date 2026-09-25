@@ -528,6 +528,14 @@ int parsec_device_flush_lru( parsec_device_module_t *device );
 int parsec_device_memory_release( parsec_device_gpu_module_t* gpu_device );
 
 /**
+ * Derive parsec_device_peer_mesh_incomplete from the peer access masks of all
+ * the accelerators. To be called by each backend once it has established the
+ * mask of a device, so that the last device to be attached leaves behind the
+ * answer for the complete set.
+ */
+void parsec_device_gpu_discover_peer_mesh(void);
+
+/**
  * This version is based on 4 streams: one for transfers from the memory to
  * the GPU, 2 for kernel executions and one for transfers from the GPU into
  * the main memory. The synchronization on each stream is based on GPU events,

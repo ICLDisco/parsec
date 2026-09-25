@@ -158,8 +158,11 @@ static int parsec_cuda_all_devices_attached(parsec_device_module_t *device)
      * here from one that would have to be moved. */
     source_gpu->super.peer_access_mask = (int16_t)(1 << i);
 
-    if( ! ( (1<<i) & parsec_cuda_nvlink_mask ) )
-        return PARSEC_SUCCESS; /* The user disabled NVLINK for that GPU */
+    if( ! ( (1<<i) & parsec_cuda_nvlink_mask ) ) {
+        /* The user disabled NVLINK for that GPU */
+        parsec_device_gpu_discover_peer_mesh();
+        return PARSEC_SUCCESS;
+    }
 
     cudastatus = cudaSetDevice( source_gpu->cuda_index );
     PARSEC_CUDA_CHECK_ERROR( "(parsec_device_cuda_component_query) cudaSetDevice", cudastatus,
@@ -179,6 +182,7 @@ static int parsec_cuda_all_devices_attached(parsec_device_module_t *device)
                 (int16_t)(1 << target_gpu->super.super.device_index));
         }
     }
+    parsec_device_gpu_discover_peer_mesh();
     return PARSEC_SUCCESS;
 }
 
