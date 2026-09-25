@@ -2063,37 +2063,45 @@ parsec_device_data_stage_in( parsec_device_gpu_module_t* gpu_device,
                                  "GPU[%d:%s]:\tCandidate %p [ref_count %d] on PaRSEC device %s is being repurposed by owner device. Looking for another candidate",
                                  gpu_device->super.device_index, gpu_device->super.name, candidate, candidate->super.super.obj_reference_count, target->super.name);
         }
-        if( potential_alt_src ) {
-            parsec_data_copy_t *cpu_copy = original->device_copies[0];
-
-            /* We found a potential GPU source, but it is not ready now. The
-             * CPU fallback is safe only if the host copy is a ready copy of the
-             * version this task expects; otherwise, retry the task later. */
-            if( (NULL == cpu_copy) ||
-                (cpu_copy->version != task_data->data_in->version) ||
-                (PARSEC_DATA_COHERENCY_INVALID == cpu_copy->coherency_state) ||
-                (PARSEC_DATA_STATUS_UNDER_TRANSFER == cpu_copy->data_transfer_status) ||
-                (NULL == cpu_copy->device_private) ) {
+        /* We fall back on the CPU copy, which is only a source at all if it
+         * holds the version this task expects and is not itself in flight. */
+        parsec_data_copy_t *cpu_copy = original->device_copies[0];
+        if( (NULL == cpu_copy) ||
+            (NULL == cpu_copy->device_private) ||
+            (cpu_copy->version != task_data->data_in->version) ||
+            (PARSEC_DATA_COHERENCY_INVALID == cpu_copy->coherency_state) ||
+            (PARSEC_DATA_STATUS_UNDER_TRANSFER == cpu_copy->data_transfer_status) ) {
+            if( potential_alt_src ) {
+                /* An accelerator does hold this version and is only momentarily
+                 * unable to serve it, so waiting is enough. No ownership or
+                 * coherency state has been changed yet, so deferring is safe. */
                 PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
                                      "GPU[%d:%s]:\tThere is a potential alternative source for data_in %p [ref_count %d] in original %p to go in copy %p [ref_count %d], but neither the GPU nor the CPU copy is ready; retry later",
                                      gpu_device->super.device_index, gpu_device->super.name, task_data->data_in, task_data->data_in->super.super.obj_reference_count, original, gpu_elem, gpu_elem->super.super.obj_reference_count);
-                /* No ownership/coherency state has been changed yet, so it is
-                 * safe to defer this task until a valid source copy is ready. */
                 parsec_atomic_unlock( &original->lock );
                 return PARSEC_HOOK_RETURN_AGAIN;
             }
-
-            /* We found a potential alternative source, but it's not ready now.
-             * Use the CPU copy because it has the expected version. */
-            /** TODO: when considering RW accesses, don't forget to chop gpu_elem
-             *        from its queue... */
-            PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
-                                 "GPU[%d:%s]:\tThere is a potential alternative source for data_in %p [ref_count %d] in original %p to go in copy %p [ref_count %d], but it is not ready, falling back on CPU source",
-                                 gpu_device->super.device_index, gpu_device->super.name, task_data->data_in, task_data->data_in->super.super.obj_reference_count, original, gpu_elem, gpu_elem->super.super.obj_reference_count);
+            /* Nothing holds this version where it can be reached: no peer was
+             * even a candidate, and the host copy is not it either. Waiting
+             * would wait forever and reading it would compute on the wrong
+             * bytes, so say so instead of doing either silently. */
+            char task_name[MAX_TASK_STRLEN];
+            parsec_fatal("GPU[%d:%s]: no source for v%d of data %p [key %x] on flow %s of %s:"
+                         " the host copy is v%d, coherency %d, transfer status %d, %s"
+                         " -- the value is only on an accelerator this device cannot read",
+                         gpu_device->super.device_index, gpu_device->super.name,
+                         task_data->data_in->version, original, original->key,
+                         flow->name, parsec_task_snprintf(task_name, MAX_TASK_STRLEN, gpu_task->ec),
+                         (NULL == cpu_copy) ? -1 : (int)cpu_copy->version,
+                         (NULL == cpu_copy) ? -1 : (int)cpu_copy->coherency_state,
+                         (NULL == cpu_copy) ? -1 : (int)cpu_copy->data_transfer_status,
+                         (NULL == cpu_copy) ? "absent" :
+                             ((NULL == cpu_copy->device_private) ? "unallocated" : "allocated"));
         }
 
-        /* We fall back on the CPU copy */
-        candidate = original->device_copies[0];
+        /** TODO: when considering RW accesses, don't forget to chop gpu_elem
+         *        from its queue... */
+        candidate = cpu_copy;
         candidate_dev = (parsec_device_gpu_module_t*)parsec_mca_device_get( candidate->device_index );
     }
 
