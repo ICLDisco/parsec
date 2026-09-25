@@ -15,6 +15,7 @@
 #include "parsec/utils/debug.h"
 #include "parsec/debug_marks.h"
 #include "parsec/data.h"
+#include "parsec/mca/device/device.h"
 #include "parsec/papi_sde.h"
 #include "parsec/interfaces/dtd/insert_function_internal.h"
 #include "parsec/remote_dep.h"
@@ -2294,7 +2295,15 @@ static void remote_dep_mpi_get_start(parsec_execution_stream_t* es,
         /* prepare the local receiving data */
         assert(NULL == deps->output[k].data.data); /* we do not support in-place tiles now, make sure it doesn't happen yet */
         if(NULL == deps->output[k].data.data) {
-            int best_device = (parsec_mpi_allow_gpu_memory_communications & PARSEC_RUNTIME_RECV_GPU_MEMORY) ? deps->output[k].data.preferred_device : 0;
+            /* Receiving straight into accelerator memory picks a device before
+             * the placement of the successors that will read the data is
+             * known. Should one of them land on an accelerator that cannot
+             * read the one chosen here, it would have no reachable source at
+             * all, as nothing mirrors an incoming value back to the host. Take
+             * the host detour whenever the devices do not all reach each other.
+             */
+            int best_device = ((parsec_mpi_allow_gpu_memory_communications & PARSEC_RUNTIME_RECV_GPU_MEMORY) &&
+                               !parsec_device_peer_mesh_incomplete) ? deps->output[k].data.preferred_device : 0;
             deps->output[k].data.data = remote_dep_copy_allocate(&deps->output[k].data.remote, best_device);
         }
         /* Mark the data under transfer */
