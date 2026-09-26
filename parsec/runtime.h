@@ -610,6 +610,44 @@ parsec_taskpool_t* parsec_compose(parsec_taskpool_t* start, parsec_taskpool_t* n
 void parsec_taskpool_free(parsec_taskpool_t *tp);
 
 /**
+ * @brief Take away from a taskpool the right to run some of its tasks on some
+ *        of the device types.
+ *
+ * @details
+ * Where a body is declared for several device types, which one a task ends up
+ * on is left to the runtime. This narrows that choice for the task classes
+ * named in the specification, and the outcome is the same as a taskpool whose
+ * tasks had never declared a body for those devices: the incarnations are gone
+ * before anything looks at them, rather than being offered and turned down one
+ * task at a time.
+ *
+ * The specification is a list of entries separated by semicolons. Each entry
+ * names a task class, then a colon, then the device types to take away from
+ * it, separated by commas:
+ *
+ * @code
+ *     parsec_taskpool_trim_chores(tp, "potrf:cuda;trsm:cuda,hip");
+ * @endcode
+ *
+ * A task class of "*" stands for all of them, and a device type of "gpu"
+ * stands for every accelerator type, so "*:gpu" leaves a taskpool running
+ * entirely on the CPU. Both are matched without regard to case. A task class
+ * the taskpool does not have is reported but is not an error, so one
+ * specification can be handed to several taskpools.
+ *
+ * Call this on a taskpool that has not been given to a context yet. A task
+ * class cannot be stripped of all of its incarnations, as that would leave
+ * tasks that can never run.
+ *
+ * @param[inout] tp the taskpool to amputate
+ * @param[in] spec what to take away from which task class
+ * @return the number of incarnations removed, PARSEC_ERR_BAD_PARAM if the
+ *         specification does not parse or would leave a task class with no
+ *         incarnation at all
+ */
+int parsec_taskpool_trim_chores(parsec_taskpool_t *tp, const char *spec);
+
+/**
  * @private
  * @brief The final step of a taskpool activation.
  *

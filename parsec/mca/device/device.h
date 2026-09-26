@@ -77,6 +77,23 @@ typedef struct parsec_device_base_component_2_0_0 parsec_device_base_component_t
 #define PARSEC_DEV_GPU_MASK   (PARSEC_DEV_CUDA|PARSEC_DEV_HIP|PARSEC_DEV_LEVEL_ZERO)
 #define PARSEC_DEV_IS_GPU(t)  (0 != ((t) & PARSEC_DEV_GPU_MASK))
 
+/**
+ * Translate a device type spelled out in a configuration string into the set
+ * of types it stands for. Besides one name per type, "gpu" covers all the
+ * accelerator types at once and "all" every type there is. The comparison
+ * ignores case.
+ *
+ * @param[in] name
+ *          The name to translate, which does not have to be nul terminated.
+ *
+ * @param[in] length
+ *          How many characters of name to consider.
+ *
+ * @return The types the name stands for, or PARSEC_DEV_NONE if it stands for
+ *         nothing known.
+ */
+uint8_t parsec_device_type_from_name(const char *name, size_t length);
+
 #define PARSEC_DEV_DATA_ADVICE_PREFETCH              ((int) 0x01)
 #define PARSEC_DEV_DATA_ADVICE_PREFERRED_DEVICE      ((int) 0x02)
 #define PARSEC_DEV_DATA_ADVICE_WARMUP                ((int) 0x03)

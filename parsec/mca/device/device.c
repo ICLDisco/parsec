@@ -74,6 +74,32 @@ int parsec_device_inject_disable = 0;
 int parsec_device_audit_stage_in = 0;
 #endif  /* defined(PARSEC_DEBUG_NOISIER) */
 
+uint8_t parsec_device_type_from_name(const char *name, size_t length)
+{
+    static const struct {
+        const char *name;
+        uint8_t     types;
+    } known[] = {
+        { "cpu",        PARSEC_DEV_CPU        },
+        { "recursive",  PARSEC_DEV_RECURSIVE  },
+        { "cuda",       PARSEC_DEV_CUDA       },
+        { "hip",        PARSEC_DEV_HIP        },
+        { "level_zero", PARSEC_DEV_LEVEL_ZERO },
+        { "ze",         PARSEC_DEV_LEVEL_ZERO },
+        { "gpu",        PARSEC_DEV_GPU_MASK   },
+        { "all",        PARSEC_DEV_ANY_TYPE   },
+        { NULL,         PARSEC_DEV_NONE       }
+    };
+
+    for( int i = 0; NULL != known[i].name; i++ ) {
+        if( (strlen(known[i].name) == length) &&
+            (0 == strncasecmp(known[i].name, name, length)) ) {
+            return known[i].types;
+        }
+    }
+    return PARSEC_DEV_NONE;
+}
+
 /**
  * @brief Estimates how many nanoseconds this_task will run on devid
  *

@@ -23,6 +23,7 @@ if(TARGET parsec-ptgpp)
   add_subdirectory(taskpool_wait)
 endif(TARGET parsec-ptgpp)
 
+parsec_addtest_executable(C trim_chores SOURCES trim_chores.c)
 parsec_addtest_executable(C init_fini SOURCES init_fini.c)
 parsec_addtest_executable(C operator SOURCES operator.c)
 parsec_addtest_executable(C compose SOURCES compose.c)
