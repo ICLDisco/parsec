@@ -3125,15 +3125,13 @@ parsec_device_kernel_push( parsec_device_gpu_module_t      *gpu_device,
         }
         if( NULL != gpu_task->ec->data[0].data_in->original->device_copies[gpu_device->super.device_index] &&
             gpu_task->ec->data[0].data_in->original->owner_device == gpu_device->super.device_index ) {
-            parsec_data_copy_t *gpu_copy =
-                gpu_task->ec->data[0].data_in->original->device_copies[gpu_device->super.device_index];
             /* There is already a copy of this data in the GPU */
             PARSEC_DEBUG_VERBOSE(3, parsec_gpu_output_stream,
                                  "GPU[%d:%s]: %s data_copy at index %d is %p, destroying prefetch request",
                                  gpu_device->super.device_index, gpu_device->super.name,
                                  parsec_device_describe_gpu_task(tmp, MAX_TASK_STRLEN, gpu_task),
                                  gpu_device->super.device_index,
-                                 gpu_copy);
+                                 gpu_task->ec->data[0].data_in->original->device_copies[gpu_device->super.device_index]);
             parsec_device_release_resources_prefetch_task(gpu_device, &gpu_task);
             return PARSEC_HOOK_RETURN_ASYNC;
         }
