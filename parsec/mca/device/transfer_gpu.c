@@ -233,7 +233,9 @@ parsec_gpu_create_w2r_task(parsec_device_gpu_module_t *gpu_device,
 
     /* Find a data copy that has no pending users on the GPU, and can be
      * safely moved back on the main memory */
-    while(nb_cleaned < parsec_gpu_d2h_max_flows) {
+    /* One local per flow holds the version being written back, on top of the
+     * one that counts the flows. */
+    while( (nb_cleaned < parsec_gpu_d2h_max_flows) && (nb_cleaned < MAX_LOCAL_COUNT - 1) ) {
         /* Break at the end of the list */
         if( item == &(gpu_device->gpu_mem_owned_lru.ghost_element) ) {
             break;
@@ -269,6 +271,14 @@ parsec_gpu_create_w2r_task(parsec_device_gpu_module_t *gpu_device,
             PARSEC_LIST_ITEM_SINGLETON(gpu_copy);
             gpu_copy->readers++;
             d2h_task->data[nb_cleaned].data_out = gpu_copy;
+            /* Remember which value is on its way to the host. By the time the
+             * transfer completes this copy may have been handed to a writer that
+             * bumped its version, and the host would then hold a value older than
+             * the copy claims. Comparing the host and the copy at completion
+             * cannot tell the two situations apart, because the host is behind in
+             * both, which left the write-back unable to ever report success.
+             */
+            d2h_task->locals[1 + nb_cleaned].value = (int)gpu_copy->version;
             gpu_copy->data_transfer_status = PARSEC_DATA_STATUS_UNDER_TRANSFER;  /* mark the copy as in transfer */
             parsec_atomic_unlock( &gpu_copy->original->lock );
             PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,  "D2H[%d:%s] task %p:\tdata %d -> %p [%p] readers %d",
@@ -330,7 +340,7 @@ int parsec_gpu_complete_w2r_task(parsec_device_gpu_module_t *gpu_device,
 
         cpu_copy = original->device_copies[0];
 
-        if( cpu_copy->version < gpu_copy->version ) {
+        if( (uint32_t)task->locals[1 + i].value != gpu_copy->version ) {
             /* the GPU version has been acquired by a new task that is waiting for submission */
             PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
                                  "D2H[%d:%s] task %p:%i GPU data copy %p [%p] has a backup in memory",
@@ -339,6 +349,14 @@ int parsec_gpu_complete_w2r_task(parsec_device_gpu_module_t *gpu_device,
                 /* the data is used again so release the host copy */
                 cpu_copy->release_cb(cpu_copy, 0);
             }
+            /* What reached the host is not the value this copy now carries, so
+             * the copy still holds the only current value and still owes the host
+             * a write-back. Creating this transfer took it out of the owned list,
+             * and nothing else puts it back: without this the device loses the
+             * memory it holds for good, and once it has lost enough of them that
+             * way it can no longer make room for anybody.
+             */
+            parsec_list_push_back(&gpu_device->gpu_mem_owned_lru, (parsec_list_item_t*)gpu_copy);
         } else {
             gpu_copy->coherency_state = PARSEC_DATA_COHERENCY_SHARED;
             cpu_copy->coherency_state =  PARSEC_DATA_COHERENCY_SHARED;
