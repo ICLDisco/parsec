@@ -1,3 +1,4 @@
+parsec_addtest_cmd(api/trim_chores ${SHM_TEST_CMD_LIST} api/trim_chores)
 parsec_addtest_cmd(api/init_fini ${SHM_TEST_CMD_LIST} api/init_fini)
 parsec_addtest_cmd(api/touch  ${SHM_TEST_CMD_LIST} api/touch_ex -v=5)
 parsec_addtest_cmd(api/touch:inline  ${SHM_TEST_CMD_LIST} api/touch_ex_inline -v=5)
