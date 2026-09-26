@@ -269,6 +269,11 @@ parsec_gpu_pushout_successor(parsec_execution_stream_t *es,
          * memory, so a remote successor must observe the CPU copy.
          */
         needs_host_copy = plan->send_from_gpu_denied;
+    } else if( !PARSEC_DEV_IS_GPU(parsec_task_class_device_types(newcontext->task_class)) ) {
+        /* A successor with no accelerator incarnation runs on the host wherever
+         * it is scheduled, and reads this flow from the host copy.
+         */
+        needs_host_copy = 1;
     } else {
         /* Where a local successor will be scheduled is not known here, so any
          * accelerator is a possible destination. When one of them cannot read
@@ -294,22 +299,29 @@ parsec_gpu_task_update_pushout(parsec_execution_stream_t *es,
     uint32_t action_mask = 0;
     int i, j;
 
+    if( NULL == tc->iterate_successors ) {
+        return;
+    }
+    /* This walk runs before the task does, which only a side-effect free
+     * successor iterator tolerates. DTD's is not: it is the dependency release
+     * itself, it hands a descendant its input and retains that copy whatever
+     * the action mask says, it reads the argument as a release context rather
+     * than as whatever the caller passed, it ignores a request to stop, and it
+     * expects every descendant it walks to have been inserted already, which
+     * says nothing about a task whose successors are still being submitted.
+     * DTD asks for a pushout at insertion time instead, which is the answer
+     * this walk would be trying to reconstruct.
+     */
+    if( PARSEC_TASKPOOL_TYPE_DTD == this_task->taskpool->taskpool_type ) {
+        return;
+    }
+
 #if defined(DISTRIBUTED)
     plan.send_from_gpu_denied = !(parsec_mpi_allow_gpu_memory_communications & PARSEC_RUNTIME_SEND_GPU_MEMORY);
 #else
     plan.send_from_gpu_denied = 0;  /* there are no remote successors to begin with */
 #endif  /* defined(DISTRIBUTED) */
     plan.peers_incomplete = parsec_device_peer_mesh_incomplete;
-
-    /* The walk only has something to discover when a successor could be unable
-     * to read this flow where it is being written: a remote one in the degraded
-     * GPU-aware modes, mpi_gpu_aware=0 or 1, or a local one on a machine whose
-     * accelerators are not all able to read each other.
-     */
-    if( (!plan.send_from_gpu_denied && !plan.peers_incomplete) ||
-        (NULL == tc->iterate_successors) ) {
-        return;
-    }
 
     plan.gpu_task = gpu_task;
     plan.remaining_flows = 0;
@@ -329,12 +341,8 @@ parsec_gpu_task_update_pushout(parsec_execution_stream_t *es,
             continue;
         }
         plan.remaining_flows |= (1U << flow->flow_index);
-        if( PARSEC_TASKPOOL_TYPE_DTD == this_task->taskpool->taskpool_type ) {
-            action_mask |= (1U << flow->flow_index);
-        } else {
-            for( j = 0; (j < MAX_DEP_OUT_COUNT) && (NULL != flow->dep_out[j]); j++ ) {
-                action_mask |= (1U << flow->dep_out[j]->dep_index);
-            }
+        for( j = 0; (j < MAX_DEP_OUT_COUNT) && (NULL != flow->dep_out[j]); j++ ) {
+            action_mask |= (1U << flow->dep_out[j]->dep_index);
         }
     }
 
