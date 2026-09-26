@@ -154,7 +154,12 @@ int __parsec_execute( parsec_execution_stream_t* es,
 
             parsec_data_copy_t* copy = task->data[i].data_in;
             if(parsec_mca_device_is_gpu(copy->device_index)) {
-                assert(copy->coherency_state == PARSEC_DATA_COHERENCY_SHARED);
+                /* A copy whose device reclaimed its memory has nothing to read
+                 * from, and the mirror it was emptied into is the only place its
+                 * value survives. That mirror holds the version the copy still
+                 * claims, so it stands in for it here as any shared copy would. */
+                assert(parsec_data_copy_is_placeholder(copy)
+                    || copy->coherency_state == PARSEC_DATA_COHERENCY_SHARED);
                 assert(NULL != copy->original && NULL != copy->original->device_copies[0]);
                 assert(copy->version == copy->original->device_copies[0]->version);
                 task->data[i].data_in = copy->original->device_copies[0];
