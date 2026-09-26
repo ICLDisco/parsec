@@ -2506,22 +2506,26 @@ parsec_device_data_stage_in( parsec_device_gpu_module_t* gpu_device,
     }
 
  src_selected:
-    /* Acquire a GPU source before changing ownership/coherency on the
-     * destination. parsec_data_start_transfer_ownership_to_copy increments the
-     * destination readers for read accesses and may update owner/coherency
-     * state, so any retry/deferral must happen before that call.
+    /* Acquire the source before changing ownership/coherency on the
+     * destination, so that any retry or deferral happens before those states
+     * move. Whoever holds the value the task is about to read has to know that
+     * it is being read, on the host as much as on an accelerator: the host
+     * mirror cannot be reclaimed behind our back, but it can be overwritten by
+     * a write-back coming down while the transfer is in flight.
      */
-    if( !source_acquired &&
-        (PARSEC_FLOW_ACCESS_READ & type) &&
-        PARSEC_DEV_IS_GPU(candidate_dev->super.type) ) {
-        if( !parsec_gpu_data_copy_acquire_reader(candidate, original, task_data->data_in->version) ) {
-            PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
-                                 "GPU[%d:%s]:\tCould not acquire GPU source copy %p [ref_count %d, key %x] on device %d; retry later",
-                                 gpu_device->super.device_index, gpu_device->super.name,
-                                 candidate, candidate->super.super.obj_reference_count,
-                                 original->key, candidate_dev->super.device_index);
-            parsec_atomic_unlock( &original->lock );
-            return PARSEC_HOOK_RETURN_NEXT;
+    if( !source_acquired && (PARSEC_FLOW_ACCESS_READ & type) ) {
+        if( PARSEC_DEV_IS_GPU(candidate_dev->super.type) ) {
+            if( !parsec_gpu_data_copy_acquire_reader(candidate, original, task_data->data_in->version) ) {
+                PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
+                                     "GPU[%d:%s]:\tCould not acquire GPU source copy %p [ref_count %d, key %x] on device %d; retry later",
+                                     gpu_device->super.device_index, gpu_device->super.name,
+                                     candidate, candidate->super.super.obj_reference_count,
+                                     original->key, candidate_dev->super.device_index);
+                parsec_atomic_unlock( &original->lock );
+                return PARSEC_HOOK_RETURN_NEXT;
+            }
+        } else {
+            (void)parsec_atomic_fetch_inc_int32(&candidate->readers);
         }
         source_acquired = 1;
     }
@@ -2566,8 +2570,13 @@ parsec_device_data_stage_in( parsec_device_gpu_module_t* gpu_device,
          * so release the temporary source reader immediately.
          */
         if( source_acquired ) {
-            int readers = parsec_gpu_data_copy_release_reader(gpu_device, candidate, 1);
-            assert(readers >= 0);
+            if( PARSEC_DEV_IS_GPU(candidate_dev->super.type) ) {
+                int readers = parsec_gpu_data_copy_release_reader(gpu_device, candidate, 1);
+                assert(readers >= 0);
+                (void)readers;
+            } else {
+                parsec_device_data_copy_unpin_reader(candidate);
+            }
         }
         gpu_elem->data_transfer_status = PARSEC_DATA_STATUS_COMPLETE_TRANSFER;
 
@@ -2660,8 +2669,13 @@ parsec_device_data_stage_in( parsec_device_gpu_module_t* gpu_device,
                         span,
                         (candidate_dev->super.type & gpu_device->super.type & PARSEC_DEV_ANY_TYPE)? "D2D": "H2D");
         if( source_acquired ) {
-            int readers = parsec_gpu_data_copy_release_reader(gpu_device, candidate, 1);
-            assert(readers >= 0);
+            if( PARSEC_DEV_IS_GPU(candidate_dev->super.type) ) {
+                int readers = parsec_gpu_data_copy_release_reader(gpu_device, candidate, 1);
+                assert(readers >= 0);
+                (void)readers;
+            } else {
+                parsec_device_data_copy_unpin_reader(candidate);
+            }
         }
         parsec_atomic_unlock( &original->lock );
         assert(0);
@@ -3338,14 +3352,20 @@ parsec_device_callback_complete_push(parsec_device_gpu_module_t   *gpu_device,
                                        NULL);
             }
 #endif
-            /* A reader was only acquired on a GPU source, so only a GPU source
-             * has one to release here. */
+            /* A reader is held on whatever the push read from, and the host
+             * mirror is counted among those, so it has one to give back too.
+             * On the device side the value has arrived, so what the task reads
+             * from here on is the device copy it already holds a reader on.
+             */
+            parsec_atomic_lock( &source->original->lock );
             if( PARSEC_DEV_IS_GPU(src_device->super.type) ) {
-                parsec_atomic_lock( &source->original->lock );
                 int readers = parsec_gpu_data_copy_release_reader(gpu_device, source, 1);
                 assert(readers >= 0);
-                parsec_atomic_unlock( &source->original->lock );
+                (void)readers;
+            } else {
+                parsec_device_data_copy_unpin_reader(source);
             }
+            parsec_atomic_unlock( &source->original->lock );
             continue;
         }
         PARSEC_DEBUG_VERBOSE(20, parsec_gpu_output_stream,
