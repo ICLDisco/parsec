@@ -24,6 +24,17 @@
 
 #define PARSEC_DEVICE_DATA_COPY_ATOMIC_SENTINEL 1024
 
+/* The push stage found no room on the device for what a task needs. Unlike a
+ * reschedule, no event will ever make that task runnable: the memory has to be
+ * taken back from someone else first. The task is therefore parked on the
+ * device's starved_tasks list, where it stays counted against the manager,
+ * and a write-back is started on its behalf. This status travels only between
+ * the reservation, the push stage and parsec_device_progress_stream(), which
+ * turns it back into an uneventful tour, so it never reaches a caller and does
+ * not belong in parsec_hook_return_t.
+ */
+#define PARSEC_DEVICE_TASK_STARVED (-16)
+
 #if defined(PARSEC_PROF_TRACE)
 static int parsec_gpu_movein_key_start;
 static int parsec_gpu_movein_key_end;
@@ -1282,7 +1293,7 @@ parsec_device_data_reserve_space( parsec_device_gpu_module_t* gpu_device,
                 if( data_avail_epoch ) {  /* update the memory epoch */
                     gpu_device->data_avail_epoch++;
                 }
-                return PARSEC_HOOK_RETURN_AGAIN;
+                return PARSEC_DEVICE_TASK_STARVED;
             }
 
             PARSEC_LIST_ITEM_SINGLETON(lru_gpu_elem);
@@ -3110,6 +3121,21 @@ parsec_device_progress_stream( parsec_device_gpu_module_t* gpu_device,
                  * (aka. returning it to the upper level).
                  */
                 parsec_gpu_stream_push_pending(stream, task);
+            } else if( PARSEC_DEVICE_TASK_STARVED == rc ) {
+                /* The head found no room on the device. It queued nothing and
+                 * has no event to wait for, so it must not hold an event slot:
+                 * the event would complete at once and hand back a task that
+                 * cannot have made progress. Restore the tentative followers,
+                 * then hold the head on the device until a write-back gives it
+                 * a chance. Left in the rotation it would keep evicting the
+                 * blocks the other starving tasks just gave back, which is how
+                 * a device whose memory is all dirty spends its time going
+                 * nowhere.
+                 */
+                parsec_gpu_stream_rollback_batch(stream, task);
+                parsec_list_nolock_push_back(&gpu_device->starved_tasks,
+                                             (parsec_list_item_t*)task);
+                rc = PARSEC_HOOK_RETURN_DONE;
             } else if( PARSEC_HOOK_RETURN_ASYNC == rc ) {
                 /* A batch-aware hook transfers every execution context in the
                  * ring. The manager will release all device wrappers.
@@ -3875,6 +3901,28 @@ parsec_device_kernel_retire_incarnation_ring(parsec_device_gpu_module_t *gpu_dev
 }
 
 /**
+ * Give back to the manager tasks that had run out of device memory, now that a
+ * write-back has turned dirty blocks into blocks the reservation can evict.
+ *
+ * At most as many tasks are woken as there are blocks that became reclaimable:
+ * waking the whole list on the strength of one write-back only puts the device
+ * back to evicting what the others need. A task that starves again is parked
+ * again, behind those still waiting.
+ */
+static void parsec_device_wake_starved_tasks(parsec_device_gpu_module_t *gpu_device,
+                                             int nb_reclaimable)
+{
+    for( int i = 0; i < nb_reclaimable; i++ ) {
+        parsec_gpu_task_t *starved =
+            (parsec_gpu_task_t*)parsec_list_nolock_pop_front(&gpu_device->starved_tasks);
+        if( NULL == starved )
+            break;
+        PARSEC_LIST_ITEM_SINGLETON(starved);
+        parsec_heap_push_chain(&gpu_device->pending_heap, (parsec_list_item_t*)starved);
+    }
+}
+
+/**
  * This version is based on 4 streams: one for transfers from the memory to
  * the GPU, 2 for kernel executions and one for transfers from the GPU into
  * the main memory. The synchronization on each stream is based on GPU events,
@@ -4001,9 +4049,14 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
             goto remove_gpu_task;
         }
         assert(NULL == progress_task);
-
-        /* TODO: check this */
-        /* If we can extract data go for it, otherwise try to drain the pending tasks */
+    }
+    /* Nothing came out of the push stage, either because it made no progress
+     * or because it has just parked a task for lack of device memory. Send
+     * dirty blocks back to the host: that is the only thing that turns memory
+     * the reservation cannot touch into memory it can evict.
+     */
+    if( (NULL == progress_task) &&
+        ((rc < 0) || !parsec_list_nolock_is_empty(&gpu_device->starved_tasks)) ) {
         gpu_task = parsec_gpu_create_w2r_task(gpu_device, es);
         if( NULL != gpu_task )
             goto get_data_out_of_device;
@@ -4131,6 +4184,13 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
         }
     } else {
         pop_null++;
+        /* There is nothing left to run, so whatever memory this device is ever
+         * going to hand back has been handed back. Tasks still waiting for it
+         * cannot be woken by anyone else, and a write-back has had its chance
+         * on every tour through the push stage, so let them try again rather
+         * than hold them for a release that is not coming.
+         */
+        parsec_device_wake_starved_tasks(gpu_device, INT_MAX);
         if( pop_null % 1024 == 1023 ) {
             PARSEC_DEBUG_VERBOSE(30, parsec_gpu_output_stream,  "GPU[%d:%s]:\tStill waiting for %d tasks to execute, but popped NULL the last %d times I tried to pop something...",
                                  gpu_device->super.device_index, gpu_device->super.name, gpu_device->mutex, pop_null);
@@ -4146,7 +4206,8 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
     /* Everything went fine so far, the result is correct and back in the main memory */
     PARSEC_LIST_ITEM_SINGLETON(gpu_task);
     if (gpu_task->task_type == PARSEC_GPU_TASK_TYPE_D2HTRANSFER) {
-        parsec_gpu_complete_w2r_task(gpu_device, gpu_task, es);
+        parsec_device_wake_starved_tasks(gpu_device,
+                                         parsec_gpu_complete_w2r_task(gpu_device, gpu_task, es));
         gpu_task = progress_task;
         goto fetch_task_from_shared_queue;
     }

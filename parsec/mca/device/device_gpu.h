@@ -334,6 +334,11 @@ struct parsec_device_gpu_module_s {
                                                    */
     parsec_list_t              gpu_mem_lru;   /* Read-only blocks, and fresh blocks */
     parsec_list_t              gpu_mem_owned_lru;  /* Dirty blocks */
+    parsec_list_t              starved_tasks; /**< Tasks that could not reserve the device memory
+                                                 *   they need. They remain counted in mutex, and
+                                                 *   only a write-back that turns dirty blocks into
+                                                 *   reclaimable ones hands them back to the manager.
+                                                 */
     parsec_lifo_t              pending;       /**< lock-free LIFO: CPU threads push here */
     parsec_binheap_t           pending_heap;  /**< manager-private max-heap for priority ordering */
     struct zone_malloc_s      *memory;
@@ -398,6 +403,8 @@ void* parsec_device_pop_workspace(parsec_device_gpu_module_t* gpu_device, parsec
 int parsec_device_free_workspace(parsec_device_gpu_module_t * gpu_device);
 
 parsec_gpu_task_t* parsec_gpu_create_w2r_task(parsec_device_gpu_module_t *gpu_device, parsec_execution_stream_t *es);
+/* Returns the number of copies that were written back, and are therefore no
+ * longer dirty and can now be evicted by a reservation. */
 int parsec_gpu_complete_w2r_task(parsec_device_gpu_module_t *gpu_device, parsec_gpu_task_t *w2r_task, parsec_execution_stream_t *es);
 
 /**

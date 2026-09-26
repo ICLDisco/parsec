@@ -313,6 +313,7 @@ int parsec_gpu_complete_w2r_task(parsec_device_gpu_module_t *gpu_device,
     parsec_gpu_data_copy_t *gpu_copy, *cpu_copy;
     parsec_gpu_d2h_task_t* task = (parsec_gpu_d2h_task_t*)gpu_task->ec;
     parsec_data_t* original;
+    int nb_reclaimable = 0;
 
     PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,  "D2H[%d:%s] task %p: %d data transferred to host",
                          gpu_device->super.device_index, gpu_device->super.name, (void*)task, task->locals[0].value);
@@ -352,11 +353,13 @@ int parsec_gpu_complete_w2r_task(parsec_device_gpu_module_t *gpu_device,
                                  "D2H[%d:%s] task %p:%i GPU data copy %p [%p] now available",
                                  gpu_device->super.device_index, gpu_device->super.name, (void*)task, i, gpu_copy, gpu_copy->original);
             parsec_list_push_back(&gpu_device->gpu_mem_lru, (parsec_list_item_t*)gpu_copy);
+            nb_reclaimable++;  /* clean now: the reservation may take its memory */
         }
         parsec_atomic_unlock(&gpu_copy->original->lock);
     }
+
     parsec_thread_mempool_free(es->context_mempool, task);
     PARSEC_OBJ_RELEASE(gpu_task); /* no need to call release_device_task, just release the task */
     gpu_device->data_avail_epoch++;
-    return 0;
+    return nb_reclaimable;
 }
