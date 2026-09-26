@@ -442,9 +442,12 @@ int parsec_data_start_transfer_ownership_to_copy(parsec_data_t* data,
     }
 
   bookkeeping:
-    if( PARSEC_FLOW_ACCESS_READ & access_mode ) {
-        (void)parsec_atomic_fetch_inc_int32(&copy->readers);
-    }
+    /* Changing ownership says who is allowed to hold the value, not who is
+     * reading it right now, and only the caller knows how long it intends to
+     * read. Counting a reader here would hand one to every caller, including
+     * the ones that transfer ownership after their body is done, and nothing
+     * would ever give it back. Callers that keep reading take their own.
+     */
     if( PARSEC_FLOW_ACCESS_WRITE & access_mode ) {
         data->owner_device = (uint8_t)device;
     }

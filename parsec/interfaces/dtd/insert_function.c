@@ -2441,14 +2441,6 @@ static parsec_hook_return_t parsec_dtd_cpu_task_submit(parsec_execution_stream_t
                 else
                     access = PARSEC_FLOW_ACCESS_WRITE;
                 parsec_data_transfer_ownership_to_copy(this_task->data[i].data_in->original, 0, access);
-                /*
-                 * Ownership transfer retains a reader only for read accesses.
-                 * The DTD CPU path consumes that transfer synchronously, so drop
-                 * the temporary read hold immediately; pure writes did not acquire one.
-                 */
-                if( access & PARSEC_FLOW_ACCESS_READ ) {
-                    parsec_dtd_data_copy_reader_release(this_task->data[i].data_in);
-                }
             }
         }
     }
