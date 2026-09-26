@@ -149,6 +149,11 @@ typedef struct parsec_gpu_flow_info_s {
     /* The is private to the device code and should not be used outside the device driver */
     parsec_data_copy_t       *source; /* If the driver decides to acquire the data from a different
                                         * source, it will temporary store the best candidate here.
+                                        * Only the push that acquires the flow records one, so NULL
+                                        * means this task brought nothing in for that flow, either
+                                        * because the data was already here or because another task
+                                        * is transferring it. Must be left NULL when the task is
+                                        * built, or the completion would read a stale candidate.
                                         */
 
 } parsec_gpu_flow_info_t;

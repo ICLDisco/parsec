@@ -2405,6 +2405,7 @@ static parsec_hook_return_t parsec_dtd_gpu_task_submit(parsec_execution_stream_t
             gpu_task->pushout |= 1<<i;
         gpu_task->flow_info[i].flow = dtd_tc->super.in[i];
         gpu_task->flow_info[i].flow_span = this_task->data[i].data_in->original->span;
+        gpu_task->flow_info[i].source = NULL;
     }
 
     parsec_device_module_t *device = this_task->selected_device;

@@ -6857,8 +6857,9 @@ static void jdf_generate_code_hook_gpu(const jdf_t *jdf,
     /* Dump the dataflow */
     coutput("  gpu_task->pushout = 0;\n");
     for(fl = f->dataflow, di = 0; fl != NULL; fl = fl->next, di++) {
-        coutput("  gpu_task->flow_info[%d].flow    = &%s;\n",
-                di, JDF_OBJECT_ONAME( fl ));
+        coutput("  gpu_task->flow_info[%d].flow    = &%s;\n"
+                "  gpu_task->flow_info[%d].source  = NULL;\n",
+                di, JDF_OBJECT_ONAME( fl ), di);
 
         sprintf(sa->ptr, "%s.dc", fl->varname);
         jdf_find_property(body->properties, sa->ptr, &desc_property);

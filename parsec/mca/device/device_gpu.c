@@ -769,6 +769,7 @@ parsec_device_data_advise(parsec_device_module_t *dev, parsec_data_t *data, int 
             gpu_task->nb_flows = 1;
             gpu_task->flow_info[0].flow = &parsec_device_data_prefetch_flow;
             gpu_task->flow_info[0].flow_span = data->device_copies[ data->owner_device ]->original->span;
+            gpu_task->flow_info[0].source = NULL;
             gpu_task->stage_in  = parsec_default_gpu_stage_in;
             gpu_task->stage_out = parsec_default_gpu_stage_out;
             PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "Retain data copy %p [ref_count %d]",
@@ -3052,6 +3053,7 @@ parsec_device_send_transfercomplete_cmd_to_device(parsec_data_copy_t *copy,
     gpu_task->nb_flows = 1;
     gpu_task->flow_info[0].flow = &parsec_device_d2d_complete_flow;
     gpu_task->flow_info[0].flow_span = copy->original->span;
+    gpu_task->flow_info[0].source = NULL;
     gpu_task->stage_in  = parsec_default_gpu_stage_in;
     gpu_task->stage_out = parsec_default_gpu_stage_out;
     gpu_task->ec->data[0].data_in = copy;  /* We need to set not-null in data_in, so that the fake flow is
@@ -3157,9 +3159,14 @@ parsec_device_callback_complete_push(parsec_device_gpu_module_t   *gpu_device,
          * the flow, and this push did fill it, from the host mirror recorded as
          * its source. Skipping it would leave it under transfer for good, and a
          * copy under transfer is one the eviction will never take back.
+         *
+         * A source is only recorded by the push that acquires the flow, so no
+         * source means the copy is being filled by another task, which will
+         * complete it, and the rest of this body has nothing valid to read.
          */
         if( (gpu_device->super.device_index == task->data[i].data_in->device_index) &&
-            (gtask->flow_info[i].source == task->data[i].data_in) ) continue;
+            ((NULL == gtask->flow_info[i].source) ||
+             (gtask->flow_info[i].source == task->data[i].data_in)) ) continue;
 
         flow = gtask->flow_info[i].flow;
         assert( flow );
