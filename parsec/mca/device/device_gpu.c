@@ -1191,11 +1191,14 @@ static int parsec_gpu_copy_recoverability(parsec_data_copy_t *copy)
     if( NULL == copy->original ) { return PARSEC_GPU_COPY_KEEP; }
 
     /* A copy that holds no value costs nothing to empty, and there is no host
-     * mirror to ask anything of: whoever points at it has not filled it yet and
-     * will fill it from wherever the value is once it has memory again. This is
-     * what a reservation that had to be given up leaves behind, so refusing
-     * these would let a task that rolled back keep the memory it never used.
-     * A transfer already on its way into the copy is the one exception.
+     * mirror to ask anything of. This is what a reservation that had to be
+     * given up leaves behind, so refusing these would let a task that rolled
+     * back keep the memory it never used. Whoever else points at one is either
+     * going to fill it, and will find it emptied and ask for it again, or has
+     * abandoned it. A transfer already on its way into the copy is the one
+     * exception, the memory being its destination. The one holder that could
+     * not ask again is the network, which reads the memory from its own thread;
+     * it counts itself among the readers, which are consulted before this.
      */
     if( PARSEC_DATA_COHERENCY_INVALID == copy->coherency_state ) {
         if( PARSEC_DATA_STATUS_UNDER_TRANSFER == copy->data_transfer_status ) {
@@ -2023,6 +2026,71 @@ parsec_gpu_data_copy_release_reader(parsec_device_gpu_module_t *gpu_device,
     if( owner_token )
         parsec_device_release_owner_token(owner);
     return readers;
+}
+
+/**
+ * @brief Pin the memory of a copy for a reader that is not a task.
+ *
+ * A task announces that it is reading a copy by counting itself among its
+ * readers, which is what keeps the device from reclaiming the memory under it.
+ * Anything else that reads a copy directly owes the same announcement, for as
+ * long as it reads. Holding a reference to the copy is not enough: that keeps
+ * the object alive, and the device remains free to take the memory away and
+ * leave the object behind with nothing in it.
+ *
+ * @return 1 if the copy may be read, and must later be handed back with
+ *         parsec_device_data_copy_unpin_reader(). 0 if it may not, either
+ *         because the device is reclaiming the copy or because it already has.
+ */
+int parsec_device_data_copy_pin_reader(parsec_data_copy_t *copy)
+{
+    if( NULL == copy ) return 1;
+    if( !parsec_gpu_data_copy_acquire_reader(copy, copy->original, copy->version) ) {
+        return 0;
+    }
+    if( (0 != copy->device_index) && (NULL == copy->device_private) ) {
+        /* The device had already emptied this copy before we asked for it, so
+         * there is nothing to read. Hand the pin back directly rather than
+         * through the release, which would file an empty copy among the copies
+         * that can be reclaimed.
+         */
+        parsec_atomic_fetch_add_int32(&copy->readers, -1);
+        return 0;
+    }
+    return 1;
+}
+
+/**
+ * @brief Hand back a pin taken by parsec_device_data_copy_pin_reader().
+ */
+void parsec_device_data_copy_unpin_reader(parsec_data_copy_t *copy)
+{
+    parsec_device_module_t *device;
+    parsec_device_gpu_module_t *owner;
+
+    if( NULL == copy ) return;
+    device = parsec_mca_device_get(copy->device_index);
+    if( (NULL == device) || !PARSEC_DEV_IS_GPU(device->type) ) return;
+    /* Whoever reaches here manages no device: a task body and the
+     * communication engine both read a copy without managing the accelerator
+     * it lives on. The lists of a device may only be touched by the thread
+     * holding its manager token, so there is no version of this that names a
+     * device of our own and skips the handshake.
+     */
+    owner = (parsec_device_gpu_module_t*)device;
+    if( !parsec_device_acquire_owner_token(owner) ) {
+        /* The owner has a manager, and a slot for us. Our reader stays counted
+         * until it acts on the command, which is what stops the copy from
+         * being moved into a list by anyone but its owner. */
+        parsec_device_send_transfercomplete_cmd_to_device(copy, NULL, device);
+        return;
+    }
+    if( 0 == parsec_gpu_data_copy_release_reader(owner, copy, 1) ) {
+        /* The release only announces memory it made available when it took the
+         * token itself. We took it, so the announcement is ours to make. */
+        owner->data_avail_epoch++;
+    }
+    parsec_device_release_owner_token(owner);
 }
 
 #if defined(PARSEC_DEBUG_NOISIER)
@@ -3065,10 +3133,13 @@ parsec_device_send_transfercomplete_cmd_to_device(parsec_data_copy_t *copy,
     gpu_task->prof_stage_key_end = -1; /* D2D complete tasks are pure internal management, we do not trace them */
 #endif
     (void)current_dev;
+    /* Whoever hands a copy over does not have to manage a device: a task body
+     * and the communication engine both read a copy without managing one. */
     PARSEC_DEBUG_VERBOSE(3, parsec_gpu_output_stream,
-                         "GPU[%d:%s]: data copy %p [ref_count %d] D2D transfer is complete, sending order to count it "
+                         "%s: data copy %p [ref_count %d] D2D transfer is complete, sending order to count it "
                          "to GPU Device %d:%s",
-                         current_dev->device_index, current_dev->name, gpu_task->ec->data[0].data_out,
+                         (NULL == current_dev) ? "No device" : current_dev->name,
+                         gpu_task->ec->data[0].data_out,
                          gpu_task->ec->data[0].data_out->super.super.obj_reference_count,
                          dst_dev->device_index, dst_dev->name);
     parsec_lifo_push( &(((parsec_device_gpu_module_t*)dst_dev)->pending), (parsec_list_item_t*)gpu_task );
@@ -3205,9 +3276,16 @@ parsec_device_callback_complete_push(parsec_device_gpu_module_t   *gpu_device,
                 /* release host memory if requested */
                 if (cpu_copy->device_private != NULL &&
                     cpu_copy->release_cb != NULL) {
-                    bool may_release = true;
+                    /* The devices are not the only ones that can be holding this
+                     * mirror. A host task that took it as an input, or a message
+                     * the communication engine has not sent yet, owns a reference
+                     * to it and will read the buffer we are about to hand back.
+                     * Neither of them registers as a reader, so the reference is
+                     * all we have to go on.
+                     */
+                    bool may_release = 1 == cpu_copy->super.super.obj_reference_count;
                     /* check if there are any other device copies */
-                    for (uint32_t i = 1; i < parsec_nb_devices; ++i) {
+                    for (uint32_t i = 1; may_release && (i < parsec_nb_devices); ++i) {
                         parsec_data_copy_t *copy = original->device_copies[i];
                         if (NULL != copy && copy != gpu_copy) {
                             may_release = false;
