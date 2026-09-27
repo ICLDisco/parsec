@@ -615,7 +615,10 @@ static int __parsec_taskpool_test( parsec_taskpool_t* tp, parsec_execution_strea
     parsec_task_t* task;
     int nbiterations = 0, distance, rc;
 
-    assert(PARSEC_THREAD_IS_MASTER(es));
+    /* Any thread may get here: a task is allowed to submit a nested taskpool
+     * and poll it, in which case a worker drives this. Only the master owes the
+     * context its communication progress, though. */
+    int progress_comms = PARSEC_THREAD_IS_MASTER(es);
 
     /* first select begin, right before the wait_for_the... goto label */
     PARSEC_PINS(es, SELECT_BEGIN, NULL);
@@ -627,11 +630,14 @@ static int __parsec_taskpool_test( parsec_taskpool_t* tp, parsec_execution_strea
 
     if( tp->tdm.module->taskpool_state(tp) != PARSEC_TERM_TP_TERMINATED ) {
 #if defined(DISTRIBUTED)
-        if( (1 == parsec_communication_engine_up) &&
-            (parsec_context->nb_nodes == 1)  ) {
+        progress_comms = progress_comms && (1 == parsec_communication_engine_up) &&
+                         (parsec_context->nb_nodes == 1);
+        if( progress_comms ) {
             /* check for remote deps completion */
             while(parsec_remote_dep_progress(es) > 0) /* nothing */;
         }
+#else
+        (void)progress_comms; (void)parsec_context;
 #endif /* defined(DISTRIBUTED) */
 
         task = __parsec_get_next_task(es, &distance);
@@ -658,7 +664,10 @@ static int __parsec_taskpool_wait( parsec_taskpool_t* tp, parsec_execution_strea
     rqtp.tv_sec = 0;
     misses_in_a_row = 1;
 
-    assert(PARSEC_THREAD_IS_MASTER(es));
+    /* Any thread may get here: a task is allowed to submit a nested taskpool
+     * and wait for it, in which case a worker drives this loop. Only the master
+     * owes the context its communication progress, though. */
+    int progress_comms = PARSEC_THREAD_IS_MASTER(es);
 
     /* first select begin, right before the wait_for_the... goto label */
     PARSEC_PINS(es, SELECT_BEGIN, NULL);
@@ -669,13 +678,16 @@ static int __parsec_taskpool_wait( parsec_taskpool_t* tp, parsec_execution_strea
     }
 
 #if defined(DISTRIBUTED)
-    if( (1 == parsec_communication_engine_up) &&
-        (es->virtual_process[0].parsec_context->nb_nodes == 1) ) {
+    progress_comms = progress_comms && (1 == parsec_communication_engine_up) &&
+                     (es->virtual_process[0].parsec_context->nb_nodes == 1);
+    if( progress_comms ) {
         /* If there is a single process run and the main thread is in charge of
          * progressing the communications we need to make sure the comm engine
          * is ready for primetime. */
         parsec_ce.enable(&parsec_ce);
     }
+#else
+    (void)progress_comms;
 #endif /* defined(DISTRIBUTED) */
 
     if( NULL != tp->on_enter_wait ) tp->on_enter_wait(tp, tp->on_enter_wait_data);
@@ -683,8 +695,7 @@ static int __parsec_taskpool_wait( parsec_taskpool_t* tp, parsec_execution_strea
     while( tp->tdm.module->taskpool_state(tp) != PARSEC_TERM_TP_TERMINATED ) {
 
 #if defined(DISTRIBUTED)
-        if( (1 == parsec_communication_engine_up) &&
-            (es->virtual_process[0].parsec_context->nb_nodes == 1) ) {
+        if( progress_comms ) {
             /* check for remote deps completion */
             while(parsec_remote_dep_progress(es) > 0)  {
                 misses_in_a_row = 0;
