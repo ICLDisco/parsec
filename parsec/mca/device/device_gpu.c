@@ -2077,6 +2077,15 @@ parsec_device_data_stage_in( parsec_device_gpu_module_t* gpu_device,
             (cpu_copy->version != task_data->data_in->version) ||
             (PARSEC_DATA_COHERENCY_INVALID == cpu_copy->coherency_state) ||
             (PARSEC_DATA_STATUS_UNDER_TRANSFER == cpu_copy->data_transfer_status) ) {
+            /* A host mirror receiving a write-back is unreadable for as long as
+             * that transfer lasts and no longer, exactly like a peer being
+             * filled. Whatever it ends up holding, it is not holding it yet,
+             * so come back rather than conclude the value is unreachable.
+             */
+            if( (NULL != cpu_copy) &&
+                (PARSEC_DATA_STATUS_UNDER_TRANSFER == cpu_copy->data_transfer_status) ) {
+                potential_alt_src = 1;
+            }
             if( potential_alt_src ) {
                 /* An accelerator does hold this version and is only momentarily
                  * unable to serve it, so waiting is enough. No ownership or
