@@ -19,6 +19,11 @@ if(PARSEC_HAVE_CUDA)
     target_ptg_sources(stress PRIVATE "stress.jdf")
     target_link_libraries(stress PRIVATE CUDA::cublas)
 
+    parsec_addtest_executable(C new_staging)
+    target_include_directories(new_staging PRIVATE $<$<NOT:${PARSEC_BUILD_INPLACE}>:${CMAKE_CURRENT_SOURCE_DIR}>)
+    target_ptg_sources(new_staging PRIVATE "new_staging.jdf")
+    target_link_libraries(new_staging PRIVATE CUDA::cublas)
+
     parsec_addtest_executable(C stage SOURCES stage_main.c)
     target_include_directories(stage PRIVATE $<$<NOT:${PARSEC_BUILD_INPLACE}>:${CMAKE_CURRENT_SOURCE_DIR}>)
     target_ptg_sources(stage PRIVATE "stage_custom.jdf")

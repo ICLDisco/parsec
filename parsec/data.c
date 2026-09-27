@@ -17,9 +17,7 @@
 #include "parsec/remote_dep.h"
 #include "parsec/parsec_internal.h"
 #include "parsec/utils/zone_malloc.h"
-#if defined(PARSEC_GPU_ALLOC_PER_TILE)
 #include "parsec/mca/device/device_gpu.h"
-#endif
 
 static parsec_lifo_t parsec_data_lifo;
 static parsec_lifo_t parsec_data_copies_lifo;
@@ -207,6 +205,12 @@ int parsec_data_copy_detach(parsec_data_t* data,
     }
     data->device_copies[device] = copy->older;
     parsec_atomic_fetch_add_int32(&data->nb_copies, -1);
+    if( device == data->owner_device ) {
+        /* The owner is about to be gone, and a later copy allocated on the same
+         * device would otherwise be taken for the reference value and left
+         * unread. Let the next accessor find out who holds it. */
+        data->owner_device = -1;
+    }
 
     copy->original     = NULL;
     copy->older        = NULL;
@@ -686,7 +690,7 @@ int parsec_data_release_self_contained_data_ext(parsec_data_t *data, int32_t ext
     if( NULL == data ) return 0;
 
     /* Deciding that the data is self-contained and acting on that decision must
-     * be a single atomic step: two threads that each just dropped a reference
+     * be a single atomic step: two threads that each dropp a reference
      * would otherwise both observe the condition below and both free every
      * copy. The lock covers the decision and the teardown. Releasing the last
      * copy also destroys the data, and with it the lock we still have to
@@ -711,15 +715,29 @@ int parsec_data_release_self_contained_data_ext(parsec_data_t *data, int32_t ext
         if (NULL == (copy = data->device_copies[i])) continue;
         assert(1 == copy->super.super.obj_reference_count && 0 == copy->readers);
         copy->flags &= ~PARSEC_DATA_FLAG_CPU_MIRROR_PROTECTED;
-        if (!parsec_mca_device_is_gpu(copy->device_index)) {
-            PARSEC_OBJ_RELEASE(copy);
-            assert(NULL == copy);
-        } else {
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) || defined(PARSEC_HAVE_DEV_HIP_SUPPORT) || defined(PARSEC_HAVE_DEV_LEVEL_ZERO_SUPPORT)
+        if (parsec_mca_device_is_gpu(copy->device_index)) {
             /* These self-contained GPU copies are no longer managed through a
              * device LRU after this point. GPU-aware propagation can return them
              * to a device LRU before the protected CPU mirror is released, so
              * unlink the list item before freeing the backing allocation.
+             *
+             * A device's lists may only be touched by whoever holds its manager
+             * token, and unlinking without it tears the LRU. If the device has a
+             * manager, hand the copy over instead: it is gone as far as we are
+             * concerned, and the manager disposes of it when it gets to it.
              */
+            parsec_device_gpu_module_t *owner =
+                (parsec_device_gpu_module_t*)parsec_mca_device_get(copy->device_index);
+            if( !parsec_device_acquire_owner_token(owner) ) {
+                parsec_data_copy_detach(data, copy, copy->device_index);
+                parsec_device_send_release_copy_cmd_to_device(copy, owner);
+                if (0 == --nb_copies) { /* every copy is gone; nothing left to walk */
+                    rc = 1;
+                    goto unlock;
+                }
+                continue;
+            }
             parsec_list_item_ring_chop((parsec_list_item_t*)copy);
             PARSEC_LIST_ITEM_SINGLETON(copy);
             parsec_data_copy_detach(data, copy, copy->device_index);
@@ -742,6 +760,12 @@ int parsec_data_release_self_contained_data_ext(parsec_data_t *data, int32_t ext
              * reference now that the device allocation has been returned.
              */
             PARSEC_DATA_COPY_RELEASE(copy);
+            assert(NULL == copy);
+            parsec_device_release_owner_token(owner);
+        } else
+#endif  /* defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) || defined(PARSEC_HAVE_DEV_HIP_SUPPORT) || defined(PARSEC_HAVE_DEV_LEVEL_ZERO_SUPPORT) */
+        {
+            PARSEC_OBJ_RELEASE(copy);
             assert(NULL == copy);
         }
         if (0 == --nb_copies) { /* every copy is gone; nothing left to walk */
