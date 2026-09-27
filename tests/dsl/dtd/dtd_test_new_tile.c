@@ -276,6 +276,17 @@ int main(int argc, char **argv)
 
     nb = NB; /* tile_size */
 
+    /* The accelerator registration of this test passes --require-gpu; consume it
+     * here so that parsec_init() only sees its own arguments. */
+    int require_gpu = 0;
+    for( int i = 1; i < argc; i++ ) {
+        if( 0 != strcmp(argv[i], "--require-gpu") ) continue;
+        require_gpu = 1;
+        for( int j = i; j < argc; j++ ) argv[j] = argv[j+1];
+        argc--;
+        break;
+    }
+
     parsec = parsec_init( cores, &argc, &argv );
 #if defined(PARSEC_PROF_TRACE)
     parsec_profiling_start();
@@ -318,12 +329,24 @@ int main(int argc, char **argv)
                 }
             }
         }
+    } else if( require_gpu ) {
+        /* This test is also registered as a CPU-only case, so running without a
+         * device is legitimate. Only report a skip when the caller asked for an
+         * accelerator, rather than silently repeating the CPU-only case (see
+         * SKIP_RETURN_CODE in tests/CMakeLists.txt). */
+        parsec_warning("This run requires an accelerator but none is present");
+        parsec_fini(&parsec);
+#if defined(PARSEC_HAVE_MPI)
+        MPI_Finalize();
+#endif  /* defined(PARSEC_HAVE_MPI) */
+        return -PARSEC_ERR_DEVICE;
     } else {
         gpu_accs = &pacc;
     }
 #else
     gpu_accs = &pacc;
     nb_gpus = 0;
+    (void)require_gpu;
 #endif
 
     parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new();

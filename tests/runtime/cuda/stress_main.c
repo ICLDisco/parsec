@@ -57,6 +57,16 @@ int main(int argc, char *argv[])
 
     parsec = parsec_init(-1, &argc, &argv);
 
+    /* can the test run? */
+    if( parsec_context_query(parsec, PARSEC_CONTEXT_QUERY_DEVICES, PARSEC_DEV_CUDA) <= 0 ) {
+        parsec_warning("This test can only run if at least one CUDA device is present");
+        parsec_fini(&parsec);
+#if defined(DISTRIBUTED)
+        MPI_Finalize();
+#endif /* DISTRIBUTED */
+        return -PARSEC_ERR_DEVICE;
+    }
+
     tp = testing_stress_New(parsec, depth, tile_size);
     if( NULL != tp ) {
         parsec_context_add_taskpool(parsec, tp);

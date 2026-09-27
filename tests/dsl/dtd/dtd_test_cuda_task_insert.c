@@ -696,7 +696,7 @@ int test_cuda_multiple_devices(int world, int myrank, parsec_context_t *parsec_c
     printf("[dtd_test_cuda][multiple_devices] num_devices = %d\n", num_devices);
 
     // Make sure we have multiple devices
-    if(num_devices < 2) return -1;
+    if(num_devices < 2) return PARSEC_ERR_DEVICE;
 
     int *cuda_dev_index = get_cuda_device_index();
     assert(NULL != cuda_dev_index);
@@ -865,7 +865,7 @@ static int print_test_result(const char *testname, int rc)
     }
     if(rc < 0) {
         printf("%sTest %s info not run%s\n", blue, testname, normal);
-        return 1;
+        return 0;
     } else if (rc == 0) {
         printf("%sTest %s succeeded%s\n", green, testname, normal);
         return 0;
@@ -901,7 +901,9 @@ int main(int argc, char **argv)
     print_test_result("Have CUDA accelerators", rc);
     if(rc != 0) {
         parsec_fini(&parsec_context);
-        return -1;
+        /* Nothing here can run without an accelerator: report a skip rather
+         * than a failure (see SKIP_RETURN_CODE in tests/CMakeLists.txt). */
+        return -PARSEC_ERR_DEVICE;
     }
 
     rc = test_cuda_print_info(world, rank, parsec_context);

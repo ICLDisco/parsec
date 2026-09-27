@@ -192,7 +192,9 @@ int main(int argc, char **argv)
 #ifdef PARSEC_HAVE_MPI
         MPI_Finalize();
 #endif
-        return EXIT_SUCCESS; /* So that useless tests don't make the CI fail */
+        /* Report a skip rather than a pass: this run exercised nothing (see
+         * SKIP_RETURN_CODE in tests/CMakeLists.txt). */
+        return -PARSEC_ERR_DEVICE;
     }
 
     nb = 3 * NLOOP * world * nb_gpus;

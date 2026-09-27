@@ -477,6 +477,19 @@ int main(int argc, char* argv[])
     (void)world;
 
     parsec_context = parsec_init(-1, &argc, &argv);
+
+    /* Every task class below carries a CUDA chore only, so without an
+     * accelerator task creation fatals on an unsatisfiable device mask. Report
+     * a skip instead (see SKIP_RETURN_CODE in tests/CMakeLists.txt). */
+    if( parsec_context_query(parsec_context, PARSEC_CONTEXT_QUERY_DEVICES, PARSEC_DEV_CUDA) <= 0 ) {
+        parsec_warning("This test can only run if at least one CUDA device is present");
+        parsec_fini(&parsec_context);
+#if defined(PARSEC_HAVE_MPI)
+        MPI_Finalize();
+#endif
+        return -PARSEC_ERR_DEVICE;
+    }
+
     // Create new DTD taskpool
     parsec_taskpool_t *tp = parsec_dtd_taskpool_new();
 
