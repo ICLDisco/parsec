@@ -3377,19 +3377,6 @@ parsec_device_kernel_pop( parsec_device_gpu_module_t   *gpu_device,
 
         assert( this_task->data[i].data_in == NULL || original == this_task->data[i].data_in->original );
 
-#if 0
-        if( (gpu_task->task_type != PARSEC_GPU_TASK_TYPE_D2D_COMPLETE) && !(flow->flow_flags & PARSEC_FLOW_ACCESS_WRITE) ) {
-            /* Do not propagate GPU copies to successors (temporary solution) */
-            this_task->data[i].data_out = original->device_copies[0];
-            PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
-                                 "GPU[%d:%s]: pop %s swap %d GPU read-only data_out %p [ref_count %d] with the corresponding CPU copy %p [ref_count %d] original %p",
-                                 gpu_device->super.device_index, gpu_device->super.name,
-                                     parsec_task_snprintf(tmp, MAX_TASK_STRLEN, this_task), i,
-                                     gpu_copy, gpu_copy->super.super.obj_reference_count,
-                                     this_task->data[i].data_out, this_task->data[i].data_out->super.super.obj_reference_count,
-                                     original);
-        }
-#endif
         parsec_atomic_lock(&original->lock);
         if( flow->flow_flags & PARSEC_FLOW_ACCESS_READ ) {
             int current_readers = parsec_gpu_data_copy_release_reader(gpu_device, gpu_copy,
@@ -3558,7 +3545,7 @@ parsec_device_kernel_epilog( parsec_device_gpu_module_t *gpu_device,
 
 
         if( !(gpu_task->flow_info[i].flow->flow_flags & PARSEC_FLOW_ACCESS_WRITE) ) {
-            /* Warning data_out for read only flows has been overwritten in pop */
+            /* A read-only flow leaves nothing behind for us to put back */
             continue;
         }
 
@@ -3566,41 +3553,6 @@ parsec_device_kernel_epilog( parsec_device_gpu_module_t *gpu_device,
 
         /* If it is a copy managed by the user, don't bother either */
         if( 0 == (gpu_copy->flags & PARSEC_DATA_FLAG_PARSEC_OWNED) ) continue;
-#if 0
-        parsec_data_t *original = gpu_copy->original;
-        parsec_gpu_data_copy_t *cpu_copy = original->device_copies[0];
-        if( this_task->data[i].data_in == this_task->data[i].data_out ) {
-            /**
-             * There might be a race condition here. We can't assume the first CPU
-             * version is the corresponding CPU copy, as a new CPU-bound data
-             * might have been created meanwhile.
-             *
-             * WARNING: For now we always forward the cpu_copy to the next task, to
-             * do that, we lie to the engine by updating the CPU copy to the same
-             * status than the GPU copy without updating the data itself. Thus, the
-             * cpu copy is really invalid. this is related to Issue #88, and the
-             * fact that:
-             *      - we don't forward the gpu copy as output
-             *      - we always take a cpu copy as input, so it has to be in the
-             *        same state as the GPU to prevent an extra data movement.
-             */
-            assert( PARSEC_DATA_COHERENCY_OWNED == gpu_copy->coherency_state );
-            gpu_copy->coherency_state = PARSEC_DATA_COHERENCY_SHARED;
-            cpu_copy->coherency_state = PARSEC_DATA_COHERENCY_SHARED;
-
-            cpu_copy->version = gpu_copy->version;
-            PARSEC_DEBUG_VERBOSE(20, parsec_gpu_output_stream,
-                                 "GPU[%d:%s]: %s: CPU copy %p [ref_count %d] gets the same version %d as GPU copy %p [ref_count %d]",
-                                 gpu_device->super.device_index, gpu_device->super.name, task_str,
-                                 cpu_copy, cpu_copy->super.super.obj_reference_count, cpu_copy->version, gpu_copy, gpu_copy->super.super.obj_reference_count);
-
-            /**
-             * Let's lie to the engine by reporting that working version of this
-             * data is now on the CPU.
-             */
-            this_task->data[i].data_out = cpu_copy;
-        }
-#endif
         assert(0 <= gpu_copy->readers);
 
         if( gpu_task->pushout & (1 << i) ) {
@@ -3695,7 +3647,7 @@ parsec_device_kernel_cleanout( parsec_device_gpu_module_t *gpu_device,
         /* Don't bother if there is no real data (aka. CTL or no output) */
         if(NULL == this_task->data[i].data_out) continue;
         if( !(gpu_task->flow_info[i].flow->flow_flags & PARSEC_FLOW_ACCESS_WRITE) ) {
-            /* Warning data_out for read only flows has been overwritten in pop */
+            /* A read-only flow leaves nothing behind for us to put back */
             continue;
         }
 
