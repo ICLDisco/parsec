@@ -2261,6 +2261,16 @@ void parsec_taskpool_free(parsec_taskpool_t *tp)
     PARSEC_OBJ_RELEASE(tp);
 }
 
+uint8_t parsec_task_class_device_types(const parsec_task_class_t *tc)
+{
+    uint8_t types = PARSEC_DEV_NONE;
+
+    for( int i = 0; PARSEC_DEV_NONE != (tc->incarnations[i].type & PARSEC_DEV_ANY_TYPE); i++ ) {
+        types |= (tc->incarnations[i].type & PARSEC_DEV_ANY_TYPE);
+    }
+    return types;
+}
+
 /*
  * The final step of a taskpool activation. At this point we assume that all the local
  * initializations have been successfully completed for all components, and that the
