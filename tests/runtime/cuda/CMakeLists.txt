@@ -31,6 +31,11 @@ if(PARSEC_HAVE_CUDA)
   target_include_directories(testing_get_best_device PRIVATE $<$<NOT:${PARSEC_BUILD_INPLACE}>:${CMAKE_CURRENT_SOURCE_DIR}>)
   target_ptg_sources(testing_get_best_device PRIVATE "get_best_device_check.jdf")
 
+  # Testing for GPU tile reallocation path used by HICMA runtime decision
+  parsec_addtest_executable(C reallocate_tile_example SOURCES "reallocate_tile_example_main.c")
+  target_include_directories(reallocate_tile_example PRIVATE $<$<NOT:${PARSEC_BUILD_INPLACE}>:${CMAKE_CURRENT_SOURCE_DIR}>)
+  target_ptg_sources(reallocate_tile_example PRIVATE "reallocate_tile_example.jdf")
+
   if(CMAKE_CUDA_COMPILER)
     set_source_files_properties(ping_kernel.cu PROPERTIES LANGUAGE CUDA)
     list(APPEND PINGPONG_GPU_KERNEL_SOURCES ping_kernel.cu)
