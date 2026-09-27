@@ -227,8 +227,11 @@ static void parsec_info_object_array_destructor(parsec_object_t *obj)
 {
     parsec_list_item_t *next, *item;
     parsec_info_object_array_t *oa = (parsec_info_object_array_t*)obj;
-    /* If we are a singleton, we have already been removed from the list */
-    if(oa->list_item.list_next != &oa->list_item) {
+    /* Removing the item below does not return it to a singleton state, so the
+     * list links cannot say whether we are still registered. The info we were
+     * attached to is the reliable marker: init() sets it and we clear it here,
+     * which also makes a second destructor pass a no-op. */
+    if(NULL != oa->infos && oa->list_item.list_next != &oa->list_item) {
         parsec_list_lock(&oa->infos->ioa_list);
         for (item = PARSEC_LIST_ITERATOR_FIRST(&oa->infos->ioa_list);
              item != PARSEC_LIST_ITERATOR_END(&oa->infos->ioa_list);
