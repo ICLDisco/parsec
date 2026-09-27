@@ -59,6 +59,10 @@ v4.0.2411
 
  - data distribution w/o the `parsec_` prefix. Further documentation (including a
    sed script) can be found in `contrib/renaming`.
+ - `parsec_dtd_get_dev_ptr()`. `parsec_dtd_unpack_args()` now hands a DTD body
+   the copy held by the device the task runs on, which is the very same pointer,
+   so existing callers keep working but no longer need the call. It will be
+   removed in a near future release.
 
 ### Removed
 

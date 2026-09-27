@@ -295,18 +295,12 @@ gemm_cuda_unpack_task(parsec_gpu_task_t *gpu_task,
                       int *m, int *n, int *k,
                       int *mb, int *nb, int *kb)
 {
-    double *A, *B, *C;
     parsec_task_t *this_task = gpu_task->ec;
 
     parsec_dtd_unpack_args(this_task,
-                           &A, &B, &C,
+                           a_gpu, b_gpu, c_gpu,
                            m, n, k,
                            mb, nb, kb);
-    (void)A; (void)B; (void)C;
-
-    *a_gpu = parsec_dtd_get_dev_ptr(this_task, 0);
-    *b_gpu = parsec_dtd_get_dev_ptr(this_task, 1);
-    *c_gpu = parsec_dtd_get_dev_ptr(this_task, 2);
 }
 
 static size_t

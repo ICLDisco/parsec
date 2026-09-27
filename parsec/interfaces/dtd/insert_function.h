@@ -192,6 +192,10 @@ typedef parsec_hook_return_t (parsec_dtd_funcptr_t)(parsec_execution_stream_t *,
  * task. The unpacked outputs must be passed in the same order as the insertion
  * or task-class parameters.
  *
+ * A data parameter is unpacked as a pointer to the copy held by the device the
+ * task is running on, so the same body source works on the host and on an
+ * accelerator without going through parsec_dtd_get_dev_ptr().
+ *
  * There is no way to unpack individual parameters. e.g. If user wants to unpack the 3rd parameter only, they have to
  * unpack at least the first three to maintain the order in which whey were inserted. However user can unpack
  * a partial amount of parameters. Source code including this header can simply
@@ -339,6 +343,11 @@ parsec_dtd_insert_task(parsec_taskpool_t  *tp,
 /**
  * Return pointer on the device pointer associated with the i-th flow
  * of `this_task`.
+ *
+ * @deprecated parsec_dtd_unpack_args() now hands out the very same pointer, so
+ * bodies that unpack their flows have no reason to call this. Existing callers
+ * keep working unchanged, but this function is scheduled for removal in a near
+ * future release; unpack the flow instead.
  **/
 void*
 parsec_dtd_get_dev_ptr(parsec_task_t *this_task, int i);

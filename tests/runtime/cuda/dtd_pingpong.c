@@ -78,18 +78,15 @@ int cuda_pong(parsec_device_gpu_module_t *gpu_device,
 {
     (void)gpu_device;
 
-    int *data;
-    void *dev_data;
+    int *dev_data;
     int rank, idx;
     parsec_cuda_exec_stream_t *cuda_stream = (parsec_cuda_exec_stream_t*)gpu_stream;
 
     parsec_task_t *this_task = gpu_task->ec;
-    parsec_dtd_unpack_args(this_task, &rank, &data, &idx);
+    parsec_dtd_unpack_args(this_task, &rank, &dev_data, &idx);
 
     if(verbose)
       fprintf(stderr, "gpu_pong(%d): on GPU %s of MPI rank %d\n", idx, gpu_device->super.name, this_task->taskpool->context->my_rank);
-
-    dev_data = parsec_dtd_get_dev_ptr(this_task, 0);
 
     cuda_pong_kernel(dev_data, idx, cuda_stream->cuda_stream);
 
@@ -106,18 +103,15 @@ int hip_pong(parsec_device_gpu_module_t *gpu_device,
 {
     (void)gpu_device;
 
-    int *data;
-    void *dev_data;
+    int *dev_data;
     int rank, idx;
     parsec_hip_exec_stream_t *hip_stream = (parsec_hip_exec_stream_t*)gpu_stream;
 
     parsec_task_t *this_task = gpu_task->ec;
-    parsec_dtd_unpack_args(this_task, &rank, &data, &idx);
+    parsec_dtd_unpack_args(this_task, &rank, &dev_data, &idx);
 
     if(verbose)
       fprintf(stderr, "hip_pong(%d): on GPU %s of MPI rank %d\n", idx, gpu_device->super.name, this_task->taskpool->context->my_rank);
-
-    dev_data = parsec_dtd_get_dev_ptr(this_task, 0);
 
     hip_pong_kernel(dev_data, idx, hip_stream->hip_stream);
 

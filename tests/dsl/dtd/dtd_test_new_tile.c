@@ -73,17 +73,14 @@ int cuda_set_to_i(parsec_device_gpu_module_t *gpu_device,
     (void)gpu_device;
     (void)gpu_stream;
 
-    int *data;
-    void *dev_data;
+    int *dev_data;
     int rank, nb, idx;
 
     parsec_task_t *this_task = gpu_task->ec;
-    parsec_dtd_unpack_args(this_task, &rank, &data, &nb, &idx);
+    parsec_dtd_unpack_args(this_task, &rank, &dev_data, &nb, &idx);
 
     if(verbose)
       fprintf(stderr, "cuda_set_to_i(%d): on GPU %s of MPI rank %d\n", idx, gpu_device->super.name, this_task->taskpool->context->my_rank);
-
-    dev_data = parsec_dtd_get_dev_ptr(this_task, 0);
 
     int devid;
     cudaError_t err = cudaGetDevice(&devid);
@@ -135,17 +132,14 @@ int cuda_multiply_by_2(parsec_device_gpu_module_t *gpu_device,
     (void)gpu_device;
     (void)gpu_stream;
 
-    int *data;
-    void *dev_data;
+    int *dev_data;
     int nb, idx;
 
     parsec_task_t *this_task = gpu_task->ec;
-    parsec_dtd_unpack_args(this_task, &data, &nb, &idx);
+    parsec_dtd_unpack_args(this_task, &dev_data, &nb, &idx);
 
     if(verbose)
       fprintf(stderr, "cuda_multiply_by_2(%d): on GPU %s of MPI rank %d\n", idx, gpu_device->super.name, this_task->taskpool->context->my_rank);
-
-    dev_data = parsec_dtd_get_dev_ptr(this_task, 0);
 
     // Call the asynchronous kernel (written in CUDA):
     dtd_test_new_tile_multiply_by_two(dev_data, nb, idx);
@@ -199,20 +193,17 @@ int cuda_accumulate(parsec_device_gpu_module_t *gpu_device,
 {
     parsec_device_cuda_module_t *cuda_device = (parsec_device_cuda_module_t*)gpu_device;
 
-    int *data;
-    void *dev_data;
+    int *dev_data;
     int nb, idx;
     int32_t *acc, **gpu_accs;
 
     (void)gpu_stream;
 
     parsec_task_t *this_task = gpu_task->ec;
-    parsec_dtd_unpack_args(this_task, &data, &nb, &idx, &acc, &gpu_accs);
+    parsec_dtd_unpack_args(this_task, &dev_data, &nb, &idx, &acc, &gpu_accs);
 
     if(verbose)
       fprintf(stderr, "cuda_accumulate(%d): on GPU %s of MPI rank %d\n", idx, gpu_device->super.name, this_task->taskpool->context->my_rank);
-
-    dev_data = parsec_dtd_get_dev_ptr(this_task, 0);
 
     // Call the asynchronous kernel (written in CUDA):
     dtd_test_new_tile_sum_add(dev_data, nb, idx, gpu_accs[cuda_device->cuda_index], verbose);
