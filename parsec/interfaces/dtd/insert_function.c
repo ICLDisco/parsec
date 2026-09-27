@@ -797,6 +797,23 @@ parsec_dtd_unpack_args(parsec_task_t *this_task, ...)
     va_end(arguments);
 }
 
+/* The value block follows the parameter descriptors, so it inherits their
+ * alignment: this is what makes the block sizeof(void *)-aligned. */
+_Static_assert(0 == (sizeof(parsec_dtd_task_param_t) % sizeof(void *)),
+               "the DTD value block would not be aligned on sizeof(void *)");
+
+void *
+parsec_dtd_task_values(parsec_task_t *this_task)
+{
+    parsec_dtd_task_t *task = (parsec_dtd_task_t *)this_task;
+    parsec_dtd_task_class_t *tc = (parsec_dtd_task_class_t *)this_task->task_class;
+
+    if( 0 == tc->value_block_size || !parsec_dtd_task_is_local(task) ) {
+        return NULL;
+    }
+    return GET_VALUE_BLOCK(GET_HEAD_OF_PARAM_LIST(task), tc->count_of_params);
+}
+
 #if defined(PARSEC_PROF_TRACE)
 /* **************************************************************************** */
 /**
