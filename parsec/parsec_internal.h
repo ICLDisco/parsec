@@ -458,6 +458,16 @@ struct parsec_task_class_s {
     parsec_hook_t               *fini;
 };
 
+/**
+ * The set of device types a task class has an incarnation for.
+ *
+ * @param[in] tc
+ *          The task class to inspect.
+ *
+ * @return The types of its incarnations, ored together.
+ */
+uint8_t parsec_task_class_device_types(const parsec_task_class_t *tc);
+
 struct parsec_data_pair_s {
     struct parsec_data_copy_s    *data_in;
     struct parsec_data_copy_s    *data_out;
