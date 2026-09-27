@@ -39,6 +39,11 @@ if(PARSEC_HAVE_CUDA)
   if(CMAKE_CUDA_COMPILER)
     set_source_files_properties(ping_kernel.cu PROPERTIES LANGUAGE CUDA)
     list(APPEND PINGPONG_GPU_KERNEL_SOURCES ping_kernel.cu)
+
+    # Can the kernels this build produces run on the device the tests will use?
+    set_source_files_properties(arch_probe_kernel.cu PROPERTIES LANGUAGE CUDA)
+    parsec_addtest_executable(C cuda_arch_probe SOURCES arch_probe_main.c arch_probe_kernel.cu)
+    target_include_directories(cuda_arch_probe PRIVATE $<$<NOT:${PARSEC_BUILD_INPLACE}>:${CMAKE_CURRENT_SOURCE_DIR}>)
   endif(CMAKE_CUDA_COMPILER)
   # Testing for communications to and from GPU
   parsec_addtest_executable(C cuda_rtt SOURCES rtt_main.c)

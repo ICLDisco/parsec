@@ -31,9 +31,9 @@ static int32_t nb_errors = 0;
 static int verbose=0;
 
 #if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) && defined(PARSEC_HAVE_CU_COMPILER)
-extern void dtd_test_new_tile_init(int *dev_data, int nb, int idx);
-extern void dtd_test_new_tile_sum_add(int *dev_data, int nb, int idx, int *acc, int verbose);
-extern void dtd_test_new_tile_multiply_by_two(int *dev_data, int nb, int idx);
+extern void dtd_test_new_tile_init(int *dev_data, int nb, int idx, void *stream);
+extern void dtd_test_new_tile_sum_add(int *dev_data, int nb, int idx, int *acc, int verbose, void *stream);
+extern void dtd_test_new_tile_multiply_by_two(int *dev_data, int nb, int idx, void *stream);
 #endif
 
 #define NCASE 8
@@ -71,7 +71,7 @@ int cuda_set_to_i(parsec_device_gpu_module_t *gpu_device,
                   parsec_gpu_exec_stream_t *gpu_stream)
 {
     (void)gpu_device;
-    (void)gpu_stream;
+    parsec_cuda_exec_stream_t *cuda_stream = (parsec_cuda_exec_stream_t*)gpu_stream;
 
     int *data;
     void *dev_data;
@@ -89,7 +89,7 @@ int cuda_set_to_i(parsec_device_gpu_module_t *gpu_device,
     cudaError_t err = cudaGetDevice(&devid);
     assert(cudaSuccess == err); (void)err;
 
-    dtd_test_new_tile_init(dev_data, nb, idx);
+    dtd_test_new_tile_init(dev_data, nb, idx, cuda_stream->cuda_stream);
 
     return PARSEC_HOOK_RETURN_DONE;
 }
@@ -133,7 +133,7 @@ int cuda_multiply_by_2(parsec_device_gpu_module_t *gpu_device,
                        parsec_gpu_exec_stream_t *gpu_stream)
 {
     (void)gpu_device;
-    (void)gpu_stream;
+    parsec_cuda_exec_stream_t *cuda_stream = (parsec_cuda_exec_stream_t*)gpu_stream;
 
     int *data;
     void *dev_data;
@@ -148,7 +148,7 @@ int cuda_multiply_by_2(parsec_device_gpu_module_t *gpu_device,
     dev_data = parsec_dtd_get_dev_ptr(this_task, 0);
 
     // Call the asynchronous kernel (written in CUDA):
-    dtd_test_new_tile_multiply_by_two(dev_data, nb, idx);
+    dtd_test_new_tile_multiply_by_two(dev_data, nb, idx, cuda_stream->cuda_stream);
 
     return PARSEC_HOOK_RETURN_DONE;
 }
@@ -198,13 +198,12 @@ int cuda_accumulate(parsec_device_gpu_module_t *gpu_device,
                     parsec_gpu_exec_stream_t *gpu_stream)
 {
     parsec_device_cuda_module_t *cuda_device = (parsec_device_cuda_module_t*)gpu_device;
+    parsec_cuda_exec_stream_t *cuda_stream = (parsec_cuda_exec_stream_t*)gpu_stream;
 
     int *data;
     void *dev_data;
     int nb, idx;
     int32_t *acc, **gpu_accs;
-
-    (void)gpu_stream;
 
     parsec_task_t *this_task = gpu_task->ec;
     parsec_dtd_unpack_args(this_task, &data, &nb, &idx, &acc, &gpu_accs);
@@ -215,7 +214,8 @@ int cuda_accumulate(parsec_device_gpu_module_t *gpu_device,
     dev_data = parsec_dtd_get_dev_ptr(this_task, 0);
 
     // Call the asynchronous kernel (written in CUDA):
-    dtd_test_new_tile_sum_add(dev_data, nb, idx, gpu_accs[cuda_device->cuda_index], verbose);
+    dtd_test_new_tile_sum_add(dev_data, nb, idx, gpu_accs[cuda_device->cuda_index], verbose,
+                              cuda_stream->cuda_stream);
 
     return PARSEC_HOOK_RETURN_DONE;
 }

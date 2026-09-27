@@ -775,7 +775,38 @@ int main(int argc, char *argv[]) {
       # Check if PaRSEC can provide automatic compilation of .cu files.
       check_language(CUDA)
       if(CMAKE_CUDA_COMPILER)
+        # Left alone, CMake compiles for whatever architecture nvcc defaults to,
+        # which has nothing to do with the machine doing the building. The
+        # result is a build whose kernels cannot launch at all, and a failed
+        # launch is silent: the kernel does nothing and what one sees is wrong
+        # answers and deadlocks. Build for the hardware we can see unless we
+        # were told otherwise, and say which it is.
+        if((NOT DEFINED CMAKE_CUDA_ARCHITECTURES) AND (NOT CMAKE_VERSION VERSION_LESS 3.24))
+          set(CMAKE_CUDA_ARCHITECTURES native CACHE STRING "CUDA architectures to compile kernels for")
+        endif()
         enable_language(CUDA)
+        message(STATUS "Compiling CUDA kernels for architecture(s) ${CMAKE_CUDA_ARCHITECTURES}")
+        # "native" is resolved by nvcc against the machine running the compiler,
+        # which on a cluster is a login node that often has no accelerator at
+        # all. nvcc does not complain about that: it quietly falls back to its
+        # own default architecture, and the kernels it produces cannot launch on
+        # the compute nodes.
+        if(CMAKE_CUDA_ARCHITECTURES MATCHES "native")
+          find_program(NVIDIA_SMI_EXE nvidia-smi)
+          mark_as_advanced(NVIDIA_SMI_EXE)
+          set(_visible_gpus "")
+          if(NVIDIA_SMI_EXE)
+            execute_process(COMMAND ${NVIDIA_SMI_EXE} --query-gpu=compute_cap --format=csv,noheader
+                            OUTPUT_VARIABLE _visible_gpus ERROR_QUIET
+                            OUTPUT_STRIP_TRAILING_WHITESPACE)
+          endif()
+          if(NOT _visible_gpus)
+            message(WARNING "No GPU is visible from this machine, so 'native' cannot mean anything here: "
+                            "nvcc will fall back to its default architecture and the kernels will not run "
+                            "where the tests do. Set CMAKE_CUDA_ARCHITECTURES to the architecture of the "
+                            "machine that will run them, for instance -DCMAKE_CUDA_ARCHITECTURES=90.")
+          endif()
+        endif()
       endif(CMAKE_CUDA_COMPILER)
     endif (CUDAToolkit_FOUND)
     set(PARSEC_HAVE_CU_COMPILER ${CMAKE_CUDA_COMPILER} CACHE BOOL "True if PaRSEC provide support for compiling .cu files")

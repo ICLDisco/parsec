@@ -4,11 +4,12 @@
  *                         reserved.
  */
 #include <stdio.h>
+#include <cuda_runtime.h>
 
 extern "C" {
-void dtd_test_new_tile_init(int *dev_data, int nb, int idx);
-void dtd_test_new_tile_sum_add(int *dev_data, int nb, int idx, int *acc, int verbose);
-void dtd_test_new_tile_multiply_by_two(int *dev_data, int nb, int idx);
+void dtd_test_new_tile_init(int *dev_data, int nb, int idx, void *stream);
+void dtd_test_new_tile_sum_add(int *dev_data, int nb, int idx, int *acc, int verbose, void *stream);
+void dtd_test_new_tile_multiply_by_two(int *dev_data, int nb, int idx, void *stream);
 }
 
 __global__ void dtnt_init(int *dev_data, int nb, int idx)
@@ -18,9 +19,9 @@ __global__ void dtnt_init(int *dev_data, int nb, int idx)
     (void)idx;
 }
 
-void dtd_test_new_tile_init(int *dev_data, int nb, int idx)
+void dtd_test_new_tile_init(int *dev_data, int nb, int idx, void *stream)
 {
-    dtnt_init<<<1, 1>>>(dev_data, nb, idx);
+    dtnt_init<<<1, 1, 0, (cudaStream_t)stream>>>(dev_data, nb, idx);
 }
 
 __global__ void dtnt_sum_add(int *dev_data, int nb, int idx, int *acc, int verbose)
@@ -36,9 +37,9 @@ __global__ void dtnt_sum_add(int *dev_data, int nb, int idx, int *acc, int verbo
     atomicAdd(acc, sum);
 }
 
-void dtd_test_new_tile_sum_add(int *dev_data, int nb, int idx, int *acc, int verbose)
+void dtd_test_new_tile_sum_add(int *dev_data, int nb, int idx, int *acc, int verbose, void *stream)
 {
-    dtnt_sum_add<<<1, 1>>>(dev_data, nb, idx, acc, verbose);
+    dtnt_sum_add<<<1, 1, 0, (cudaStream_t)stream>>>(dev_data, nb, idx, acc, verbose);
 }
 
 __global__ void dtnt_multiply_by_two(int *dev_data, int nb, int idx)
@@ -50,8 +51,7 @@ __global__ void dtnt_multiply_by_two(int *dev_data, int nb, int idx)
     }
 }
 
-void dtd_test_new_tile_multiply_by_two(int *dev_data, int nb, int idx)
+void dtd_test_new_tile_multiply_by_two(int *dev_data, int nb, int idx, void *stream)
 {
-    dtnt_multiply_by_two<<<1, 1>>>(dev_data, nb, idx);
+    dtnt_multiply_by_two<<<1, 1, 0, (cudaStream_t)stream>>>(dev_data, nb, idx);
 }
-
