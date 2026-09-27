@@ -23,6 +23,14 @@ BEGIN_C_DECLS
 #define PARSEC_GPU_MAX_STREAMS        6
 #define PARSEC_MAX_EVENTS_PER_STREAM  4
 #define PARSEC_GPU_MAX_WORKSPACE      2
+
+/**
+ * Claiming a copy exclusively is done by driving its readers this far below
+ * zero. Whoever wants to read it counts itself in and then looks at what it
+ * got: a negative count means somebody is emptying or disposing of the copy,
+ * and the reader steps back out.
+ */
+#define PARSEC_DEVICE_DATA_COPY_ATOMIC_SENTINEL 1024
 struct parsec_gpu_task_s;
 typedef struct parsec_gpu_task_s parsec_gpu_task_t;
 

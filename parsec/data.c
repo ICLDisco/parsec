@@ -688,6 +688,7 @@ int parsec_data_release_self_contained_data_ext(parsec_data_t *data, int32_t ext
 {
     parsec_data_copy_t *copy = NULL;
     int32_t nb_copies;
+    uint32_t claimed;
     int rc = 0;
 
     if( NULL == data ) return 0;
@@ -708,15 +709,47 @@ int parsec_data_release_self_contained_data_ext(parsec_data_t *data, int32_t ext
     /* this data is only referenced by it's own copies. If these copies are also only referenced by
      * data, then we can release them all.
      */
-    for( uint32_t i = 0; i < parsec_nb_devices; i++) {
-        if (NULL == (copy = data->device_copies[i])) continue;
-        if( copy->super.super.obj_reference_count > 1 || copy->readers > 0 )
-            goto unlock;
+    /* Finding the copies unused and disposing of them has to hold as one step:
+     * a reader appearing in between would be reading freed memory. So claim
+     * every copy as we look at it, the same way an eviction claims the copy it
+     * empties, and let go of the whole data if any copy resists. Nothing
+     * reclaims a host copy but this, so the claim on device_copies[0] is a
+     * statement of intent rather than a guarantee.
+     */
+    for( claimed = 0; claimed < parsec_nb_devices; claimed++ ) {
+        if (NULL == (copy = data->device_copies[claimed])) continue;
+        if( copy->super.super.obj_reference_count > 1 )
+            break;
+        if( !parsec_atomic_cas_int32(&copy->readers, 0,
+                                     -PARSEC_DEVICE_DATA_COPY_ATOMIC_SENTINEL) )
+            break;
+        /* A copy being filled counts as used, whatever its reader and reference
+         * counts say. Whoever started the transfer comes back to it when the
+         * transfer completes, to mark it complete and to hand the version over
+         * to the data, and it reads the data through the copy to do so. Neither
+         * count covers that window: a task takes its reader on the copy it
+         * reads from, which for a copy being filled is the source, not this
+         * one.
+         */
+        if( PARSEC_DATA_STATUS_UNDER_TRANSFER == copy->data_transfer_status ) {
+            parsec_atomic_fetch_add_int32(&copy->readers,
+                                          PARSEC_DEVICE_DATA_COPY_ATOMIC_SENTINEL);
+            break;
+        }
+    }
+    if( claimed != parsec_nb_devices ) {  /* hand back what we had claimed */
+        for( uint32_t i = 0; i < claimed; i++) {
+            if (NULL == (copy = data->device_copies[i])) continue;
+            parsec_atomic_fetch_add_int32(&copy->readers,
+                                          PARSEC_DEVICE_DATA_COPY_ATOMIC_SENTINEL);
+        }
+        goto unlock;
     }
     PARSEC_DEBUG_VERBOSE(90, parsec_debug_output, "Release copy %p from self-contained data %p", copy, data);
     for( uint32_t i = 0; i < parsec_nb_devices; i++) {
         if (NULL == (copy = data->device_copies[i])) continue;
-        assert(1 == copy->super.super.obj_reference_count && 0 == copy->readers);
+        assert(1 == copy->super.super.obj_reference_count &&
+               -PARSEC_DEVICE_DATA_COPY_ATOMIC_SENTINEL == copy->readers);
         copy->flags &= ~PARSEC_DATA_FLAG_CPU_MIRROR_PROTECTED;
 #if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) || defined(PARSEC_HAVE_DEV_HIP_SUPPORT) || defined(PARSEC_HAVE_DEV_LEVEL_ZERO_SUPPORT)
         if (parsec_mca_device_is_gpu(copy->device_index)) {

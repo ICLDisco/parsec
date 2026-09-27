@@ -22,8 +22,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define PARSEC_DEVICE_DATA_COPY_ATOMIC_SENTINEL 1024
-
 /* The push stage found no room on the device for what a task needs. Unlike a
  * reschedule, no event will ever make that task runnable: the memory has to be
  * taken back from someone else first. The task is therefore parked on the
