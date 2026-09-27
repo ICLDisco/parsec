@@ -124,6 +124,18 @@ int main(int argc, char *argv[])
         exit(-1);
     }
 
+    /* The point of this test is to check the device elected for each task, so
+     * a run without any accelerator is a skip, not a pass (see
+     * SKIP_RETURN_CODE in tests/CMakeLists.txt). */
+    if( parsec_context_query(parsec, PARSEC_CONTEXT_QUERY_DEVICES, PARSEC_DEV_CUDA) <= 0 ) {
+        parsec_warning("This test can only run if at least one CUDA device is present");
+        parsec_fini(&parsec);
+#if defined(PARSEC_HAVE_MPI)
+        MPI_Finalize();
+#endif
+        return -PARSEC_ERR_DEVICE;
+    }
+
     /* If the number of cores has not been defined as a parameter earlier
      * update it with the default parameter computed in parsec_init. */
     if(cores <= 0)

@@ -24,8 +24,8 @@ parsec_addtest_cmd(dsl/dtd/template_counter ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_tes
 parsec_addtest_cmd(dsl/dtd/untie ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_test_untie)
 parsec_addtest_cmd(dsl/dtd/new_tile:cpu ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_test_new_tile --mca device_cuda_enabled 0)
 if(PARSEC_HAVE_CUDA AND CMAKE_CUDA_COMPILER)
-  parsec_addtest_cmd(dsl/dtd/new_tile:gpu ${SHM_TEST_CMD_LIST} ${CTEST_CUDA_LAUNCHER_OPTIONS} dsl/dtd/dtd_test_new_tile --mca device_cuda_enabled 1 --mca device cuda)
-  parsec_addtest_cmd(dsl/dtd/cuda_batch_status ${SHM_TEST_CMD_LIST}
+  parsec_addtest_cmd(dsl/dtd/new_tile:gpu ${SHM_TEST_CMD_LIST} ${CTEST_CUDA_LAUNCHER_OPTIONS} dsl/dtd/dtd_test_new_tile --require-gpu --mca device_cuda_enabled 1 --mca device cuda)
+  parsec_addtest_cmd(dsl/dtd/cuda_batch_status:gpu ${SHM_TEST_CMD_LIST}
                     ${CTEST_CUDA_LAUNCHER_OPTIONS}
                     dsl/dtd/dtd_test_cuda_again_async
                     --mca device_cuda_enabled 1
@@ -61,6 +61,6 @@ if( MPI_C_FOUND )
   parsec_addtest_cmd(dsl/dtd/template_counter:mp ${MPI_TEST_CMD_LIST} 2 dsl/dtd/dtd_test_template_counter)
   parsec_addtest_cmd(dsl/dtd/new_tile:mp:cpu ${MPI_TEST_CMD_LIST} 2 dsl/dtd/dtd_test_new_tile --mca device_cuda_enabled 0)
   if(PARSEC_HAVE_CUDA AND CMAKE_CUDA_COMPILER)
-    parsec_addtest_cmd(dsl/dtd/new_tile:mp:gpu ${MPI_TEST_CMD_LIST} 2 ${CTEST_CUDA_LAUNCHER_OPTIONS} dsl/dtd/dtd_test_new_tile --mca device_cuda_enabled 1 --mca device cuda)
+    parsec_addtest_cmd(dsl/dtd/new_tile:mp:gpu ${MPI_TEST_CMD_LIST} 2 ${CTEST_CUDA_LAUNCHER_OPTIONS} dsl/dtd/dtd_test_new_tile --require-gpu --mca device_cuda_enabled 1 --mca device cuda)
   endif(PARSEC_HAVE_CUDA AND CMAKE_CUDA_COMPILER)
 endif( MPI_C_FOUND )
