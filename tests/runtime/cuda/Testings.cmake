@@ -1,4 +1,13 @@
 if(PARSEC_HAVE_CUDA)
+  # Every CUDA test below assumes the kernels this build produced can run on
+  # the device it finds. When they cannot, none of them says so: the launches
+  # fail, the kernels write nothing, and the tests report wrong results or
+  # deadlock instead. Ask the question once, up front, and let the tests that
+  # depend on the answer not run at all when it is no.
+  if(TARGET cuda_arch_probe)
+    parsec_addtest_cmd(runtime/cuda/arch_probe:gpu ${SHM_TEST_CMD_LIST} ${CTEST_CUDA_LAUNCHER_OPTIONS} runtime/cuda/cuda_arch_probe)
+    set_tests_properties(runtime/cuda/arch_probe:gpu PROPERTIES FIXTURES_SETUP parsec_cuda_kernels_run)
+  endif()
   parsec_addtest_cmd(runtime/cuda/get_best_device:gpu ${SHM_TEST_CMD_LIST} ${CTEST_CUDA_LAUNCHER_OPTIONS} runtime/cuda/testing_get_best_device -N 400 -t 20 -g 4 -- --mca device_show_statistics 1)
   if(TARGET nvlink)
     parsec_addtest_cmd(runtime/cuda/nvlink:gpu ${SHM_TEST_CMD_LIST} ${CTEST_CUDA_LAUNCHER_OPTIONS} runtime/cuda/nvlink --mca device_cuda_enabled 2 --mca device_show_statistics 1)
@@ -14,9 +23,11 @@ if(PARSEC_HAVE_CUDA)
   endif()
   if(TARGET ptg_pingpong)
     parsec_addtest_cmd(runtime/cuda/ptg_pingpong:gpu ${SHM_TEST_CMD_LIST} ${CTEST_CUDA_LAUNCHER_OPTIONS} runtime/cuda/ptg_pingpong --mca device_cuda_enabled 2 --mca device_show_statistics 1)
+    set_tests_properties(runtime/cuda/ptg_pingpong:gpu PROPERTIES FIXTURES_REQUIRED parsec_cuda_kernels_run)
   endif()
   if(TARGET dtd_pingpong)
     parsec_addtest_cmd(runtime/cuda/dtd_pingpong:gpu ${SHM_TEST_CMD_LIST} ${CTEST_CUDA_LAUNCHER_OPTIONS} runtime/cuda/dtd_pingpong --mca device_cuda_enabled 2 --mca device_show_statistics 1)
+    set_tests_properties(runtime/cuda/dtd_pingpong:gpu PROPERTIES FIXTURES_REQUIRED parsec_cuda_kernels_run)
   endif()
 endif()
 
