@@ -492,6 +492,7 @@ char *parsec_device_describe_gpu_task( char *tmp, size_t len, parsec_gpu_task_t 
 #define PARSEC_GPU_TASK_TYPE_PREFETCH     0x2000
 #define PARSEC_GPU_TASK_TYPE_WARMUP       0x4000
 #define PARSEC_GPU_TASK_TYPE_D2D_COMPLETE 0x8000
+#define PARSEC_GPU_TASK_TYPE_RELEASE_COPY 0x0800
 #define PARSEC_GPU_TASK_TYPE_INVALID      0xf000
 
 #if defined(PARSEC_PROF_TRACE)
@@ -526,6 +527,26 @@ int parsec_device_taskpool_unregister(parsec_device_module_t* device, parsec_tas
 int parsec_device_data_advise(parsec_device_module_t *dev, parsec_data_t *data, int advice);
 int parsec_device_flush_lru( parsec_device_module_t *device );
 int parsec_device_memory_release( parsec_device_gpu_module_t* gpu_device );
+
+/**
+ * Take the right to act on a device that the calling thread does not manage.
+ *
+ * @return 1 when the device had no manager and the caller now holds it
+ *         exclusively, in which case parsec_device_release_owner_token() must be
+ *         called once done; 0 when a manager exists and a slot has been reserved
+ *         for it, in which case the caller must hand the work over as a command.
+ */
+int  parsec_device_acquire_owner_token(parsec_device_gpu_module_t *owner);
+void parsec_device_release_owner_token(parsec_device_gpu_module_t *owner);
+
+/**
+ * Hand a copy over to its owning device for disposal. The copy must already be
+ * detached from its data and hold the only reference to itself: from the
+ * caller's point of view it is gone once this returns, and the owner's manager
+ * takes it off its LRU and returns its device memory when it gets to it.
+ */
+void parsec_device_send_release_copy_cmd_to_device(parsec_data_copy_t *copy,
+                                                   parsec_device_gpu_module_t *owner);
 
 /**
  * Derive parsec_device_peer_mesh_incomplete from the peer access masks of all

@@ -1757,7 +1757,7 @@ parsec_device_send_transfercomplete_cmd_to_device(parsec_data_copy_t *copy,
  *         called once done; 0 when a manager exists and a slot has been reserved
  *         for it, in which case the caller must hand the work over as a command.
  */
-static inline int
+int
 parsec_device_acquire_owner_token(parsec_device_gpu_module_t *owner)
 {
     int om;
@@ -1793,7 +1793,7 @@ parsec_device_acquire_owner_token(parsec_device_gpu_module_t *owner)
     }
 }
 
-static inline void
+void
 parsec_device_release_owner_token(parsec_device_gpu_module_t *owner)
 {
     /* Notify any waiting thread that we're done messing with that device structure */
@@ -2849,6 +2849,53 @@ parsec_device_send_transfercomplete_cmd_to_device(parsec_data_copy_t *copy,
                          gpu_task->ec->data[0].data_out->super.super.obj_reference_count,
                          dst_dev->device_index, dst_dev->name);
     parsec_lifo_push( &(((parsec_device_gpu_module_t*)dst_dev)->pending), (parsec_list_item_t*)gpu_task );
+}
+
+void
+parsec_device_send_release_copy_cmd_to_device(parsec_data_copy_t *copy,
+                                              parsec_device_gpu_module_t *owner)
+{
+    parsec_gpu_task_t *gpu_task = (parsec_gpu_task_t *)PARSEC_OBJ_NEW(parsec_gpu_dsl_task_t);
+    gpu_task->task_type = PARSEC_GPU_TASK_TYPE_RELEASE_COPY;
+    gpu_task->ec = calloc(1, sizeof(parsec_task_t));
+    PARSEC_OBJ_CONSTRUCT(gpu_task->ec, parsec_task_t);
+    gpu_task->ec->task_class = &parsec_device_d2d_complete_tc;
+    gpu_task->ec->priority = INT32_MAX;
+    /* The pending heap orders on gpu_task->priority, which this direct-enqueue
+     * path does not inherit from ec. */
+    gpu_task->priority = INT32_MAX;
+    gpu_task->nb_flows = 0;
+    gpu_task->ec->data[0].data_in  = copy;
+    gpu_task->ec->data[0].data_out = copy;
+#if defined(PARSEC_PROF_TRACE)
+    gpu_task->prof_stage_key_end = -1;  /* pure internal management, we do not trace it */
+#endif
+    PARSEC_DEBUG_VERBOSE(3, parsec_gpu_output_stream,
+                         "GPU[%d:%s]: handing data copy %p [ref_count %d] over to its owner for disposal",
+                         owner->super.device_index, owner->super.name, copy,
+                         copy->super.super.obj_reference_count);
+    parsec_lifo_push( &(owner->pending), (parsec_list_item_t*)gpu_task );
+}
+
+/**
+ * Dispose of a copy handed over by parsec_device_send_release_copy_cmd_to_device.
+ * This runs on the manager, so touching the device lists is safe here.
+ */
+static void
+parsec_device_release_copy_now(parsec_device_gpu_module_t *gpu_device, parsec_data_copy_t *copy)
+{
+    parsec_list_item_ring_chop((parsec_list_item_t*)copy);
+    PARSEC_LIST_ITEM_SINGLETON(copy);
+    if( NULL != copy->device_private ) {
+        zone_free( (zone_malloc_t*)copy->arena_chunk, copy->device_private );
+        copy->device_private = NULL;
+    }
+    copy->arena_chunk = NULL;
+    gpu_device->data_avail_epoch++;
+    PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
+                         "GPU[%d:%s]: disposed of handed over data copy %p",
+                         gpu_device->super.device_index, gpu_device->super.name, copy);
+    PARSEC_OBJ_RELEASE(copy);
 }
 
 static int
@@ -4186,6 +4233,13 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
                              parsec_device_describe_gpu_task(tmp, MAX_TASK_STRLEN, gpu_task));
         if( PARSEC_GPU_TASK_TYPE_D2D_COMPLETE == gpu_task->task_type ) {
             goto get_data_out_of_device;
+        }
+        if( PARSEC_GPU_TASK_TYPE_RELEASE_COPY == gpu_task->task_type ) {
+            /* Nothing to run: the copy is ours to dispose of, right here. */
+            parsec_device_release_copy_now(gpu_device, gpu_task->ec->data[0].data_out);
+            free( gpu_task->ec );
+            gpu_task->ec = NULL;
+            goto remove_gpu_task;
         }
     } else {
         pop_null++;
