@@ -23,7 +23,6 @@ BEGIN_C_DECLS
 #define PARSEC_GPU_MAX_STREAMS        6
 #define PARSEC_MAX_EVENTS_PER_STREAM  4
 #define PARSEC_GPU_MAX_WORKSPACE      2
-
 struct parsec_gpu_task_s;
 typedef struct parsec_gpu_task_s parsec_gpu_task_t;
 
@@ -177,6 +176,12 @@ struct parsec_gpu_task_s {
     uint64_t                               heap_seq; /**< FIFO tie-break stamp, set by parsec_heap_push(); see pending_heap */
     uint16_t                               task_type;
     uint16_t                               pushout;
+    /* One bit per flow, set while this task counts itself among the readers of
+     * the copy it was handed as data_out. The reservation takes the reader and
+     * the pop gives it back, but a push can be retried in between, so the bit
+     * is what keeps the two from happening twice.
+     */
+    uint32_t                               data_out_readers;
     int32_t                                last_status;
     parsec_advance_task_function_t         submit;
     parsec_complete_stage_function_t       complete_stage;

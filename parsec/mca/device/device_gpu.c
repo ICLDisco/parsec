@@ -189,6 +189,7 @@ static void parsec_device_task_t_constructor(parsec_gpu_task_t *gpu_task)
 {
     gpu_task->task_type = PARSEC_GPU_TASK_TYPE_INVALID; /* need to be set later */
     gpu_task->pushout = 0;
+    gpu_task->data_out_readers = 0;
     gpu_task->last_status = 0;
     gpu_task->submit = NULL;
     gpu_task->complete_stage = NULL;
@@ -1222,6 +1223,51 @@ static int parsec_gpu_copy_recoverability(parsec_data_copy_t *copy)
     return PARSEC_GPU_COPY_RECOVERABLE;
 }
 
+static inline int
+parsec_gpu_data_copy_release_reader(parsec_device_gpu_module_t *gpu_device,
+                                    parsec_data_copy_t *copy,
+                                    int make_available);
+
+/**
+ * @brief Count a task among the readers of the copy handed to one of its flows.
+ *
+ * A copy bound to a flow is reachable from its data like any other one, and
+ * nothing else says that a task is about to use it: it can be evicted, or
+ * released together with a data that looks unused, between the moment the
+ * reservation picks it and the moment the transfer into it starts. The reader
+ * closes that window. Taking it twice is a no-op, which is what a push retried
+ * after a partial reservation needs.
+ */
+static inline void
+parsec_device_flow_acquire_data_out(parsec_gpu_task_t *gpu_task, uint32_t flow_index)
+{
+    parsec_data_copy_t *copy = gpu_task->ec->data[flow_index].data_out;
+
+    if( (NULL == copy) || (0 != (gpu_task->data_out_readers & (1U << flow_index))) )
+        return;
+    gpu_task->data_out_readers |= (1U << flow_index);
+    (void)parsec_atomic_fetch_inc_int32(&copy->readers);
+}
+
+/**
+ * @brief Give back the reader the reservation took for that flow.
+ *
+ * @return the number of readers left on the copy, or -1 if this task was not
+ *         holding one for that flow.
+ */
+static inline int
+parsec_device_flow_release_data_out(parsec_device_gpu_module_t *gpu_device,
+                                    parsec_gpu_task_t *gpu_task, uint32_t flow_index,
+                                    int make_available)
+{
+    parsec_data_copy_t *copy = gpu_task->ec->data[flow_index].data_out;
+
+    if( 0 == (gpu_task->data_out_readers & (1U << flow_index)) )
+        return -1;
+    gpu_task->data_out_readers &= ~(1U << flow_index);
+    return parsec_gpu_data_copy_release_reader(gpu_device, copy, make_available);
+}
+
 /**
  * Try to find memory space to move all data on the GPU. We attach a device_elem to
  * a memory_elem as soon as a device_elem is available. If we fail to find enough
@@ -1313,6 +1359,7 @@ parsec_device_data_reserve_space( parsec_device_gpu_module_t* gpu_device,
                                  flow->name, i, input_copy,
                                  input_copy->data_transfer_status == PARSEC_DATA_STATUS_UNDER_TRANSFER ? " [in transfer]" : "");
             this_task->data[i].data_out = input_copy;
+            parsec_device_flow_acquire_data_out(gpu_task, i);
             if( (PARSEC_DATA_STATUS_UNDER_TRANSFER == input_copy->data_transfer_status) &&
                 (0 != (PARSEC_FLOW_ACCESS_WRITE & flow->flow_flags)) ) {
                 /* The selected input/output copy is already the device-local
@@ -1332,6 +1379,7 @@ parsec_device_data_reserve_space( parsec_device_gpu_module_t* gpu_device,
         parsec_atomic_lock(&master->lock);
         gpu_elem = PARSEC_DATA_GET_COPY(master, gpu_device->super.device_index);
         this_task->data[i].data_out = gpu_elem;
+        parsec_device_flow_acquire_data_out(gpu_task, i);
 
 #if !defined(PARSEC_GPU_ALLOC_PER_TILE)
         if( (NULL != gpu_elem) && parsec_data_copy_is_placeholder(gpu_elem) ) {
@@ -1411,6 +1459,12 @@ parsec_device_data_reserve_space( parsec_device_gpu_module_t* gpu_device,
                                      gpu_device->super.device_index, gpu_device->super.name, task_name,
                                      flow->name, i, gpu_task->nb_flows, task_name );
 #endif  /* defined(PARSEC_DEBUG_NOISIER) */
+                /* Everything this pass reserved goes back, so the task stops
+                 * being a user of all of it. It counts itself in again when it
+                 * gets another chance to reserve. */
+                for( j = 0; j < gpu_task->nb_flows; j++ ) {
+                    (void)parsec_device_flow_release_data_out(gpu_device, gpu_task, j, 0);
+                }
                 for( j = 0; j <= i; j++ ) {
                     /* This flow could be a control flow */
                     if( NULL == temp_loc[j] ) continue;
@@ -1713,6 +1767,7 @@ parsec_device_data_reserve_space( parsec_device_gpu_module_t* gpu_device,
             parsec_data_copy_attach(master, gpu_elem, gpu_device->super.device_index);
         }
         this_task->data[i].data_out = gpu_elem;
+        parsec_device_flow_acquire_data_out(gpu_task, i);
         /* set the new datacopy type to the correct one */
         this_task->data[i].data_out->dtt = this_task->data[i].data_in->dtt;
         temp_loc[i] = gpu_elem;
@@ -1728,8 +1783,11 @@ parsec_device_data_reserve_space( parsec_device_gpu_module_t* gpu_device,
          * for a writable input transfer to complete. Copies created
          * speculatively during this pass are tracked in temp_loc[] and must be
          * returned to the GPU LRU exactly like an ordinary reservation retry.
+         * The task is not using any of them until a pass of this succeeds, so
+         * it also stops counting itself among their readers.
          */
         for( j = 0; j < gpu_task->nb_flows; j++ ) {
+            (void)parsec_device_flow_release_data_out(gpu_device, gpu_task, j, 0);
             /* This flow could be a control flow or an existing GPU copy. */
             if( NULL == temp_loc[j] ) continue;
             this_task->data[j].data_out = NULL;  /* reset the data out */
@@ -2272,9 +2330,6 @@ parsec_device_data_stage_in( parsec_device_gpu_module_t* gpu_device,
                 parsec_list_item_ring_chop((parsec_list_item_t *)candidate);
                 PARSEC_LIST_ITEM_SINGLETON(candidate);
             }
-            if( PARSEC_FLOW_ACCESS_READ & type ) {
-                parsec_atomic_fetch_add_int32(&candidate->readers, 1);
-            }
 #if defined(PARSEC_DEBUG_NOISIER)
             if( parsec_device_audit_stage_in ) {
                 parsec_device_gpu_copy_snapshot_t snapshot;
@@ -2336,14 +2391,13 @@ parsec_device_data_stage_in( parsec_device_gpu_module_t* gpu_device,
     /* If it is already under transfer, don't schedule the transfer again.
      * This happens if the task refers twice (or more) to the same input flow.
      * This is the only path that intentionally calls start_transfer_ownership
-     * before selecting/acquiring a source: no new transfer will be issued here,
-     * but the task is about to read this copy all the same, so it takes the
-     * destination reader that it will give back when it pops.
+     * before selecting/acquiring a source: no new transfer will be issued here.
+     * The task already counts itself among the readers of this copy, from the
+     * reservation that handed it over, until it pops.
      */
     if( (PARSEC_FLOW_ACCESS_READ & type) &&
         (gpu_elem->data_transfer_status == PARSEC_DATA_STATUS_UNDER_TRANSFER) ) {
         transfer_from = parsec_data_start_transfer_ownership_to_copy(original, gpu_device->super.device_index, (uint8_t)type);
-        (void)parsec_atomic_fetch_inc_int32(&gpu_elem->readers);
         gpu_device->super.required_data_in += original->span;
         PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
                              "GPU[%d:%s]:\t\tMove data copy %p [ref_count %d, key %x] of %zu bytes: data copy is already under transfer, ignoring double request",
@@ -2539,11 +2593,6 @@ parsec_device_data_stage_in( parsec_device_gpu_module_t* gpu_device,
 #endif  /* defined(PARSEC_DEBUG_NOISIER) */
 
     transfer_from = parsec_data_start_transfer_ownership_to_copy(original, gpu_device->super.device_index, (uint8_t)type);
-    /* The task reads this copy from here until it pops, which is where the
-     * matching release lives. */
-    if( PARSEC_FLOW_ACCESS_READ & type ) {
-        (void)parsec_atomic_fetch_inc_int32(&gpu_elem->readers);
-    }
 
     /* If data is from NEW (it doesn't have a source_repo_entry and is not a direct data collection reference),
      * and nobody has touched it yet, then we don't need to pull it in, we have created it already, that's enough.
@@ -3164,6 +3213,10 @@ parsec_device_send_transfercomplete_cmd_to_device(parsec_data_copy_t *copy,
     gpu_task->ec->data[0].data_in = copy;  /* We need to set not-null in data_in, so that the fake flow is
                                             * not ignored when popping the data from the fake task */
     gpu_task->ec->data[0].data_out = copy; /* We "free" data[i].data_out if its readers reaches 0 */
+    /* This command exists to hand a reader back, so it carries one: the sender
+     * keeps the copy counted until the owner acts on the command, and the pop
+     * that acts on it gives that same reader back. */
+    gpu_task->data_out_readers = 1;
     gpu_task->ec->data[0].source_repo_entry = NULL;
     gpu_task->ec->data[0].source_repo = NULL;
 #if defined(PARSEC_PROF_TRACE)
@@ -3400,7 +3453,9 @@ parsec_device_callback_complete_push(parsec_device_gpu_module_t   *gpu_device,
                              tmp,
                              gpu_copy->readers, gpu_copy->device_index, gpu_copy->version,
                              gpu_copy->flags, gpu_copy->coherency_state, gpu_copy->data_transfer_status);
-        int readers = parsec_gpu_data_copy_release_reader(gpu_device, gpu_copy, 1);
+        /* A prefetch never pops, so this is where it stops using the copy it
+         * was given. */
+        int readers = parsec_device_flow_release_data_out(gpu_device, gtask, 0, 1);
         assert(readers >= 0);
         if( 0 == readers ) {
             PARSEC_DEBUG_VERBOSE(3, parsec_gpu_output_stream,
@@ -3937,18 +3992,23 @@ parsec_device_kernel_pop( parsec_device_gpu_module_t   *gpu_device,
         assert( this_task->data[i].data_in == NULL || original == this_task->data[i].data_in->original );
 
         parsec_atomic_lock(&original->lock);
+        /* The task stops using this copy here, whichever way it was accessing
+         * it. A copy it only wrote to is nobody's to take back before this
+         * point either. */
+        int current_readers = parsec_device_flow_release_data_out(gpu_device, gpu_task, i,
+                                                                  !(flow->flow_flags & PARSEC_FLOW_ACCESS_WRITE));
+        if( current_readers < 0 ) {
+            /* Every task that got this far was handed this copy by a
+             * reservation, which is where it started counting as a reader. */
+            PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
+                                 "GPU[%d:%s]: While trying to Pop %s, gpu_copy %p [ref_count %d] on flow %d with original %p was not counted as a reader",
+                                 gpu_device->super.device_index, gpu_device->super.name,
+                                 parsec_task_snprintf(tmp, MAX_TASK_STRLEN, this_task),
+                                 gpu_copy, gpu_copy->super.super.obj_reference_count,
+                                 i, original);
+            assert(0);
+        }
         if( flow->flow_flags & PARSEC_FLOW_ACCESS_READ ) {
-            int current_readers = parsec_gpu_data_copy_release_reader(gpu_device, gpu_copy,
-                                                                      !(flow->flow_flags & PARSEC_FLOW_ACCESS_WRITE));
-            if( current_readers < 0 ) {
-                PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
-                                     "GPU[%d:%s]: While trying to Pop %s, gpu_copy %p [ref_count %d] on flow %d with original %p had a negative number of readers (%d)",
-                                     gpu_device->super.device_index, gpu_device->super.name,
-                                     parsec_task_snprintf(tmp, MAX_TASK_STRLEN, this_task),
-                                     gpu_copy, gpu_copy->super.super.obj_reference_count,
-                                     i, original, current_readers);
-            }
-            assert(current_readers >= 0);
             /* Non-owned copies may be used as GPU inputs, but their lifetime is
              * not managed through PaRSEC's device LRUs. After balancing readers,
              * leave ownership, availability, and reclamation to the external owner.
