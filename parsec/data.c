@@ -205,6 +205,12 @@ int parsec_data_copy_detach(parsec_data_t* data,
     }
     data->device_copies[device] = copy->older;
     parsec_atomic_fetch_add_int32(&data->nb_copies, -1);
+    if( device == data->owner_device ) {
+        /* The owner is about to be gone, and a later copy allocated on the same
+         * device would otherwise be taken for the reference value and left
+         * unread. Let the next accessor find out who holds it. */
+        data->owner_device = -1;
+    }
 
     copy->original     = NULL;
     copy->older        = NULL;
@@ -709,10 +715,8 @@ int parsec_data_release_self_contained_data_ext(parsec_data_t *data, int32_t ext
         if (NULL == (copy = data->device_copies[i])) continue;
         assert(1 == copy->super.super.obj_reference_count && 0 == copy->readers);
         copy->flags &= ~PARSEC_DATA_FLAG_CPU_MIRROR_PROTECTED;
-        if (!parsec_mca_device_is_gpu(copy->device_index)) {
-            PARSEC_OBJ_RELEASE(copy);
-            assert(NULL == copy);
-        } else {
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) || defined(PARSEC_HAVE_DEV_HIP_SUPPORT) || defined(PARSEC_HAVE_DEV_LEVEL_ZERO_SUPPORT)
+        if (parsec_mca_device_is_gpu(copy->device_index)) {
             /* These self-contained GPU copies are no longer managed through a
              * device LRU after this point. GPU-aware propagation can return them
              * to a device LRU before the protected CPU mirror is released, so
@@ -758,6 +762,11 @@ int parsec_data_release_self_contained_data_ext(parsec_data_t *data, int32_t ext
             PARSEC_DATA_COPY_RELEASE(copy);
             assert(NULL == copy);
             parsec_device_release_owner_token(owner);
+        } else
+#endif  /* defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) || defined(PARSEC_HAVE_DEV_HIP_SUPPORT) || defined(PARSEC_HAVE_DEV_LEVEL_ZERO_SUPPORT) */
+        {
+            PARSEC_OBJ_RELEASE(copy);
+            assert(NULL == copy);
         }
         if (0 == --nb_copies) { /* every copy is gone; nothing left to walk */
             rc = 1;

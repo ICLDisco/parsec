@@ -3585,6 +3585,14 @@ parsec_device_kernel_pop( parsec_device_gpu_module_t   *gpu_device,
                                      gpu_device->super.device_index, gpu_device->super.name, gpu_copy, gpu_copy->super.super.obj_reference_count, flow->name);
                 update_data_epoch = 1;
                 parsec_atomic_unlock(&original->lock);
+                /* Losing its last reader is the only moment a self-contained
+                 * input can be seen to have run out of uses: it has no data
+                 * collection to be reached from, so a copy left on a device LRU
+                 * keeps its memory until the process ends. Offer the data for
+                 * release, which is a no-op unless nothing but its own copies
+                 * still reference it.
+                 */
+                parsec_data_release_self_contained_data(original);
                 continue;  /* done with this element, go for the next one */
             }
             PARSEC_DEBUG_VERBOSE(20, parsec_gpu_output_stream,

@@ -1,0 +1,347 @@
+extern "C" %{
+/*
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
+ */
+
+/**
+ * Regression test for issue #795, "Possible regression with JDF NEW data: GPU
+ * ownership warnings and hangs during repeated runs".
+ *
+ * A TN GEMM that stages both operands through intermediate buffers allocated
+ * with NEW, each one fanned out to a whole row or column of GEMM tasks that run
+ * on a GPU. The fan-out crosses ranks, so the consumers receive those buffers
+ * rather than produce them, which is what the issue needs: a received copy is
+ * marked as owning its data, and a self-contained one has no data collection to
+ * be reached from again. A copy left on a device LRU in that state keeps its
+ * device memory for the life of the process, which the issue reports as
+ * "still OWNS the master memory copy" warnings at exit and, with enough
+ * repetitions, as a run that no longer finds memory to make progress.
+ *
+ * The control flows throttle how far ahead the staging tasks may run, which
+ * bounds how many NEW buffers are alive at once.
+ *
+ * Every operand is 1.0, so each element of C accumulates exactly
+ * nruns * tiles_k * tile_size, and the test fails if any element disagrees.
+ */
+
+#include "parsec/parsec_config.h"
+#include "parsec.h"
+
+#include "parsec/data_distribution.h"
+#include "parsec/data_dist/matrix/matrix.h"
+#include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include "parsec/mca/device/device.h"
+#include "parsec/execution_stream.h"
+#include "parsec/class/info.h"
+
+#include <getopt.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
+#include "parsec/mca/device/cuda/device_cuda_internal.h"
+#include <cublas_v2.h>
+
+typedef cublasStatus_t (*cublas_dgemm_v2_t)( cublasHandle_t handle,
+                                             cublasOperation_t transa, cublasOperation_t transb,
+                                             int m, int n, int k,
+                                             const double *alpha,
+                                             const double *A, int lda,
+                                             const double *B, int ldb,
+                                             const double *beta,
+                                             double       *C, int ldc);
+#endif  /* defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) */
+
+#if defined(PARSEC_HAVE_MPI)
+#include <mpi.h>
+#endif
+
+%}
+
+/*
+ * Globals
+ */
+descA  [type = "parsec_tiled_matrix_t *"]
+descB  [type = "parsec_tiled_matrix_t *"]
+descC  [type = "parsec_tiled_matrix_t *"]
+CuHI   [type = "parsec_info_id_t"]
+lookP  [type = "int"]
+lookQ  [type = "int"]
+
+/**************************************************
+ *                      READ_A                    *
+ **************************************************/
+READ_A(k, m)
+
+k = 0 .. descA->mt-1
+m = 0 .. descA->nt-1
+
+: descA(k, m)
+
+READ  A  <- descA(k, m)
+
+WRITE AP <- NEW
+         -> AP GEMM(m, 0 .. descC->nt-1, k)
+
+CTL   ctla <- (k >= lookQ) ? ctla GEMM(m, 0 .. descC->nt-1, k-lookQ)
+
+BODY
+{
+    memcpy(AP, A, (size_t)descA->mb * descA->nb * sizeof(double));
+}
+END
+
+/**************************************************
+ *                      READ_B                    *
+ **************************************************/
+READ_B(k, n)
+
+k = 0 .. descB->mt-1
+n = 0 .. descB->nt-1
+
+: descB(k, n)
+
+READ  B  <- descB(k, n)
+
+WRITE BP <- NEW
+         -> BP GEMM(0 .. descC->mt-1, n, k)
+
+CTL   ctlb <- (k >= lookP) ? ctlb GEMM(0 .. descC->mt-1, n, k-lookP)
+
+BODY
+{
+    memcpy(BP, B, (size_t)descB->mb * descB->nb * sizeof(double));
+}
+END
+
+/**************************************************
+ *                       GEMM                     *
+ **************************************************/
+GEMM(m, n, k)
+
+m = 0 .. descC->mt-1
+n = 0 .. descC->nt-1
+k = 0 .. descA->mt-1
+
+: descC(m, n)
+
+READ AP <- AP READ_A(k, m)
+READ BP <- BP READ_B(k, n)
+RW   C  <- (k == 0)           ? descC(m, n) : C GEMM(m, n, k-1)
+        -> (k == descA->mt-1) ? descC(m, n) : C GEMM(m, n, k+1)
+
+CTL  ctla -> (k < descA->mt-lookQ) ? ctla READ_A(k+lookQ, m)
+CTL  ctlb -> (k < descA->mt-lookP) ? ctlb READ_B(k+lookP, n)
+
+BODY [type=CUDA
+      dyld=cublasDgemm_v2 dyldtype=cublas_dgemm_v2_t]
+{
+    cublasStatus_t status;
+    cublasHandle_t handle;
+    double alpha = 1.0;
+    double beta  = 1.0;
+
+    handle = parsec_info_get(&gpu_stream->infos, CuHI);
+    assert(NULL != handle);
+    status = parsec_body.dyld_fn( handle,
+                                  CUBLAS_OP_T, CUBLAS_OP_N,
+                                  descC->mb, descC->nb, descA->mb,
+                                  &alpha, (double*)AP, descA->mb,
+                                          (double*)BP, descB->mb,
+                                  &beta,  (double*)C,  descC->mb );
+    PARSEC_CUDA_CHECK_ERROR( "cublasDgemm_v2", status, {return PARSEC_HOOK_RETURN_ERROR;} );
+}
+END
+
+BODY
+{
+    fprintf(stderr, "GEMM(%d, %d, %d) ran on a CPU, which defeats the purpose of this test\n",
+            m, n, k);
+}
+END
+
+extern "C" %{
+
+#define TYPE PARSEC_MATRIX_DOUBLE
+
+static parsec_matrix_block_cyclic_t descA, descB, descC;
+
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
+static void *create_cublas_handle(void *obj, void *p)
+{
+    cublasHandle_t handle;
+    cublasStatus_t status;
+    parsec_cuda_exec_stream_t *stream = (parsec_cuda_exec_stream_t *)obj;
+    (void)p;
+    status = cublasCreate(&handle);
+    assert(CUBLAS_STATUS_SUCCESS == status);
+    status = cublasSetStream(handle, stream->cuda_stream);
+    assert(CUBLAS_STATUS_SUCCESS == status);
+    (void)status;
+    return (void*)handle;
+}
+
+static void destroy_cublas_handle(void *_h, void *_n)
+{
+    cublasHandle_t cublas_handle = (cublasHandle_t)_h;
+    cublasDestroy_v2(cublas_handle);
+    (void)_n;
+}
+#endif
+
+/* The matrices outlive every taskpool, so repeated runs accumulate on the same
+ * data the way the issue reports. */
+static void init_matrix(parsec_matrix_block_cyclic_t *desc, int rank, int np,
+                        int tiles_rows, int tiles_cols, int tile_size,
+                        double value, const char *key)
+{
+    parsec_matrix_block_cyclic_init(desc, TYPE, PARSEC_MATRIX_TILE,
+                                    rank,
+                                    tile_size, tile_size,
+                                    tiles_rows*tile_size, tiles_cols*tile_size,
+                                    0, 0,
+                                    tiles_rows*tile_size, tiles_cols*tile_size,
+                                    1, np, 1, 1,
+                                    0, 0);
+    size_t nb_elems = (size_t)desc->super.nb_local_tiles * (size_t)desc->super.bsiz;
+    desc->mat = parsec_data_allocate(nb_elems * parsec_datadist_getsizeoftype(TYPE));
+    for( size_t i = 0; i < nb_elems; i++ )
+        ((double*)desc->mat)[i] = value;
+    parsec_data_collection_set_key((parsec_data_collection_t*)desc, key);
+}
+
+int main(int argc, char *argv[])
+{
+    parsec_context_t *parsec = NULL;
+    parsec_info_id_t CuHI;
+    int tile_size = 512, tiles_k = 8, tiles_m = 4, tiles_n = 4;
+    int nruns = 1, lookahead = 2;
+    int rank = 0, np = 1, ch, rc;
+    int error_found = 0;
+
+#if defined(PARSEC_HAVE_MPI)
+    {
+        int provided;
+        MPI_Init_thread(NULL, NULL, MPI_THREAD_SERIALIZED, &provided);
+    }
+    MPI_Comm_size(MPI_COMM_WORLD, &np);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+#endif
+
+    while ((ch = getopt(argc, argv, "t:K:M:N:r:l:")) != -1) {
+        switch (ch) {
+            case 't': tile_size = atoi(optarg); break;
+            case 'K': tiles_k   = atoi(optarg); break;
+            case 'M': tiles_m   = atoi(optarg); break;
+            case 'N': tiles_n   = atoi(optarg); break;
+            case 'r': nruns     = atoi(optarg); break;
+            case 'l': lookahead = atoi(optarg); break;
+            default:
+                if( 0 == rank )
+                    fprintf(stderr, "usage: %s [-t tile_size] [-K tiles_k] [-M tiles_m]"
+                                    " [-N tiles_n] [-r nruns] [-l lookahead]\n", argv[0]);
+                return 1;
+        }
+    }
+
+    /* Shift argv in place to remove our options so parsec_init does not see them */
+    for( int i = 1; i <= argc - optind; i++ ) {
+        argv[i] = argv[optind + i - 1];
+    }
+    argc = argc - optind + 1;
+
+    parsec = parsec_init(-1, &argc, &argv);
+    if( NULL == parsec ) {
+        fprintf(stderr, "parsec_init failed\n");
+        return 1;
+    }
+
+    /* TN: C(m,n) = sum_k A(k,m)^T B(k,n), so A is K by M and B is K by N */
+    init_matrix(&descA, rank, np, tiles_k, tiles_m, tile_size, 1.0, "A");
+    init_matrix(&descB, rank, np, tiles_k, tiles_n, tile_size, 1.0, "B");
+    init_matrix(&descC, rank, np, tiles_m, tiles_n, tile_size, 0.0, "C");
+
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
+    CuHI = parsec_info_register(&parsec_per_stream_infos, "CUBLAS::HANDLE",
+                                destroy_cublas_handle, NULL,
+                                create_cublas_handle, NULL,
+                                NULL);
+    assert(CuHI != -1);
+#else
+    CuHI = -1;
+#endif
+
+    for( int run = 0; run < nruns; run++ ) {
+        parsec_new_staging_taskpool_t *tp;
+
+        /* The drain the reported loop performs between runs, and the one that
+         * reports what it could not reclaim. */
+        parsec_devices_release_memory();
+
+        tp = parsec_new_staging_new((parsec_tiled_matrix_t*)&descA,
+                                    (parsec_tiled_matrix_t*)&descB,
+                                    (parsec_tiled_matrix_t*)&descC,
+                                    CuHI, lookahead, lookahead);
+        assert(NULL != tp);
+
+        parsec_matrix_adt_define_square(&tp->arenas_datatypes[PARSEC_new_staging_DEFAULT_ADT_IDX],
+                                        parsec_datatype_double_t, tile_size);
+
+        rc = parsec_context_add_taskpool(parsec, (parsec_taskpool_t*)tp);
+        PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
+        rc = parsec_context_start(parsec);
+        PARSEC_CHECK_ERROR(rc, "parsec_context_start");
+        rc = parsec_context_wait(parsec);
+        PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
+
+        parsec_matrix_arena_datatype_destruct_free_type(&tp->arenas_datatypes[PARSEC_new_staging_DEFAULT_ADT_IDX]);
+        parsec_taskpool_free((parsec_taskpool_t*)tp);
+
+        parsec_devices_reset_load(parsec);
+    }
+
+    /* Each GEMM adds 1.0 * 1.0 over the tile_size elements of a k slice, and
+     * every run accumulates onto the same C. */
+    double expected = (double)nruns * (double)tiles_k * (double)tile_size;
+    size_t nb_elems = (size_t)descC.super.nb_local_tiles * (size_t)descC.super.bsiz;
+    for( size_t i = 0; i < nb_elems; i++ ) {
+        if( expected != ((double*)descC.mat)[i] ) {
+            if( 0 == error_found )
+                fprintf(stderr, "rank %d: C element %zu is %f, expected %f\n",
+                        rank, i, ((double*)descC.mat)[i], expected);
+            error_found = 1;
+        }
+    }
+
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
+    parsec_info_unregister(&parsec_per_stream_infos, CuHI, NULL);
+#endif
+
+    /* Releasing a data consults the device modules, so the matrices have to go
+     * before parsec_fini takes those down. */
+    parsec_data_free(descA.mat);
+    parsec_tiled_matrix_destroy((parsec_tiled_matrix_t*)&descA);
+    parsec_data_free(descB.mat);
+    parsec_tiled_matrix_destroy((parsec_tiled_matrix_t*)&descB);
+    parsec_data_free(descC.mat);
+    parsec_tiled_matrix_destroy((parsec_tiled_matrix_t*)&descC);
+
+    parsec_fini(&parsec);
+
+#if defined(PARSEC_HAVE_MPI)
+    MPI_Allreduce(MPI_IN_PLACE, &error_found, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+    MPI_Finalize();
+#endif
+
+    if( 0 == rank ) {
+        if( error_found ) {
+            printf("TEST FAILED: C does not hold the expected accumulation\n");
+        } else {
+            printf("TEST SUCCESS: %d runs completed and C holds the expected accumulation\n", nruns);
+        }
+    }
+    return error_found;
+}
+
+%}
