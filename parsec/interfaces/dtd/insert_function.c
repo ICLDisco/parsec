@@ -1970,17 +1970,6 @@ complete_hook_of_dtd(parsec_execution_stream_t *es,
     for( current_dep = 0; current_dep < this_dtd_task->super.task_class->nb_flows; current_dep++ ) {
         action_mask |= (1 << current_dep);
 
-        // Retrieve data access mode for current flow
-        int op_type_on_current_flow = FLOW_OF(this_dtd_task, current_dep)->op_type;
-
-        if( PARSEC_INOUT == (op_type_on_current_flow & PARSEC_GET_OP_TYPE) ||
-            PARSEC_OUTPUT == (op_type_on_current_flow & PARSEC_GET_OP_TYPE)) {
-            parsec_data_copy_t *data_in = this_task->data[current_dep].data_in;
-            if( PARSEC_PULLIN & op_type_on_current_flow ) {
-                assert(NULL != data_in);
-                parsec_dtd_data_copy_reader_release(data_in->original->device_copies[0]);
-            }
-        }
     }
 
     this_task->task_class->release_deps(es, this_task, action_mask |

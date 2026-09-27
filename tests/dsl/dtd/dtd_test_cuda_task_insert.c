@@ -503,7 +503,7 @@ int test_cuda_memset_write_read(int world, int myrank, parsec_context_t *parsec_
     parsec_dtd_attach_arena_datatype(parsec_context, adt, &TILE_FULL);
 
     parsec_tiled_matrix_t *dcA;
-    dcA = create_and_distribute_data(myrank, nb, mt, nt);
+    dcA = create_and_distribute_data(myrank, world, nb, nt*mt);
     parsec_data_collection_set_key((parsec_data_collection_t *)dcA, "A");
 
     parsec_data_collection_t *A = (parsec_data_collection_t *)dcA;
