@@ -58,6 +58,11 @@ typedef struct parsec_execution_stream_s    parsec_execution_stream_t;
 typedef struct parsec_context_s           parsec_context_t;
 
 /**
+ * @brief Opaque handle for an explicitly scoped device-statistics interval.
+ */
+typedef struct parsec_device_statistics_s parsec_device_statistics_t;
+
+/**
  * @brief Defines shape, allocator and deallocator of temporary data transferred on the network
  */
 typedef struct parsec_arena_s             parsec_arena_t;
@@ -252,6 +257,43 @@ void parsec_abort( parsec_context_t* pcontext, int status);
  * @return PARSEC_SUCCESS on success
  */
 int parsec_fini( parsec_context_t** pcontext );
+
+/**
+ * @brief Start an explicitly scoped device-statistics interval.
+ *
+ * @details When device_show_statistics is enabled, the default reporting
+ * interval is the complete PaRSEC execution. Calling this function creates a
+ * new interval beginning at this point. Multiple intervals may overlap.
+ * Resetting device statistics while intervals are active restarts each
+ * interval's baseline at the reset.
+ *
+ * Call this function after parsec_init(), preferably while the execution
+ * context is quiescent.
+ *
+ * @param[inout] context the PaRSEC context
+ * @return an interval handle to pass to parsec_device_show_statistics_end(),
+ *         or NULL if the interval could not be created
+ */
+parsec_device_statistics_t *
+parsec_device_show_statistics_start(parsec_context_t *context);
+
+/**
+ * @brief End an explicitly scoped device-statistics interval.
+ *
+ * @details When device_show_statistics is enabled, this prints statistics
+ * accumulated since the matching parsec_device_show_statistics_start(),
+ * releases the interval handle, and suppresses the automatic whole-execution
+ * report during parsec_fini().
+ *
+ * Call this function before parsec_fini(), preferably while the execution
+ * context is quiescent.
+ *
+ * @param[inout] context the PaRSEC context
+ * @param[in] statistics the interval handle returned by
+ *                       parsec_device_show_statistics_start()
+ */
+void parsec_device_show_statistics_end(parsec_context_t *context,
+                                       parsec_device_statistics_t *statistics);
 
 /**
  * Setup external finalize routine to be callback during parsec_fini
