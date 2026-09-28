@@ -1094,11 +1094,15 @@ int main(int argc, char **argv)
         nbgpus = get_nb_gpu_devices();
         rc = !(nbgpus >= 1);
         if( rc != 0 ) {
-            fprintf(stderr, "Rank %d doesn't have CUDA accelerators\n", rank);
+            /* Report a skip rather than a failure, so a runner without an
+             * accelerator does not fail the suite (see SKIP_RETURN_CODE in
+             * tests/CMakeLists.txt). */
+            parsec_warning("Rank %d doesn't have CUDA accelerators", rank);
+            parsec_fini(&parsec_context);
 #if defined(PARSEC_HAVE_MPI)
-            MPI_Abort(MPI_COMM_WORLD, 0);
+            MPI_Finalize();
 #endif
-            return -1;
+            return -PARSEC_ERR_DEVICE;
         }
         gpu_device_index = get_gpu_device_index();
 
