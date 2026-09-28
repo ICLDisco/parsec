@@ -196,6 +196,23 @@ int main(int argc, char *argv[])
                            N, NB, M, MB, P, nodes/P, KP, KQ, iter, R, LOOPGEN,
                            MMB, cores, gflops=(flops/1e9)/sync_time_elapsed));
 
+    /* Print final matrix (excluding ghost regions) using helper function */
+    if(rank == 0) {
+        /* Print the result matrix using direct element access */
+        printf("\nC Implementation Final Matrix (M=%d, N=%d):\n", M, N);
+        printf("============================================================\n");
+        for(i = 0; i < M; i++) {
+            printf("  [");
+            for(jj = 0; jj < N; jj++) {
+                DTYPE value = stencil_get_element(&dcA, i, jj, R);
+                printf("%8.4f", value);
+                if(jj < N - 1) printf(" ");
+            }
+            printf("]\n");
+        }
+        printf("============================================================\n\n");
+    }
+
     parsec_data_free(dcA.mat);
     parsec_tiled_matrix_destroy((parsec_tiled_matrix_t*)&dcA);
 

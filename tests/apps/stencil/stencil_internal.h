@@ -115,3 +115,42 @@ int stencil_1D_init_ops(parsec_execution_stream_t *es,
                         const parsec_tiled_matrix_t *descA,
                         void *_A, parsec_matrix_uplo_t uplo,
                         int m, int n, void *args);
+
+/**
+ * @brief Print matrix parameters structure
+ */
+typedef struct {
+    DTYPE **result_matrix;  /* Output matrix to store results */
+    int M;                  /* Matrix rows */
+    int N;                  /* Matrix columns */
+    int R;                  /* Radius (ghost region) */
+    int MB;                 /* Tile row size */
+    int NB;                 /* Tile column size (without ghost) */
+} stencil_print_params_t;
+
+/**
+ * @brief Print final matrix (excluding ghost regions)
+ *
+ * @param [in] es: execution stream
+ * @param [in] descA: tiled matrix date descriptor
+ * @param [in] A: matrix data
+ * @param [in] uplo: matrix shape
+ * @param [in] m: tile row index
+ * @param [in] n: tile column index
+ * @param [in] args: pointer to stencil_print_params_t structure
+ */
+int stencil_1D_print_ops(parsec_execution_stream_t *es,
+                         const parsec_tiled_matrix_t *descA,
+                         void *_A, parsec_matrix_uplo_t uplo,
+                         int m, int n, void *args);
+
+/**
+ * @brief Get element from matrix at global (row, col) position
+ * 
+ * @param [in] dcA: matrix descriptor
+ * @param [in] global_row: global row index (0 to M-1)
+ * @param [in] global_col: global column index (0 to N-1, core region only)
+ * @param [in] R: radius (ghost region size)
+ * @return DTYPE: element value
+ */
+DTYPE stencil_get_element(parsec_matrix_block_cyclic_t *dcA, int global_row, int global_col, int R);

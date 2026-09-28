@@ -4,6 +4,7 @@
  *                         reserved.
  */
 #include "stencil_internal.h"
+#include <stdio.h>
 
 /**
  * @brief stencil_1D init operator
@@ -67,4 +68,80 @@ void CORE_stencil_1D(DTYPE *restrict _OUT, const DTYPE *restrict _IN,
 #endif
         }
     }
+}
+
+int stencil_1D_print_ops(parsec_execution_stream_t *es,
+                         const parsec_tiled_matrix_t *descA,
+                         void *_A, parsec_matrix_uplo_t uplo,
+                         int m, int n, void *args)
+{
+    DTYPE *A = (DTYPE *)_A;
+    stencil_print_params_t *params = (stencil_print_params_t *)args;
+    int R = params->R;
+    int MB = params->MB;
+    int NB = params->NB;  /* Core columns per tile (excluding ghost) */
+    
+    /* Calculate global row and column positions in the result matrix */
+    /* Each tile contains NB core columns (excluding R ghost columns on each side) */
+    int global_row_start = m * MB;
+    int global_col_start = n * NB;  /* Tile n starts at column n * NB in result */
+    
+    /* Extract core region (excluding ghost columns) from this tile */
+    /* The core region in the tile starts at column index R and has NB columns */
+    /* Storage is column-major: A[col * mb + row] */
+    for(int i = 0; i < descA->mb && (global_row_start + i) < params->M; i++) {
+        for(int j = 0; j < NB && (global_col_start + j) < params->N; j++) {
+            int global_row = global_row_start + i;
+            int global_col = global_col_start + j;
+            /* Access tile data: column-major storage, core column j is at position (R + j) */
+            int tile_col = R + j;  /* Column index in tile (core region starts at R) */
+            if(global_row < params->M && global_col < params->N && tile_col < descA->nb) {
+                /* Column-major storage: A[tile_col * mb + i] */
+                params->result_matrix[global_row][global_col] = A[tile_col * descA->mb + i];
+            }
+        }
+    }
+    
+    (void)es; (void)uplo;
+    return 0;
+}
+
+/**
+ * @brief Get element from matrix at global (row, col) position
+ * 
+ * Note: This accesses the core region only (excludes ghost regions)
+ */
+DTYPE stencil_get_element(parsec_matrix_block_cyclic_t *dcA, int global_row, int global_col, int R)
+{
+    int MB = dcA->super.mb;
+    int NB = dcA->super.nb;  /* Total columns per tile (including ghost) */
+    int NB_core = NB - 2*R;  /* Core columns per tile (without ghost) */
+    int lnt = dcA->super.lnt;  /* Number of tile columns */
+    
+    /* Calculate which tile contains this element */
+    int tile_row = global_row / MB;
+    int tile_col = global_col / NB_core;
+    
+    /* Calculate local position within the tile */
+    int local_row = global_row % MB;
+    int local_col = global_col % NB_core;
+    
+    /* Account for ghost region: core columns start at column R in the tile */
+    int tile_col_with_ghost = R + local_col;
+    
+    /* Calculate tile index in the flat array: row-major tile ordering */
+    int tile_idx = tile_row * lnt + tile_col;
+    
+    /* Check bounds */
+    if (tile_idx >= dcA->super.nb_local_tiles) {
+        return (DTYPE)0.0;  /* Out of bounds */
+    }
+    
+    /* Get tile data pointer */
+    DTYPE *tile_data = (DTYPE *)dcA->mat + (tile_idx * dcA->super.bsiz);
+    
+    /* Access using column-major indexing: A[col * mb + row] */
+    DTYPE value = tile_data[tile_col_with_ghost * MB + local_row];
+    
+    return value;
 }
