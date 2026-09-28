@@ -332,6 +332,12 @@ struct parsec_device_gpu_module_s {
                                                    *   is increased every time a new data is made available, so
                                                    *   that we know which tasks can be evaluated for submission.
                                                    */
+    /* The three lists below are reached only by the thread that manages this
+     * device, or by one holding its owner token (see
+     * parsec_device_acquire_owner_token()), and mutex makes those two states
+     * exclusive of each other. Only ever one thread at a time touches them, so
+     * they are used through the parsec_list_nolock_* accessors.
+     */
     parsec_list_t              gpu_mem_lru;   /* Read-only blocks, and fresh blocks */
     parsec_list_t              gpu_mem_owned_lru;  /* Dirty blocks */
     parsec_list_t              starved_tasks; /**< Tasks that could not reserve the device memory
