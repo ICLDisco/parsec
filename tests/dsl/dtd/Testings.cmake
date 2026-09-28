@@ -33,6 +33,14 @@ if(PARSEC_HAVE_CUDA AND CMAKE_CUDA_COMPILER)
                     --mca device_cuda_mask 1
                     --mca device_enable_batching 1
                     --mca device cuda)
+  # Only built when cuBLAS is available, hence the target test.
+  if(TARGET dtd_test_simple_gemm)
+    parsec_addtest_cmd(dsl/dtd/simple_gemm:gpu ${SHM_TEST_CMD_LIST}
+                       ${CTEST_CUDA_LAUNCHER_OPTIONS}
+                       dsl/dtd/dtd_test_simple_gemm
+                       -M 2048 -N 2048 -K 2048 -m 512 -n 512 -k 512 -t 2
+                       -- --mca device_cuda_enabled 1 --mca device cuda)
+  endif(TARGET dtd_test_simple_gemm)
 endif(PARSEC_HAVE_CUDA AND CMAKE_CUDA_COMPILER)
 if(PARSEC_HAVE_DEV_CAPABILITY_BATCH)
   parsec_addtest_cmd(dsl/dtd/batch_cpu ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_test_batch_cpu)

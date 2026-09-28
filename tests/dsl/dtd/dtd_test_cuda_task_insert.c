@@ -121,16 +121,13 @@ int cuda_memset_task_fn(parsec_device_gpu_module_t *gpu_device,
     (void)gpu_device;
     parsec_cuda_exec_stream_t *cuda_stream = (parsec_cuda_exec_stream_t*)gpu_stream;
 
-    int *data;
-    void *dev_data;
+    int *dev_data;
     int rank;
     int nb;
 
     parsec_task_t *this_task = gpu_task->ec;
 
-    parsec_dtd_unpack_args(this_task, &data, &nb, &rank);
-
-    dev_data = parsec_dtd_get_dev_ptr(this_task, 0);
+    parsec_dtd_unpack_args(this_task, &dev_data, &nb, &rank);
 
     int devid;
     cudaError_t err = cudaGetDevice(&devid);
@@ -450,8 +447,7 @@ int cuda_read_task_fn(parsec_device_gpu_module_t *gpu_device,
                       parsec_gpu_task_t *gpu_task,
                       parsec_gpu_exec_stream_t *gpu_stream)
 {
-    int *data;
-    void *dev_data;
+    int *dev_data;
     int rank;
     int nb;
     parsec_cuda_exec_stream_t *cuda_stream = (parsec_cuda_exec_stream_t*)gpu_stream;
@@ -460,9 +456,7 @@ int cuda_read_task_fn(parsec_device_gpu_module_t *gpu_device,
 
     (void)gpu_device;
 
-    parsec_dtd_unpack_args(this_task, &data, &nb, &rank);
-
-    dev_data = parsec_dtd_get_dev_ptr(this_task, 0);
+    parsec_dtd_unpack_args(this_task, &dev_data, &nb, &rank);
 
     int devid;
     cudaError_t err = cudaGetDevice(&devid);
@@ -653,8 +647,7 @@ int cuda_cpy_task_fn(parsec_device_gpu_module_t *gpu_device,
                      parsec_gpu_task_t *gpu_task,
                      parsec_gpu_exec_stream_t *gpu_stream)
 {
-    int *data_0, *data_1;
-    void *dev_data_0, *dev_data_1;
+    int *dev_data_0, *dev_data_1;
     int rank;
     int nb;
     parsec_cuda_exec_stream_t *cuda_stream = (parsec_cuda_exec_stream_t*)gpu_stream;
@@ -663,16 +656,13 @@ int cuda_cpy_task_fn(parsec_device_gpu_module_t *gpu_device,
 
     parsec_task_t *this_task = gpu_task->ec;
 
-    parsec_dtd_unpack_args(this_task, &data_0, &data_1, &nb, &rank);
-
-    dev_data_0 = parsec_dtd_get_dev_ptr(this_task, 0);
-    dev_data_1 = parsec_dtd_get_dev_ptr(this_task, 1);
+    parsec_dtd_unpack_args(this_task, &dev_data_0, &dev_data_1, &nb, &rank);
 
     int devid;
     cudaError_t err = cudaGetDevice(&devid);
     assert(cudaSuccess == err); (void)err;
 
-    printf("[cuda_cpy_task_fn] devid = %d, data_0_cpu = %p, data_0_gpu = %p\n", devid, data_0, (void *)dev_data_0);
+    printf("[cuda_cpy_task_fn] devid = %d, data_0_gpu = %p\n", devid, (void *)dev_data_0);
 
     cudaMemcpyAsync(dev_data_1, dev_data_0, nb * sizeof(int),
                     cudaMemcpyDeviceToDevice, cuda_stream->cuda_stream);

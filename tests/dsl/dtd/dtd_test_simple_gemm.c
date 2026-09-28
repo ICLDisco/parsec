@@ -295,18 +295,12 @@ gemm_cuda_unpack_task(parsec_gpu_task_t *gpu_task,
                       int *m, int *n, int *k,
                       int *mb, int *nb, int *kb)
 {
-    double *A, *B, *C;
     parsec_task_t *this_task = gpu_task->ec;
 
     parsec_dtd_unpack_args(this_task,
-                           &A, &B, &C,
+                           a_gpu, b_gpu, c_gpu,
                            m, n, k,
                            mb, nb, kb);
-    (void)A; (void)B; (void)C;
-
-    *a_gpu = parsec_dtd_get_dev_ptr(this_task, 0);
-    *b_gpu = parsec_dtd_get_dev_ptr(this_task, 1);
-    *c_gpu = parsec_dtd_get_dev_ptr(this_task, 2);
 }
 
 static size_t
@@ -1100,11 +1094,15 @@ int main(int argc, char **argv)
         nbgpus = get_nb_gpu_devices();
         rc = !(nbgpus >= 1);
         if( rc != 0 ) {
-            fprintf(stderr, "Rank %d doesn't have CUDA accelerators\n", rank);
+            /* Report a skip rather than a failure, so a runner without an
+             * accelerator does not fail the suite (see SKIP_RETURN_CODE in
+             * tests/CMakeLists.txt). */
+            parsec_warning("Rank %d doesn't have CUDA accelerators", rank);
+            parsec_fini(&parsec_context);
 #if defined(PARSEC_HAVE_MPI)
-            MPI_Abort(MPI_COMM_WORLD, 0);
+            MPI_Finalize();
 #endif
-            return -1;
+            return -PARSEC_ERR_DEVICE;
         }
         gpu_device_index = get_gpu_device_index();
 

@@ -274,8 +274,8 @@ scale_cpu(parsec_execution_stream_t *es, parsec_task_t *this_task)
 }
 ```
 
-CUDA chores use the GPU task wrapper types and retrieve device pointers by flow
-index:
+CUDA chores use the GPU task wrapper types, but unpack their arguments exactly
+like a CPU chore:
 
 ```c
 int
@@ -284,25 +284,31 @@ scale_cuda(parsec_device_gpu_module_t *gpu_device,
            parsec_gpu_exec_stream_t *gpu_stream)
 {
     parsec_task_t *this_task = gpu_task->ec;
-    double *A_host;
-    double alpha;
     double *A_dev;
+    double alpha;
 
     (void)gpu_device;
-    parsec_dtd_unpack_args(this_task, &A_host, &alpha);
+    parsec_dtd_unpack_args(this_task, &A_dev, &alpha);
 
-    A_dev = parsec_dtd_get_dev_ptr(this_task, 0);
     /* launch CUDA work on gpu_stream */
 
     return PARSEC_HOOK_RETURN_DONE;
 }
 ```
 
-The host pointer recovered by `parsec_dtd_unpack_args()` identifies the logical
-tile. Use `parsec_dtd_get_dev_ptr(this_task, flow_index)` for the actual device
-copy associated with a data flow. `dtd_test_simple_gemm` is the best complete
-CPU plus CUDA example: it registers a CPU BLAS implementation and a CUDA/CUBLAS
-implementation on the same explicit `GEMM` task class.
+`parsec_dtd_unpack_args()` hands a body the copy that lives on the device the
+task runs on, so the same unpack serves every chore of a task class.
+`dtd_test_simple_gemm` is the best complete CPU plus CUDA example: it registers
+a CPU BLAS implementation and a CUDA/CUBLAS implementation on the same explicit
+`GEMM` task class.
+
+Older code unpacked a host pointer and then called
+`parsec_dtd_get_dev_ptr(this_task, flow_index)` to reach the device copy. That
+still works seamlessly, because it returns the very same pointer that
+`parsec_dtd_unpack_args()` now produces, but it has become unnecessary and is
+deprecated. It is scheduled for removal in a near future release, so new bodies
+should unpack their flows directly and existing ones should drop the extra
+call.
 
 Use `PARSEC_PUSHOUT` when a GPU result must be pushed back to the host or to the
 distributed owner at the end of the flow. Use `PARSEC_PULLIN` when an instance

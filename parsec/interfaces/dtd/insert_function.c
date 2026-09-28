@@ -777,7 +777,14 @@ parsec_dtd_unpack_args_internal(parsec_task_t *this_task, va_list arguments)
                   (current_param->op_type & PARSEC_GET_OP_TYPE) == PARSEC_INOUT ||
                   (current_param->op_type & PARSEC_GET_OP_TYPE) == PARSEC_OUTPUT ) {
             void **tmp_ref = (void **)tmp_arg;
-            *tmp_ref = PARSEC_DATA_COPY_GET_PTR(this_task->data[data_idx].data_in);
+            /* A body must be handed the copy that lives on the device it was
+             * scheduled on. The device layer elects that copy into data_out
+             * before the body runs, and leaves data_out NULL for a task that
+             * stayed on the host, where data_in is the copy to work on.
+             */
+            parsec_data_copy_t *copy = this_task->data[data_idx].data_out;
+            if( NULL == copy ) copy = this_task->data[data_idx].data_in;
+            *tmp_ref = PARSEC_DATA_COPY_GET_PTR(copy);
             data_idx++;
         } else {
             parsec_warning("/!\\ Flag is not recognized in parsec_dtd_unpack_args /!\\.\n");
