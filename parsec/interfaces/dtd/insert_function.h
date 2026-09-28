@@ -351,7 +351,29 @@ parsec_dtd_insert_task(parsec_taskpool_t  *tp,
  **/
 void*
 parsec_dtd_get_dev_ptr(parsec_task_t *this_task, int i);
-   
+
+/**
+ * Return the start of the block holding the by-value parameters
+ * (PARSEC_VALUE and PARSEC_SCRATCH) of `this_task`.
+ *
+ * The parameters sit in that block in declaration order, each occupying the
+ * number of bytes declared for it in parsec_dtd_create_task_class(), with no
+ * padding inserted between them. The block is aligned on sizeof(void *) and
+ * lives as long as the task; it belongs to the task alone, so a body may
+ * write to it.
+ *
+ * This lets a body read its parameters where they already are instead of
+ * copying them out one at a time with parsec_dtd_unpack_args(). Doing so
+ * means the body has to know the layout, which is only reasonable if the
+ * same declaration produced both the task class and the reading code:
+ * see parsec/interfaces/dtd/dtd_task_class_decl.h.
+ *
+ * Returns NULL for a task with no by-value parameters, and for a remote
+ * task, which carries no value block at all.
+ **/
+void*
+parsec_dtd_task_values(parsec_task_t *this_task);
+
 /**
  * This function behaves exactly like parsec_dtd_insert_task()
  * except it does not insert the task in PaRSEC and just returns it.
