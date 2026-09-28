@@ -27,6 +27,8 @@ const char *redistribute_distribution_name(int distribution)
     switch(distribution) {
     case REDISTRIBUTE_DIST_2DBC:
         return "2dbc";
+    case REDISTRIBUTE_DIST_SYM_2DBC:
+        return "sym-2dbc";
     case REDISTRIBUTE_DIST_SBC:
         return "sbc";
     default:
@@ -53,12 +55,16 @@ static int parse_distribution_arg(const char *arg)
     if( 0 == strcasecmp(arg, "2dbc") ) {
         return REDISTRIBUTE_DIST_2DBC;
     }
+    if( (0 == strcasecmp(arg, "sym-2dbc")) ||
+        (0 == strcasecmp(arg, "sym2dbc")) ) {
+        return REDISTRIBUTE_DIST_SYM_2DBC;
+    }
     if( (0 == strcasecmp(arg, "sbc")) ||
         (0 == strcasecmp(arg, "sdb")) ) {
         return REDISTRIBUTE_DIST_SBC;
     }
 
-    fprintf(stderr, "#XXXXX unsupported distribution '%s' (expected 2dbc, sbc, or sdb)\n", arg);
+    fprintf(stderr, "#XXXXX unsupported distribution '%s' (expected 2dbc, sym-2dbc, sbc, or sdb)\n", arg);
     exit(2);
     return REDISTRIBUTE_DIST_2DBC;
 }
@@ -92,7 +98,7 @@ void print_usage(void)
             "\n Source Matrix:\n" 
             " -P --source-grid-rows : rows (P) in the PxQ process grid (default: NP)\n"
             " -Q --source-grid-cols : columns (Q) in the PxQ process grid (default: NP/P)\n"
-            " -g --source-distribution : source distribution, 2dbc, sbc, or sdb (default: 2dbc)\n"
+            " -g --source-distribution : source distribution, 2dbc, sym-2dbc, sbc, or sdb (default: 2dbc)\n"
             " -l --source-memory    : source memory location, cpu, managed, or cuda (default: cpu)\n"
             " -M                    : dimension (M) of the matrices (default: N)\n"
             " -N                    : dimension (N) of the matrices (required)\n"
@@ -105,7 +111,7 @@ void print_usage(void)
             "\n Target/Redistributed Matrix:\n" 
             " -p --target-grid-rows : rows (p) in the pxq process grid (default: NP)\n"
             " -q --target-grid-cols : columns (q) in the pxq process grid (default: NP/p)\n"
-            " -G --target-distribution : target distribution, 2dbc, sbc, or sdb (default: 2dbc)\n"
+            " -G --target-distribution : target distribution, 2dbc, sym-2dbc, sbc, or sdb (default: 2dbc)\n"
             " -L --target-memory    : target memory location, cpu, managed, or cuda (default: cpu)\n"
             " -a --MR               : set redistributed M size\n"
             " -A --NR               : set redistributed N size\n"
@@ -131,8 +137,8 @@ void print_usage(void)
             " -y --no-optimization  : no_optimization version, send the whole tile to target; default 0, not no_optimization version\n"
             " -c --cores            : number of concurrent threads (default: number of physical hyper-threads)\n"
             "\n Notes:\n"
-            "    SBC stores a triangular tile set; the redistributed rectangle must fit entirely\n"
-            "    within the stored upper or lower tile triangle of each SBC descriptor.\n"
+            "    Symmetric 2DBC and SBC descriptors store a triangular tile set; the redistributed\n"
+            "    rectangle must fit entirely within each descriptor's stored tile triangle.\n"
             " -- -flag              : use parsec 'flag', details -- --help\n"
             "\n");
 }
