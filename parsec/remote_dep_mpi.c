@@ -882,6 +882,18 @@ remote_dep_mpi_retrieve_datatype(parsec_execution_stream_t *eu,
 
     parsec_datatype_t old_dtt = output->data.remote.dst_datatype;
 
+    /* A successor with no accelerator incarnation reads this data in main
+     * memory whatever its affinity says, and once one of them has asked for it
+     * there, none of the others gets to move it onto a device: they can all
+     * stage it in from main memory, while none of them can read it back out of
+     * an accelerator this one cannot address. Where a task class can run is a
+     * property of the class alone, so settle it as soon as the successor is
+     * known, ahead of every path below that leaves early.
+     */
+    if( !PARSEC_DEV_IS_GPU(parsec_task_class_device_types(fct)) ) {
+        output->data.preferred_device = -1;
+    }
+
     /* Extract the datatype, count and displacement from the target task */
 
     fct->get_datatype(eu, newcontext, oldcontext, &flow_mask, &output->data);
@@ -911,11 +923,6 @@ remote_dep_mpi_retrieve_datatype(parsec_execution_stream_t *eu,
         data_arena = is_inplace(oldcontext, dep);  /* Can we do it inplace */
     }
     output->data.data = NULL;
-    /* Default incoming temporaries to CPU memory. Some paths below return
-     * early, notably the packed fallback for mixed receive datatypes, and must
-     * not inherit a stale GPU placement hint from a recycled remote_deps item.
-     */
-    output->data.preferred_device = 0;
 
     if( deps->max_priority < newcontext->priority ) deps->max_priority = newcontext->priority;
     deps->incoming_mask |= (1U << dep->dep_datatype_index);
@@ -946,6 +953,12 @@ remote_dep_mpi_retrieve_datatype(parsec_execution_stream_t *eu,
             parsec_ce.pack_size(&parsec_ce, output->data.remote.dst_count, output->data.remote.dst_datatype, &dsize);
             output->data.remote.src_count = output->data.remote.dst_count = dsize;
             output->data.remote.src_datatype = output->data.remote.dst_datatype = PARSEC_DATATYPE_PACKED;
+            /* Packed bytes are unpacked into a copy in main memory whoever
+             * reads them (see reshape_copy_allocate), so that is where they
+             * have to land. Settling it for the whole dependency here also
+             * speaks for the successors this return leaves unvisited.
+             */
+            output->data.preferred_device = -1;
             return PARSEC_ITERATE_STOP;
         }
     }
@@ -964,13 +977,16 @@ remote_dep_mpi_retrieve_datatype(parsec_execution_stream_t *eu,
      * This only works is the task affinity is linked to the output location of the task, which
      * is mostly true for owner-compute type of algorithms.
      */
-    if (NULL != fct->data_affinity ) {
-        parsec_data_ref_t dref;
-        fct->data_affinity(newcontext, &dref);
-        if(NULL != dref.dc->data_of_key) {
-            parsec_data_t* data = dref.dc->data_of_key(dref.dc, dref.key);
-            output->data.preferred_device = (-1 != data->preferred_device) ?
-                                            data->preferred_device : data->owner_device;
+    if( -1 != output->data.preferred_device ) {
+        output->data.preferred_device = 0;
+        if( NULL != fct->data_affinity ) {
+            parsec_data_ref_t dref;
+            fct->data_affinity(newcontext, &dref);
+            if(NULL != dref.dc->data_of_key) {
+                parsec_data_t* data = dref.dc->data_of_key(dref.dc, dref.key);
+                output->data.preferred_device = (-1 != data->preferred_device) ?
+                                                data->preferred_device : data->owner_device;
+            }
         }
     }
     return PARSEC_ITERATE_CONTINUE;
@@ -1051,6 +1067,11 @@ remote_dep_get_datatypes(parsec_execution_stream_t* es,
             PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "MPI:\tRetrieve datatype with mask 0x%x (remote_dep_get_datatypes)", (1U<<k));
             origin->msg.task_class_id = dtd_task->super.task_class->task_class_id;
             origin->output[k].data.remote.src_datatype = origin->output[k].data.remote.dst_datatype = PARSEC_DATATYPE_NULL;
+            /* Default incoming temporaries to main memory. Some paths in the
+             * iterator below return early, notably the packed fallback for
+             * mixed receive datatypes, and must not inherit a stale placement
+             * hint from a recycled remote_deps item. */
+            origin->output[k].data.preferred_device = 0;
             dtd_task->super.task_class->iterate_successors(es, (parsec_task_t *)dtd_task,
                                                (1U<<k),
                                                remote_dep_mpi_retrieve_datatype,
@@ -1109,6 +1130,11 @@ remote_dep_get_datatypes(parsec_execution_stream_t* es,
 
             origin->output[k].data.remote.src_datatype = origin->output[k].data.remote.dst_datatype = PARSEC_DATATYPE_NULL;
             origin->output[k].data.remote.src_count = origin->output[k].data.remote.dst_count = 0;
+            /* Default incoming temporaries to main memory. Some paths in the
+             * iterator below return early, notably the packed fallback for
+             * mixed receive datatypes, and must not inherit a stale placement
+             * hint from a recycled remote_deps item. */
+            origin->output[k].data.preferred_device = 0;
             assert(idx <= data_sizes[0]);
             origin->output[k].data.remote.src_count = (idx < data_sizes[0]) ? data_sizes[idx+1] : 0;
             PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream,
@@ -2303,7 +2329,9 @@ static void remote_dep_mpi_get_start(parsec_execution_stream_t* es,
              * the host detour whenever the devices do not all reach each other.
              */
             int best_device = ((parsec_mpi_allow_gpu_memory_communications & PARSEC_RUNTIME_RECV_GPU_MEMORY) &&
-                               !parsec_device_peer_mesh_incomplete) ? deps->output[k].data.preferred_device : 0;
+                               !parsec_device_peer_mesh_incomplete &&
+                               (0 < deps->output[k].data.preferred_device)) ?
+                              deps->output[k].data.preferred_device : 0;
             deps->output[k].data.data = remote_dep_copy_allocate(&deps->output[k].data.remote, best_device);
         }
         /* Mark the data under transfer */

@@ -348,6 +348,15 @@ PARSEC_DECLSPEC void parsec_mca_device_taskpool_restrict( parsec_taskpool_t *tp,
  * Device 0 (CPU) does not release the memory allocated on it,
  * only devices with local memory (e.g. GPUs) release temporary
  * buffers. This is used to start with an empty cache.
+ *
+ * A device that is busy running tasks keeps its memory: its copies are still
+ * in play, and emptying them under the thread managing it is not possible.
+ * Such a device is left untouched, and every other device is still asked.
+ *
+ * @return PARSEC_SUCCESS when every device gave its memory back,
+ *         PARSEC_ERR_DEVICE when at least one was busy. The call is free of
+ *         consequences for a busy device, so it can be tried again once the
+ *         work it is running has drained.
  */
 PARSEC_DECLSPEC int parsec_devices_release_memory(void);
 

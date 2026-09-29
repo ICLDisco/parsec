@@ -24,6 +24,17 @@
 
 #define PARSEC_DEVICE_DATA_COPY_ATOMIC_SENTINEL 1024
 
+/* The push stage found no room on the device for what a task needs. Unlike a
+ * reschedule, no event will ever make that task runnable: the memory has to be
+ * taken back from someone else first. The task is therefore parked on the
+ * device's starved_tasks list, where it stays counted against the manager,
+ * and a write-back is started on its behalf. This status travels only between
+ * the reservation, the push stage and parsec_device_progress_stream(), which
+ * turns it back into an uneventful tour, so it never reaches a caller and does
+ * not belong in parsec_hook_return_t.
+ */
+#define PARSEC_DEVICE_TASK_STARVED (-16)
+
 #if defined(PARSEC_PROF_TRACE)
 static int parsec_gpu_movein_key_start;
 static int parsec_gpu_movein_key_end;
@@ -269,6 +280,11 @@ parsec_gpu_pushout_successor(parsec_execution_stream_t *es,
          * memory, so a remote successor must observe the CPU copy.
          */
         needs_host_copy = plan->send_from_gpu_denied;
+    } else if( !PARSEC_DEV_IS_GPU(parsec_task_class_device_types(newcontext->task_class)) ) {
+        /* A successor with no accelerator incarnation runs on the host wherever
+         * it is scheduled, and reads this flow from the host copy.
+         */
+        needs_host_copy = 1;
     } else {
         /* Where a local successor will be scheduled is not known here, so any
          * accelerator is a possible destination. When one of them cannot read
@@ -294,22 +310,29 @@ parsec_gpu_task_update_pushout(parsec_execution_stream_t *es,
     uint32_t action_mask = 0;
     int i, j;
 
+    if( NULL == tc->iterate_successors ) {
+        return;
+    }
+    /* This walk runs before the task does, which only a side-effect free
+     * successor iterator tolerates. DTD's is not: it is the dependency release
+     * itself, it hands a descendant its input and retains that copy whatever
+     * the action mask says, it reads the argument as a release context rather
+     * than as whatever the caller passed, it ignores a request to stop, and it
+     * expects every descendant it walks to have been inserted already, which
+     * says nothing about a task whose successors are still being submitted.
+     * DTD asks for a pushout at insertion time instead, which is the answer
+     * this walk would be trying to reconstruct.
+     */
+    if( PARSEC_TASKPOOL_TYPE_DTD == this_task->taskpool->taskpool_type ) {
+        return;
+    }
+
 #if defined(DISTRIBUTED)
     plan.send_from_gpu_denied = !(parsec_mpi_allow_gpu_memory_communications & PARSEC_RUNTIME_SEND_GPU_MEMORY);
 #else
     plan.send_from_gpu_denied = 0;  /* there are no remote successors to begin with */
 #endif  /* defined(DISTRIBUTED) */
     plan.peers_incomplete = parsec_device_peer_mesh_incomplete;
-
-    /* The walk only has something to discover when a successor could be unable
-     * to read this flow where it is being written: a remote one in the degraded
-     * GPU-aware modes, mpi_gpu_aware=0 or 1, or a local one on a machine whose
-     * accelerators are not all able to read each other.
-     */
-    if( (!plan.send_from_gpu_denied && !plan.peers_incomplete) ||
-        (NULL == tc->iterate_successors) ) {
-        return;
-    }
 
     plan.gpu_task = gpu_task;
     plan.remaining_flows = 0;
@@ -329,12 +352,8 @@ parsec_gpu_task_update_pushout(parsec_execution_stream_t *es,
             continue;
         }
         plan.remaining_flows |= (1U << flow->flow_index);
-        if( PARSEC_TASKPOOL_TYPE_DTD == this_task->taskpool->taskpool_type ) {
-            action_mask |= (1U << flow->flow_index);
-        } else {
-            for( j = 0; (j < MAX_DEP_OUT_COUNT) && (NULL != flow->dep_out[j]); j++ ) {
-                action_mask |= (1U << flow->dep_out[j]->dep_index);
-            }
+        for( j = 0; (j < MAX_DEP_OUT_COUNT) && (NULL != flow->dep_out[j]); j++ ) {
+            action_mask |= (1U << flow->dep_out[j]->dep_index);
         }
     }
 
@@ -577,6 +596,10 @@ void parsec_device_dump_exec_stream(parsec_gpu_exec_stream_t* exec_stream)
     /* Don't yet dump the fifo_pending queue */
 }
 
+/* Nothing calls this: it is here to be called from a debugger. It reads the
+ * device lists like everybody else does, without a lock, so a dump taken while
+ * the device has a manager may show a list in the middle of being changed.
+ */
 void parsec_device_dump_gpu_state(parsec_device_gpu_module_t* gpu_device)
 {
     int i;
@@ -599,10 +622,10 @@ void parsec_device_dump_gpu_state(parsec_device_gpu_module_t* gpu_device)
     for( i = 0; i < gpu_device->num_exec_streams; i++ ) {
         parsec_device_dump_exec_stream(gpu_device->exec_stream[i]);
     }
-    if( !parsec_list_is_empty(&gpu_device->gpu_mem_lru) ) {
+    if( !parsec_list_nolock_is_empty(&gpu_device->gpu_mem_lru) ) {
         parsec_output(parsec_gpu_output_stream, "#\n# LRU list\n#\n");
         i = 0;
-        PARSEC_LIST_ITERATOR(&gpu_device->gpu_mem_lru, item,
+        PARSEC_LIST_NOLOCK_ITERATOR(&gpu_device->gpu_mem_lru, item,
                              {
                                  parsec_gpu_data_copy_t* gpu_copy = (parsec_gpu_data_copy_t*)item;
                                  parsec_output(parsec_gpu_output_stream, "  %d. elem %p flags 0x%x GPU mem %p\n",
@@ -611,10 +634,10 @@ void parsec_device_dump_gpu_state(parsec_device_gpu_module_t* gpu_device)
                                  i++;
                              });
     }
-    if( !parsec_list_is_empty(&gpu_device->gpu_mem_owned_lru) ) {
+    if( !parsec_list_nolock_is_empty(&gpu_device->gpu_mem_owned_lru) ) {
         parsec_output(parsec_gpu_output_stream, "#\n# Owned LRU list\n#\n");
         i = 0;
-        PARSEC_LIST_ITERATOR(&gpu_device->gpu_mem_owned_lru, item,
+        PARSEC_LIST_NOLOCK_ITERATOR(&gpu_device->gpu_mem_owned_lru, item,
                              {
                                  parsec_gpu_data_copy_t* gpu_copy = (parsec_gpu_data_copy_t*)item;
                                  parsec_output(parsec_gpu_output_stream, "  %d. elem %p flags 0x%x GPU mem %p\n",
@@ -943,10 +966,10 @@ parsec_device_memory_reserve( parsec_device_gpu_module_t* gpu_device,
         PARSEC_DEBUG_VERBOSE(20, parsec_gpu_output_stream,
                             "GPU[%d:%s] Insert GPU copy %p [ref_count %d] in LRU",
                             gpu_device->super.device_index, gpu_device->super.name, gpu_elem, gpu_elem->super.obj_reference_count);
-        parsec_list_push_back( &gpu_device->gpu_mem_lru, (parsec_list_item_t*)gpu_elem );
+        parsec_list_nolock_push_back( &gpu_device->gpu_mem_lru, (parsec_list_item_t*)gpu_elem );
         gpu_device->memory_info( gpu_device, &free_mem, &total_mem );
     }
-    if( 0 == mem_elem_per_gpu && parsec_list_is_empty( &gpu_device->gpu_mem_lru ) ) {
+    if( 0 == mem_elem_per_gpu && parsec_list_nolock_is_empty( &gpu_device->gpu_mem_lru ) ) {
         parsec_warning("GPU[%d:%s] Cannot allocate memory on GPU %s. Skip it!", gpu_device->super.device_index, gpu_device->super.name, gpu_device->super.name);
     }
     else {
@@ -993,7 +1016,7 @@ static void parsec_device_memory_release_list(parsec_device_gpu_module_t* gpu_de
 {
     parsec_list_item_t* item;
 
-    while(NULL != (item = parsec_list_pop_front(list)) ) {
+    while(NULL != (item = parsec_list_nolock_pop_front(list)) ) {
         parsec_gpu_data_copy_t* gpu_copy = (parsec_gpu_data_copy_t*)item;
         parsec_data_t* original = gpu_copy->original;
 
@@ -1053,12 +1076,31 @@ static void parsec_device_memory_release_list(parsec_device_gpu_module_t* gpu_de
 
 /**
  * This function only flushes the data copies pending in LRU, and checks
- * (in debug mode) that the entire allocated memory is free to use */
+ * (in debug mode) that the entire allocated memory is free to use.
+ *
+ * The copies go back to zone_malloc, so nothing may be using them. Anybody may
+ * reach this through parsec_devices_release_memory(), which is why the device
+ * is taken exclusively: a device that still has a manager is a device whose
+ * copies are still in play, and then the memory is left alone.
+ */
 int
 parsec_device_flush_lru( parsec_device_module_t *device )
 {
     size_t in_use;
     parsec_device_gpu_module_t *gpu_device = (parsec_device_gpu_module_t*)device;
+
+    if( !parsec_device_acquire_owner_token(gpu_device) ) {
+        /* Acquiring reserved a work slot on the manager we found, and we have no
+         * command to hand it. Give it back: a count that no task will ever
+         * release keeps the manager, and everyone queuing behind it, spinning.
+         */
+        (void)parsec_atomic_fetch_sub_int32(&gpu_device->mutex, 1);
+        parsec_warning("GPU[%d:%s] asked to release its memory while it is still being managed."
+                       " The copies may be in use, so nothing is flushed.",
+                       device->device_index, device->name);
+        return PARSEC_ERR_DEVICE;
+    }
+
     /* Free all memory on GPU */
     parsec_device_memory_release_list(gpu_device, &gpu_device->gpu_mem_lru);
     parsec_device_memory_release_list(gpu_device, &gpu_device->gpu_mem_owned_lru);
@@ -1071,6 +1113,7 @@ parsec_device_flush_lru( parsec_device_module_t *device )
         assert(!in_use);
     }
 #endif
+    parsec_device_release_owner_token(gpu_device);
     return PARSEC_SUCCESS;
 }
 
@@ -1091,7 +1134,15 @@ parsec_device_memory_release( parsec_device_gpu_module_t* gpu_device )
     if(PARSEC_SUCCESS != rc)
         return rc;
 
-    parsec_device_flush_lru(&gpu_device->super);
+    /* Nobody may be managing a device that is being torn down: the copies it
+     * still holds are about to lose the memory they point at, and the manager
+     * would go on using them. There is no recovering from that here, and the
+     * caller is already committed to destroying the streams next.
+     */
+    if( PARSEC_SUCCESS != parsec_device_flush_lru(&gpu_device->super) ) {
+        parsec_fatal("GPU[%d:%s]: device torn down while it is still being managed.",
+                     gpu_device->super.device_index, gpu_device->super.name);
+    }
 
 #if !defined(PARSEC_GPU_ALLOC_PER_TILE)
     assert( NULL != gpu_device->memory );
@@ -1242,7 +1293,7 @@ parsec_device_data_reserve_space( parsec_device_gpu_module_t* gpu_device,
         find_another_data:
             temp_loc[i] = NULL;
             /* Look for a data_copy to free */
-            lru_gpu_elem = (parsec_gpu_data_copy_t*)parsec_list_pop_front(&gpu_device->gpu_mem_lru);
+            lru_gpu_elem = (parsec_gpu_data_copy_t*)parsec_list_nolock_pop_front(&gpu_device->gpu_mem_lru);
             if( NULL == lru_gpu_elem ) {
                 /* We can't find enough room on the GPU. Insert the tiles in the beginning of
                  * the LRU (in order to be reused asap) and return with error.
@@ -1265,7 +1316,7 @@ parsec_device_data_reserve_space( parsec_device_gpu_module_t* gpu_device,
                                          gpu_device->super.device_index, gpu_device->super.name, task_name,
                                          temp_loc[j], temp_loc[j]->super.super.obj_reference_count);
                     /* push them at the head to reach them again at the next iteration */
-                    parsec_list_push_front(&gpu_device->gpu_mem_lru, (parsec_list_item_t*)temp_loc[j]);
+                    parsec_list_nolock_push_front(&gpu_device->gpu_mem_lru, (parsec_list_item_t*)temp_loc[j]);
                 }
 #if !defined(PARSEC_GPU_ALLOC_PER_TILE)
                 PARSEC_DATA_COPY_RELEASE(gpu_elem);
@@ -1274,7 +1325,7 @@ parsec_device_data_reserve_space( parsec_device_gpu_module_t* gpu_device,
                 if( data_avail_epoch ) {  /* update the memory epoch */
                     gpu_device->data_avail_epoch++;
                 }
-                return PARSEC_HOOK_RETURN_AGAIN;
+                return PARSEC_DEVICE_TASK_STARVED;
             }
 
             PARSEC_LIST_ITEM_SINGLETON(lru_gpu_elem);
@@ -1326,7 +1377,7 @@ parsec_device_data_reserve_space( parsec_device_gpu_module_t* gpu_device,
                                      gpu_device->super.device_index, gpu_device->super.name, task_name,
                                      lru_gpu_elem, lru_gpu_elem->readers, lru_gpu_elem->super.super.obj_reference_count, lru_gpu_elem->original);
                 assert(0 != (lru_gpu_elem->flags & PARSEC_DATA_FLAG_PARSEC_OWNED) );
-                parsec_list_push_back(&gpu_device->gpu_mem_lru, &lru_gpu_elem->super);
+                parsec_list_nolock_push_back(&gpu_device->gpu_mem_lru, &lru_gpu_elem->super);
                 gpu_mem_lru_cycling = (NULL == gpu_mem_lru_cycling) ? lru_gpu_elem : gpu_mem_lru_cycling;  /* update the cycle detector */
                 goto find_another_data;
             }
@@ -1337,11 +1388,11 @@ parsec_device_data_reserve_space( parsec_device_gpu_module_t* gpu_device,
                 /* Let's check we're not trying to steal one of our own data */
                 oldmaster = lru_gpu_elem->original;
                 if( !parsec_atomic_trylock( &oldmaster->lock ) ) {
-                    /* Even if we have the lock on oldmaster, any other thread
-                     * might be adding/removing other elements to the list, so we
-                     * need to protect all accesses to gpu_mem_lru with the locked version */
+                    /* Somebody is holding the data this copy belongs to, and we
+                     * are not going to wait for it. Give the copy back and look
+                     * for another one. */
                     assert(0 != (lru_gpu_elem->flags & PARSEC_DATA_FLAG_PARSEC_OWNED) );
-                    parsec_list_push_back(&gpu_device->gpu_mem_lru, &lru_gpu_elem->super);
+                    parsec_list_nolock_push_back(&gpu_device->gpu_mem_lru, &lru_gpu_elem->super);
                     gpu_mem_lru_cycling = (NULL == gpu_mem_lru_cycling) ? lru_gpu_elem : gpu_mem_lru_cycling;  /* update the cycle detector */
                     goto find_another_data;
                 }
@@ -1367,7 +1418,7 @@ parsec_device_data_reserve_space( parsec_device_gpu_module_t* gpu_device,
                 if( !parsec_atomic_cas_int32(&lru_gpu_elem->readers, 0, -PARSEC_DEVICE_DATA_COPY_ATOMIC_SENTINEL) ) {
                     assert(lru_gpu_elem->readers > 0);
                     /* we can't use this copy, push it back */
-                    parsec_list_push_back(&gpu_device->gpu_mem_lru, &lru_gpu_elem->super);
+                    parsec_list_nolock_push_back(&gpu_device->gpu_mem_lru, &lru_gpu_elem->super);
                     gpu_mem_lru_cycling = (NULL == gpu_mem_lru_cycling) ? lru_gpu_elem : gpu_mem_lru_cycling;  /* update the cycle detector */
                     PARSEC_DEBUG_VERBOSE(20, parsec_gpu_output_stream,
                                          "GPU[%d:%s]:%s: Push back LRU-retrieved GPU copy %p [readers %d, ref_count %d] original %p : Concurrent accesses",
@@ -1501,7 +1552,7 @@ parsec_device_data_reserve_space( parsec_device_gpu_module_t* gpu_device,
                                  gpu_device->super.device_index, gpu_device->super.name, task_name,
                                  temp_loc[j], temp_loc[j]->super.super.obj_reference_count);
             /* push them at the head to reach them again at the next iteration */
-            parsec_list_push_front(&gpu_device->gpu_mem_lru, (parsec_list_item_t*)temp_loc[j]);
+            parsec_list_nolock_push_front(&gpu_device->gpu_mem_lru, (parsec_list_item_t*)temp_loc[j]);
         }
         /* The task's GPU dependencies are located, but at least one writable
          * copy is still being filled on the input stream. Keep pre-existing
@@ -1770,11 +1821,11 @@ parsec_gpu_data_copy_release_reader(parsec_device_gpu_module_t *gpu_device,
          * they are not reclaimed as reusable read-cache memory.
          */
         if( PARSEC_DATA_COHERENCY_OWNED == copy->coherency_state ) {
-            parsec_list_push_back(&owner->gpu_mem_owned_lru,
-                                  (parsec_list_item_t*)copy);
+            parsec_list_nolock_push_back(&owner->gpu_mem_owned_lru,
+                                         (parsec_list_item_t*)copy);
         } else {
-            parsec_list_push_back(&owner->gpu_mem_lru,
-                                  (parsec_list_item_t*)copy);
+            parsec_list_nolock_push_back(&owner->gpu_mem_lru,
+                                         (parsec_list_item_t*)copy);
         }
         if( owner_token ) {
             PARSEC_DEBUG_VERBOSE(20, parsec_gpu_output_stream,
@@ -2077,6 +2128,15 @@ parsec_device_data_stage_in( parsec_device_gpu_module_t* gpu_device,
             (cpu_copy->version != task_data->data_in->version) ||
             (PARSEC_DATA_COHERENCY_INVALID == cpu_copy->coherency_state) ||
             (PARSEC_DATA_STATUS_UNDER_TRANSFER == cpu_copy->data_transfer_status) ) {
+            /* A host mirror receiving a write-back is unreadable for as long as
+             * that transfer lasts and no longer, exactly like a peer being
+             * filled. Whatever it ends up holding, it is not holding it yet,
+             * so come back rather than conclude the value is unreachable.
+             */
+            if( (NULL != cpu_copy) &&
+                (PARSEC_DATA_STATUS_UNDER_TRANSFER == cpu_copy->data_transfer_status) ) {
+                potential_alt_src = 1;
+            }
             if( potential_alt_src ) {
                 /* An accelerator does hold this version and is only momentarily
                  * unable to serve it, so waiting is enough. No ownership or
@@ -3093,6 +3153,21 @@ parsec_device_progress_stream( parsec_device_gpu_module_t* gpu_device,
                  * (aka. returning it to the upper level).
                  */
                 parsec_gpu_stream_push_pending(stream, task);
+            } else if( PARSEC_DEVICE_TASK_STARVED == rc ) {
+                /* The head found no room on the device. It queued nothing and
+                 * has no event to wait for, so it must not hold an event slot:
+                 * the event would complete at once and hand back a task that
+                 * cannot have made progress. Restore the tentative followers,
+                 * then hold the head on the device until a write-back gives it
+                 * a chance. Left in the rotation it would keep evicting the
+                 * blocks the other starving tasks just gave back, which is how
+                 * a device whose memory is all dirty spends its time going
+                 * nowhere.
+                 */
+                parsec_gpu_stream_rollback_batch(stream, task);
+                parsec_list_nolock_push_back(&gpu_device->starved_tasks,
+                                             (parsec_list_item_t*)task);
+                rc = PARSEC_HOOK_RETURN_DONE;
             } else if( PARSEC_HOOK_RETURN_ASYNC == rc ) {
                 /* A batch-aware hook transfers every execution context in the
                  * ring. The manager will release all device wrappers.
@@ -3680,14 +3755,14 @@ parsec_device_kernel_epilog( parsec_device_gpu_module_t *gpu_device,
                                  gpu_copy, gpu_copy->super.super.obj_reference_count, __func__);
             parsec_list_item_ring_chop((parsec_list_item_t*)gpu_copy);
             PARSEC_LIST_ITEM_SINGLETON(gpu_copy);
-            parsec_list_push_back(&gpu_device->gpu_mem_lru, (parsec_list_item_t*)gpu_copy);
+            parsec_list_nolock_push_back(&gpu_device->gpu_mem_lru, (parsec_list_item_t*)gpu_copy);
         } else {
             /* No need to detach the GPU copy it does not belong to any lists because it was owned by the task */
             PARSEC_DEBUG_VERBOSE(20, parsec_gpu_output_stream,
                                  "GPU[%d:%s]: %s: GPU copy %p [ref_count %d] moved to the owned LRU in %s",
                                  gpu_device->super.device_index, gpu_device->super.name, task_str,
                                  gpu_copy, gpu_copy->super.super.obj_reference_count, __func__);
-            parsec_list_push_back(&gpu_device->gpu_mem_owned_lru, (parsec_list_item_t*)gpu_copy);
+            parsec_list_nolock_push_back(&gpu_device->gpu_mem_owned_lru, (parsec_list_item_t*)gpu_copy);
         }
     }
     return 0;
@@ -3753,7 +3828,7 @@ parsec_device_kernel_cleanout( parsec_device_gpu_module_t *gpu_device,
          */
         this_task->data[i].data_out = cpu_copy;
         if( 0 != (gpu_copy->flags & PARSEC_DATA_FLAG_PARSEC_OWNED) ) {
-            parsec_list_push_back(&gpu_device->gpu_mem_lru, (parsec_list_item_t*)gpu_copy);
+            parsec_list_nolock_push_back(&gpu_device->gpu_mem_lru, (parsec_list_item_t*)gpu_copy);
         }
         parsec_atomic_unlock(&original->lock);
         data_avail_epoch++;
@@ -3855,6 +3930,28 @@ parsec_device_kernel_retire_incarnation_ring(parsec_device_gpu_module_t *gpu_dev
         task = (parsec_gpu_task_t *)task->list_item.list_next;
         __parsec_reschedule(es, ec);
     } while( task != ring );
+}
+
+/**
+ * Give back to the manager tasks that had run out of device memory, now that a
+ * write-back has turned dirty blocks into blocks the reservation can evict.
+ *
+ * At most as many tasks are woken as there are blocks that became reclaimable:
+ * waking the whole list on the strength of one write-back only puts the device
+ * back to evicting what the others need. A task that starves again is parked
+ * again, behind those still waiting.
+ */
+static void parsec_device_wake_starved_tasks(parsec_device_gpu_module_t *gpu_device,
+                                             int nb_reclaimable)
+{
+    for( int i = 0; i < nb_reclaimable; i++ ) {
+        parsec_gpu_task_t *starved =
+            (parsec_gpu_task_t*)parsec_list_nolock_pop_front(&gpu_device->starved_tasks);
+        if( NULL == starved )
+            break;
+        PARSEC_LIST_ITEM_SINGLETON(starved);
+        parsec_heap_push_chain(&gpu_device->pending_heap, (parsec_list_item_t*)starved);
+    }
 }
 
 /**
@@ -3984,9 +4081,14 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
             goto remove_gpu_task;
         }
         assert(NULL == progress_task);
-
-        /* TODO: check this */
-        /* If we can extract data go for it, otherwise try to drain the pending tasks */
+    }
+    /* Nothing came out of the push stage, either because it made no progress
+     * or because it has just parked a task for lack of device memory. Send
+     * dirty blocks back to the host: that is the only thing that turns memory
+     * the reservation cannot touch into memory it can evict.
+     */
+    if( (NULL == progress_task) &&
+        ((rc < 0) || !parsec_list_nolock_is_empty(&gpu_device->starved_tasks)) ) {
         gpu_task = parsec_gpu_create_w2r_task(gpu_device, es);
         if( NULL != gpu_task )
             goto get_data_out_of_device;
@@ -4114,6 +4216,13 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
         }
     } else {
         pop_null++;
+        /* There is nothing left to run, so whatever memory this device is ever
+         * going to hand back has been handed back. Tasks still waiting for it
+         * cannot be woken by anyone else, and a write-back has had its chance
+         * on every tour through the push stage, so let them try again rather
+         * than hold them for a release that is not coming.
+         */
+        parsec_device_wake_starved_tasks(gpu_device, INT_MAX);
         if( pop_null % 1024 == 1023 ) {
             PARSEC_DEBUG_VERBOSE(30, parsec_gpu_output_stream,  "GPU[%d:%s]:\tStill waiting for %d tasks to execute, but popped NULL the last %d times I tried to pop something...",
                                  gpu_device->super.device_index, gpu_device->super.name, gpu_device->mutex, pop_null);
@@ -4129,7 +4238,8 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
     /* Everything went fine so far, the result is correct and back in the main memory */
     PARSEC_LIST_ITEM_SINGLETON(gpu_task);
     if (gpu_task->task_type == PARSEC_GPU_TASK_TYPE_D2HTRANSFER) {
-        parsec_gpu_complete_w2r_task(gpu_device, gpu_task, es);
+        parsec_device_wake_starved_tasks(gpu_device,
+                                         parsec_gpu_complete_w2r_task(gpu_device, gpu_task, es));
         gpu_task = progress_task;
         goto fetch_task_from_shared_queue;
     }

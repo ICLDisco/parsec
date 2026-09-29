@@ -89,7 +89,9 @@ struct parsec_dep_data_description_s {
 
     /* If we can extract a preferred location for the incoming data set it
      * here, otherwise the memory for the incoming data will be allocated
-     * on the main memory (device 0).
+     * on the main memory (device 0). It is -1 when one of the successors that
+     * will read the data can only do so in main memory, which no other
+     * successor may then override.
      */
     int32_t preferred_device;
 #ifdef PARSEC_RESHAPE_BEFORE_SEND_TO_REMOTE

@@ -1242,11 +1242,18 @@ void parsec_devices_reset_load(parsec_context_t *context)
 int parsec_devices_release_memory(void)
 {
     parsec_device_module_t *dev;
+    int rc = PARSEC_SUCCESS;
+
     for(int i = 1; i < (int)parsec_nb_devices; i++) {
         dev = parsec_mca_device_get(i);
         if((NULL != dev) && (NULL != dev->memory_release)) {
-            dev->memory_release(dev);
+            /* Whether a device can give its memory back depends on that device
+             * alone, so keep asking the others, and report at the end that not
+             * everybody could.
+             */
+            if( PARSEC_SUCCESS != dev->memory_release(dev) )
+                rc = PARSEC_ERR_DEVICE;
         }
     }
-    return PARSEC_SUCCESS;
+    return rc;
 }
