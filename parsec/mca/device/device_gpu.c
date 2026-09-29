@@ -1158,6 +1158,66 @@ parsec_device_memory_release( parsec_device_gpu_module_t* gpu_device )
     return PARSEC_SUCCESS;
 }
 
+
+/** Outcomes of examining a copy the eviction would like to take the memory of. */
+#define PARSEC_GPU_COPY_KEEP        0  /**< it cannot be given up at all       */
+#define PARSEC_GPU_COPY_RECOVERABLE 1  /**< the host mirror can bring it back  */
+#define PARSEC_GPU_COPY_NEEDS_W2R   2  /**< this device holds the only value   */
+
+/**
+ * Can this accelerator copy be emptied, and what does that take?
+ *
+ * Taking the memory of a copy somebody still points at is only admissible when
+ * the value it holds can be brought back afterwards. A shared copy whose host
+ * mirror carries the same version can: the mirror stands in for it until a
+ * later stage in refills it.
+ *
+ * A copy the device owns, or one that is shared but ahead of the mirror, holds
+ * the only current value and cannot simply be dropped. It is not lost to us
+ * though: written back, it hands the value and the version to the host and
+ * becomes shared at that same version, which is exactly the state that makes it
+ * recoverable. So we ask for a write-back rather than refusing, and the copy
+ * comes back around as an ordinary candidate once the transfer has landed.
+ *
+ * In every case the mirror has to still own its memory, since a mirror created
+ * for a stage out is released again once the value returns to the device,
+ * leaving a copy that agrees on the version but has nothing behind it.
+ */
+static int parsec_gpu_copy_recoverability(parsec_data_copy_t *copy)
+{
+    parsec_data_copy_t *host_copy;
+
+    if( NULL == copy->original ) { return PARSEC_GPU_COPY_KEEP; }
+
+    /* A copy that holds no value costs nothing to empty, and there is no host
+     * mirror to ask anything of: whoever points at it has not filled it yet and
+     * will fill it from wherever the value is once it has memory again. This is
+     * what a reservation that had to be given up leaves behind, so refusing
+     * these would let a task that rolled back keep the memory it never used.
+     * A transfer already on its way into the copy is the one exception.
+     */
+    if( PARSEC_DATA_COHERENCY_INVALID == copy->coherency_state ) {
+        if( PARSEC_DATA_STATUS_UNDER_TRANSFER == copy->data_transfer_status ) {
+            return PARSEC_GPU_COPY_KEEP;
+        }
+        return PARSEC_GPU_COPY_RECOVERABLE;
+    }
+
+    host_copy = copy->original->device_copies[0];
+    if( NULL == host_copy ) { return PARSEC_GPU_COPY_KEEP; }
+    if( NULL == host_copy->device_private ) { return PARSEC_GPU_COPY_KEEP; }
+    if( PARSEC_DATA_COHERENCY_INVALID == host_copy->coherency_state ) { return PARSEC_GPU_COPY_KEEP; }
+
+    if( PARSEC_DATA_COHERENCY_OWNED == copy->coherency_state ) {
+        return PARSEC_GPU_COPY_NEEDS_W2R;
+    }
+    if( PARSEC_DATA_COHERENCY_SHARED != copy->coherency_state ) { return PARSEC_GPU_COPY_KEEP; }
+    if( host_copy->version != copy->version ) {
+        return PARSEC_GPU_COPY_NEEDS_W2R;
+    }
+    return PARSEC_GPU_COPY_RECOVERABLE;
+}
+
 /**
  * Try to find memory space to move all data on the GPU. We attach a device_elem to
  * a memory_elem as soon as a device_elem is available. If we fail to find enough
@@ -1177,6 +1237,24 @@ parsec_device_data_reserve_space( parsec_device_gpu_module_t* gpu_device,
     parsec_data_t* master, *oldmaster;
     const parsec_flow_t *flow;
     int data_avail_epoch = 0, copy_readers_update = 0;
+    /* Reclaiming the memory of a copy somebody else still points at costs a
+     * transfer later, when that holder needs the value back. So we only start
+     * doing it once a full sweep of the LRU has shown there is no copy left
+     * that this device owns outright. Per-tile mode never gets there: it hands
+     * a copy its memory for as long as the copy exists, so emptying one means
+     * giving the copy up, which is precisely what a holder forbids.
+     */
+#if defined(PARSEC_GPU_ALLOC_PER_TILE)
+    int allow_placeholders = -1;  /* never */
+#else
+    int allow_placeholders = 0;   /* not before a first sweep comes up empty */
+#endif
+    int keep_as_placeholder = 0;
+    /* Set while the flow under consideration is giving memory back to a copy this
+     * device had emptied. Such a copy is already attached to its data and is owned
+     * by it, so this pass must neither attach it again nor release it.
+     */
+    int refilling_placeholder = 0;
     /* A writable flow may already have the right GPU copy selected while that
      * copy is still being filled by the input stream. In that case all data
      * dependencies are located, but the task must not execute until stream
@@ -1213,10 +1291,17 @@ parsec_device_data_reserve_space( parsec_device_gpu_module_t* gpu_device,
                              "GPU[%d:%s]:%s: Investigating flow %s:%d",
                              gpu_device->super.device_index, gpu_device->super.name, task_name, flow->name, i);
         temp_loc[i] = NULL;
+        refilling_placeholder = 0;
         if (this_task->data[i].data_in == NULL)
             continue;
-        /* if the input data is already on this device there is nothing else to do */
-        if( gpu_device->super.device_index == this_task->data[i].data_in->device_index ) {
+        /* if the input data is already on this device there is nothing else to do,
+         * unless this device has reclaimed its memory since. Such a copy is not a
+         * usable input, but it is not a lost one either: it stays attached to its
+         * data and it is invalid, so giving it memory again below is enough for
+         * the stage in to refill it from the host mirror.
+         */
+        if( (gpu_device->super.device_index == this_task->data[i].data_in->device_index) &&
+            !parsec_data_copy_is_placeholder(this_task->data[i].data_in) ) {
             parsec_data_copy_t *input_copy = this_task->data[i].data_in;
             PARSEC_DEBUG_VERBOSE(20, parsec_gpu_output_stream,
                                  "GPU[%d:%s]:%s: Flow %s:%i was already on the device %p%s",
@@ -1243,6 +1328,23 @@ parsec_device_data_reserve_space( parsec_device_gpu_module_t* gpu_device,
         parsec_atomic_lock(&master->lock);
         gpu_elem = PARSEC_DATA_GET_COPY(master, gpu_device->super.device_index);
         this_task->data[i].data_out = gpu_elem;
+
+#if !defined(PARSEC_GPU_ALLOC_PER_TILE)
+        if( (NULL != gpu_elem) && parsec_data_copy_is_placeholder(gpu_elem) ) {
+            /* This device emptied its copy of that data to make room for another
+             * one. Give it memory back and let the stage in refill it: it is
+             * already attached and already invalid, so memory is all it misses.
+             * It keeps the version it was holding, which is what lets the stage
+             * in recognise the host mirror as a source for it.
+             */
+            PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
+                                 "GPU[%d:%s]:%s: Flow %s:%i refills the placeholder %p of data %p",
+                                 gpu_device->super.device_index, gpu_device->super.name, task_name,
+                                 flow->name, i, gpu_elem, master);
+            refilling_placeholder = 1;
+            goto malloc_data;
+        }
+#endif  /* !defined(PARSEC_GPU_ALLOC_PER_TILE) */
 
         /* There is already a copy on the device */
         if( NULL != gpu_elem ) {
@@ -1319,7 +1421,11 @@ parsec_device_data_reserve_space( parsec_device_gpu_module_t* gpu_device,
                     parsec_list_nolock_push_front(&gpu_device->gpu_mem_lru, (parsec_list_item_t*)temp_loc[j]);
                 }
 #if !defined(PARSEC_GPU_ALLOC_PER_TILE)
-                PARSEC_DATA_COPY_RELEASE(gpu_elem);
+                /* A placeholder we failed to refill belongs to its data, not to
+                 * this pass, so it stays exactly as we found it. */
+                if( !refilling_placeholder ) {
+                    PARSEC_DATA_COPY_RELEASE(gpu_elem);
+                }
 #endif
                 parsec_atomic_unlock(&master->lock);
                 if( data_avail_epoch ) {  /* update the memory epoch */
@@ -1336,11 +1442,25 @@ parsec_device_data_reserve_space( parsec_device_gpu_module_t* gpu_device,
                                  lru_gpu_elem->original);
 
             if( gpu_mem_lru_cycling == lru_gpu_elem ) {
-                PARSEC_DEBUG_VERBOSE(2, parsec_gpu_output_stream,
-                                     "GPU[%d:%s]: Cycle detected on allocating memory for %s",
-                                     gpu_device->super.device_index, gpu_device->super.name, task_name);
-                temp_loc[i] = lru_gpu_elem;  /* save it such that it gets pushed back into the LRU */
-                goto release_temp_and_return;
+                if( 0 == allow_placeholders ) {
+                    /* We have seen the whole list, and every copy in it is still
+                     * pointed at from outside this device. Go around once more,
+                     * this time taking their memory and leaving placeholders
+                     * behind, so that the holders can recover the value later
+                     * from the host mirror.
+                     */
+                    PARSEC_DEBUG_VERBOSE(2, parsec_gpu_output_stream,
+                                         "GPU[%d:%s]: No unreferenced copy left for %s, reclaiming referenced ones",
+                                         gpu_device->super.device_index, gpu_device->super.name, task_name);
+                    allow_placeholders = 1;
+                    gpu_mem_lru_cycling = NULL;  /* re-arm for the second sweep */
+                } else {
+                    PARSEC_DEBUG_VERBOSE(2, parsec_gpu_output_stream,
+                                         "GPU[%d:%s]: Cycle detected on allocating memory for %s",
+                                         gpu_device->super.device_index, gpu_device->super.name, task_name);
+                    temp_loc[i] = lru_gpu_elem;  /* save it such that it gets pushed back into the LRU */
+                    goto release_temp_and_return;
+                }
             }
 
             /* If there are pending readers, let the gpu_elem loose. This is a weak coordination
@@ -1359,27 +1479,41 @@ parsec_device_data_reserve_space( parsec_device_gpu_module_t* gpu_device,
                  */
                 goto find_another_data;
             }
-            /* It's also possible that the ref_count of that element is bigger than 1
-             * In that case, it's because some task completion did not execute yet, and
-             * we need to keep it in the list until it reaches 1.
+            /* A reference count above one means somebody outside this device still
+             * points at the copy: a task whose completion did not execute yet, a
+             * reshape promise parked in a data repository, or an outbound message.
+             * None of them is reading the memory right now, which is what readers
+             * tracks, but all of them need the copy object to survive. Prefer a
+             * copy nobody else claims, and only reclaim these once there is none.
              */
+            keep_as_placeholder = 0;
             if( lru_gpu_elem->super.super.obj_reference_count > 1 ) {
-                /* It's also possible (although unlikely) that we livelock here:
-                 * if gpu_mem_lru has *only* elements with readers == 0 but
-                 * ref_count > 1, then we might pop/push forever. We save the
-                 * earliest element found and if we see it again it means we
-                 * run over the entire list without finding a suitable replacement.
-                 * We need to make progress on something else. This remains safe for as long as the
-                 * LRU is only modified by a single thread (in this case the current thread).
-                 */
-                PARSEC_DEBUG_VERBOSE(20, parsec_gpu_output_stream,
-                                     "GPU[%d:%s]:%s: Push back LRU-retrieved GPU copy %p [readers %d, ref_count %d] original %p",
-                                     gpu_device->super.device_index, gpu_device->super.name, task_name,
-                                     lru_gpu_elem, lru_gpu_elem->readers, lru_gpu_elem->super.super.obj_reference_count, lru_gpu_elem->original);
-                assert(0 != (lru_gpu_elem->flags & PARSEC_DATA_FLAG_PARSEC_OWNED) );
-                parsec_list_nolock_push_back(&gpu_device->gpu_mem_lru, &lru_gpu_elem->super);
-                gpu_mem_lru_cycling = (NULL == gpu_mem_lru_cycling) ? lru_gpu_elem : gpu_mem_lru_cycling;  /* update the cycle detector */
-                goto find_another_data;
+                int recoverability = (allow_placeholders > 0)
+                                   ? parsec_gpu_copy_recoverability(lru_gpu_elem)
+                                   : PARSEC_GPU_COPY_KEEP;
+
+                if( PARSEC_GPU_COPY_RECOVERABLE == recoverability ) {
+                    keep_as_placeholder = 1;
+                } else {
+                    PARSEC_DEBUG_VERBOSE(20, parsec_gpu_output_stream,
+                                         "GPU[%d:%s]:%s: Push back LRU-retrieved GPU copy %p [readers %d, ref_count %d] original %p",
+                                         gpu_device->super.device_index, gpu_device->super.name, task_name,
+                                         lru_gpu_elem, lru_gpu_elem->readers, lru_gpu_elem->super.super.obj_reference_count, lru_gpu_elem->original);
+                    assert(0 != (lru_gpu_elem->flags & PARSEC_DATA_FLAG_PARSEC_OWNED) );
+                    if( PARSEC_GPU_COPY_NEEDS_W2R == recoverability ) {
+                        /* This copy is the only place its value lives, so it is
+                         * of no use to the clean list it was sitting in. Move it
+                         * to the owned one, where the write-back picks it up and
+                         * gives the value and the version to the host; it comes
+                         * back here shared and reclaimable.
+                         */
+                        parsec_list_nolock_push_back(&gpu_device->gpu_mem_owned_lru, &lru_gpu_elem->super);
+                    } else {
+                        parsec_list_nolock_push_back(&gpu_device->gpu_mem_lru, &lru_gpu_elem->super);
+                        gpu_mem_lru_cycling = (NULL == gpu_mem_lru_cycling) ? lru_gpu_elem : gpu_mem_lru_cycling;  /* update the cycle detector */
+                    }
+                    goto find_another_data;
+                }
             }
 
             /* Make sure the new GPU element is clean and ready to be used */
@@ -1429,16 +1563,44 @@ parsec_device_data_reserve_space( parsec_device_gpu_module_t* gpu_device,
                     goto find_another_data;
                 }
                 copy_readers_update = PARSEC_DEVICE_DATA_COPY_ATOMIC_SENTINEL;
-                /* Check if this copy is the last dangling reference to the oldmaster. This is safe to do as we own one of the data refcounts. */
-                int release_protected_cpu_mirror = parsec_gpu_has_protected_cpu_mirror(oldmaster);
-                int do_unlock = oldmaster->super.obj_reference_count != 1;
-                parsec_data_copy_detach(oldmaster, lru_gpu_elem, gpu_device->super.device_index);
-                parsec_atomic_wmb();
-                /* detach could have released the oldmaster if it only had a single refcount */
-                if( do_unlock )
+                if( keep_as_placeholder ) {
+                    /* The copy object has to outlive its memory, so it stays
+                     * attached to its data. Mark it INVALID, which is what tells
+                     * every consumer not to read it, and keep the version it was
+                     * holding, so that whoever refills it can check that the host
+                     * mirror still agrees.
+                     */
+                    assert(PARSEC_DATA_COHERENCY_OWNED != lru_gpu_elem->coherency_state);
+                    lru_gpu_elem->coherency_state = PARSEC_DATA_COHERENCY_INVALID;
+                    /* Invalid and with nothing in flight is what tells a later
+                     * stage in that this copy holds no value and has to be
+                     * filled before it can be read, even though it sits on the
+                     * device the task is running on.
+                     */
+                    lru_gpu_elem->data_transfer_status = PARSEC_DATA_STATUS_NOT_TRANSFER;
+                    /* Hand the ownership of the value to the host, which is the
+                     * only place it lives from now on. Leaving the data naming
+                     * this device as the owner would make the next transfer into
+                     * this copy look unnecessary, and the copy would be handed to
+                     * a task with nothing in it.
+                     */
+                    if( gpu_device->super.device_index == oldmaster->owner_device ) {
+                        oldmaster->owner_device = 0;
+                    }
+                    parsec_atomic_wmb();
                     parsec_atomic_unlock( &oldmaster->lock );
-                if( release_protected_cpu_mirror ) {
-                    parsec_data_release_self_contained_data(oldmaster);
+                } else {
+                    /* Check if this copy is the last dangling reference to the oldmaster. This is safe to do as we own one of the data refcounts. */
+                    int release_protected_cpu_mirror = parsec_gpu_has_protected_cpu_mirror(oldmaster);
+                    int do_unlock = oldmaster->super.obj_reference_count != 1;
+                    parsec_data_copy_detach(oldmaster, lru_gpu_elem, gpu_device->super.device_index);
+                    parsec_atomic_wmb();
+                    /* detach could have released the oldmaster if it only had a single refcount */
+                    if( do_unlock )
+                        parsec_atomic_unlock( &oldmaster->lock );
+                    if( release_protected_cpu_mirror ) {
+                        parsec_data_release_self_contained_data(oldmaster);
+                    }
                 }
 
                 /* The data is not used, it's not one of ours, and it has been detached from the device
@@ -1480,6 +1642,21 @@ parsec_device_data_reserve_space( parsec_device_gpu_module_t* gpu_device,
             zone_free( gpu_device->memory, (void*)(lru_gpu_elem->device_private) );
             lru_gpu_elem->device_private = NULL;
             data_avail_epoch++;
+            if( keep_as_placeholder ) {
+                /* Hand the readers back: we took the sentinel to keep other
+                 * devices from sourcing a transfer out of this copy while we
+                 * emptied it, but the copy itself lives on.
+                 */
+                parsec_atomic_fetch_add_int32(&lru_gpu_elem->readers, PARSEC_DEVICE_DATA_COPY_ATOMIC_SENTINEL);
+                copy_readers_update = 0;
+                PARSEC_DEBUG_VERBOSE(20, parsec_gpu_output_stream,
+                                     "GPU[%d:%s]:%s: LRU-retrieved GPU copy %p [ref_count %d] left as a placeholder for data %p at version %u",
+                                     gpu_device->super.device_index, gpu_device->super.name, task_name,
+                                     lru_gpu_elem, lru_gpu_elem->super.super.obj_reference_count,
+                                     lru_gpu_elem->original, lru_gpu_elem->version);
+                assert(parsec_data_copy_is_placeholder(lru_gpu_elem));
+                goto malloc_data;
+            }
             PARSEC_DEBUG_VERBOSE(30, parsec_gpu_output_stream,
                                  "GPU[%d:%s]:%s: Release LRU-retrieved GPU copy %p [ref_count %d: must be 1]",
                                  gpu_device->super.device_index, gpu_device->super.name, task_name,
@@ -1518,12 +1695,19 @@ parsec_device_data_reserve_space( parsec_device_gpu_module_t* gpu_device,
          * available once properly updated.
          */
         gpu_elem->coherency_state = PARSEC_DATA_COHERENCY_INVALID;
-        gpu_elem->version = UINT_MAX;  /* scrap value for now */
+        /* A copy we just gave memory back to keeps the version it was holding
+         * when we took it, so that the stage in can tell which value it owes.
+         */
+        if( !refilling_placeholder ) {
+            gpu_elem->version = UINT_MAX;  /* scrap value for now */
+        }
         PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
                              "GPU[%d:%s]: GPU copy %p [ref_count %d] gets created with version 0",
                              gpu_device->super.device_index, gpu_device->super.name,
                              gpu_elem, gpu_elem->super.super.obj_reference_count);
-        parsec_data_copy_attach(master, gpu_elem, gpu_device->super.device_index);
+        if( !refilling_placeholder ) {
+            parsec_data_copy_attach(master, gpu_elem, gpu_device->super.device_index);
+        }
         this_task->data[i].data_out = gpu_elem;
         /* set the new datacopy type to the correct one */
         this_task->data[i].data_out->dtt = this_task->data[i].data_in->dtt;
@@ -1948,6 +2132,9 @@ parsec_device_data_stage_in( parsec_device_gpu_module_t* gpu_device,
     int transfer_from = -1;
     /* True once a GPU source copy has a readers reference held for this transfer. */
     int source_acquired = 0;
+    /* True when the destination is a copy this device had emptied and the
+     * reservation has just given memory back to. */
+    int refilled_copy = 0;
 
     if( gpu_task->task_type == PARSEC_GPU_TASK_TYPE_PREFETCH ) {
         PARSEC_DEBUG_VERBOSE(5, parsec_gpu_output_stream,
@@ -1957,6 +2144,31 @@ parsec_device_data_stage_in( parsec_device_gpu_module_t* gpu_device,
     if( gpu_elem == candidate ) {  /* data already located in the right place */
         if( candidate->device_index == gpu_device->super.device_index ) {
             int wait_on_input_stream = (PARSEC_DATA_STATUS_UNDER_TRANSFER == candidate->data_transfer_status);
+
+            /* Being on the right device is not enough when the copy holds no
+             * value: this device took its memory away at some point and the
+             * reservation only just gave it back. Nothing is in flight into it
+             * either, so this stage owes it a transfer from the host mirror,
+             * which is where its value went. Fall through to the ordinary
+             * host to device path, with the mirror as the source.
+             */
+            if( (PARSEC_DATA_COHERENCY_INVALID == candidate->coherency_state) &&
+                (PARSEC_DATA_STATUS_NOT_TRANSFER == candidate->data_transfer_status) ) {
+                refilled_copy = 1;
+                candidate = original->device_copies[0];
+                PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
+                                     "GPU[%d:%s]:\t\tCopy %p of flow %s was emptied and refilled; staging v%u back in from the host copy %p",
+                                     gpu_device->super.device_index, gpu_device->super.name,
+                                     gpu_elem, flow->name, gpu_elem->version, candidate);
+                goto stage_from_host;
+            }
+            /* Nothing is transferred into this copy, so it stands as its own
+             * source. That is what tells the push completion that this flow has
+             * no transfer of its own to close out: whatever is in flight into
+             * the copy belongs to the task that started it, and so does the
+             * completion.
+             */
+            gpu_task->flow_info[flow->flow_index].source = candidate;
             /* The candidate is already located on the GPU. If it is still being
              * filled by earlier work on the input stream, there is no extra copy
              * to schedule here, but this stage must still record an input event.
@@ -1994,7 +2206,25 @@ parsec_device_data_stage_in( parsec_device_gpu_module_t* gpu_device,
                        gpu_device->super.device_index, gpu_device->super.name,
                        candidate, candidate->device_index);
     }
+ stage_from_host:
     parsec_atomic_lock( &original->lock );
+
+    /* The copy this flow was handed as its input may have been emptied since,
+     * by the device it lives on, to make room for somebody else. It remains the
+     * input of the flow, and the completion still accounts for it, but it can no
+     * longer serve as the source of a transfer. Its value went to the host
+     * mirror, so read it from there. A read-only flow may still find a better
+     * source below; a flow that also writes has no other choice, and would
+     * otherwise be handed a source with nothing behind it.
+     */
+    if( NULL == candidate->device_private ) {
+        candidate = original->device_copies[0];
+        if( (NULL == candidate) || (NULL == candidate->device_private) ) {
+            /* Nowhere to read this value from at the moment. */
+            parsec_atomic_unlock( &original->lock );
+            return PARSEC_HOOK_RETURN_AGAIN;
+        }
+    }
 
     gpu_task->flow_info[flow->flow_index].source = candidate; /* default source for the transfer */
     /**
@@ -2039,7 +2269,7 @@ parsec_device_data_stage_in( parsec_device_gpu_module_t* gpu_device,
     /* Try to find an alternate source, to avoid always transferring from the host to the device.
      * Current limitations: only for read-only data used read-only on the hosting GPU. */
     parsec_device_gpu_module_t *candidate_dev = (parsec_device_gpu_module_t*)parsec_mca_device_get( candidate->device_index );
-    if( (PARSEC_FLOW_ACCESS_READ & type) && !(PARSEC_FLOW_ACCESS_WRITE & type) ) {
+    if( (PARSEC_FLOW_ACCESS_READ & type) && !(PARSEC_FLOW_ACCESS_WRITE & type) && !refilled_copy ) {
         int potential_alt_src = 0;
         PARSEC_DEBUG_VERBOSE(30, parsec_gpu_output_stream,
                              "GPU[%d:%s]:\tSelecting candidate data copy %p [ref_count %d] on data %p",
@@ -2049,6 +2279,7 @@ parsec_device_data_stage_in( parsec_device_gpu_module_t* gpu_device,
                 /* The fast path bypasses the full source scan below, so it must
                  * enforce the same readiness checks before acquiring a reader. */
                 if( (PARSEC_DATA_COHERENCY_INVALID != candidate->coherency_state) &&
+                    (NULL != candidate->device_private) &&
                     (PARSEC_DATA_STATUS_UNDER_TRANSFER != candidate->data_transfer_status) ) {
                     if( parsec_gpu_data_copy_acquire_reader(candidate, original, task_data->data_in->version) ) {
                         source_acquired = 1;
@@ -2086,6 +2317,11 @@ parsec_device_data_stage_in( parsec_device_gpu_module_t* gpu_device,
             assert( PARSEC_DEV_IS_GPU(target->super.type) );
 
             candidate = original->device_copies[t];
+            /* A copy the device it lives on has emptied cannot serve a transfer,
+             * whatever it claims to hold. */
+            if( (NULL != candidate) && (NULL == candidate->device_private) ) {
+                continue;
+            }
             if( (NULL == candidate) || (candidate->version != task_data->data_in->version) ) {
                 PARSEC_DEBUG_VERBOSE(30, parsec_gpu_output_stream,
                                      "GPU[%d:%s]:\tcopy %p:%d cannot be a candidate VERSION MISMATCH with %p:%d",
@@ -2098,13 +2334,24 @@ parsec_device_data_stage_in( parsec_device_gpu_module_t* gpu_device,
                                  "GPU[%d:%s]:\tData copy %p [ref_count %d] on GPU device %d is a potential alternative source for data_in %p on data %p",
                                  gpu_device->super.device_index, gpu_device->super.name, candidate, candidate->super.super.obj_reference_count, target->super.device_index, task_data->data_in, original);
             if(PARSEC_DATA_COHERENCY_INVALID == candidate->coherency_state) {
-                /* We're already pulling this data on candidate...
-                 * If there is another candidate that already has it, we'll use
-                 * that one; otherwise, we'll fall back on the CPU version. */
-                potential_alt_src = 1;
+                /* If there is another candidate that already has it, we'll use
+                 * that one; otherwise, we'll fall back on the CPU version.
+                 *
+                 * Whether it is worth coming back for this one depends on why it
+                 * is invalid. A copy that is being pulled into right now will
+                 * hold the value shortly. A copy its device emptied to make room
+                 * holds nothing and has nothing on its way in either, so waiting
+                 * on it would be waiting for an event that never happens; ignore
+                 * it and let the host mirror, which is where its value went,
+                 * serve this transfer.
+                 */
+                if( PARSEC_DATA_STATUS_UNDER_TRANSFER == candidate->data_transfer_status ) {
+                    potential_alt_src = 1;
+                }
                 PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
-                                     "GPU[%d:%s]:\tData copy %p [ref_count %d] on GPU device %d is invalid, continuing to look for alternatives",
-                                     gpu_device->super.device_index, gpu_device->super.name, candidate, candidate->super.super.obj_reference_count, target->super.device_index);
+                                     "GPU[%d:%s]:\tData copy %p [ref_count %d] on GPU device %d is invalid%s, continuing to look for alternatives",
+                                     gpu_device->super.device_index, gpu_device->super.name, candidate, candidate->super.super.obj_reference_count, target->super.device_index,
+                                     (PARSEC_DATA_STATUS_UNDER_TRANSFER == candidate->data_transfer_status) ? " and under transfer" : " and empty");
                 continue;
             }
             /* We have a candidate for the d2d transfer. */
@@ -2208,7 +2455,8 @@ parsec_device_data_stage_in( parsec_device_gpu_module_t* gpu_device,
      * source is empty: data received from a remote peer also satisfies both, and
      * its content lives only in the host copy until it is staged in. Skip the
      * transfer only when the source holds no value at all. */
-    if( (NULL == task_data->source_repo_entry) &&
+    if( !refilled_copy &&
+        (NULL == task_data->source_repo_entry) &&
         (NULL == task_data->data_in->original->dc) &&
         (0 == task_data->data_in->version) &&
         (PARSEC_DATA_COHERENCY_INVALID == task_data->data_in->coherency_state) ) {
@@ -2903,7 +3151,15 @@ parsec_device_callback_complete_push(parsec_device_gpu_module_t   *gpu_device,
         /* We also don't push back non-parsec-owned copies */
         if(NULL != task->data[i].data_out &&
            0 == (task->data[i].data_out->flags & PARSEC_DATA_FLAG_PARSEC_OWNED)) continue;
-        if( gpu_device->super.device_index == task->data[i].data_in->device_index ) continue;
+        /* A flow whose input already sits on this device has nothing to complete
+         * here, since no transfer was needed to bring it in. A copy this device
+         * had emptied is the exception: it is both the input and the output of
+         * the flow, and this push did fill it, from the host mirror recorded as
+         * its source. Skipping it would leave it under transfer for good, and a
+         * copy under transfer is one the eviction will never take back.
+         */
+        if( (gpu_device->super.device_index == task->data[i].data_in->device_index) &&
+            (gtask->flow_info[i].source == task->data[i].data_in) ) continue;
 
         flow = gtask->flow_info[i].flow;
         assert( flow );

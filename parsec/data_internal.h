@@ -91,6 +91,26 @@ PARSEC_DECLSPEC PARSEC_OBJ_CLASS_DECLARATION(parsec_data_copy_t);
 #define PARSEC_DATA_GET_COPY(DATA, DEVID) \
     ((DATA)->device_copies[(DEVID)])
 
+/**
+ * An accelerator copy becomes a placeholder when a device reclaims its memory
+ * while somebody else still points at it. A reshape promise parked in a data
+ * repository, an outbound message, or a task that has not been scheduled yet
+ * all hold a reference on the copy object, so the object cannot be destroyed,
+ * but the bytes it used to hold are needed by another data.
+ *
+ * A placeholder stays attached to its original, keeps the version its content
+ * had when the memory was taken, and is INVALID with nothing in flight. That is
+ * enough for every consumer to recover: the device it belongs to gives it memory
+ * again and stages the value back in from the host mirror, a transfer looking
+ * for a source passes it over because it holds no memory, and a host task reads
+ * the mirror directly.
+ */
+static inline int parsec_data_copy_is_placeholder(const parsec_data_copy_t *copy)
+{
+    return (0 != copy->device_index) && (NULL == copy->device_private) &&
+           (NULL != copy->original);
+}
+
 int parsec_data_release_self_contained_data(parsec_data_t* data);
 /** Same, for callers that hold EXTRA_REFS references on DATA beyond the ones
  *  held by its own copies. Those references are discounted when deciding
