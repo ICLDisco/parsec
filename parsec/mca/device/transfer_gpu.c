@@ -259,6 +259,20 @@ parsec_gpu_create_w2r_task(parsec_device_gpu_module_t *gpu_device,
                 parsec_atomic_unlock( &gpu_copy->original->lock );
                 continue;
             }
+            if( 0 != gpu_copy->original->device_copies[0]->readers ) {
+                /* Writing back means overwriting the host mirror, and there is
+                 * only one of those per data. Somebody is reading the value it
+                 * holds right now and would see the bytes change underneath, so
+                 * this copy waits for a later round instead.
+                 */
+                PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
+                                     "D2H[%d:%s]: skip copy %p [%p]; its host mirror still has %d reader(s)",
+                                     gpu_device->super.device_index, gpu_device->super.name,
+                                     gpu_copy, gpu_copy->original,
+                                     gpu_copy->original->device_copies[0]->readers);
+                parsec_atomic_unlock( &gpu_copy->original->lock );
+                continue;
+            }
             if( PARSEC_UNLIKELY(NULL == d2h_task) ) {  /* allocate on-demand */
                 d2h_task = (parsec_gpu_d2h_task_t*)parsec_thread_mempool_allocate(es->context_mempool);
                 if( PARSEC_UNLIKELY(NULL == d2h_task) ) { /* we're running out of memory. Bail out. */

@@ -8,6 +8,7 @@
 #include "parsec/parsec_config.h"
 #include "parsec/parsec_internal.h"
 #include "parsec/remote_dep.h"
+#include "parsec/mca/device/device.h"
 #include "parsec/scheduling.h"
 #include "parsec/execution_stream.h"
 #include "parsec/data_internal.h"
@@ -132,6 +133,7 @@ remote_dep_complete_and_cleanup(parsec_remote_deps_t** deps,
                     if( PARSEC_TASKPOOL_TYPE_DTD == (*deps)->taskpool->taskpool_type ) {
                         parsec_dtd_data_copy_reader_release((*deps)->output[i].data.data);
                     }
+                    parsec_device_data_copy_unpin_reader((*deps)->output[i].data.data);
                     PARSEC_DATA_COPY_RELEASE((*deps)->output[i].data.data);
                 }
             }
@@ -495,6 +497,15 @@ int parsec_remote_dep_activate(parsec_execution_stream_t* es,
              * assert(NULL != output->data.remote.arena);*/
             assert( !parsec_is_CTL_dep(&output->data) );
             PARSEC_DATA_COPY_RETAIN(output->data.data);
+            /* The engine is about to read this memory itself, from its own
+             * thread, for as long as the message is outstanding. Count it among
+             * the readers so the device that owns the copy cannot reclaim the
+             * memory while the network is still reading it.
+             */
+            if( !parsec_device_data_copy_pin_reader(output->data.data) ) {
+                parsec_warning("Data copy %p was handed to the communication engine after the device "
+                               "owning it had already reclaimed its memory.", output->data.data);
+            }
         }
 
         for( array_index = count = 0; count < remote_deps->output[i].count_bits; array_index++ ) {

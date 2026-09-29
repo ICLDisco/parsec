@@ -718,6 +718,11 @@ remote_dep_copy_allocate(parsec_dep_type_description_t* data, int preferred_devi
         PARSEC_OBJ_RELEASE(dc->original);
     }
     PARSEC_DATA_COPY_RETAIN(dc);
+    /* The network writes straight into this buffer, so it is being read from
+     * the device's point of view for as long as the message is outstanding. */
+    if( !parsec_device_data_copy_pin_reader(dc) ) {
+        parsec_warning("Freshly allocated receive buffer %p has no memory to receive into.", dc);
+    }
     /* don't use preferred_device, it might not be the location where the data copy resides */
     parsec_data_start_transfer_ownership_to_copy(dc->original, dc->device_index, PARSEC_FLOW_ACCESS_WRITE);
     if (dc->device_index != preferred_device) {
@@ -1273,8 +1278,10 @@ remote_dep_release_incoming(parsec_execution_stream_t* es,
     for(i = 0; mask>>i; i++) {
         assert(i < MAX_PARAM_COUNT);
         if( !((1U<<i) & mask) ) continue;
-        if( NULL != origin->output[i].data.data )  /* except CONTROLs */
+        if( NULL != origin->output[i].data.data ) {  /* except CONTROLs */
+            parsec_device_data_copy_unpin_reader(origin->output[i].data.data);
             PARSEC_DATA_COPY_RELEASE(origin->output[i].data.data);
+        }
     }
 #if defined(PARSEC_DIST_COLLECTIVES)
     if(PARSEC_TASKPOOL_TYPE_PTG == origin->taskpool->taskpool_type) {
@@ -1627,9 +1634,17 @@ static int remote_dep_nothread_memcpy(parsec_execution_stream_t* es,
                          (char*)PARSEC_DATA_COPY_GET_PTR(cmd->memcpy.destination) + cmd->memcpy.layout.dst_displ, cmd->memcpy.layout.dst_datatype,
                          cmd->memcpy.layout.dst_count);
 
+    /* Both copies are read and written directly here, so hold them for the
+     * duration rather than for the lifetime of the command. */
+    int pinned_src = parsec_device_data_copy_pin_reader(cmd->memcpy.source);
+    int pinned_dst = parsec_device_data_copy_pin_reader(cmd->memcpy.destination);
+
     int rc = parsec_ce.reshape(&parsec_ce, es,
                                cmd->memcpy.destination, cmd->memcpy.layout.dst_displ, cmd->memcpy.layout.dst_datatype, cmd->memcpy.layout.dst_count,
                                cmd->memcpy.source, cmd->memcpy.layout.src_displ, cmd->memcpy.layout.src_datatype, cmd->memcpy.layout.src_count);
+
+    if( pinned_dst ) parsec_device_data_copy_unpin_reader(cmd->memcpy.destination);
+    if( pinned_src ) parsec_device_data_copy_unpin_reader(cmd->memcpy.source);
 
     PARSEC_DATA_COPY_RELEASE(cmd->memcpy.source);
     remote_dep_dec_flying_messages(item->cmd.memcpy.taskpool);
@@ -1879,6 +1894,13 @@ remote_dep_mpi_put_start(parsec_execution_stream_t* es,
             deps->output[k].data.data = reshape_data;
 
             PARSEC_DATA_COPY_RETAIN(reshape_data);
+            /* The reshape result takes over as the copy this message reads, so
+             * the pin moves with it. */
+            if( !parsec_device_data_copy_pin_reader(reshape_data) ) {
+                parsec_warning("Reshape promise %p produced data copy %p whose memory the device owning "
+                               "it had already reclaimed.", deps->output[k].data_future, reshape_data);
+            }
+            parsec_device_data_copy_unpin_reader(old_data);
             PARSEC_DATA_COPY_RELEASE(old_data);/*old data has been retained for remote communication*/
 
             PARSEC_OBJ_RELEASE(deps->output[k].data.data_future);

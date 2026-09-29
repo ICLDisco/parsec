@@ -201,6 +201,16 @@ extern int parsec_device_skip_empty_events;
  * on the host to remain universally available.
  */
 extern int parsec_device_peer_mesh_incomplete;
+
+/**
+ * Announce that something which is not a task is reading a copy's memory, and
+ * that the device owning it must not reclaim it until the reading is over.
+ * Returns 0 if the copy cannot be read, which for a device copy means the
+ * device is reclaiming it or has already done so.
+ */
+int  parsec_device_data_copy_pin_reader(parsec_data_copy_t *copy);
+void parsec_device_data_copy_unpin_reader(parsec_data_copy_t *copy);
+
 #if defined(PARSEC_DEBUG) || defined(PARSEC_DEBUG_NOISIER)
 /** Debug: make the Nth accelerator kernel submission decline the device. */
 extern int parsec_device_inject_disable;

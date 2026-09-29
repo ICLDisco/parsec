@@ -127,6 +127,8 @@ int __parsec_execute( parsec_execution_stream_t* es,
                       parsec_task_t* task )
 {
     const parsec_task_class_t* tc = task->task_class;
+    parsec_data_copy_t *pinned_input[MAX_PARAM_COUNT];
+    int nb_pinned_input = 0;
     int rc;
 #if defined(PARSEC_DEBUG_NOISIER)
     char tmp[MAX_TASK_STRLEN];
@@ -166,6 +168,19 @@ int __parsec_execute( parsec_execution_stream_t* es,
                 PARSEC_DATA_COPY_RETAIN(task->data[i].data_in);
                 PARSEC_DATA_COPY_RELEASE(copy);
             }
+            /* The body is about to read these bytes, and a write-back coming
+             * down from an accelerator would land on the very same host mirror.
+             * Say that the mirror is being read, for as long as that is true:
+             * the pin goes back as soon as the hook returns, because a body is
+             * the only one that knows when it is done with its input and it is
+             * done by then. Remember what was pinned rather than look for it
+             * again afterwards, since a task that hands its completion to
+             * somebody else is no longer ours to read.
+             */
+            assert(nb_pinned_input < MAX_PARAM_COUNT);
+            if( parsec_device_data_copy_pin_reader(task->data[i].data_in) ) {
+                pinned_input[nb_pinned_input++] = task->data[i].data_in;
+            }
         }
     }
 
@@ -189,6 +204,13 @@ int __parsec_execute( parsec_execution_stream_t* es,
     assert( NULL != hook );
     PARSEC_PINS(es, EXEC_BEGIN, task);
     rc = hook( es, task );
+    /* Hand back the pins taken on the inputs above, on every way out of the
+     * hook: a body that declines is not reading anything either, and it will
+     * pin again when it is tried afresh.
+     */
+    while( nb_pinned_input-- > 0 ) {
+        parsec_device_data_copy_unpin_reader(pinned_input[nb_pinned_input]);
+    }
 #if defined(PARSEC_PROF_TRACE)
     task->prof_info.task_return_code = rc;
 #endif

@@ -24,6 +24,13 @@ BEGIN_C_DECLS
 #define PARSEC_MAX_EVENTS_PER_STREAM  4
 #define PARSEC_GPU_MAX_WORKSPACE      2
 
+/**
+ * Claiming a copy exclusively is done by driving its readers this far below
+ * zero. Whoever wants to read it counts itself in and then looks at what it
+ * got: a negative count means somebody is emptying or disposing of the copy,
+ * and the reader steps back out.
+ */
+#define PARSEC_DEVICE_DATA_COPY_ATOMIC_SENTINEL 1024
 struct parsec_gpu_task_s;
 typedef struct parsec_gpu_task_s parsec_gpu_task_t;
 
@@ -149,6 +156,11 @@ typedef struct parsec_gpu_flow_info_s {
     /* The is private to the device code and should not be used outside the device driver */
     parsec_data_copy_t       *source; /* If the driver decides to acquire the data from a different
                                         * source, it will temporary store the best candidate here.
+                                        * Only the push that acquires the flow records one, so NULL
+                                        * means this task brought nothing in for that flow, either
+                                        * because the data was already here or because another task
+                                        * is transferring it. Must be left NULL when the task is
+                                        * built, or the completion would read a stale candidate.
                                         */
 
 } parsec_gpu_flow_info_t;
@@ -172,6 +184,12 @@ struct parsec_gpu_task_s {
     uint64_t                               heap_seq; /**< FIFO tie-break stamp, set by parsec_heap_push(); see pending_heap */
     uint16_t                               task_type;
     uint16_t                               pushout;
+    /* One bit per flow, set while this task counts itself among the readers of
+     * the copy it was handed as data_out. The reservation takes the reader and
+     * the pop gives it back, but a push can be retried in between, so the bit
+     * is what keeps the two from happening twice.
+     */
+    uint32_t                               data_out_readers;
     int32_t                                last_status;
     parsec_advance_task_function_t         submit;
     parsec_complete_stage_function_t       complete_stage;
