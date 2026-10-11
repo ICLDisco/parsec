@@ -2271,6 +2271,142 @@ uint8_t parsec_task_class_device_types(const parsec_task_class_t *tc)
     return types;
 }
 
+int parsec_task_class_drop_chores(const parsec_task_class_t *tc, uint8_t drop_types)
+{
+    __parsec_chore_t *chores = (__parsec_chore_t*)tc->incarnations;
+    int src, dst = 0, dropped = 0;
+
+    /* Compact in place. dst trails src, so no entry is overwritten before it
+     * has been read, and the PARSEC_DEV_NONE entry src stops on is carried
+     * over to close the shortened array. */
+    for( src = 0; PARSEC_DEV_NONE != (chores[src].type & PARSEC_DEV_ANY_TYPE); src++ ) {
+        if( drop_types & chores[src].type ) {
+            dropped++;
+            continue;
+        }
+        if( src != dst ) chores[dst] = chores[src];
+        dst++;
+    }
+    if( 0 == dst ) {
+        parsec_warning("Task class %s has no incarnation left once the device types 0x%x are taken away",
+                       tc->name, drop_types);
+        return PARSEC_ERR_BAD_PARAM;
+    }
+    chores[dst] = chores[src];
+    return dropped;
+}
+
+int parsec_taskpool_drop_chores(parsec_taskpool_t *tp, const char *tc_name, uint8_t drop_types)
+{
+    int dropped = 0, matched = 0, refused = 0;
+
+    /* Only the task classes of the taskpool itself. The array is twice as
+     * long, the upper half holding the startup tasks that generate them. */
+    for( uint32_t i = 0; i < tp->nb_task_classes; i++ ) {
+        const parsec_task_class_t *tc = tp->task_classes_array[i];
+        int rc;
+
+        if( NULL == tc ) continue;
+        if( (NULL != tc_name) && (0 != strcasecmp(tc->name, tc_name)) ) continue;
+        matched++;
+
+        /* A task class that cannot give up what is asked of it keeps all of
+         * its incarnations. Report that at the end rather than here, so that
+         * one such class does not hide what the others would have said. */
+        rc = parsec_task_class_drop_chores(tc, drop_types);
+        if( 0 > rc ) refused++;
+        else dropped += rc;
+    }
+    if( 0 != refused ) return PARSEC_ERR_BAD_PARAM;
+    if( (NULL != tc_name) && (0 == matched) ) {
+        parsec_debug_verbose(3, parsec_debug_output,
+                             "Taskpool %s has no task class named %s to take device types away from",
+                             (NULL == tp->taskpool_name) ? "(anonymous)" : tp->taskpool_name, tc_name);
+    }
+    return dropped;
+}
+
+/**
+ * Read one entry of a chore specification, of the form
+ * task_class ':' type[,type]*, and report where the next one starts.
+ *
+ * @return PARSEC_SUCCESS, or PARSEC_ERR_BAD_PARAM if the entry is malformed.
+ */
+static int
+parsec_chore_spec_entry(const char *spec, const char *entry,
+                        char *tc_name, size_t tc_name_size,
+                        uint8_t *drop_types, const char **next)
+{
+    const char *colon = strchr(entry, ':');
+    const char *end = strchr(entry, ';');
+    const char *type;
+    size_t name_length;
+
+    if( NULL == end ) end = entry + strlen(entry);
+    *next = ('\0' == *end) ? end : end + 1;
+    *drop_types = PARSEC_DEV_NONE;
+
+    if( (NULL == colon) || (colon > end) ) {
+        parsec_warning("Chore specification \"%s\" expects a task class and a device type separated by a colon", spec);
+        return PARSEC_ERR_BAD_PARAM;
+    }
+    name_length = (size_t)(colon - entry);
+    if( (0 == name_length) || (name_length >= tc_name_size) ) {
+        parsec_warning("Chore specification \"%s\" names a task class of an unusable length", spec);
+        return PARSEC_ERR_BAD_PARAM;
+    }
+    memcpy(tc_name, entry, name_length);
+    tc_name[name_length] = '\0';
+
+    for( type = colon + 1; type < end; ) {
+        const char *comma = strchr(type, ',');
+        const char *type_end = ((NULL == comma) || (comma > end)) ? end : comma;
+        uint8_t types = parsec_device_type_from_name(type, (size_t)(type_end - type));
+
+        if( PARSEC_DEV_NONE == types ) {
+            parsec_warning("Chore specification \"%s\" names a device type that does not exist", spec);
+            return PARSEC_ERR_BAD_PARAM;
+        }
+        *drop_types |= types;
+        type = (type_end < end) ? type_end + 1 : end;
+    }
+    if( PARSEC_DEV_NONE == *drop_types ) {
+        parsec_warning("Chore specification \"%s\" names no device type for task class %s", spec, tc_name);
+        return PARSEC_ERR_BAD_PARAM;
+    }
+    return PARSEC_SUCCESS;
+}
+
+int parsec_taskpool_trim_chores(parsec_taskpool_t *tp, const char *spec)
+{
+    char tc_name[MAX_TASK_STRLEN];
+    const char *entry;
+    uint8_t drop_types;
+    int dropped = 0;
+
+    if( (NULL == tp) || (NULL == spec) ) return PARSEC_ERR_BAD_PARAM;
+
+    /* Read the whole specification before touching anything, so that one
+     * entry that does not parse leaves the taskpool as it was rather than
+     * part way through. */
+    for( entry = spec; '\0' != *entry; ) {
+        if( PARSEC_SUCCESS != parsec_chore_spec_entry(spec, entry, tc_name, sizeof(tc_name),
+                                                      &drop_types, &entry) ) {
+            return PARSEC_ERR_BAD_PARAM;
+        }
+    }
+
+    for( entry = spec; '\0' != *entry; ) {
+        int rc;
+
+        (void)parsec_chore_spec_entry(spec, entry, tc_name, sizeof(tc_name), &drop_types, &entry);
+        rc = parsec_taskpool_drop_chores(tp, (0 == strcmp(tc_name, "*")) ? NULL : tc_name, drop_types);
+        if( 0 > rc ) return rc;
+        dropped += rc;
+    }
+    return dropped;
+}
+
 /*
  * The final step of a taskpool activation. At this point we assume that all the local
  * initializations have been successfully completed for all components, and that the

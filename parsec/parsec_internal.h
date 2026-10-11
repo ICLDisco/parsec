@@ -468,6 +468,54 @@ struct parsec_task_class_s {
  */
 uint8_t parsec_task_class_device_types(const parsec_task_class_t *tc);
 
+/**
+ * Remove from a task class the incarnations that run on one of the given
+ * device types, leaving the others in place and in order.
+ *
+ * @details
+ *   The array of incarnations belongs to the taskpool the task class was
+ *   built for, so this only affects that taskpool. It has to be called before
+ *   the taskpool is given to a context, as the incarnations of a task class
+ *   are read without synchronization once its tasks are being scheduled.
+ *
+ *   A task class that would be left with no incarnation at all is refused
+ *   rather than turned into a task that can never run.
+ *
+ * @param[in,out] tc
+ *          The task class to amputate.
+ *
+ * @param[in] drop_types
+ *          The device types to remove, ored together.
+ *
+ * @return The number of incarnations removed, or PARSEC_ERR_BAD_PARAM if they
+ *         would all have been.
+ */
+int parsec_task_class_drop_chores(const parsec_task_class_t *tc, uint8_t drop_types);
+
+/**
+ * Remove from a taskpool the incarnations that run on one of the given device
+ * types.
+ *
+ * @details
+ *   See parsec_task_class_drop_chores() for when this may be called and what
+ *   it is allowed to leave behind.
+ *
+ * @param[in,out] tp
+ *          The taskpool to amputate.
+ *
+ * @param[in] tc_name
+ *          The task class to look for, compared without regard to case, or
+ *          NULL to reach every task class of the taskpool. A name that
+ *          matches nothing is reported but is not an error.
+ *
+ * @param[in] drop_types
+ *          The device types to remove, ored together.
+ *
+ * @return The number of incarnations removed, or PARSEC_ERR_BAD_PARAM if some
+ *         task class would have been left with none.
+ */
+int parsec_taskpool_drop_chores(parsec_taskpool_t *tp, const char *tc_name, uint8_t drop_types);
+
 struct parsec_data_pair_s {
     struct parsec_data_copy_s    *data_in;
     struct parsec_data_copy_s    *data_out;
