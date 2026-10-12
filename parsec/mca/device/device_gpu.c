@@ -174,17 +174,6 @@ typedef int(*parsec_gpu_step_function_t)(parsec_device_gpu_module_t  *gpu_device
                                          parsec_execution_stream_t    *es,
                                          parsec_gpu_task_t           *gpu_task,
                                          parsec_gpu_exec_stream_t    *gpu_stream);
-/**
- * This is a special function to release standard device tasks instead of calling
- * PARSEC_OBJ_RELEASE on them. If we use the PARSEC_OBJ_RELEASE route the memory pointed
- * by the task will be free. In some cases, we don't want that to happen, but we still
- * want to inform the DSL that the task has been done with.
- */
-static void parsec_device_release_gpu_task(parsec_gpu_task_t *gpu_task)
-{
-    PARSEC_OBJ_RELEASE(gpu_task);
-}
-
 static void parsec_device_task_t_constructor(parsec_gpu_task_t *gpu_task)
 {
     gpu_task->task_type = PARSEC_GPU_TASK_TYPE_INVALID; /* need to be set later */
@@ -194,7 +183,6 @@ static void parsec_device_task_t_constructor(parsec_gpu_task_t *gpu_task)
     gpu_task->complete_stage = NULL;
     gpu_task->stage_in = NULL;
     gpu_task->stage_out = NULL;
-    gpu_task->release_device_task = NULL;
 #if defined(PARSEC_PROF_TRACE)
     gpu_task->prof_event_id = 0;
     gpu_task->prof_stage_key_end = -1;
@@ -206,8 +194,6 @@ static void parsec_device_task_t_constructor(parsec_gpu_task_t *gpu_task)
     gpu_task->nb_flows = 0;
     gpu_task->flow_info = NULL;
     gpu_task->priority = -1; // priority is inherited from the task
-    /* Default release mechanism, can be replaced by the DSL */
-    gpu_task->release_device_task = parsec_device_release_gpu_task;
 }
 PARSEC_OBJ_CLASS_INSTANCE(parsec_gpu_task_t, parsec_list_item_t,
                           parsec_device_task_t_constructor, NULL);
@@ -2818,7 +2804,8 @@ parsec_gpu_task_ring_release(parsec_gpu_task_t *ring)
 
         ring = (parsec_gpu_task_t *)parsec_list_item_ring_chop(&task->list_item);
         PARSEC_LIST_ITEM_SINGLETON(&task->list_item);
-        task->release_device_task(task);
+        /* the allocator of the wrapper decides how it is disposed of */
+        PARSEC_OBJ_RELEASE(task);
         count++;
     }
     return count;

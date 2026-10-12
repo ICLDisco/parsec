@@ -378,7 +378,7 @@ int parsec_gpu_complete_w2r_task(parsec_device_gpu_module_t *gpu_device,
 
     /* the manager may have moved to another thread since the task was allocated */
     parsec_thread_mempool_free(task->mempool_owner, task);
-    PARSEC_OBJ_RELEASE(gpu_task); /* no need to call release_device_task, just release the task */
+    PARSEC_OBJ_RELEASE(gpu_task);
     gpu_device->data_avail_epoch++;
     return nb_reclaimable;
 }
