@@ -2823,7 +2823,6 @@ parsec_dtd_create_and_initialize_task(parsec_dtd_taskpool_t *dtd_tp,
 
     assert(this_task->super.super.super.obj_reference_count == 1);
 
-    PARSEC_OBJ_CONSTRUCT(&this_task->super, parsec_task_t);
     this_task->orig_task = NULL;
     this_task->super.taskpool = (parsec_taskpool_t *)dtd_tp;
     this_task->ht_item.key = (parsec_key_t)(uintptr_t)parsec_atomic_fetch_inc_int32(&dtd_tp->task_id);

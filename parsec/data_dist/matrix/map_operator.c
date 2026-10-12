@@ -186,7 +186,8 @@ add_task_to_list(parsec_execution_stream_t *es,
                  void *_ready_lists)
 {
     parsec_task_t** pready_list = (parsec_task_t**)_ready_lists;
-    parsec_task_t* new_context = (parsec_task_t*)parsec_thread_mempool_allocate( es->context_mempool );
+    /* raw storage: PARSEC_COPY_EXECUTION_CONTEXT constructs the task */
+    parsec_task_t* new_context = (parsec_task_t*)parsec_thread_mempool_pop( es->context_mempool );
 
     PARSEC_COPY_EXECUTION_CONTEXT(new_context, newcontext);
     pready_list[vpid_dst] = (parsec_task_t*)parsec_list_item_ring_push_sorted( (parsec_list_item_t*)(pready_list[vpid_dst]),

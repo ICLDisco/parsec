@@ -3174,8 +3174,7 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
             "%s  } else {\n"
             "%s    vpid = (vpid + 1) %% context->nb_vp;  /* spread the initial joy */\n"
             "%s  }\n"
-            "%s  new_task = (%s*)parsec_thread_mempool_allocate( context->virtual_processes[vpid]->execution_streams[0]->context_mempool );\n"
-            "%s  PARSEC_OBJ_CONSTRUCT(new_task, parsec_task_t); /* construct called only when new, force-construct it again */\n",
+            "%s  new_task = (%s*)parsec_thread_mempool_allocate( context->virtual_processes[vpid]->execution_streams[0]->context_mempool );\n",
             indent(nesting), f->predicate->func_or_mem,
             indent(nesting), f->predicate->func_or_mem, f->predicate->func_or_mem,
             UTIL_DUMP_LIST(sa2, f->predicate->parameters, next,
@@ -3191,8 +3190,7 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
             indent(nesting),
             indent(nesting),
             indent(nesting),
-            indent(nesting), parsec_get_name(jdf, f, "task_t"),
-            indent(nesting));
+            indent(nesting), parsec_get_name(jdf, f, "task_t"));
 
     JDF_COUNT_LIST_ENTRIES(f->locals, jdf_variable_list_t, next, nb_locals);
     coutput("%s  /* Copy only the valid elements from this_task to new_task one */\n"
@@ -4528,7 +4526,6 @@ static void jdf_generate_startup_hook( const jdf_t *jdf )
             "    chores[idx].hook     = NULL;\n"
             "    /* Create the initialization tasks for each taskclass */\n"
             "    parsec_task_t* task = (parsec_task_t*)parsec_thread_mempool_allocate(context->virtual_processes[0]->execution_streams[0]->context_mempool);\n"
-            "    PARSEC_OBJ_CONSTRUCT(task, parsec_task_t); /* construct called only when new, force-construct it again */\n"
             "    task->taskpool = (parsec_taskpool_t *)__parsec_tp;\n"
             "    task->chore_mask = PARSEC_DEV_CPU;\n"
             "    memset(&task->locals, 0, sizeof(parsec_assignment_t) * MAX_LOCAL_COUNT);\n"

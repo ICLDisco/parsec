@@ -70,20 +70,49 @@ static parsec_gpu_task_t *stop_candidate;
 static int stop_observed;
 static int stop_candidate_completed;
 
+/* Observe the release of selected device wrappers: an allocator interposed in
+ * front of the one a wrapper was created with records the release and then
+ * forwards it.
+ */
+typedef struct release_observer_s {
+    parsec_obj_allocator_t  super;
+    parsec_obj_allocator_t *inner;  /**< allocator the wrappers were created with */
+} release_observer_t;
+
+static void
+release_observer_attach(release_observer_t *observer, parsec_gpu_task_t *gpu_task)
+{
+    parsec_object_t *obj = (parsec_object_t *)gpu_task;
+    if( obj->obj_allocator == &observer->super ) return;  /* already observed */
+    /* all observed wrappers come from the same DSL allocator */
+    assert(NULL == observer->inner || observer->inner == obj->obj_allocator);
+    observer->inner = obj->obj_allocator;
+    obj->obj_allocator = &observer->super;
+}
+
+static void
+release_observer_forward(parsec_obj_allocator_t *allocator, parsec_object_t *obj)
+{
+    parsec_obj_allocator_t *inner = ((release_observer_t *)allocator)->inner;
+    inner->obj_release(inner, obj);
+}
+
 /* Verify that final event completion closes the logical execution interval
  * before the device wrapper is released.
  */
 static void
-cuda_again_release(parsec_gpu_task_t *gpu_task)
+cuda_again_release(parsec_obj_allocator_t *allocator, parsec_object_t *obj)
 {
 #if defined(PARSEC_PROF_TRACE)
+    parsec_gpu_task_t *gpu_task = (parsec_gpu_task_t *)obj;
     if( PARSEC_GPU_TASK_PROF_EXEC_OPEN == gpu_task->prof_exec_state ) {
         again_profile_state_valid = 0;
     }
 #endif
     again_batch_release_count++;
-    PARSEC_OBJ_RELEASE(gpu_task);
+    release_observer_forward(allocator, obj);
 }
+static release_observer_t again_release_observer = { { NULL, cuda_again_release }, NULL };
 
 /* Only collect tasks from the same test phase and task class. Phase matching
  * prevents resubmitted ASYNC contexts from joining their initial submission.
@@ -239,7 +268,7 @@ int cuda_task_batch_again(parsec_device_gpu_module_t *gpu_device,
             seen |= (1U << id);
             again_batch_tasks[id] = current;
             again_batch_order[count] = current;
-            current->release_device_task = cuda_again_release;
+            release_observer_attach(&again_release_observer, current);
             phase = 1;
             cuda_pack_value_args(current->ec, &id, &phase);
             count++;
@@ -361,15 +390,17 @@ int cuda_task_next(parsec_device_gpu_module_t *gpu_device,
  * in non-increasing priority order after the ring enters the next stream.
  */
 static void
-cuda_priority_release(parsec_gpu_task_t *gpu_task)
+cuda_priority_release(parsec_obj_allocator_t *allocator, parsec_object_t *obj)
 {
+    parsec_gpu_task_t *gpu_task = (parsec_gpu_task_t *)obj;
     if( gpu_task->priority > priority_last_released ) {
         priority_order_valid = 0;
     }
     priority_last_released = gpu_task->priority;
     priority_release_count++;
-    PARSEC_OBJ_RELEASE(gpu_task);
+    release_observer_forward(allocator, obj);
 }
+static release_observer_t priority_release_observer = { { NULL, cuda_priority_release }, NULL };
 
 /* Build one successful batch, then make its linked order intentionally differ
  * from its priority order. The next stream must sort the complete ring instead
@@ -402,7 +433,7 @@ int cuda_task_priority(parsec_device_gpu_module_t *gpu_device,
          * positive priorities behind it, guaranteeing an unsorted ring.
          */
         current->ec->priority = (0 == position) ? 0 : batch_count - position + 1;
-        current->release_device_task = cuda_priority_release;
+        release_observer_attach(&priority_release_observer, current);
         position++;
         current = (parsec_gpu_task_t *)current->list_item.list_next;
     } while( current != gpu_task );

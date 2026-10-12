@@ -17,6 +17,7 @@
 #include "parsec/class/list.h"
 #include "parsec/class/lifo.h"
 #include "parsec/class/parsec_heap.h"
+#include "parsec/class/parsec_obj_freelist.h"
 
 BEGIN_C_DECLS
 
@@ -129,11 +130,6 @@ typedef int (parsec_stage_out_function_t)(parsec_gpu_task_t        *gtask,
                                           uint32_t                  flow_mask,
                                           parsec_gpu_exec_stream_t *gpu_stream);
 
-/* Function type for releasing a device task. The DSL is responsible for allocating such tasks,
- * and this function allows the device engine to delegate the release of such tasks back into
- * the DSL. Once this task called, the device task should not be accessed by the device.
- */
-typedef void (*parsec_release_device_task_function_t)(parsec_gpu_task_t*);
 typedef struct parsec_gpu_flow_info_s {
     const parsec_flow_t      *flow;         /* Some DSL might not have a task_class, but they still need to provide a flow. */
     size_t                    flow_span;    /* the span of the data on the device. For contiguous layout this is equal to the
@@ -161,6 +157,11 @@ typedef enum parsec_gpu_task_prof_exec_state_e {
 } parsec_gpu_task_prof_exec_state_t;
 #endif
 
+/* Device task wrapper. The DSL allocates it, and the device engine releases it
+ * with PARSEC_OBJ_RELEASE once done with it: a DSL that needs to control the
+ * disposal of its wrappers creates them with a custom allocator
+ * (PARSEC_OBJ_NEW_WALLOCATOR or PARSEC_OBJ_CONSTRUCT_WALLOCATOR).
+ */
 struct parsec_gpu_task_s {
     parsec_list_item_t                     list_item;
     /* The pending heap and the stream queues both order wrappers directly and
@@ -177,7 +178,6 @@ struct parsec_gpu_task_s {
     parsec_complete_stage_function_t       complete_stage;
     parsec_stage_in_function_t            *stage_in;
     parsec_stage_out_function_t           *stage_out;
-    parsec_release_device_task_function_t  release_device_task;
 #if defined(PARSEC_PROF_TRACE)
     /* The event ID is shared by logical execution and deferred stage events.
      * Keep this 64-bit member before the two 32-bit stage fields.
@@ -348,6 +348,7 @@ struct parsec_device_gpu_module_s {
     parsec_lifo_t              pending;       /**< lock-free LIFO: CPU threads push here */
     parsec_binheap_t           pending_heap;  /**< manager-private max-heap for priority ordering */
     struct zone_malloc_s      *memory;
+    parsec_obj_freelist_t      data_copy_freelist;  /**< data copies allocated by the device for its memory */
     parsec_gpu_exec_stream_t **exec_stream;
     size_t                     mem_block_size;
     int64_t                    mem_nb_blocks;

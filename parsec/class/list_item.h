@@ -88,6 +88,30 @@ parsec_list_item_singleton( parsec_list_item_t* item )
 
 /**
  * @brief
+ *  Turn raw storage into a list item that can be chained into a LIFO.
+ *
+ * @details
+ *   Used to keep the storage of a destructed object (e.g., in a free-list)
+ *   without constructing it as an object: only the fields used for
+ *   chaining are initialized.
+ *   @param[inout] storage at least sizeof(parsec_list_item_t) bytes
+ *   @return storage as a singleton list item
+ */
+static inline parsec_list_item_t*
+parsec_list_item_from_storage( void* storage )
+{
+    parsec_list_item_t* item = (parsec_list_item_t*)storage;
+#if defined(PARSEC_DEBUG_PARANOID)
+    item->refcount = 0;
+    item->belong_to = item;
+#endif
+    item->list_next = item;
+    item->list_prev = item;
+    return item;
+}
+
+/**
+ * @brief
  *   Make a ring from a chain of items
  *
  * @details
