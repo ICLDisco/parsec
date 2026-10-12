@@ -1793,7 +1793,8 @@ parsec_release_local_OUT_dependencies(parsec_execution_stream_t* es,
          * Queue it into the ready_list passed as an argument.
          */
         {
-            parsec_task_t *new_context = (parsec_task_t *) parsec_thread_mempool_allocate(es->context_mempool);
+            /* raw storage: PARSEC_COPY_EXECUTION_CONTEXT constructs the task */
+            parsec_task_t *new_context = (parsec_task_t *) parsec_thread_mempool_pop(es->context_mempool);
 
             PARSEC_COPY_EXECUTION_CONTEXT(new_context, task);
             PARSEC_AYU_ADD_TASK(new_context);

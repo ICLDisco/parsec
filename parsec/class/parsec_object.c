@@ -188,21 +188,37 @@ void parsec_class_finalize(void)
     }
 }
 
-void parsec_obj_release(parsec_object_t *object)
-{
-    PARSEC_OBJ_SET_MAGIC_ID((object), 0);
-    object->obj_release(object);
-}
-
 void parsec_obj_destruct(parsec_object_t * object) {
     PARSEC_OBJ_SET_MAGIC_ID((object), 0);
     parsec_obj_run_destructors(object);
 }
 
-void parsec_obj_destruct_and_free(parsec_object_t * object) {
+static void *parsec_obj_malloc_alloc(parsec_obj_allocator_t *allocator, parsec_class_t *cls)
+{
+    (void)allocator;
+    return malloc(cls->cls_sizeof);
+}
+
+static void parsec_obj_destruct_and_free(parsec_obj_allocator_t *allocator, parsec_object_t * object) {
+    (void)allocator;
     parsec_obj_destruct(object);
     free(object);
 }
+
+static void parsec_obj_destruct_only(parsec_obj_allocator_t *allocator, parsec_object_t * object) {
+    (void)allocator;
+    parsec_obj_destruct(object);
+}
+
+parsec_obj_allocator_t parsec_obj_malloc_allocator = {
+    .obj_alloc   = parsec_obj_malloc_alloc,
+    .obj_release = parsec_obj_destruct_and_free
+};
+
+parsec_obj_allocator_t parsec_obj_static_allocator = {
+    .obj_alloc   = NULL,
+    .obj_release = parsec_obj_destruct_only
+};
 
 static void save_class(parsec_class_t *cls)
 {

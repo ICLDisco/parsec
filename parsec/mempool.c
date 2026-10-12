@@ -10,12 +10,32 @@
 #include <string.h>
 #endif
 
+/* Allocator interface: provide raw storage for an object */
+static void *parsec_thread_mempool_obj_alloc( parsec_obj_allocator_t *allocator, parsec_class_t *cls )
+{
+    parsec_thread_mempool_t *thread_mempool = (parsec_thread_mempool_t *)allocator;
+    assert(cls->cls_sizeof <= thread_mempool->parent->elt_size); (void)cls;
+    return parsec_thread_mempool_pop(thread_mempool);
+}
+
+/* Allocator interface: destruct the object and return it to the thread mempool */
+static void parsec_thread_mempool_obj_release( parsec_obj_allocator_t *allocator, parsec_object_t *object )
+{
+    parsec_thread_mempool_t *thread_mempool = (parsec_thread_mempool_t *)allocator;
+    /* only objects created from this mempool can be returned to it */
+    assert(object->obj_class->cls_sizeof <= thread_mempool->parent->elt_size);
+    parsec_obj_destruct(object);
+    parsec_thread_mempool_push(thread_mempool, parsec_list_item_from_storage(object));
+}
+
 /** parsec_thread_mempool_construct
  *    constructs the thread-specific memory pool.
  */
 static void parsec_thread_mempool_construct( parsec_thread_mempool_t *thread_mempool,
                                             parsec_mempool_t *mempool )
 {
+    thread_mempool->super.obj_alloc   = parsec_thread_mempool_obj_alloc;
+    thread_mempool->super.obj_release = parsec_thread_mempool_obj_release;
     thread_mempool->parent = mempool;
     PARSEC_OBJ_CONSTRUCT(&thread_mempool->mempool, parsec_lifo_t);
     thread_mempool->nb_elt = 0;
@@ -24,12 +44,9 @@ static void parsec_thread_mempool_construct( parsec_thread_mempool_t *thread_mem
 static void parsec_thread_mempool_destruct( parsec_thread_mempool_t *thread_mempool )
 {
     void *elt;
+    /* elements in the mempool are raw storage from parsec_lifo_item_alloc */
     while(NULL != (elt = parsec_lifo_pop(&thread_mempool->mempool))) {
-        if(NULL != thread_mempool->parent->obj_class) {
-            parsec_lifo_item_free(elt);
-        } else {
-            free(elt);
-        }
+        parsec_lifo_item_storage_free(elt);
     }
     PARSEC_OBJ_DESTRUCT(&thread_mempool->mempool);
 }
@@ -40,6 +57,9 @@ void parsec_mempool_construct( parsec_mempool_t *mempool,
                               unsigned int nbthreads )
 {
     uint32_t tid;
+
+    /* objects are chained as list items while in the mempool: the back pointer must survive that */
+    assert(NULL == obj_class || pool_offset >= sizeof(parsec_list_item_t));
 
     mempool->nb_thread_mempools = nbthreads;
     mempool->elt_size = elt_size < sizeof(parsec_list_item_t) ? sizeof(parsec_list_item_t) : elt_size;
@@ -82,9 +102,6 @@ void *parsec_thread_mempool_allocate_when_empty( parsec_thread_mempool_t *thread
     elt = parsec_lifo_item_alloc(&thread_mempool->mempool, thread_mempool->parent->elt_size );
     owner = (parsec_thread_mempool_t **)((char*)elt + thread_mempool->parent->pool_owner_offset);
     *owner = thread_mempool;
-    if( NULL != thread_mempool->parent->obj_class ) {
-        PARSEC_OBJ_CONSTRUCT_INTERNAL(elt, thread_mempool->parent->obj_class);
-    }
     thread_mempool->nb_elt++;
     return elt;
 }

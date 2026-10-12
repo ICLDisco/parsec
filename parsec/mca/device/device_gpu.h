@@ -17,6 +17,7 @@
 #include "parsec/class/list.h"
 #include "parsec/class/lifo.h"
 #include "parsec/class/parsec_heap.h"
+#include "parsec/class/parsec_obj_freelist.h"
 
 BEGIN_C_DECLS
 
@@ -348,6 +349,7 @@ struct parsec_device_gpu_module_s {
     parsec_lifo_t              pending;       /**< lock-free LIFO: CPU threads push here */
     parsec_binheap_t           pending_heap;  /**< manager-private max-heap for priority ordering */
     struct zone_malloc_s      *memory;
+    parsec_obj_freelist_t      data_copy_freelist;  /**< data copies allocated by the device for its memory */
     parsec_gpu_exec_stream_t **exec_stream;
     size_t                     mem_block_size;
     int64_t                    mem_nb_blocks;

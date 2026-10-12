@@ -213,6 +213,20 @@ PARSEC_DECLSPEC parsec_list_item_t*
 parsec_lifo_item_alloc(parsec_lifo_t* lifo, size_t truesize);
 
 /**
+ * @brief Release the storage of a lifo item.
+ *
+ * @details Release storage that was allocated by parsec_lifo_item_alloc,
+ * using the matching deallocator, without destructing it. Used for storage
+ * that is no longer a constructed object (e.g., in a free-list).
+ *
+ * @param[inout] storage the storage to release.
+ *
+ * @remarks The storage must not be present in any lifo.
+ */
+PARSEC_DECLSPEC void
+parsec_lifo_item_storage_free(void* storage);
+
+/**
  * @brief Free a lifo item.
  *
  * @details Free an item that was allocated by parsec_lifo_item_alloc.

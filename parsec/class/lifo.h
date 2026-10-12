@@ -682,6 +682,25 @@ LIFO_STATIC_INLINE parsec_list_item_t* parsec_lifo_item_alloc( parsec_lifo_t* li
 }
 
 /**
+ * @brief Release the storage of a lifo item.
+ *
+ * @details Release storage that was allocated by parsec_lifo_item_alloc,
+ * using the matching deallocator, without destructing it. Used for storage
+ * that is no longer a constructed object (e.g., in a free-list).
+ *
+ * @param[inout] storage the storage to release.
+ *
+ * @remarks The storage must not be present in any lifo.
+ */
+LIFO_STATIC_INLINE void parsec_lifo_item_storage_free(void* storage) {
+#if defined(WIN64)
+    _aligned_free(storage);
+#else
+    free(storage);
+#endif  /* WIN64 */
+}
+
+/**
  * @brief Free a lifo item.
  *
  * @details Free an item that was allocated by parsec_lifo_item_alloc.
@@ -694,7 +713,7 @@ LIFO_STATIC_INLINE parsec_list_item_t* parsec_lifo_item_alloc( parsec_lifo_t* li
  */
 LIFO_STATIC_INLINE void parsec_lifo_item_free(parsec_list_item_t* item) {
     PARSEC_OBJ_DESTRUCT( item );
-    free(item);
+    parsec_lifo_item_storage_free(item);
 }
 
 /** @endcond */
