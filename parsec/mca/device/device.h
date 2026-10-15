@@ -298,12 +298,14 @@ PARSEC_DECLSPEC int parsec_mca_device_is_gpu(uint32_t devindex);
 PARSEC_DECLSPEC int parsec_mca_device_remove(parsec_device_module_t* device);
 
 /**
- * Reset the current devices statistics.
+ * Reset the current devices statistics. If explicitly scoped statistics
+ * intervals are active, the reset also restarts their baselines.
  */
 PARSEC_DECLSPEC void parsec_mca_device_reset_statistics(parsec_context_t* parsec_context);
 
 /**
- * Dump and reset the current devices statistics.
+ * Dump and reset the current devices statistics. If explicitly scoped
+ * statistics intervals are active, the reset also restarts their baselines.
  */
 PARSEC_DECLSPEC void parsec_mca_device_dump_and_reset_statistics(parsec_context_t* parsec_context);
 

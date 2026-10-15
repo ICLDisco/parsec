@@ -62,6 +62,14 @@ if(PARSEC_HAVE_HIP)
   endif(CMAKE_HIP_COMPILER)
 endif(PARSEC_HAVE_HIP)
 
+if(PARSEC_HAVE_CUDA OR PARSEC_HAVE_HIP)
+  # Testing an explicitly scoped device statistics report
+  include(ParsecCompilePTG)
+  parsec_addtest_executable(C device_show_statistics)
+  target_include_directories(device_show_statistics PRIVATE $<$<NOT:${PARSEC_BUILD_INPLACE}>:${CMAKE_CURRENT_SOURCE_DIR}>)
+  target_ptg_sources(device_show_statistics PRIVATE "device_show_statistics.jdf")
+endif()
+
 # Build a single pingpong pair and add the kernels for every enabled GPU
 # backend, so CUDA+HIP builds do not define the same test targets twice.
 if(PINGPONG_GPU_KERNEL_SOURCES)
