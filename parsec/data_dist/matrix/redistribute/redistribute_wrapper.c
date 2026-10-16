@@ -72,7 +72,7 @@ parsec_redistribute_New(parsec_tiled_matrix_t *dcY,
     /* Check distribution, and determine batch size: num_col */
     num_cols = redistribute_pair_num_cols(dcY, dcT, size_col);
     if( num_cols <= 0 ) {
-        parsec_warning("This version of data redistribution only supports parsec_matrix_block_cyclic_type, parsec_matrix_tabular_type, and parsec_matrix_sbc_type");
+        parsec_warning("This version of data redistribution only supports parsec_matrix_block_cyclic_type, parsec_matrix_sym_block_cyclic_type, parsec_matrix_tabular_type, and parsec_matrix_sbc_type");
         return NULL;
     }
 

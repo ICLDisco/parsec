@@ -10,7 +10,7 @@ if( PARSEC_HAVE_MPI )
         -m 4 -n 4
         -I 6 -J 0 -i 6 -j 0
         -x -P 3 -Q 1 -p 3 -q 1)
-    set(PARSEC_REDISTRIBUTE_DISTRIBUTIONS 2dbc sdb)
+    set(PARSEC_REDISTRIBUTE_DISTRIBUTIONS 2dbc sym-2dbc sdb)
     set(PARSEC_REDISTRIBUTE_MEMORY_LOCATIONS cpu)
     if(PARSEC_HAVE_CUDA)
         list(APPEND PARSEC_REDISTRIBUTE_MEMORY_LOCATIONS managed cuda)
