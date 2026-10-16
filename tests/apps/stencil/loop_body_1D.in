@@ -1,0 +1,4 @@
+      OUT(i,j) = WEIGHT_1D(0)*IN(i,j)
+        +WEIGHT_1D(-1)*IN(i,j-1)+WEIGHT_1D(1)*IN(i,j+1)
+        +WEIGHT_1D(-2)*IN(i,j-2)+WEIGHT_1D(2)*IN(i,j+2)
+        ;
