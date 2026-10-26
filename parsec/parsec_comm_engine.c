@@ -12,7 +12,7 @@
 
 parsec_comm_engine_t parsec_ce;
 
-#if defined(PARSEC_HAVE_MPI)
+#if defined(DISTRIBUTED)
 
 /* Select and initialize the distributed communication backend. */
 parsec_comm_engine_t *
@@ -59,4 +59,4 @@ parsec_comm_engine_fini(parsec_comm_engine_t *comm_engine)
     return PARSEC_SUCCESS;
 }
 
-#endif  /* defined(PARSEC_HAVE_MPI) */
+#endif  /* defined(DISTRIBUTED) */

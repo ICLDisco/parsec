@@ -132,7 +132,7 @@
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
 
-#if defined(PARSEC_HAVE_MPI)
+#if defined(PARSEC_HAVE_MPI) || defined(PARSEC_HAVE_UCX)
 # define DISTRIBUTED
 #else
 # undef DISTRIBUTED
@@ -201,4 +201,3 @@ typedef int32_t parsec_dependency_t;
 #endif
 
 #endif  /* PARSEC_CONFIG_BOTTOM_H_HAS_BEEN_INCLUDED */
-
