@@ -160,7 +160,7 @@ typedef enum parsec_gpu_task_prof_exec_state_e {
 /* Device task wrapper. The DSL allocates it, and the device engine releases it
  * with PARSEC_OBJ_RELEASE once done with it: a DSL that needs to control the
  * disposal of its wrappers creates them with a custom allocator
- * (PARSEC_OBJ_NEW_WALLOCATOR or PARSEC_OBJ_CONSTRUCT_WALLOCATOR).
+ * (passed to PARSEC_OBJ_NEW or PARSEC_OBJ_CONSTRUCT).
  */
 struct parsec_gpu_task_s {
     parsec_list_item_t                     list_item;

@@ -586,8 +586,8 @@ PARSEC_DECLSPEC PARSEC_OBJ_CLASS_DECLARATION(parsec_task_t);
         (dest)->mempool_owner = _mpool;                                 \
         (dest)->repo_entry = NULL;                                      \
         /* construct (or reset) dest, to be returned to its mempool */  \
-        PARSEC_OBJ_CONSTRUCT_WALLOCATOR(dest, parsec_task_t,            \
-                                        (NULL != _mpool) ? &_mpool->super : &parsec_obj_static_allocator); \
+        PARSEC_OBJ_CONSTRUCT(dest, parsec_task_t,                       \
+                             (NULL != _mpool) ? &_mpool->super : NULL); \
     } while (0)
 
 /**

@@ -8,6 +8,7 @@
 #define PARSEC_OBJ_FREELIST_H
 
 #include "parsec/parsec_config.h"
+#include "parsec/constants.h"
 #include "parsec/class/parsec_object.h"
 #include "parsec/class/lifo.h"
 
@@ -27,7 +28,7 @@
  *    parsec_obj_freelist_t fl;
  *    PARSEC_OBJ_FREELIST_CONSTRUCT(&fl, sally_t);
  *
- *    sally_t *sally = PARSEC_OBJ_FREELIST_NEW(&fl, sally_t);
+ *    sally_t *sally = PARSEC_OBJ_NEW(sally_t, &fl.super);
  *    PARSEC_OBJ_RETAIN(sally);
  *    PARSEC_OBJ_RELEASE(sally);
  *    PARSEC_OBJ_RELEASE(sally);  // storage goes back to fl
@@ -36,8 +37,8 @@
  *  @endcode
  *  Objects of any class whose size does not exceed the element size of
  *  the free-list may be allocated from it. Only objects allocated from
- *  the free-list can be returned to it: it cannot be used with
- *  PARSEC_OBJ_CONSTRUCT_WALLOCATOR on storage obtained elsewhere. All
+ *  the free-list can be returned to it: it cannot be passed to
+ *  PARSEC_OBJ_CONSTRUCT for storage obtained elsewhere. All
  *  objects must have been released before the free-list is destructed.
  */
 
@@ -55,8 +56,10 @@ typedef struct parsec_obj_freelist_s {
  *
  * @param[out] freelist the free-list to construct
  * @param[in] elt_size the maximum size of objects allocated from this free-list
+ * @return PARSEC_SUCCESS, or PARSEC_ERR_OUT_OF_RESOURCE if the free-list
+ *         could not be set up
  */
-PARSEC_DECLSPEC void parsec_obj_freelist_construct(parsec_obj_freelist_t *freelist, size_t elt_size);
+PARSEC_DECLSPEC int parsec_obj_freelist_construct(parsec_obj_freelist_t *freelist, size_t elt_size);
 
 /**
  * @brief Destruct a free-list and free all cached elements.
@@ -74,15 +77,6 @@ PARSEC_DECLSPEC int32_t parsec_obj_freelist_destruct(parsec_obj_freelist_t *free
  */
 #define PARSEC_OBJ_FREELIST_CONSTRUCT(freelist, type)                   \
     parsec_obj_freelist_construct((freelist), sizeof(type))
-
-/**
- * @brief Create an object of class type, using storage from freelist.
- *
- * @details The storage is returned to freelist once the reference count
- * of the object drops to zero.
- */
-#define PARSEC_OBJ_FREELIST_NEW(freelist, type)                         \
-    PARSEC_OBJ_NEW_WALLOCATOR(type, &(freelist)->super)
 
 END_C_DECLS
 

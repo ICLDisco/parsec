@@ -37,6 +37,12 @@ v4.0.2411
  - Data sent in messages can be of variable size.
  - New API `parsec_context_query` can be used to obtain information on the system, like the number of devices, ranks, etc.
  - New active-message communication API gives low-level access to the PaRSEC communication system to DSLs.
+ - Objects can come from a custom allocator: `PARSEC_OBJ_NEW(type, allocator)` and
+   `PARSEC_OBJ_CONSTRUCT(object, type, allocator)` take an optional `parsec_obj_allocator_t`
+   that provides the storage and disposes of the object once its reference count drops
+   to zero (NULL selects the previous behavior). A thread-safe object free-list is
+   available in `parsec/class/parsec_obj_freelist.h`, each thread-mempool is an
+   allocator, and GPU devices recycle their data copies through a device-local free-list.
 
 ### Changed
 
@@ -54,6 +60,9 @@ v4.0.2411
  - PaRSEC profiling system does not require for local dicitonaries to
    be identical between ranks anymore.
  - `time_estimate` functions can be used to control task load balancing (replaces `weight` PTG property).
+ - The layout of `parsec_object_t` changed: `obj_allocator` replaces `obj_release`.
+ - Mempools with a class construct an object each time it is allocated and destruct
+   it each time it is returned, instead of constructing it once when first allocated.
 
 ### Deprecated
 
@@ -74,6 +83,13 @@ v4.0.2411
    and `--parsec-version`.
  - Using more than `PARSEC_GPU_MAX_WORKSPACE` workspaces per device will now cause an error (instead of computing incorrect values).
  - PTG property `weight` (replaced by `time_estimate`).
+ - `parsec_release_t`, `parsec_obj_destruct_and_free()`, `PARSEC_OBJ_CONSTRUCT_WRELEASE`,
+   `PARSEC_OBJ_CONSTRUCT_INTERNAL` and the `obj_release` member of `parsec_object_t`:
+   pass an allocator to `PARSEC_OBJ_CONSTRUCT` instead.
+ - The `release_device_task` callback of `parsec_gpu_task_t`: the device engine releases
+   device tasks with `PARSEC_OBJ_RELEASE`, so a DSL controls their disposal through the
+   allocator it creates them with. Unlike the callback, which was always called, the
+   allocator is only reached once the reference count drops to zero.
 
 ### Fixed
 
@@ -85,6 +101,8 @@ v4.0.2411
  - Do not report incorrect flops/s capabilities (`device_show_capabilities` MCA parameter).
  - On some systems PaRSEC would allocate more GPU memory than is available on the device.
  - Performance with large number of GPU tasks with the same priority would be poor due to overhead of sorting by priority.
+ - GPU device-to-host transfer tasks were returned to the mempool of whichever thread completed them, instead of the one they came from.
+ - On Windows, LIFO items allocated with `_aligned_malloc` were released with `free`.
 
 ### Known Bugs
 

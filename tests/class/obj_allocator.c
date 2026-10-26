@@ -14,6 +14,7 @@
 #include <inttypes.h>
 #include <unistd.h>
 
+#include "parsec/sys/atomic.h"
 #include "parsec/class/parsec_object.h"
 #include "parsec/class/parsec_obj_freelist.h"
 #if defined(BUILDING_PARSEC)
@@ -24,23 +25,23 @@
 typedef struct {
     parsec_object_t super;
     int value;
-    char payload[200];
+    char payload[200];  /* larger than a parsec_list_item_t, so free-list elements are sized by the class */
 } counted_t;
 
-static int32_t nb_constructed = 0;
-static int32_t nb_destructed = 0;
+static volatile int32_t nb_constructed = 0;
+static volatile int32_t nb_destructed = 0;
 
 static void counted_construct(counted_t *obj)
 {
     obj->value = 42;
-    __sync_fetch_and_add(&nb_constructed, 1);
+    parsec_atomic_fetch_inc_int32(&nb_constructed);
 }
 
 static void counted_destruct(counted_t *obj)
 {
     assert(42 == obj->value);
     obj->value = -1;
-    __sync_fetch_and_add(&nb_destructed, 1);
+    parsec_atomic_fetch_inc_int32(&nb_destructed);
 }
 
 PARSEC_OBJ_CLASS_DECLARATION(counted_t);
@@ -69,7 +70,7 @@ static void counting_release(parsec_obj_allocator_t *allocator, parsec_object_t 
 static void test_custom_allocator(void)
 {
     counting_allocator_t allocator = { { counting_alloc, counting_release }, 0, 0 };
-    counted_t *obj = PARSEC_OBJ_NEW_WALLOCATOR(counted_t, &allocator.super);
+    counted_t *obj = PARSEC_OBJ_NEW(counted_t, &allocator.super);
     assert(NULL != obj && 42 == obj->value);
     assert(1 == allocator.nb_alloc && 0 == allocator.nb_release);
     PARSEC_OBJ_RETAIN(obj);
@@ -80,7 +81,7 @@ static void test_custom_allocator(void)
 
     /* construct in place, release through the allocator */
     obj = malloc(sizeof(counted_t));
-    PARSEC_OBJ_CONSTRUCT_WALLOCATOR(obj, counted_t, &allocator.super);
+    PARSEC_OBJ_CONSTRUCT(obj, counted_t, &allocator.super);
     PARSEC_OBJ_RELEASE(obj);
     assert(NULL == obj && 2 == allocator.nb_release);
     assert(nb_constructed == nb_destructed);
@@ -96,6 +97,16 @@ static void test_default_allocators(void)
     PARSEC_OBJ_CONSTRUCT(&stack_obj, counted_t);
     PARSEC_OBJ_DESTRUCT(&stack_obj);
     assert(nb_constructed == nb_destructed);
+
+    /* a NULL allocator selects the default of each operation */
+    obj = PARSEC_OBJ_NEW(counted_t, NULL);
+    assert(&parsec_obj_malloc_allocator == obj->super.obj_allocator);
+    PARSEC_OBJ_RELEASE(obj);
+    assert(NULL == obj);
+    PARSEC_OBJ_CONSTRUCT(&stack_obj, counted_t, NULL);
+    assert(&parsec_obj_static_allocator == stack_obj.super.obj_allocator);
+    PARSEC_OBJ_DESTRUCT(&stack_obj);
+    assert(nb_constructed == nb_destructed);
 }
 
 static void test_freelist_serial(void)
@@ -104,14 +115,15 @@ static void test_freelist_serial(void)
     counted_t *a, *b;
     void *addr;
 
-    PARSEC_OBJ_FREELIST_CONSTRUCT(&fl, counted_t);
-    a = PARSEC_OBJ_FREELIST_NEW(&fl, counted_t);
+    int rc = PARSEC_OBJ_FREELIST_CONSTRUCT(&fl, counted_t);
+    assert(PARSEC_SUCCESS == rc); (void)rc;
+    a = PARSEC_OBJ_NEW(counted_t, &fl.super);
     assert(42 == a->value);
     addr = a;
     PARSEC_OBJ_RELEASE(a);
     assert(nb_constructed == nb_destructed);
     /* storage is recycled and constructors are run again */
-    b = PARSEC_OBJ_FREELIST_NEW(&fl, counted_t);
+    b = PARSEC_OBJ_NEW(counted_t, &fl.super);
     assert(addr == (void*)b && 42 == b->value);
     assert(1 == fl.nb_elt);
     PARSEC_OBJ_RETAIN(b);
@@ -132,7 +144,7 @@ static void *freelist_thread(void *arg)
     (void)arg;
     for(int i = 0; i < NB_ITER; i++) {
         for(int j = 0; j < NB_HELD; j++) {
-            held[j] = PARSEC_OBJ_FREELIST_NEW(&shared_fl, counted_t);
+            held[j] = PARSEC_OBJ_NEW(counted_t, &shared_fl.super);
             assert(42 == held[j]->value);
         }
         for(int j = 0; j < NB_HELD; j++) {
@@ -145,7 +157,8 @@ static void *freelist_thread(void *arg)
 static void test_freelist_threaded(void)
 {
     pthread_t threads[NB_THREADS];
-    PARSEC_OBJ_FREELIST_CONSTRUCT(&shared_fl, counted_t);
+    int rc = PARSEC_OBJ_FREELIST_CONSTRUCT(&shared_fl, counted_t);
+    assert(PARSEC_SUCCESS == rc); (void)rc;
     for(int t = 0; t < NB_THREADS; t++)
         pthread_create(&threads[t], NULL, freelist_thread, NULL);
     for(int t = 0; t < NB_THREADS; t++)
@@ -165,20 +178,20 @@ typedef struct {
     int value;
 } pooled_t;
 
-static int32_t nb_pooled_constructed = 0;
-static int32_t nb_pooled_destructed = 0;
+static volatile int32_t nb_pooled_constructed = 0;
+static volatile int32_t nb_pooled_destructed = 0;
 
 static void pooled_construct(pooled_t *obj)
 {
     obj->value = 7;
-    __sync_fetch_and_add(&nb_pooled_constructed, 1);
+    parsec_atomic_fetch_inc_int32(&nb_pooled_constructed);
 }
 
 static void pooled_destruct(pooled_t *obj)
 {
     assert(7 == obj->value);
     obj->value = -1;
-    __sync_fetch_and_add(&nb_pooled_destructed, 1);
+    parsec_atomic_fetch_inc_int32(&nb_pooled_destructed);
 }
 
 PARSEC_OBJ_CLASS_DECLARATION(pooled_t);
@@ -193,7 +206,7 @@ static void *mempool_thread(void *arg)
     for(int i = 0; i < NB_ITER; i++) {
         for(int j = 0; j < NB_HELD; j++) {
             if( j % 2 ) {
-                held[j] = PARSEC_THREAD_MEMPOOL_OBJ_NEW(pooled_t, tm);
+                held[j] = PARSEC_OBJ_NEW(pooled_t, &tm->super);
             } else {
                 held[j] = parsec_thread_mempool_allocate(tm);
             }
@@ -224,7 +237,7 @@ static void test_mempool(void)
     parsec_mempool_construct(&mempool, PARSEC_OBJ_CLASS(pooled_t), sizeof(pooled_t),
                              offsetof(pooled_t, mempool_owner), 1);
     tm = &mempool.thread_mempools[0];
-    a = PARSEC_THREAD_MEMPOOL_OBJ_NEW(pooled_t, tm);
+    a = PARSEC_OBJ_NEW(pooled_t, &tm->super);
     assert(7 == a->value && tm == a->mempool_owner);
     PARSEC_OBJ_RELEASE(a);
     assert(NULL == a && nb_pooled_constructed == nb_pooled_destructed);

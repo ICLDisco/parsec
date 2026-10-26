@@ -13,6 +13,7 @@ static void *parsec_obj_freelist_alloc(parsec_obj_allocator_t *allocator, parsec
     parsec_obj_freelist_t *freelist = (parsec_obj_freelist_t *)allocator;
     parsec_list_item_t *item;
 
+    assert(NULL != freelist->lifo);  /* the free-list was destructed */
     assert(cls->cls_sizeof <= freelist->elt_size); (void)cls;
     item = parsec_lifo_pop(freelist->lifo);
     if( NULL == item ) {
@@ -25,19 +26,22 @@ static void *parsec_obj_freelist_alloc(parsec_obj_allocator_t *allocator, parsec
 static void parsec_obj_freelist_release(parsec_obj_allocator_t *allocator, parsec_object_t *object)
 {
     parsec_obj_freelist_t *freelist = (parsec_obj_freelist_t *)allocator;
+    /* the free-list must outlive the objects allocated from it */
+    assert(NULL != freelist->lifo);
     /* only objects created from this free-list can be returned to it */
     assert(object->obj_class->cls_sizeof <= freelist->elt_size);
     parsec_obj_destruct(object);
     parsec_lifo_push(freelist->lifo, parsec_list_item_from_storage(object));
 }
 
-void parsec_obj_freelist_construct(parsec_obj_freelist_t *freelist, size_t elt_size)
+int parsec_obj_freelist_construct(parsec_obj_freelist_t *freelist, size_t elt_size)
 {
     freelist->super.obj_alloc   = parsec_obj_freelist_alloc;
     freelist->super.obj_release = parsec_obj_freelist_release;
     freelist->lifo     = PARSEC_OBJ_NEW(parsec_lifo_t);
     freelist->elt_size = elt_size < sizeof(parsec_list_item_t) ? sizeof(parsec_list_item_t) : elt_size;
     freelist->nb_elt   = 0;
+    return (NULL == freelist->lifo) ? PARSEC_ERR_OUT_OF_RESOURCE : PARSEC_SUCCESS;
 }
 
 int32_t parsec_obj_freelist_destruct(parsec_obj_freelist_t *freelist)

@@ -58,7 +58,11 @@ void parsec_mempool_construct( parsec_mempool_t *mempool,
 {
     uint32_t tid;
 
-    /* objects are chained as list items while in the mempool: the back pointer must survive that */
+    /* Elements are chained as list items while in the mempool, which overwrites
+     * the list item fields of every element, so the back pointer must lie
+     * beyond them. Pools without a class are exempt only because one of them,
+     * the dependencies mempool, overlaps its back pointer with list_next and
+     * re-assigns it after every allocation. */
     assert(NULL == obj_class || pool_offset >= sizeof(parsec_list_item_t));
 
     mempool->nb_thread_mempools = nbthreads;

@@ -36,7 +36,7 @@ typedef struct parsec_mempool_s parsec_mempool_t;
  * objects of the mempool's class can be managed through the object
  * model:
  * @code
- *   task = PARSEC_THREAD_MEMPOOL_OBJ_NEW(parsec_task_t, thread_mempool);
+ *   task = PARSEC_OBJ_NEW(parsec_task_t, &thread_mempool->super);
  *   ...
  *   PARSEC_OBJ_RELEASE(task);  // destructs and returns task to thread_mempool
  * @endcode
@@ -45,8 +45,8 @@ typedef struct parsec_mempool_s parsec_mempool_t;
  * and destructed when returned to the mempool, whether through the
  * object model or through parsec_thread_mempool_allocate/free.
  * Only objects allocated from a thread-mempool can be returned to it:
- * a thread-mempool cannot be used with PARSEC_OBJ_CONSTRUCT_WALLOCATOR
- * on storage obtained elsewhere.
+ * a thread-mempool cannot be passed to PARSEC_OBJ_CONSTRUCT for storage
+ * obtained elsewhere.
  */
 struct parsec_mempool_s {
     unsigned int            nb_thread_mempools; /**< Number of thread mempools that share this mempool */
@@ -90,15 +90,6 @@ struct parsec_thread_mempool_s {
                                  nbthreads );                              \
         } while(0)
 
-/**
- * @brief create an object of class type from a thread-mempool
- *
- * @details The object is constructed, and once its reference count
- * drops to zero it is destructed and returned to thread_mempool.
- * The size of type must not exceed the element size of the mempool.
- */
-#define PARSEC_THREAD_MEMPOOL_OBJ_NEW(type, thread_mempool)                \
-    PARSEC_OBJ_NEW_WALLOCATOR(type, &(thread_mempool)->super)
 /**
  * @brief mempool constructor (outside of the parsec_object_t model)
  *
@@ -160,18 +151,7 @@ static inline void *parsec_thread_mempool_pop( parsec_thread_mempool_t *thread_m
     return ret;
 }
 
-/**
- * @brief allocate an element from a mempool
- *
- * @details
- *    allocates an element of size thread_mempool->mempool->elt_size,
- *    using the internal function if the pool is empty. If the mempool
- *    has an obj_class, the element is constructed as an object of that
- *    class with a reference count of 1, and thread_mempool as allocator.
- *
- * @param[inout] thread_mempool the thread-mempool from which an element should be allocated
- * @return the new element
- */
+/* implementation of parsec_thread_mempool_allocate, do not use directly */
 static inline void *parsec_thread_mempool_allocate_internal( parsec_thread_mempool_t *thread_mempool,
                                                            const char *file, int line )
 {
@@ -187,9 +167,30 @@ static inline void *parsec_thread_mempool_allocate_internal( parsec_thread_mempo
     (void)file; (void)line;
     return parsec_thread_mempool_pop( thread_mempool );
 }
-/* record the caller as the origin of the object in paranoid builds */
+
+/**
+ * @brief allocate an element from a mempool
+ *
+ * @details
+ *    allocates an element of size thread_mempool->mempool->elt_size,
+ *    using the internal function if the pool is empty. If the mempool
+ *    has an obj_class, the element is constructed as an object of that
+ *    class with a reference count of 1, and thread_mempool as allocator.
+ *    In paranoid builds this is a macro, to record the caller as the
+ *    origin of the object.
+ *
+ * @param[inout] thread_mempool the thread-mempool from which an element should be allocated
+ * @return the new element
+ */
+#if defined(PARSEC_DEBUG_PARANOID)
 #define parsec_thread_mempool_allocate(thread_mempool)                  \
     parsec_thread_mempool_allocate_internal((thread_mempool), __FILE__, __LINE__)
+#else
+static inline void *parsec_thread_mempool_allocate( parsec_thread_mempool_t *thread_mempool )
+{
+    return parsec_thread_mempool_allocate_internal(thread_mempool, NULL, 0);
+}
+#endif  /* defined(PARSEC_DEBUG_PARANOID) */
 
 /**
  * @brief push an element back into a thread-mempool
@@ -212,7 +213,11 @@ static inline void parsec_thread_mempool_push( parsec_thread_mempool_t *thread_m
  *
  * @details
  *     a shortcut to parsec_mempool_free( thread_mempool->parent, elt );
- *     the thread-mempool must be the owner of the element
+ *     the thread-mempool must be the owner of the element. If the mempool
+ *     has an obj_class, the element is destructed regardless of the
+ *     reference count, which must therefore be 1: an object that may be
+ *     shared should be released with PARSEC_OBJ_RELEASE instead, and the
+ *     two must not be mixed on the same object.
  *
  * @param[inout] thread_mempool the thread-mempool to which elt should be returned
  * @param[inout] elt the element to free
@@ -220,7 +225,8 @@ static inline void parsec_thread_mempool_push( parsec_thread_mempool_t *thread_m
 static inline void  parsec_thread_mempool_free( parsec_thread_mempool_t *thread_mempool, void *elt )
 {
     if( NULL != thread_mempool->parent->obj_class ) {
-        /* destruct the object and push it back, ignoring the reference count */
+        /* destruct the object and push it back: nobody else may hold it */
+        assert(1 == ((parsec_object_t*)elt)->obj_reference_count);
         thread_mempool->super.obj_release(&thread_mempool->super, (parsec_object_t*)elt);
     } else {
         parsec_thread_mempool_push(thread_mempool, elt);

@@ -91,7 +91,8 @@
  *   sally_t *sally = PARSEC_OBJ_NEW(sally_t);
  * @endcode
  * which allocates memory of sizeof(sally_t) and runs the class's
- * constructors.
+ * constructors. An optional second argument names the allocator to
+ * obtain the memory from (see (b') below); NULL selects malloc.
  *
  * Use PARSEC_OBJ_RETAIN, PARSEC_OBJ_RELEASE to do reference-count-based
  * memory management:
@@ -110,9 +111,9 @@
  *
  * The storage of an object, and what happens to it once its reference
  * count drops to zero, is controlled by the parsec_obj_allocator_t the
- * object was created with. PARSEC_OBJ_NEW uses malloc/free, but an
- * object can be obtained from any other source (e.g., a free-list, see
- * parsec_obj_freelist.h) using PARSEC_OBJ_NEW_WALLOCATOR:
+ * object was created with. By default, PARSEC_OBJ_NEW uses malloc/free,
+ * but an object can be obtained from any other source (e.g., a free-list,
+ * see parsec_obj_freelist.h) by passing an allocator:
  * @code
  *   static void *my_alloc(parsec_obj_allocator_t *a, parsec_class_t *cls) {
  *       my_pool_t *pool = (my_pool_t*)a;  // allocator is the first member
@@ -124,7 +125,7 @@
  *   }
  *   my_pool->super = (parsec_obj_allocator_t){ my_alloc, my_release };
  *
- *   sally_t *sally = PARSEC_OBJ_NEW_WALLOCATOR(sally_t, &my_pool->super);
+ *   sally_t *sally = PARSEC_OBJ_NEW(sally_t, &my_pool->super);
  *   PARSEC_OBJ_RELEASE(sally);           // calls my_release
  * @endcode
  * The release callback has full control over the object: it is
@@ -150,9 +151,13 @@
  * @endcode
  *
  * If the storage was obtained elsewhere and should be disposed of
- * through the retain/release model, use PARSEC_OBJ_CONSTRUCT_WALLOCATOR
- * to attach an allocator whose release callback is invoked once the
- * reference count drops to zero (only its obj_release member is used).
+ * through the retain/release model, pass an allocator as third argument
+ * to PARSEC_OBJ_CONSTRUCT; its release callback is invoked once the
+ * reference count drops to zero (only its obj_release member is used):
+ * @code
+ *   PARSEC_OBJ_CONSTRUCT(obj, sally_t, &my_allocator);
+ * @endcode
+ * NULL selects the default, which only runs the destructors.
  * The release callback must be able to dispose of that storage: pooling
  * allocators such as free-lists and thread-mempools only accept objects
  * that were allocated from them.
@@ -305,13 +310,13 @@ struct parsec_object_t {
     extern parsec_class_t NAME ## _class
 
 
-/**
- * Create an object: dynamically allocate storage and run the class
- * constructor.
- *
- * @param cls          Type (class) of the object
- * @return              Pointer to the object
- */
+/* Pick a macro by the number of arguments. PARSEC_OBJ_EXPAND forces a
+ * rescan, for preprocessors that would pass __VA_ARGS__ as a single
+ * argument. The trailing ~ keeps the variadic part non-empty. */
+#define PARSEC_OBJ_EXPAND(x) x
+#define PARSEC_OBJ_SELECT_3RD(_1, _2, NAME, ...) NAME
+#define PARSEC_OBJ_SELECT_4TH(_1, _2, _3, NAME, ...) NAME
+
 static inline parsec_object_t *parsec_obj_new(parsec_class_t * cls);
 static inline parsec_object_t *parsec_obj_new_wallocator(parsec_class_t * cls,
                                                          parsec_obj_allocator_t *allocator);
@@ -324,22 +329,32 @@ static inline parsec_object_t *parsec_obj_new_debug(parsec_object_t* object, con
     }
     return object;
 }
-#define PARSEC_OBJ_NEW(type)                                   \
-    ((type *)parsec_obj_new_debug(parsec_obj_new(PARSEC_OBJ_CLASS(type)), __FILE__, __LINE__))
-#define PARSEC_OBJ_NEW_WALLOCATOR(type, allocator)             \
-    ((type *)parsec_obj_new_debug(parsec_obj_new_wallocator(PARSEC_OBJ_CLASS(type), (allocator)), __FILE__, __LINE__))
+#define PARSEC_OBJ_NEW_RECORD(object) parsec_obj_new_debug((object), __FILE__, __LINE__)
 #else
-#define PARSEC_OBJ_NEW(type)                                   \
-    ((type *) parsec_obj_new(PARSEC_OBJ_CLASS(type)))
-#define PARSEC_OBJ_NEW_WALLOCATOR(type, allocator)             \
-    ((type *) parsec_obj_new_wallocator(PARSEC_OBJ_CLASS(type), (allocator)))
+#define PARSEC_OBJ_NEW_RECORD(object) (object)
 #endif  /* defined(PARSEC_DEBUG_PARANOID) */
+
 /**
- * @def PARSEC_OBJ_NEW_WALLOCATOR(type, allocator)
- * Create an object: obtain storage from allocator->obj_alloc and run
- * the class constructor. Once the reference count drops to zero,
- * allocator->obj_release is called.
+ * Create an object: obtain storage and run the class constructor.
+ *
+ * PARSEC_OBJ_NEW(type) allocates the storage with malloc, and frees it
+ * once the reference count drops to zero. PARSEC_OBJ_NEW(type, allocator)
+ * obtains the storage from allocator->obj_alloc and calls
+ * allocator->obj_release once the reference count drops to zero; a NULL
+ * allocator is the same as PARSEC_OBJ_NEW(type).
+ *
+ * @param type          Type (class) of the object
+ * @param allocator     Optional pointer to a parsec_obj_allocator_t
+ * @return              Pointer to the object
  */
+#define PARSEC_OBJ_NEW(...)                                             \
+    PARSEC_OBJ_EXPAND(PARSEC_OBJ_SELECT_3RD(__VA_ARGS__, PARSEC_OBJ_NEW_ARGS2, \
+                                            PARSEC_OBJ_NEW_ARGS1, ~)(__VA_ARGS__))
+/* implementation of PARSEC_OBJ_NEW, do not use directly */
+#define PARSEC_OBJ_NEW_ARGS1(type)                                      \
+    ((type *)PARSEC_OBJ_NEW_RECORD(parsec_obj_new(PARSEC_OBJ_CLASS(type))))
+#define PARSEC_OBJ_NEW_ARGS2(type, allocator)                           \
+    ((type *)PARSEC_OBJ_NEW_RECORD(parsec_obj_new_wallocator(PARSEC_OBJ_CLASS(type), (allocator))))
 
 /**
  * Retain an object (by incrementing its reference count)
@@ -426,38 +441,28 @@ static inline void parsec_obj_release_internal(parsec_object_t *object)
 /**
  * Construct (initialize) objects that are not dynamically allocated.
  *
- * @param object        Pointer to the object
- * @param type          The object type
- */
-
-#define PARSEC_OBJ_CONSTRUCT(object, type)                             \
-do {                                                            \
-    PARSEC_OBJ_CONSTRUCT_WALLOCATOR_INTERNAL((object), PARSEC_OBJ_CLASS(type), &parsec_obj_static_allocator); \
-} while (0)
-
-/**
- * Construct (initialize) an object whose storage was obtained by other
- * means, and dispose of it through allocator->obj_release once the
- * reference count drops to zero. The allocator must be able to dispose
- * of that storage: pooling allocators (free-lists, thread-mempools)
- * only accept objects allocated from them.
+ * PARSEC_OBJ_CONSTRUCT(object, type) only runs the destructors once the
+ * reference count drops to zero. PARSEC_OBJ_CONSTRUCT(object, type,
+ * allocator) disposes of the object through allocator->obj_release
+ * instead, for storage obtained by other means; a NULL allocator is the
+ * same as PARSEC_OBJ_CONSTRUCT(object, type). The allocator must be able
+ * to dispose of that storage: pooling allocators (free-lists,
+ * thread-mempools) only accept objects allocated from them.
  *
  * @param object        Pointer to the object
  * @param type          The object type
- * @param allocator     Pointer to a parsec_obj_allocator_t
+ * @param allocator     Optional pointer to a parsec_obj_allocator_t
  */
-#define PARSEC_OBJ_CONSTRUCT_WALLOCATOR(object, type, allocator)       \
-do {                                                            \
-    PARSEC_OBJ_CONSTRUCT_WALLOCATOR_INTERNAL((object), PARSEC_OBJ_CLASS(type), (allocator)); \
-} while (0)
-
-/* backwards compatible macro for mempool */
-#define PARSEC_OBJ_CONSTRUCT_INTERNAL(object, type) PARSEC_OBJ_CONSTRUCT_WALLOCATOR_INTERNAL(object, type, &parsec_obj_static_allocator)
-
-#define PARSEC_OBJ_CONSTRUCT_WALLOCATOR_INTERNAL(object, type, allocator)  \
-do {                                                            \
-    parsec_obj_init((parsec_object_t *) (object), (type), (allocator)); \
-    PARSEC_OBJ_REMEMBER_FILE_AND_LINENO( object, __FILE__, __LINE__ ); \
+#define PARSEC_OBJ_CONSTRUCT(...)                                       \
+    PARSEC_OBJ_EXPAND(PARSEC_OBJ_SELECT_4TH(__VA_ARGS__, PARSEC_OBJ_CONSTRUCT_ARGS3, \
+                                            PARSEC_OBJ_CONSTRUCT_ARGS2, ~)(__VA_ARGS__))
+/* implementation of PARSEC_OBJ_CONSTRUCT, do not use directly */
+#define PARSEC_OBJ_CONSTRUCT_ARGS2(object, type)                        \
+    PARSEC_OBJ_CONSTRUCT_ARGS3(object, type, NULL)
+#define PARSEC_OBJ_CONSTRUCT_ARGS3(object, type, allocator)             \
+do {                                                                    \
+    parsec_obj_construct((parsec_object_t *) (object), PARSEC_OBJ_CLASS(type), (allocator)); \
+    PARSEC_OBJ_REMEMBER_FILE_AND_LINENO( object, __FILE__, __LINE__ );  \
 } while (0)
 
 
@@ -556,12 +561,14 @@ static inline void parsec_obj_run_destructors(parsec_object_t * object)
 
 
 /**
- * Create new object: dynamically allocate storage and run the class
- * constructor.
+ * Initialize the header of an object and run the class constructors.
  *
- * Do not use this function directly: use PARSEC_OBJ_NEW() instead.
+ * Do not use this function directly: use PARSEC_OBJ_NEW() or
+ * PARSEC_OBJ_CONSTRUCT() instead.
  *
+ * @param object        Pointer to the storage of the object (may be NULL)
  * @param cls           Pointer to the class descriptor of this object
+ * @param allocator     Allocator providing the release callback (not NULL)
  * @return              Pointer to the object
  */
 static inline parsec_object_t *parsec_obj_init(parsec_object_t *object,
@@ -581,6 +588,28 @@ static inline parsec_object_t *parsec_obj_init(parsec_object_t *object,
     return object;
 }
 
+/**
+ * Construct an object in place: NULL selects the default allocator,
+ * which only runs the destructors on release.
+ *
+ * Do not use this function directly: use PARSEC_OBJ_CONSTRUCT() instead.
+ */
+static inline void parsec_obj_construct(parsec_object_t *object,
+                                        parsec_class_t *cls,
+                                        parsec_obj_allocator_t *allocator)
+{
+    parsec_obj_init(object, cls, (NULL != allocator) ? allocator : &parsec_obj_static_allocator);
+}
+
+/**
+ * Create new object: dynamically allocate storage and run the class
+ * constructor.
+ *
+ * Do not use this function directly: use PARSEC_OBJ_NEW() instead.
+ *
+ * @param cls           Pointer to the class descriptor of this object
+ * @return              Pointer to the object
+ */
 static inline parsec_object_t *parsec_obj_new(parsec_class_t * cls)
 {
     assert(cls->cls_sizeof >= sizeof(parsec_object_t));
@@ -591,9 +620,9 @@ static inline parsec_object_t *parsec_obj_new(parsec_class_t * cls)
 
 /**
  * Create new object: obtain storage from allocator and run the class
- * constructor.
+ * constructor. NULL selects malloc, as parsec_obj_new.
  *
- * Do not use this function directly: use PARSEC_OBJ_NEW_WALLOCATOR() instead.
+ * Do not use this function directly: use PARSEC_OBJ_NEW() instead.
  *
  * @param cls           Pointer to the class descriptor of this object
  * @param allocator     Allocator providing the storage and release callback
@@ -602,6 +631,9 @@ static inline parsec_object_t *parsec_obj_new(parsec_class_t * cls)
 static inline parsec_object_t *parsec_obj_new_wallocator(parsec_class_t * cls,
                                                          parsec_obj_allocator_t *allocator)
 {
+    if (NULL == allocator) {
+        return parsec_obj_new(cls);
+    }
     assert(cls->cls_sizeof >= sizeof(parsec_object_t));
     assert(NULL != allocator->obj_alloc && NULL != allocator->obj_release);
     return parsec_obj_init((parsec_object_t *) allocator->obj_alloc(allocator, cls),
