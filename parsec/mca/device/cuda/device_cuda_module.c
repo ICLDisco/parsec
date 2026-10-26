@@ -479,13 +479,17 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
         /* We will have to release up to this stream in case of error */
         gpu_device->num_exec_streams++;
 
+        /* The info array links itself into parsec_per_stream_infos, so it must be
+         * registered before anything that can fail: the error path releases every
+         * stream counted above, and only those. */
+        PARSEC_OBJ_CONSTRUCT(&exec_stream->infos, parsec_info_object_array_t);
+        parsec_info_object_array_init(&exec_stream->infos, &parsec_per_stream_infos, exec_stream);
+
         /* Allocate the stream */
         cudastatus = cudaStreamCreate( &(cuda_stream->cuda_stream) );
         PARSEC_CUDA_CHECK_ERROR( "cudaStreamCreate", cudastatus,
                                  {goto release_device;} );
         exec_stream->workspace    = NULL;
-        PARSEC_OBJ_CONSTRUCT(&exec_stream->infos, parsec_info_object_array_t);
-        parsec_info_object_array_init(&exec_stream->infos, &parsec_per_stream_infos, exec_stream);
         exec_stream->max_events   = PARSEC_MAX_EVENTS_PER_STREAM;
         exec_stream->executed     = 0;
         exec_stream->start        = 0;
@@ -624,7 +628,7 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
 
  release_device:
     if( NULL != gpu_device->exec_stream) {
-        for( j = 0; j < gpu_device->max_exec_streams; j++ ) {
+        for( j = 0; j < gpu_device->num_exec_streams; j++ ) {
             parsec_cuda_exec_stream_t *cuda_stream = (parsec_cuda_exec_stream_t*)gpu_device->exec_stream[j];
             if(NULL == cuda_stream) continue;
             parsec_gpu_exec_stream_t* exec_stream = &cuda_stream->super;
@@ -654,6 +658,9 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
                  * ->profiling stream if parsec_device_cuda_one_profiling_stream_per_cuda_stream == 0 */
             }
 #endif  /* defined(PARSEC_PROF_TRACE) */
+
+            /* Unregister from parsec_per_stream_infos before the streams are freed */
+            PARSEC_OBJ_DESTRUCT(&exec_stream->infos);
         }
         // All exec streams are stored in a single malloc block at exec_stream[0]
         free(gpu_device->exec_stream[0]);
