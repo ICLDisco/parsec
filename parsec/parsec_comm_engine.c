@@ -48,6 +48,7 @@ parsec_comm_engine_init(parsec_context_t *parsec_context)
     parsec_ce.capabilites.sided = 0;
     parsec_ce.capabilites.supports_noncontiguous_datatype = 0;
     parsec_ce.capabilites.multithreaded = 0;
+    parsec_ce.taskpool_sync_ids = NULL;
     return &parsec_ce;
 }
 

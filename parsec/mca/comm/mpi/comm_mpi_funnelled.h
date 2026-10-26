@@ -111,4 +111,10 @@ int mpi_no_thread_sync(parsec_comm_engine_t *comm_engine);
 int
 mpi_no_thread_can_push_more(parsec_comm_engine_t *c_e);
 
+/** Synchronize the next taskpool id across the selected MPI communicator. */
+int
+mpi_no_thread_taskpool_sync_ids(parsec_comm_engine_t *comm_engine,
+                                intptr_t comm_ctx,
+                                uint32_t *next_taskpool_id);
+
 #endif /* __USE_PARSEC_MPI_FUNNELLED_H__ */
