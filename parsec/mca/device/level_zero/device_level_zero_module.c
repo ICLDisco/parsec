@@ -263,7 +263,7 @@ int parsec_level_zero_module_init( int dev_id, parsec_device_level_zero_driver_t
     // separate pointers for the beginning of each exec_stream
     // We use calloc because we need some fields to be zero-initialized to ensure graceful handling of errors
     gpu_device->exec_stream[0] =
-            (parsec_gpu_exec_stream_t*)malloc( gpu_device->max_exec_streams * sizeof(parsec_level_zero_exec_stream_t));
+            (parsec_gpu_exec_stream_t*)calloc( gpu_device->max_exec_streams, sizeof(parsec_level_zero_exec_stream_t));
     for(j = 1; j < gpu_device->max_exec_streams; j++)
         gpu_device->exec_stream[j] = (parsec_gpu_exec_stream_t*)(
                 (parsec_level_zero_exec_stream_t*)gpu_device->exec_stream[0]+j);
@@ -314,6 +314,16 @@ int parsec_level_zero_module_init( int dev_id, parsec_device_level_zero_driver_t
                 ZE_COMMAND_QUEUE_MODE_DEFAULT,
                 ZE_COMMAND_QUEUE_PRIORITY_NORMAL
         };
+
+        /* We will have to release up to this stream in case of error */
+        gpu_device->num_exec_streams++;
+
+        /* The info array links itself into parsec_per_stream_infos, so it must be
+         * registered before anything that can fail: the error path releases every
+         * stream counted above, and only those. */
+        PARSEC_OBJ_CONSTRUCT(&exec_stream->infos, parsec_info_object_array_t);
+        parsec_info_object_array_init(&exec_stream->infos, &parsec_per_stream_infos, exec_stream);
+
         /* CommandListImmediate would seem better for I/O, but mixing CLImmediate and CL+CQ
          * seems to create some synchronization issues. */
         commandQueueDesc.ordinal = computeQueueGroupOrdinal;
@@ -321,8 +331,6 @@ int parsec_level_zero_module_init( int dev_id, parsec_device_level_zero_driver_t
                                      &commandQueueDesc, &level_zero_stream->level_zero_cq);
         PARSEC_LEVEL_ZERO_CHECK_ERROR( "zeCommandQueueCreate ", ze_rc, {goto release_device;} );
         exec_stream->workspace    = NULL;
-        PARSEC_OBJ_CONSTRUCT(&exec_stream->infos, parsec_info_object_array_t);
-        parsec_info_object_array_init(&exec_stream->infos, &parsec_per_stream_infos, exec_stream);
         exec_stream->max_events   = PARSEC_MAX_EVENTS_PER_STREAM;
         exec_stream->executed     = 0;
         exec_stream->start        = 0;
@@ -358,17 +366,13 @@ int parsec_level_zero_module_init( int dev_id, parsec_device_level_zero_driver_t
         }
         if(j == 0) {
             len = asprintf(&exec_stream->name, "h2d(%d)", j);
-            if(-1 == len)
-                exec_stream->name = "h2d";
         } else if(j == 1) {
             len = asprintf(&exec_stream->name, "d2h(%d)", j);
-            if(-1 == len)
-                exec_stream->name = "d2h";
         } else {
             len = asprintf(&exec_stream->name, "level_zero(%d)", j);
-            if(-1 == len)
-                exec_stream->name = "level_zero";
         }
+        /* The name is freed during finalization, so it cannot fall back to a literal */
+        if(-1 == len) { exec_stream->name = NULL; goto release_device; }
 #if defined(PARSEC_PROF_TRACE)
         gpu_device->trackable_events = PARSEC_PROFILE_GPU_TRACK_EXEC | PARSEC_PROFILE_GPU_TRACK_DATA_OUT
                                     | PARSEC_PROFILE_GPU_TRACK_DATA_IN | PARSEC_PROFILE_GPU_TRACK_OWN | PARSEC_PROFILE_GPU_TRACK_MEM_USE
@@ -467,7 +471,7 @@ int parsec_level_zero_module_init( int dev_id, parsec_device_level_zero_driver_t
 
  release_device:
     if( NULL != gpu_device->exec_stream) {
-        for( j = 0; j < gpu_device->max_exec_streams; j++ ) {
+        for( j = 0; j < gpu_device->num_exec_streams; j++ ) {
             parsec_level_zero_exec_stream_t *level_zero_stream =
                     (parsec_level_zero_exec_stream_t*)gpu_device->exec_stream[j];
             parsec_gpu_exec_stream_t* exec_stream = &level_zero_stream->super;
@@ -497,6 +501,9 @@ int parsec_level_zero_module_init( int dev_id, parsec_device_level_zero_driver_t
                  * ->profiling stream if parsec_device_level_zero_one_profiling_stream_per_gpu_stream == 0 */
             }
 #endif  /* defined(PARSEC_PROF_TRACE) */
+
+            /* Unregister from parsec_per_stream_infos before the streams are freed */
+            PARSEC_OBJ_DESTRUCT(&exec_stream->infos);
         }
         // All exec_stream_t are allocated in a single malloc in gpu_device->exec_stream[0]
         free(gpu_device->exec_stream[0]);
