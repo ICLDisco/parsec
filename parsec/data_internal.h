@@ -59,6 +59,12 @@ struct parsec_data_copy_s {
     /* int8_t */
 
     int32_t                      readers;
+    /* Readers that are kernels of another device, reading this copy where it
+     * lies instead of having it duplicated to them. They are counted in readers
+     * as well; what this adds is that such a reader is out of reach of the
+     * ordering the owning device applies to its own work, so a writer here
+     * cannot take the copy over while any of them remain. */
+    int32_t                      peer_readers;
 
     uint32_t                     version;
 

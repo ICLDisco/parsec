@@ -327,6 +327,19 @@ struct parsec_device_gpu_module_s {
                                                    *   the device to access directly the memory of
                                                    *   the index of the set bit device.
                                                    */
+    int16_t                    peer_direct_mask;  /**< Subset of peer_access_mask holding the peers
+                                                   *   a kernel of this device can read at a cost
+                                                   *   close to its own memory, so that a copy
+                                                   *   living there can be used where it is instead
+                                                   *   of being duplicated here. Peer access over a
+                                                   *   slower link stays out of this mask: reaching
+                                                   *   it is correct but a kernel reading through it
+                                                   *   repeatedly is slower than one copy up front.
+                                                   */
+    uint64_t                   nb_peer_direct_reads; /**< Inputs this device read on a peer instead
+                                                   *   of copying them over. */
+    uint64_t                   peer_direct_bytes; /**< Bytes those inputs spanned, that is the volume
+                                                   *   of copies and of device memory saved. */
     volatile int32_t           mutex;
     uint64_t                   data_avail_epoch;  /**< Identifies the epoch of the data status on the device. It
                                                    *   is increased every time a new data is made available, so

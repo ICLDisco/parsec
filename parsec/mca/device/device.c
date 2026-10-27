@@ -7,6 +7,7 @@
 
 #include "parsec/parsec_config.h"
 #include "parsec/mca/device/device.h"
+#include "parsec/mca/device/device_gpu.h"
 #include "parsec/utils/mca_param.h"
 #include "parsec/mca/mca_repository.h"
 #include "parsec/constants.h"
@@ -67,6 +68,7 @@ static int parsec_device_load_balance_allow_cpu = 0;
  */
 int parsec_device_skip_empty_events = 1;
 int parsec_device_peer_mesh_incomplete = 0;
+int parsec_device_peer_direct_access = 0;
 #if defined(PARSEC_DEBUG) || defined(PARSEC_DEBUG_NOISIER)
 int parsec_device_inject_disable = 0;
 #endif  /* defined(PARSEC_DEBUG) || defined(PARSEC_DEBUG_NOISIER) */
@@ -360,6 +362,14 @@ int parsec_mca_device_init(void)
                                         "that are not strictly necessary (enabled)",
                                         false, false, parsec_device_skip_empty_events,
                                         &parsec_device_skip_empty_events);
+    (void)parsec_mca_param_reg_int_name("device", "peer_direct_access",
+                                        "Let a kernel read a read-only input from the accelerator it "
+                                        "already sits on, when the two are linked well enough, rather "
+                                        "than copying it over. Saves device memory at the price of "
+                                        "reading the input over the link for as long as the kernel "
+                                        "runs (disabled)",
+                                        false, false, parsec_device_peer_direct_access,
+                                        &parsec_device_peer_direct_access);
     (void)parsec_mca_param_reg_int_name("device", "load_balance_allow_cpu",
                                         "Allow load balancing tasks with GPU incarnations to CPU cores",
                                         false, false, parsec_device_load_balance_allow_cpu, NULL);
@@ -612,6 +622,39 @@ void parsec_devices_print_statistics(parsec_context_t *parsec_context, uint64_t 
            total_evicted);
     printf("+---------------------------------------------------------------------------------------------------------------------------------------------+\n");
 
+    /* Inputs a device read where they already were, on one of its peers, rather
+     * than having them copied over. They are not transfers and have no place in
+     * the table above; what they account for is the volume that was neither
+     * copied nor given a second home in this device's memory.
+     */
+    uint64_t total_peer_direct = 0, total_peer_direct_bytes = 0;
+    for( i = 0; i < parsec_nb_devices; i++ ) {
+        if( NULL == (device = parsec_devices[i]) ) continue;
+        if( !PARSEC_DEV_IS_GPU(device->type) ) continue;
+        total_peer_direct       += ((parsec_device_gpu_module_t*)device)->nb_peer_direct_reads;
+        total_peer_direct_bytes += ((parsec_device_gpu_module_t*)device)->peer_direct_bytes;
+    }
+    if( 0 != total_peer_direct ) {
+        float best_peer_direct;
+        char *peer_direct_unit;
+        printf("|Inputs read directly on a peer, neither copied nor duplicated in device memory                                                                |\n");
+        for( i = 0; i < parsec_nb_devices; i++ ) {
+            parsec_device_gpu_module_t *gpu;
+            if( NULL == (device = parsec_devices[i]) ) continue;
+            if( !PARSEC_DEV_IS_GPU(device->type) ) continue;
+            gpu = (parsec_device_gpu_module_t*)device;
+            if( 0 == gpu->nb_peer_direct_reads ) continue;
+            parsec_compute_best_unit( gpu->peer_direct_bytes, &best_peer_direct, &peer_direct_unit );
+            printf("|  Dev %2d |%10"PRIu64" inputs | %8.2f%2s | %s\n",
+                   device->device_index, gpu->nb_peer_direct_reads,
+                   best_peer_direct, peer_direct_unit, device->name);
+        }
+        parsec_compute_best_unit( total_peer_direct_bytes, &best_peer_direct, &peer_direct_unit );
+        printf("|All Devs |%10"PRIu64" inputs | %8.2f%2s |\n",
+               total_peer_direct, best_peer_direct, peer_direct_unit);
+        printf("+---------------------------------------------------------------------------------------------------------------------------------------------+\n");
+    }
+
     parsec_devices_free_statistics(&end_stats);
 }
 
@@ -628,6 +671,10 @@ void parsec_mca_device_reset_statistics(parsec_context_t *parsec_context) {
         device->required_data_in     = 0;
         device->required_data_out    = 0;
         device->nb_evictions         = 0;
+        if( PARSEC_DEV_IS_GPU(device->type) ) {
+            ((parsec_device_gpu_module_t*)device)->nb_peer_direct_reads = 0;
+            ((parsec_device_gpu_module_t*)device)->peer_direct_bytes    = 0;
+        }
     }
 }
 
