@@ -52,6 +52,12 @@ parsec_hbbuffer_push_all(parsec_hbbuffer_t *b,
          */
         next = parsec_list_item_ring_chop(elt);
         PARSEC_LIST_ITEM_SINGLETON(elt);
+        /* Everything the consumer will read out of elt must be visible before the
+         * CAS below makes elt reachable from another thread. Don't rely on the
+         * atomics backend for that ordering: see parsec/class/lifo.h, which uses
+         * the same discipline around its own publishing CAS.
+         */
+        parsec_atomic_wmb();
         /* Try to find a room for elt */
         for(; (size_t)i < b->size; i++) {
             if( NULL != b->items[i] || 0 == parsec_atomic_cas_ptr(&b->items[i], NULL, elt) )
@@ -111,6 +117,8 @@ parsec_hbbuffer_push_all_by_priority(parsec_hbbuffer_t *b,
     topush = list;
     list = parsec_list_item_ring_chop(topush);
     PARSEC_LIST_ITEM_SINGLETON(topush);
+    /* Publish the contents of topush before any CAS below can expose it. */
+    parsec_atomic_wmb();
     while(1) {
         /* Iterate on the list, find best position */
         best_index = -1;
@@ -245,6 +253,16 @@ parsec_hbbuffer_pop_best(parsec_hbbuffer_t *b, off_t priority_offset)
             break;
 
     } while( parsec_atomic_cas_ptr( &b->items[best_idx], best_elt, NULL ) == 0 );
+
+    /* We now own best_elt: pair with the wmb of whoever pushed it, so that the
+     * fields the producer wrote (task locals, data pairs, repo_entry, ...) are
+     * visible before the caller starts running the task. The priority reads in
+     * the scan loop above are deliberately left unordered; a stale priority only
+     * costs scheduling quality, as already noted for the ABA case in
+     * parsec_hbbuffer_push_all_by_priority().
+     */
+    if( NULL != best_elt )
+        parsec_atomic_rmb();
 
     /** Removes the element from the buffer. */
 #if defined(PARSEC_DEBUG_NOISIER)
