@@ -15,10 +15,6 @@
 #include <getopt.h>
 #endif  /* defined(PARSEC_HAVE_GETOPT_H) */
 
-#ifdef PARSEC_HAVE_MPI
-#include <mpi.h>
-#endif
-
 double time_elapsed = 0.0;
 double sync_time_elapsed = 0.0;
 
@@ -127,7 +123,7 @@ void print_usage(void)
             " -h --help             : this message\n"
             " -z --time             : get run time\n"
             " -e --num-runs         : number of runs\n"
-            " -f --thread_multiple  : 0/default, init mpi with MPI_THREAD_SERIALIZED; others, MPI_THREAD_MULTIPLE\n"
+            " -f --thread_multiple  : 0/default, serialized test runtime; others, multiple-thread test runtime\n"
             " -y --no-optimization  : no_optimization version, send the whole tile to target; default 0, not no_optimization version\n"
             " -c --cores            : number of concurrent threads (default: number of physical hyper-threads)\n"
             "\n Notes:\n"
@@ -272,7 +268,7 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam, double *dpar
     /* Default number of runs: 1 */
     iparam[IPARAM_NUM_RUNS] = 1;
 
-    /* Default MPI_THREAD_SERIALIZED */
+    /* Default to serialized access to the selected test runtime. */
     iparam[IPARAM_THREAD_MULTIPLE] = 0;
 
     /* Default Not no_optimization version */ 
@@ -472,37 +468,31 @@ static void print_arguments(int* iparam)
 
 parsec_context_t* setup_parsec(int argc, char **argv, int *iparam, double *dparam)
 {
-    parse_arguments(&argc, &argv, iparam, dparam);
-#ifdef PARSEC_HAVE_MPI
-    {
-        int provided;
-        if( iparam[IPARAM_THREAD_MULTIPLE] )
-            MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
-        else
-            MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
-    }
-    MPI_Comm_size(MPI_COMM_WORLD, &iparam[IPARAM_NNODES]);
-    MPI_Comm_rank(MPI_COMM_WORLD, &iparam[IPARAM_RANK]);
-#else
-    iparam[IPARAM_NNODES] = 1;
-    iparam[IPARAM_RANK] = 0;
-#endif
-    int verbose = iparam[IPARAM_VERBOSE];
-    if(iparam[IPARAM_RANK] > 0 && verbose < 4) verbose = 0;
+    parsec_context_t* ctx = NULL;
+    int rc;
 
-    SYNC_TIME_START();
+    parse_arguments(&argc, &argv, iparam, dparam);
 
     /* Once we got out arguments, we should pass whatever is left down */
     int parsec_argc = argc - optind;
     char** parsec_argv = argv + optind;
-    parsec_context_t* ctx = parsec_init(iparam[IPARAM_NCORES],
-                                      &parsec_argc, &parsec_argv);
-    if( NULL == ctx ) {
-        /* Failed to correctly initialize. In a correct scenario report
-         * upstream, but in this particular case bail out.
-         */
+    rc = parsec_tests_context_init(iparam[IPARAM_NCORES],
+                                   iparam[IPARAM_THREAD_MULTIPLE] ?
+                                       PARSEC_TEST_THREAD_MULTIPLE :
+                                       PARSEC_TEST_THREAD_SERIALIZED,
+                                   &parsec_argc, &parsec_argv,
+                                   &ctx,
+                                   &iparam[IPARAM_RANK],
+                                   &iparam[IPARAM_NNODES]);
+    if( PARSEC_SUCCESS != rc ) {
+        fprintf(stderr, "parsec_tests_context_init failed: %d\n", rc);
         exit(-1);
     }
+
+    int verbose = iparam[IPARAM_VERBOSE];
+    if(iparam[IPARAM_RANK] > 0 && verbose < 4) verbose = 0;
+
+    SYNC_TIME_START(ctx);
 
     /* If the number of cores has not been defined as a parameter earlier
      update it with the default parameter computed in parsec_init. */
@@ -516,17 +506,14 @@ parsec_context_t* setup_parsec(int argc, char **argv, int *iparam, double *dpara
     }
     print_arguments(iparam);
 
-    if(verbose > 2) SYNC_TIME_PRINT(iparam[IPARAM_RANK], ("PaRSEC initialized\n"));
+    if(verbose > 2) SYNC_TIME_PRINT(ctx, iparam[IPARAM_RANK], ("PaRSEC initialized\n"));
     return ctx;
 }
 
 void cleanup_parsec(parsec_context_t* parsec, int *iparam, double *dparam)
 {
-    parsec_fini(&parsec);
-
-#ifdef PARSEC_HAVE_MPI
-    MPI_Finalize();
-#endif
+    int rc = parsec_tests_context_fini(&parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_fini");
     (void)iparam;
     (void)dparam;
 }

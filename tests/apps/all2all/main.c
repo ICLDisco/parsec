@@ -2,10 +2,12 @@
  * Copyright (c) 2009-2022 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/runtime.h"
 #include "parsec/utils/debug.h"
+#include "tests/tests_runtime.h"
 #include "a2a_wrapper.h"
 #include "a2a_data.h"
 #if defined(PARSEC_HAVE_STRING_H)
@@ -20,18 +22,10 @@ int main(int argc, char *argv[])
     parsec_tiled_matrix_t *dcA, *dcB;
     parsec_taskpool_t *a2a;
 
-#if defined(PARSEC_HAVE_MPI)
-    {
-        int provided;
-        MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
-    }
-    MPI_Comm_size(MPI_COMM_WORLD, &world);
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-#else
-    world = 1;
-    rank = 0;
-#endif
-    parsec = parsec_init(cores, &argc, &argv);
+    rc = parsec_tests_context_init(cores, PARSEC_TEST_THREAD_SERIALIZED,
+                                   &argc, &argv,
+                                   &parsec, &rank, &world);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_init");
 
     size = 256;
     repeat = 10;
@@ -52,13 +46,10 @@ int main(int argc, char *argv[])
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
     a2a_free(a2a);
-    parsec_fini(&parsec);
+    rc = parsec_tests_context_fini(&parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_fini");
     free_data(dcA);
     free_data(dcB);
-
-#ifdef PARSEC_HAVE_MPI
-    MPI_Finalize();
-#endif
 
     return 0;
 }

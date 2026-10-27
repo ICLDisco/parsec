@@ -2,6 +2,7 @@
  * Copyright (c) 2014-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/runtime.h"
@@ -9,6 +10,7 @@
 
 #include "parsec/data_distribution.h"
 #include "parsec/arena.h"
+#include "parsec/datatype.h"
 
 #include "ep.h"
 #include "ep_wrapper.h"
@@ -31,21 +33,20 @@ parsec_taskpool_t *ep_new(parsec_data_collection_t *A, int nt, int level)
 
     tp = parsec_ep_new(nt, level, A);
 
-#if defined(PARSEC_HAVE_MPI)
+    /* The datatype is irrelevant as the example does not communicate data,
+     * but use the PaRSEC datatype API so the test is not tied to MPI.
+     */
     {
-        MPI_Aint extent;
-#if defined(PARSEC_HAVE_MPI_20)
-        MPI_Aint lb = 0; 
-        MPI_Type_get_extent(MPI_BYTE, &lb, &extent);
-#else
-        MPI_Type_extent(MPI_BYTE, &extent);
-#endif  /* defined(PARSEC_HAVE_MPI_20) */
-        /* The datatype is irrelevant as the example does not do communications between nodes */
+        ptrdiff_t lb, extent;
+        int rc = parsec_type_extent(parsec_datatype_uint8_t, &lb, &extent);
+        if( PARSEC_SUCCESS != rc ) {
+            parsec_taskpool_free((parsec_taskpool_t*)tp);
+            return NULL;
+        }
         parsec_arena_datatype_set_type( &tp->arenas_datatypes[PARSEC_ep_DEFAULT_ADT_IDX],
-                                         extent, PARSEC_ARENA_ALIGNMENT_SSE,
-                                         MPI_BYTE );
+                                         (size_t)extent, PARSEC_ARENA_ALIGNMENT_SSE,
+                                         parsec_datatype_uint8_t );
     }
-#endif
 
     return (parsec_taskpool_t*)tp;
 }

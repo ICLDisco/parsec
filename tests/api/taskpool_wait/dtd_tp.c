@@ -2,6 +2,7 @@
  * Copyright (c) 2023-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
 #include "parsec/parsec_config.h"
 #include "parsec/interfaces/dtd/insert_function.h"
@@ -10,10 +11,6 @@
 #include "parsec/parsec_internal.h"
 #include "parsec/execution_stream.h"
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
-
-#if defined(PARSEC_HAVE_MPI)
-#include <mpi.h>
-#endif  /* defined(PARSEC_HAVE_MPI) */
 
 int task( parsec_execution_stream_t    *es, parsec_task_t *this_task ) {
     (void)es;

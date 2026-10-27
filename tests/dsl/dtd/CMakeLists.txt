@@ -1,4 +1,8 @@
-link_libraries(tests_common)
+#
+# Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
+#
+
+link_libraries(tests_common tests_runtime_common)
 
 parsec_addtest_executable(C dtd_test_empty SOURCES dtd_test_empty.c)
 parsec_addtest_executable(C dtd_test_pingpong SOURCES dtd_test_pingpong.c)
