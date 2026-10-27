@@ -155,8 +155,10 @@ typedef struct parsec_gpu_flow_info_s {
                                         * Only the push that acquires the flow records one, so NULL
                                         * means this task brought nothing in for that flow, either
                                         * because the data was already here or because another task
-                                        * is transferring it. Must be left NULL when the task is
-                                        * built, or the completion would read a stale candidate.
+                                        * is transferring it. A task builder has nothing to say
+                                        * here: the driver clears this when it takes the task, so
+                                        * that no DSL has to know the rule for the completion to be
+                                        * safe.
                                         */
 
 } parsec_gpu_flow_info_t;

@@ -1656,16 +1656,33 @@ static int remote_dep_nothread_memcpy(parsec_execution_stream_t* es,
                          cmd->memcpy.layout.dst_count);
 
     /* Both copies are read and written directly here, so hold them for the
-     * duration rather than for the lifetime of the command. */
-    int pinned_src = parsec_device_data_copy_pin_reader(cmd->memcpy.source);
+     * duration rather than for the lifetime of the command. The source is read
+     * for the value it holds, so the host mirror stands in for a copy whose
+     * memory the device took back; the destination is where the result has to
+     * land, and nothing can stand in for that.
+     */
+    parsec_data_copy_t *source = parsec_device_data_copy_pin_value(cmd->memcpy.source);
     int pinned_dst = parsec_device_data_copy_pin_reader(cmd->memcpy.destination);
+    int pinned_src = (NULL != source);
+
+    if( !pinned_src ) {
+        parsec_warning("Data copy %p was given to a local copy after the device owning it had "
+                       "already reclaimed its memory.", cmd->memcpy.source);
+        source = cmd->memcpy.source;
+    } else if( source != cmd->memcpy.source ) {
+        PARSEC_DATA_COPY_RETAIN(source);
+        parsec_dep_description_retarget(&cmd->memcpy.layout, cmd->memcpy.source, source);
+    }
 
     int rc = parsec_ce.reshape(&parsec_ce, es,
                                cmd->memcpy.destination, cmd->memcpy.layout.dst_displ, cmd->memcpy.layout.dst_datatype, cmd->memcpy.layout.dst_count,
-                               cmd->memcpy.source, cmd->memcpy.layout.src_displ, cmd->memcpy.layout.src_datatype, cmd->memcpy.layout.src_count);
+                               source, cmd->memcpy.layout.src_displ, cmd->memcpy.layout.src_datatype, cmd->memcpy.layout.src_count);
 
     if( pinned_dst ) parsec_device_data_copy_unpin_reader(cmd->memcpy.destination);
-    if( pinned_src ) parsec_device_data_copy_unpin_reader(cmd->memcpy.source);
+    if( pinned_src ) {
+        parsec_device_data_copy_unpin_reader(source);
+        if( source != cmd->memcpy.source ) PARSEC_DATA_COPY_RELEASE(source);
+    }
 
     PARSEC_DATA_COPY_RELEASE(cmd->memcpy.source);
     remote_dep_dec_flying_messages(item->cmd.memcpy.taskpool);

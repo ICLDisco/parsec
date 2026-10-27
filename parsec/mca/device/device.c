@@ -75,6 +75,8 @@ int parsec_device_peer_mesh_incomplete = 0;
  * build defines these in the generic GPU module instead. */
 int parsec_device_data_copy_pin_reader(parsec_data_copy_t *copy) { (void)copy; return 1; }
 void parsec_device_data_copy_unpin_reader(parsec_data_copy_t *copy) { (void)copy; }
+int parsec_device_data_copy_try_pin_reader(parsec_data_copy_t *copy) { (void)copy; return 1; }
+parsec_data_copy_t *parsec_device_data_copy_pin_value(parsec_data_copy_t *copy) { return copy; }
 #endif
 #if defined(PARSEC_DEBUG) || defined(PARSEC_DEBUG_NOISIER)
 int parsec_device_inject_disable = 0;

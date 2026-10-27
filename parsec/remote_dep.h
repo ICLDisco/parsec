@@ -262,6 +262,16 @@ int parsec_remote_dep_propagate(parsec_execution_stream_t* es,
 #define remote_dep_mpi_initialize_execution_stream(ctx) 0
 #endif /* DISTRIBUTED */
 
+/**
+ * Re-describe a transfer that will read @p to where it was going to read
+ * @p from. Both hold the same value, so the description carries over
+ * unchanged while they agree on a layout, and is rebuilt from the
+ * substitute's own when they do not.
+ */
+void parsec_dep_description_retarget(struct parsec_dep_type_description_s *desc,
+                                     const struct parsec_data_copy_s *from,
+                                     const struct parsec_data_copy_s *to);
+
 /* check if this data description represents a CTL dependency */
 #define parsec_is_CTL_dep(PDEP_DATA_DESC)\
     ((NULL == (PDEP_DATA_DESC)->data) \

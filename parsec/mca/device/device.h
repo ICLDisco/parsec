@@ -228,6 +228,26 @@ extern int parsec_device_peer_mesh_incomplete;
 int  parsec_device_data_copy_pin_reader(parsec_data_copy_t *copy);
 void parsec_device_data_copy_unpin_reader(parsec_data_copy_t *copy);
 
+/**
+ * Same, for a caller that may not be kept waiting: a thread managing an
+ * accelerator, which is the one that ends the write-back a host copy would
+ * have it wait for. Returns 0 rather than waiting, and the caller is expected
+ * to come back to the copy later.
+ */
+int  parsec_device_data_copy_try_pin_reader(parsec_data_copy_t *copy);
+
+/**
+ * Same, for a reader that wants the value rather than this particular copy of
+ * it. A device only ever reclaims a copy that agrees with the host mirror, so
+ * when the copy asked for cannot be read the mirror says the same thing and is
+ * pinned instead.
+ *
+ * Returns the copy that was pinned, which the caller must read from and later
+ * hand back to parsec_device_data_copy_unpin_reader(), or NULL if the value is
+ * nowhere to be read, which leaves nothing pinned.
+ */
+parsec_data_copy_t *parsec_device_data_copy_pin_value(parsec_data_copy_t *copy);
+
 #if defined(PARSEC_DEBUG) || defined(PARSEC_DEBUG_NOISIER)
 /** Debug: make the Nth accelerator kernel submission decline the device. */
 extern int parsec_device_inject_disable;
