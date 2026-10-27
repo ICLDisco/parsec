@@ -3833,7 +3833,6 @@ parsec_device_kernel_pop( parsec_device_gpu_module_t   *gpu_device,
 
     if (gpu_task->task_type == PARSEC_GPU_TASK_TYPE_D2HTRANSFER) {
         uint32_t transfer_mask = 0;
-        parsec_data_copy_t *cpu_copies[MAX_PARAM_COUNT];
         for( int i = 0; i < this_task->locals[0].value; i++ ) {
             gpu_copy = this_task->data[i].data_out;
             /* If the gpu copy is not owned by parsec, we don't manage it at all */
@@ -3861,7 +3860,6 @@ parsec_device_kernel_pop( parsec_device_gpu_module_t   *gpu_device,
             assert(i < (sizeof(transfer_mask)*8));
             cpu_copy->data_transfer_status = PARSEC_DATA_STATUS_UNDER_TRANSFER;
             transfer_mask |= (1U << i);
-            cpu_copies[i] = cpu_copy;
             how_many++;
         }
         if( transfer_mask != 0 ) {
@@ -3884,7 +3882,6 @@ parsec_device_kernel_pop( parsec_device_gpu_module_t   *gpu_device,
 
     uint32_t transfer_mask = 0;
     size_t pending_bytes = 0;
-    parsec_data_copy_t *pushout_cpu_copies[MAX_PARAM_COUNT];
 
     for( uint32_t i = 0; i < gpu_task->nb_flows  /* not this_task->task_class->nb_flows */; i++ ) {
         /* We need to manage all data that has been used as input, even if they were read only */
@@ -4014,14 +4011,12 @@ parsec_device_kernel_pop( parsec_device_gpu_module_t   *gpu_device,
 #endif
                 /* Defer the actual transfer: accumulate this flow into transfer_mask and
                  * issue one combined gpu_task->stage_out call after the full loop. The
-                 * cpu_copy state transition is likewise deferred to a second pass over
-                 * the masked flows, taken under each flow's own original->lock, once the
-                 * combined call has actually succeeded (see below). */
+                 * cpu_copy is marked as under transfer here, while we still hold this
+                 * flow's original->lock. */
                 assert(cpu_copy->data_transfer_status != PARSEC_DATA_STATUS_UNDER_TRANSFER);
                 assert(flow->flow_index < MAX_PARAM_COUNT);
                 transfer_mask |= (1U << flow->flow_index);
                 cpu_copy->data_transfer_status = PARSEC_DATA_STATUS_UNDER_TRANSFER;
-                pushout_cpu_copies[flow->flow_index] = cpu_copy;
                 pending_bytes += span; /* TODO: not hardcoded, use datatype size */
                 how_many++;
             } else {
