@@ -67,6 +67,15 @@ static int parsec_device_load_balance_allow_cpu = 0;
  */
 int parsec_device_skip_empty_events = 1;
 int parsec_device_peer_mesh_incomplete = 0;
+
+#if !defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) && !defined(PARSEC_HAVE_DEV_HIP_SUPPORT) && \
+    !defined(PARSEC_HAVE_DEV_LEVEL_ZERO_SUPPORT)
+/* Without an accelerator no copy ever has memory that can be reclaimed under
+ * its readers, so the announcement has nothing to protect. The accelerator
+ * build defines these in the generic GPU module instead. */
+int parsec_device_data_copy_pin_reader(parsec_data_copy_t *copy) { (void)copy; return 1; }
+void parsec_device_data_copy_unpin_reader(parsec_data_copy_t *copy) { (void)copy; }
+#endif
 #if defined(PARSEC_DEBUG) || defined(PARSEC_DEBUG_NOISIER)
 int parsec_device_inject_disable = 0;
 #endif  /* defined(PARSEC_DEBUG) || defined(PARSEC_DEBUG_NOISIER) */

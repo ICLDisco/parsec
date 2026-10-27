@@ -1421,7 +1421,12 @@ parsec_dtd_tile_of(parsec_data_collection_t *dc, parsec_data_key_t key)
         if( tile->rank == (int)dc->myrank ) {
             tile->data_copy = (dc->data_of_key(dc, tile->key))->device_copies[0];
             assert(NULL != tile->data_copy);
-            tile->data_copy->readers = 0;
+            /* The reader count on this copy is not ours to clear. It used to be
+             * meaningless on a host copy, and starting from zero was the only
+             * way to make it usable; now the network, the accelerators and the
+             * task bodies all keep it, and forgetting one of them is how a
+             * write-back gets permission to overwrite a value being read.
+             */
         } else {
             tile->data_copy = NULL;
         }
@@ -2405,6 +2410,7 @@ static parsec_hook_return_t parsec_dtd_gpu_task_submit(parsec_execution_stream_t
             gpu_task->pushout |= 1<<i;
         gpu_task->flow_info[i].flow = dtd_tc->super.in[i];
         gpu_task->flow_info[i].flow_span = this_task->data[i].data_in->original->span;
+        gpu_task->flow_info[i].source = NULL;
     }
 
     parsec_device_module_t *device = this_task->selected_device;
@@ -2440,14 +2446,6 @@ static parsec_hook_return_t parsec_dtd_cpu_task_submit(parsec_execution_stream_t
                 else
                     access = PARSEC_FLOW_ACCESS_WRITE;
                 parsec_data_transfer_ownership_to_copy(this_task->data[i].data_in->original, 0, access);
-                /*
-                 * Ownership transfer retains a reader only for read accesses.
-                 * The DTD CPU path consumes that transfer synchronously, so drop
-                 * the temporary read hold immediately; pure writes did not acquire one.
-                 */
-                if( access & PARSEC_FLOW_ACCESS_READ ) {
-                    parsec_dtd_data_copy_reader_release(this_task->data[i].data_in);
-                }
             }
         }
     }

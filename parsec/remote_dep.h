@@ -145,6 +145,7 @@ struct parsec_remote_deps_s {
     int32_t                          root;          /**< The root of the control message */
     uint32_t                         incoming_mask; /**< track all incoming actions (receives) */
     uint32_t                         outgoing_mask; /**< track all outgoing actions (send) */
+    uint32_t                         pinned_mask;   /**< outputs holding a reader on their copy; a pin can be refused */
     remote_dep_wire_activate_t       msg;           /**< A copy of the message control */
     void                            *eager_msg;     /**< A pointer to the eager buffer if this is an eager msg, otherwise NULL */
     int32_t                          max_priority;

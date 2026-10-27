@@ -8,6 +8,7 @@
 #include "parsec/parsec_config.h"
 #include "parsec/parsec_internal.h"
 #include "parsec/remote_dep.h"
+#include "parsec/mca/device/device.h"
 #include "parsec/scheduling.h"
 #include "parsec/execution_stream.h"
 #include "parsec/data_internal.h"
@@ -129,8 +130,9 @@ remote_dep_complete_and_cleanup(parsec_remote_deps_t** deps,
             if( (1U << i) & (*deps)->outgoing_mask ) {
                 assert( (*deps)->output[i].count_bits );
                 if( NULL != (*deps)->output[i].data.data ) { /* if not CONTROL */
-                    if( PARSEC_TASKPOOL_TYPE_DTD == (*deps)->taskpool->taskpool_type ) {
-                        parsec_dtd_data_copy_reader_release((*deps)->output[i].data.data);
+                    if( (1U << i) & (*deps)->pinned_mask ) {
+                        (*deps)->pinned_mask ^= (1U << i);
+                        parsec_device_data_copy_unpin_reader((*deps)->output[i].data.data);
                     }
                     PARSEC_DATA_COPY_RELEASE((*deps)->output[i].data.data);
                 }
@@ -185,6 +187,7 @@ parsec_remote_deps_t* remote_deps_allocate( parsec_lifo_t* lifo )
     remote_deps->pending_ack     = 0;
     remote_deps->incoming_mask   = 0;
     remote_deps->outgoing_mask   = 0;
+    remote_deps->pinned_mask     = 0;
     PARSEC_DEBUG_VERBOSE(30, parsec_comm_output_stream, "remote_deps_allocate: %p", remote_deps);
     return remote_deps;
 }
@@ -495,6 +498,24 @@ int parsec_remote_dep_activate(parsec_execution_stream_t* es,
              * assert(NULL != output->data.remote.arena);*/
             assert( !parsec_is_CTL_dep(&output->data) );
             PARSEC_DATA_COPY_RETAIN(output->data.data);
+            /* The engine is about to read this memory itself, from its own
+             * thread, for as long as the message is outstanding. Count it among
+             * the readers so the device that owns the copy cannot reclaim the
+             * memory while the network is still reading it.
+             *
+             * A rank that forwards what it received activates an output it is
+             * already reading, having been given it by the receive. One reader
+             * covers both: the mask says this message holds one, and it is the
+             * release of the last user that gives it back.
+             */
+            if( remote_deps->pinned_mask & (1U << i) ) {
+                /* nothing to take, this message already holds it */
+            } else if( parsec_device_data_copy_pin_reader(output->data.data) ) {
+                remote_deps->pinned_mask |= (1U << i);
+            } else {
+                parsec_warning("Data copy %p was handed to the communication engine after the device "
+                               "owning it had already reclaimed its memory.", output->data.data);
+            }
         }
 
         for( array_index = count = 0; count < remote_deps->output[i].count_bits; array_index++ ) {
