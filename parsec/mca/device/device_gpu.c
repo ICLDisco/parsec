@@ -1814,7 +1814,11 @@ parsec_default_gpu_stage_in(parsec_gpu_task_t        *gtask,
         assert(src_copy->device_private != NULL);
         dst_copy = task->data[i].data_out;
         src_dev = (parsec_device_gpu_module_t *)parsec_mca_device_get(src_copy->device_index);
-        dst_dev = (parsec_device_gpu_module_t *)parsec_mca_device_get(dst_copy->device_index);
+        parsec_device_gpu_module_t *flow_dst_dev = (parsec_device_gpu_module_t *)parsec_mca_device_get(dst_copy->device_index);
+        /* All flows are batched into a single transfer issued on dst_dev, so they must
+         * all target the same device (data_out is the copy reserved on the pushing device). */
+        assert((NULL == dst_dev) || (dst_dev == flow_dst_dev));
+        dst_dev = flow_dst_dev;
 
         if((src_dev->super.type & PARSEC_DEV_ANY_TYPE) == (dst_dev->super.type & PARSEC_DEV_ANY_TYPE)) {
             assert( src_dev->peer_access_mask & (1 << dst_dev->super.device_index) );
@@ -1878,7 +1882,11 @@ parsec_default_gpu_stage_out(parsec_gpu_task_t        *gtask,
                 return PARSEC_HOOK_RETURN_ERROR;
             }
             dst_dev = (parsec_device_gpu_module_t*)parsec_mca_device_get(dst_copy->device_index);
-            src_dev = (parsec_device_gpu_module_t*)parsec_mca_device_get(src_copy->device_index);
+            parsec_device_gpu_module_t *flow_src_dev = (parsec_device_gpu_module_t*)parsec_mca_device_get(src_copy->device_index);
+            /* All flows are batched into a single transfer issued on src_dev, so they must
+             * all originate from the same device (data_out is the copy on the popping device). */
+            assert((NULL == src_dev) || (src_dev == flow_src_dev));
+            src_dev = flow_src_dev;
             count = (src_copy->original->span <= dst_copy->original->span) ? src_copy->original->span : dst_copy->original->span;
             if( (src_dev->super.type & PARSEC_DEV_ANY_TYPE) == (dst_dev->super.type & PARSEC_DEV_ANY_TYPE) ) {
                 assert( src_dev->peer_access_mask & (1 << dst_dev->super.device_index) );
@@ -2606,6 +2614,7 @@ parsec_device_data_stage_in( parsec_device_gpu_module_t* gpu_device,
      * any GPU reader acquired above (source_acquired) -- see
      * parsec_device_kernel_push_release_readers_on_failure().
      */
+    assert(flow->flow_index < (sizeof(*transfer_mask)*8));
     *transfer_mask |= (1U << flow->flow_index);
     assert(candidate_dev->super.device_index < gpu_device->super.data_in_array_size);
     gpu_device->super.data_in_from_device[candidate_dev->super.device_index] += span;
@@ -3674,7 +3683,18 @@ parsec_device_kernel_push( parsec_device_gpu_module_t      *gpu_device,
         if( ret < 0 ) {
             /* Flush any transfers already decided for earlier flows before propagating
              * this error/retry: those flows are already marked UNDER_TRANSFER and must
-             * have a matching physical copy actually issued for them. */
+             * have a matching physical copy actually issued for them.
+             *
+             * On a retry (AGAIN/NEXT) nothing releases that state here: complete_stage
+             * is only set once the whole push succeeds, so parsec_device_callback_complete_push
+             * does not run for this attempt. The destination copies stay UNDER_TRANSFER and
+             * the source readers stay held until the task is pushed again. On that push the
+             * flows take the already-under-transfer branch of parsec_device_data_stage_in
+             * without re-issuing a copy, and the completion callback of the successful push
+             * clears the state. With AGAIN the flushed copies are covered by the event
+             * progress_stream records for this attempt; with NEXT no event is recorded, so
+             * this is only safe because the input stream is in-order and the event recorded
+             * by the later successful push covers the copies issued here. */
             if( transfer_mask != 0 ) {
                 int rc = gpu_task->stage_in ? gpu_task->stage_in(gpu_task, transfer_mask, gpu_stream) : PARSEC_SUCCESS;
                 if( PARSEC_SUCCESS != rc ) {
@@ -3845,20 +3865,21 @@ parsec_device_kernel_pop( parsec_device_gpu_module_t   *gpu_device,
              * the receiving flow metadata.
              */
             parsec_data_copy_t *cpu_copy = original->device_copies[0];
-            parsec_atomic_unlock(&original->lock);
             if( NULL == cpu_copy ) {
+                parsec_atomic_unlock(&original->lock);
                 parsec_warning("GPU[%d:%s]: unable to find host mirror for D2H transfer of copy %p\n",
                                gpu_device->super.device_index, gpu_device->super.name, gpu_copy);
                 return_code = PARSEC_HOOK_RETURN_DISABLE;
                 goto release_and_return_error;
             }
             assert(cpu_copy->data_transfer_status != PARSEC_DATA_STATUS_UNDER_TRANSFER);
+            cpu_copy->data_transfer_status = PARSEC_DATA_STATUS_UNDER_TRANSFER;
+            parsec_atomic_unlock(&original->lock);
             assert(i < MAX_PARAM_COUNT);
             /* Sanity check: MAX_PARAM_COUNT may be increased to accommodate more parameters,
              * but the transfer_mask must still be able to represent all of them.
              */
             assert(i < (sizeof(transfer_mask)*8));
-            cpu_copy->data_transfer_status = PARSEC_DATA_STATUS_UNDER_TRANSFER;
             transfer_mask |= (1U << i);
             how_many++;
         }
@@ -4015,6 +4036,7 @@ parsec_device_kernel_pop( parsec_device_gpu_module_t   *gpu_device,
                  * flow's original->lock. */
                 assert(cpu_copy->data_transfer_status != PARSEC_DATA_STATUS_UNDER_TRANSFER);
                 assert(flow->flow_index < MAX_PARAM_COUNT);
+                assert(flow->flow_index < (sizeof(transfer_mask)*8));
                 transfer_mask |= (1U << flow->flow_index);
                 cpu_copy->data_transfer_status = PARSEC_DATA_STATUS_UNDER_TRANSFER;
                 pending_bytes += span; /* TODO: not hardcoded, use datatype size */
