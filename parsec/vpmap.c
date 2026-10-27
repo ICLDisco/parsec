@@ -407,10 +407,17 @@ int parsec_vpmap_init_from_flat(int nbthreads)
     if( -1 == parsec_runtime_singlify_bindings )  /* early singlify */
         step = 1;
     for( int id = 0; id < parsec_vpmap[0].nbthreads; id++ ) {
-        parsec_vpmap[0].threads[id].nbcores = step;
+        /* With more threads than cores the division above yields a 0 step, and
+         * [0, -1] is how hwloc spells the infinite set. Share the cores
+         * round-robin instead, and let the binding layer report the
+         * oversubscription.
+         */
+        int width = (step > 0) ? step    : 1;
+        int first = (step > 0) ? id*step : id % nbcores;
+        parsec_vpmap[0].threads[id].nbcores = width;
         parsec_vpmap[0].threads[id].cpuset = HWLOC_ALLOC();
         parsec_vpmap[0].threads[id].ht = 0;
-        HWLOC_SET_RANGE(parsec_vpmap[0].threads[id].cpuset, id * step, (id+1) * step - 1);
+        HWLOC_SET_RANGE(parsec_vpmap[0].threads[id].cpuset, first, first + width - 1);
     }
     parsec_nb_total_threads = nbthreads;
     return PARSEC_SUCCESS;

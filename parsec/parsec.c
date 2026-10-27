@@ -2413,7 +2413,13 @@ parsec_select_vpmap_thread_core(parsec_context_t* context, hwloc_cpuset_t candid
         return -1;
     }
 
-    while( -1 != (where = hwloc_bitmap_next(candidates, where)) ) {
+    /* parsec_find_core_by_idx() indexes into the allowed mask, so no candidate
+     * at or beyond its weight can ever resolve. Stopping there also keeps an
+     * infinitely-set candidate mask from turning this scan into a live lock.
+     */
+    int nb_allowed = hwloc_bitmap_weight(context->cpuset_allowed_mask);
+
+    while( (-1 != (where = hwloc_bitmap_next(candidates, where))) && (where < nb_allowed) ) {
         int core_idx = parsec_find_core_by_idx(context, where);
         if( core_idx < 0 ) {
             continue;
