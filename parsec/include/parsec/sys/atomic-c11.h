@@ -13,8 +13,16 @@
  * with the exception of parsec_atomic_lock operations, which use proper
  * acquire/release semantics, and the memory barriers.
  *
- * Change this define to memory_order_seq_cst to restore sequential
- * consistency of atomic operations.
+ * WARNING: this backend is weaker than every other one. The others implement
+ * these operations on top of the __sync_* builtins, which GCC defines as full
+ * memory barriers, so code that publishes data through a bare
+ * parsec_atomic_cas_* gets release/acquire ordering for free there and not
+ * here. The asymmetry is easy to miss: the C11 backend is only selected when
+ * the 32, 64 and 128 bit checks all succeed, which excludes x86_64/gcc, so the
+ * platforms that select it (notably macOS/aarch64) are also the ones whose
+ * hardware actually reorders. Publishing code must therefore carry its own
+ * parsec_atomic_wmb()/parsec_atomic_rmb(), as parsec/class/lifo.h and
+ * parsec/hbbuffer.c do, rather than rely on the default below.
  *
  * NOTE: semantically, we should use memory_order_consume to ensure that
  *       data dependencies on values produced from these operations are
