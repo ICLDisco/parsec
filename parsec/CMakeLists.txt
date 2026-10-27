@@ -14,6 +14,7 @@ set(BASE_SOURCES
   class/parsec_lifo.c
   class/parsec_list.c
   class/parsec_object.c
+  class/parsec_obj_freelist.c
   class/parsec_value_array.c
   class/parsec_hash_table.c
   class/parsec_rwlock.c
@@ -327,6 +328,7 @@ install(FILES
         DESTINATION ${PARSEC_INSTALL_INCLUDEDIR}/parsec/utils)
 install(FILES
         ${CMAKE_CURRENT_SOURCE_DIR}/class/parsec_object.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/class/parsec_obj_freelist.h
         ${CMAKE_CURRENT_SOURCE_DIR}/class/parsec_hash_table.h
         ${CMAKE_CURRENT_SOURCE_DIR}/class/list_item.h
         ${CMAKE_CURRENT_SOURCE_DIR}/class/parsec_rwlock.h

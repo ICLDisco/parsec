@@ -10,6 +10,7 @@ parsec_addtest_executable(C lifo SOURCES lifo.c)
 parsec_addtest_executable(C heap SOURCES heap.c)
 parsec_addtest_executable(C list SOURCES list.c)
 parsec_addtest_executable(C hash SOURCES hash.c)
+parsec_addtest_executable(C obj_allocator SOURCES obj_allocator.c)
 target_link_libraries(hash PRIVATE m)
 
 if(PARSEC_HAVE_ERAND48 AND PARSEC_HAVE_NRAND48 AND PARSEC_HAVE_LRAND48)
@@ -23,9 +24,10 @@ parsec_addtest_executable(C rwlock_inline SOURCES rwlock.c)
 parsec_addtest_executable(C lifo_inline SOURCES lifo.c)
 parsec_addtest_executable(C list_inline SOURCES list.c)
 parsec_addtest_executable(C hash_inline SOURCES hash.c)
+parsec_addtest_executable(C obj_allocator_inline SOURCES obj_allocator.c)
 target_link_libraries(hash_inline PRIVATE m)
-set_property(TARGET rwlock_inline lifo_inline list_inline hash_inline
+set_property(TARGET rwlock_inline lifo_inline list_inline hash_inline obj_allocator_inline
   APPEND PROPERTY COMPILE_DEFINITIONS BUILDING_PARSEC)
-set_property(TARGET rwlock_inline lifo_inline list_inline hash_inline
+set_property(TARGET rwlock_inline lifo_inline list_inline hash_inline obj_allocator_inline
   APPEND PROPERTY COMPILE_OPTIONS ${PARSEC_ATOMIC_SUPPORT_OPTIONS})
 
