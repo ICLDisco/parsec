@@ -259,12 +259,17 @@ parsec_gpu_create_w2r_task(parsec_device_gpu_module_t *gpu_device,
                 parsec_atomic_unlock( &gpu_copy->original->lock );
                 continue;
             }
-            if( 0 != gpu_copy->original->device_copies[0]->readers ) {
-                /* Writing back means overwriting the host mirror, and there is
-                 * only one of those per data. Somebody is reading the value it
-                 * holds right now and would see the bytes change underneath, so
-                 * this copy waits for a later round instead.
-                 */
+            /* Writing back means overwriting the host mirror, and there is only
+             * one of those per data. Take it for this write-back, which both
+             * asks whether anybody is reading the value it holds and stops
+             * anybody from starting to: readers are counted without this lock,
+             * so merely looking would leave the room for one to arrive between
+             * the look and the transfer, and that reader would see the bytes
+             * change underneath. A mirror we cannot take waits for a later
+             * round.
+             */
+            if( !parsec_atomic_cas_int32(&gpu_copy->original->device_copies[0]->readers,
+                                         0, -PARSEC_DEVICE_DATA_COPY_ATOMIC_SENTINEL) ) {
                 PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
                                      "D2H[%d:%s]: skip copy %p [%p]; its host mirror still has %d reader(s)",
                                      gpu_device->super.device_index, gpu_device->super.name,
@@ -276,6 +281,10 @@ parsec_gpu_create_w2r_task(parsec_device_gpu_module_t *gpu_device,
             if( PARSEC_UNLIKELY(NULL == d2h_task) ) {  /* allocate on-demand */
                 d2h_task = (parsec_gpu_d2h_task_t*)parsec_thread_mempool_allocate(es->context_mempool);
                 if( PARSEC_UNLIKELY(NULL == d2h_task) ) { /* we're running out of memory. Bail out. */
+                    /* No transfer will be built, so the mirror goes back to
+                     * whoever wants to read it. */
+                    (void)parsec_atomic_fetch_add_int32(&gpu_copy->original->device_copies[0]->readers,
+                                                        PARSEC_DEVICE_DATA_COPY_ATOMIC_SENTINEL);
                     parsec_atomic_unlock( &gpu_copy->original->lock );
                     return NULL;
                 }
@@ -391,11 +400,12 @@ int parsec_gpu_complete_w2r_task(parsec_device_gpu_module_t *gpu_device,
             nb_reclaimable++;  /* clean now: the reservation may take its memory */
         }
         /* The host bytes are final, whichever of the two the write-back turned
-         * out to be. A mirror left saying that it is still being written reads
-         * as a value nobody may take ownership of, for as long as the data
-         * lives. */
+         * out to be, so the mirror this transfer had taken goes back to the
+         * readers that were kept out of it. */
         assert(PARSEC_DATA_STATUS_UNDER_TRANSFER == cpu_copy->data_transfer_status);
         cpu_copy->data_transfer_status = PARSEC_DATA_STATUS_COMPLETE_TRANSFER;
+        (void)parsec_atomic_fetch_add_int32(&cpu_copy->readers,
+                                            PARSEC_DEVICE_DATA_COPY_ATOMIC_SENTINEL);
         parsec_atomic_unlock(&gpu_copy->original->lock);
     }
 
