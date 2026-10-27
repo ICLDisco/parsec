@@ -21,6 +21,7 @@
 static int MAXNT                 = 16384;
 static int MAXLEVEL              =  1024;
 static int MAXTRY                =   1;
+static int NCORES                =   0;  /* 0 lets the runtime use all available resources */
 static double MAX_RELATIVE_STDEV =   0.1;
 
 double stdev(double sum, double sumsqr, double n)
@@ -77,11 +78,16 @@ int main(int argc, char *argv[])
             MAX_RELATIVE_STDEV = atof(argv[a]);
             continue;
         }
-        fprintf(stderr, "Usage: %s [-t MAXTRY] [-l MAXLEVEL] [-n MAXNT] [-s MAX_RELATIVE_STDEV] [-- <parsec parameters]\n", argv[0]);
+        if(strcmp(argv[a], "-c") == 0) {
+            a++;
+            NCORES = atoi(argv[a]);
+            continue;
+        }
+        fprintf(stderr, "Usage: %s [-t MAXTRY] [-l MAXLEVEL] [-n MAXNT] [-s MAX_RELATIVE_STDEV] [-c NCORES] [-- <parsec parameters]\n", argv[0]);
         exit(EXIT_FAILURE);
     }
 
-    parsec = parsec_init(0, &parsec_argc, &parsec_argv);
+    parsec = parsec_init(NCORES, &parsec_argc, &parsec_argv);
     if( NULL == parsec ) {
         exit(-1);
     }
