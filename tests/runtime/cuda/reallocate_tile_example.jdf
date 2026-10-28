@@ -1,0 +1,213 @@
+extern "C" %{
+#include "parsec/data_distribution.h"
+#include "parsec/data_dist/matrix/matrix.h"
+#include "parsec/data_internal.h"
+#include "parsec/mca/device/cuda/device_cuda_internal.h"
+#include "parsec/utils/zone_malloc.h"
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define ITER_COUNT 10
+
+static int hicma_reallocate_tile_on_gpu(parsec_device_cuda_module_t *cuda_device,
+                                        parsec_data_copy_t *active_copy,
+                                        void *expected_ptr,
+                                        size_t target_bytes,
+                                        void **new_ptr_out)
+{
+    void *old_ptr = NULL;
+    void *new_ptr = NULL;
+
+    if( NULL == active_copy ) {
+        return -1;
+    }
+    if( NULL != expected_ptr && expected_ptr != active_copy->device_private ) {
+        return -1;
+    }
+
+    old_ptr = active_copy->device_private;
+    if( NULL != old_ptr ) {
+        zone_free(cuda_device->super.memory, old_ptr);
+        active_copy->device_private = NULL;
+    }
+
+    new_ptr = zone_malloc(cuda_device->super.memory, target_bytes);
+    if( NULL == new_ptr ) {
+        return -1;
+    }
+
+    active_copy->device_private = new_ptr;
+    *new_ptr_out = new_ptr;
+    return 0;
+}
+
+static int hicma_reallocate_tile_on_cpu(parsec_data_copy_t *cpu_copy,
+                                        size_t target_bytes)
+{
+    void *new_ptr = NULL;
+
+    if( NULL == cpu_copy ) {
+        return 0;
+    }
+
+    new_ptr = malloc(target_bytes);
+    if( NULL == new_ptr ) {
+        return -1;
+    }
+
+    if( NULL != cpu_copy->device_private ) {
+        free(cpu_copy->device_private);
+    }
+    cpu_copy->device_private = new_ptr;
+    return 0;
+}
+%}
+
+%option no_taskpool_instance = false
+
+descA [type = "parsec_tiled_matrix_t *"]
+OUT   [type = "int *"]
+
+TASK(k)
+k = 0 .. 10
+
+: descA(0, 0)
+
+RW A <- (k == 0) ? descA(0, 0) : A TASK(k-1)
+     -> (k < 10) ? A TASK(k+1)
+     -> (k == 10) ? descA(0, 0)
+CTL T -> (k == 10) ? T TEST(0)
+
+BODY [type=CUDA]
+{
+    parsec_data_copy_t *c_copy = this_task->data._f_A.data_out;
+    parsec_data_copy_t *c_dev_copy = NULL;
+    parsec_data_copy_t *active_copy = NULL;
+    parsec_data_copy_t *cpu_copy = NULL;
+    void *new_A = NULL;
+    void *A_ptr = NULL;
+    double *host_init = NULL;
+    size_t target_bytes = 0;
+    const size_t base_count = (size_t)descA->mb * (size_t)descA->nb;
+    const size_t grown_count = base_count * 2U;
+
+    if( NULL == c_copy || NULL == c_copy->original ) {
+        *OUT = *OUT + 1;
+        fprintf(stderr, "TASK(%d): missing data copy\n", k);
+        return PARSEC_HOOK_RETURN_DONE;
+    }
+
+    c_dev_copy = PARSEC_DATA_GET_COPY(c_copy->original, c_copy->device_index);
+    cpu_copy = PARSEC_DATA_GET_COPY(c_copy->original, 0);
+    active_copy = (NULL != c_dev_copy) ? c_dev_copy : c_copy;
+    A_ptr = c_copy->device_private;
+
+    if( k == 0 ) {
+        void *new_cpu_stage_ptr = NULL;
+
+        target_bytes = grown_count * sizeof(double);
+        if( 0 != hicma_reallocate_tile_on_gpu(cuda_device, active_copy, A_ptr, target_bytes, &new_A) ) {
+            *OUT = *OUT + 1;
+            fprintf(stderr, "TASK(%d): GPU reallocation to %zu doubles failed\n", k, grown_count);
+            return PARSEC_HOOK_RETURN_DONE;
+        }
+        if( c_copy != active_copy ) {
+            c_copy->device_private = new_A;
+        }
+        /*
+         * In this PaRSEC version, data transfer size follows original->span.
+         * Update span after growth and provide a sufficiently large CPU staging
+         * buffer to keep subsequent D2H copies valid.
+         */
+        c_copy->original->span = target_bytes;
+        if( NULL != cpu_copy ) {
+            new_cpu_stage_ptr = malloc(target_bytes);
+            if( NULL == new_cpu_stage_ptr ) {
+                *OUT = *OUT + 1;
+                fprintf(stderr, "TASK(%d): CPU stage buffer reallocation failed\n", k);
+                return PARSEC_HOOK_RETURN_DONE;
+            }
+            cpu_copy->device_private = new_cpu_stage_ptr;
+        }
+        host_init = (double *)malloc(target_bytes);
+        if( NULL == host_init ) {
+            *OUT = *OUT + 1;
+            fprintf(stderr, "TASK(%d): host initialization buffer allocation failed\n", k);
+            return PARSEC_HOOK_RETURN_DONE;
+        }
+        for(size_t i = 0; i < grown_count; i++) {
+            host_init[i] = 1000.0;
+        }
+        if( cudaSuccess != cudaMemcpyAsync(new_A, host_init, target_bytes,
+                                           cudaMemcpyHostToDevice, parsec_body.stream) ) {
+            *OUT = *OUT + 1;
+            fprintf(stderr, "TASK(%d): set GPU values to 1000 failed\n", k);
+            free(host_init);
+            return PARSEC_HOOK_RETURN_DONE;
+        }
+        free(host_init);
+    }
+
+    if( k == ITER_COUNT ) {
+        parsec_data_copy_t mock_cpu_copy;
+
+        target_bytes = grown_count * sizeof(double);
+        memset(&mock_cpu_copy, 0, sizeof(mock_cpu_copy));
+        mock_cpu_copy.device_private = malloc(base_count * sizeof(double));
+        if( NULL == mock_cpu_copy.device_private ) {
+            *OUT = *OUT + 1;
+            fprintf(stderr, "TASK(%d): initial mock CPU allocation failed\n", k);
+            return PARSEC_HOOK_RETURN_DONE;
+        }
+
+        if( 0 != hicma_reallocate_tile_on_cpu(&mock_cpu_copy, target_bytes) ) {
+            *OUT = *OUT + 1;
+            fprintf(stderr, "TASK(%d): CPU reallocation to %zu doubles failed\n", k, grown_count);
+            free(mock_cpu_copy.device_private);
+            return PARSEC_HOOK_RETURN_DONE;
+        }
+        memset(mock_cpu_copy.device_private, 1, target_bytes);
+        free(mock_cpu_copy.device_private);
+    }
+}
+END
+
+BODY
+{
+    *OUT = *OUT + 1;
+    fprintf(stderr, "TASK(%d) ran on CPU; expected CUDA BODY\n", k);
+}
+END
+
+TEST(k)
+k = 0 .. 0
+
+: descA(0, 0)
+
+READ A <- descA(0, 0)
+CTL T  <- T TASK(10)
+
+BODY
+{
+    size_t base_count = (size_t)descA->mb * (size_t)descA->nb;
+    size_t grown_count = base_count * 2U;
+    double *host_check = (double *)A;
+
+    if( NULL == host_check ) {
+        *OUT = *OUT + 1;
+        fprintf(stderr, "TEST(%d): missing CPU pointer\n", k);
+        return PARSEC_HOOK_RETURN_DONE;
+    }
+
+    for(size_t i = 0; i < grown_count; i++) {
+        if( host_check[i] != 1000.0 ) {
+            *OUT = *OUT + 1;
+            fprintf(stderr, "TEST(%d): value mismatch at index %zu (got %.17g)\n",
+                    k, i, host_check[i]);
+            return PARSEC_HOOK_RETURN_DONE;
+        }
+    }
+}
+END
