@@ -2,7 +2,7 @@
  * Copyright (c) 2010-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
- * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
+ * Copyright (c) 2024-2026 NVIDIA Corporation.  All rights reserved.
  * Copyright (c) 2026      Stony Brook University. All rights reserved.
  */
 
@@ -42,6 +42,9 @@ int parsec_cuda_memory_block_size, parsec_cuda_memory_percentage, parsec_cuda_me
 char* parsec_cuda_lib_path = NULL;
 
 static int cuda_mask;
+/* How many devices the driver reports, as opposed to how many of them
+ * parsec_device_cuda_enabled allows this process to use. */
+static int parsec_device_cuda_avail = 0;
 
 #if defined(PARSEC_PROF_TRACE)
 int parsec_device_cuda_one_profiling_stream_per_gpu_stream = 0;
@@ -104,7 +107,9 @@ static int device_cuda_component_query(mca_base_module_t **module, int *priority
     else
         parsec_device_cuda_component.modules = NULL;
 
-    for( i = j = 0; i < parsec_device_cuda_enabled; i++ ) {
+    /* Scan every device the driver reports, as the mask may select any of
+     * them, and stop once enough of them have been taken. */
+    for( i = j = 0; (i < parsec_device_cuda_avail) && (j < parsec_device_cuda_enabled); i++ ) {
 
         /* Allow fine grain selection of the GPU's */
         if( !((1 << i) & cuda_mask) ) continue;
@@ -179,15 +184,14 @@ static int device_cuda_component_register(void)
 static int device_cuda_component_open(void)
 {
     cudaError_t cudastatus;
-    int ndevices;
 
     if( 0 == parsec_device_cuda_enabled ) {
         return MCA_ERROR;  /* Nothing to do around here */
     }
 
-    cudastatus = cudaGetDeviceCount( &ndevices );
+    cudastatus = cudaGetDeviceCount( &parsec_device_cuda_avail );
     if( cudaErrorNoDevice == (cudaError_t) cudastatus ) {
-        ndevices = 0;
+        parsec_device_cuda_avail = 0;
         /* This is normal on machines with no GPUs, let it flow
          * to do the normal checks vis-a-vis the number of requested
          * devices and issue a warning only when not fulfilling
@@ -202,31 +206,27 @@ static int device_cuda_component_open(void)
                              } );
     }
 
-    if( ndevices > parsec_device_cuda_enabled ) {
-        if( 0 < parsec_device_cuda_enabled ) {
-            ndevices = parsec_device_cuda_enabled;
-        }
-    } else if (ndevices < parsec_device_cuda_enabled ) {
-        if( 0 < parsec_device_cuda_enabled ) {
-            if( 0 == ndevices ) {
-                parsec_warning("User requested %d CUDA devices, but none are available on %s."
-                               " CUDA support will be therefore disabled.",
-                               parsec_device_cuda_enabled, parsec_hostname);
-            } else {
-                parsec_warning("User requested %d CUDA devices, but only %d are available on %s.",
-                               parsec_device_cuda_enabled, ndevices, parsec_hostname);
-            }
-            parsec_mca_param_set_int(parsec_device_cuda_enabled_index, ndevices);
+    if( parsec_device_cuda_avail < parsec_device_cuda_enabled ) {
+        if( 0 == parsec_device_cuda_avail ) {
+            parsec_warning("User requested %d CUDA devices, but none are available on %s."
+                           " CUDA support will be therefore disabled.",
+                           parsec_device_cuda_enabled, parsec_hostname);
+        } else {
+            parsec_warning("User requested %d CUDA devices, but only %d are available on %s.",
+                           parsec_device_cuda_enabled, parsec_device_cuda_avail, parsec_hostname);
         }
     }
 
-    /* Update the number of GPU for the upper layer */
-    parsec_device_cuda_enabled = ndevices;
-    if( 0 == ndevices ) {
-        return MCA_ERROR;
+    /* Update the number of GPU for the upper layer. A negative request means
+     * all of them. The MCA override does not write back into the variable, so
+     * both must be set. */
+    if( (0 > parsec_device_cuda_enabled) ||
+        (parsec_device_cuda_avail < parsec_device_cuda_enabled) ) {
+        parsec_device_cuda_enabled = parsec_device_cuda_avail;
+        parsec_mca_param_set_int(parsec_device_cuda_enabled_index, parsec_device_cuda_avail);
     }
 
-    return MCA_SUCCESS;
+    return (0 == parsec_device_cuda_avail) ? MCA_ERROR : MCA_SUCCESS;
 }
 
 /**
