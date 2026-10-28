@@ -32,7 +32,10 @@ if(PARSEC_HAVE_CUDA AND CMAKE_CUDA_COMPILER)
                     --mca device_cuda_enabled 1
                     --mca device_cuda_mask 1
                     --mca device_enable_batching 1
-                    --mca device cuda)
+                    --mca device cuda
+                    # A batched hook here waits for a peer task that only
+                    # another thread can submit, so one core livelocks.
+                    --mca runtime_num_cores 2)
   # Only built when cuBLAS is available, hence the target test.
   if(TARGET dtd_test_simple_gemm)
     parsec_addtest_cmd(dsl/dtd/simple_gemm:gpu ${SHM_TEST_CMD_LIST}

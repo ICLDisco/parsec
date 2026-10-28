@@ -521,6 +521,23 @@ int main(int argc, char* argv[])
         return -PARSEC_ERR_DEVICE;
     }
 
+    /* The BATCH AGAIN phase 1 below returns AGAIN until a second task of its
+     * class is pending on the stream, and only another thread can put it
+     * there: a thread that enters the GPU manager stays there until the device
+     * runs out of work, so it does not drain the scheduler in the meantime.
+     * With a single core there is no other thread and the run livelocks, hence
+     * the hard error rather than a hang. */
+    int nb_cores = parsec_context_query(parsec_context, PARSEC_CONTEXT_QUERY_CORES);
+    if( nb_cores < 2 ) {
+        parsec_warning("This test needs at least 2 cores, it was given %d. "
+                       "Raise `runtime_num_cores` or widen the cpuset.", nb_cores);
+        parsec_fini(&parsec_context);
+#if defined(PARSEC_HAVE_MPI)
+        MPI_Finalize();
+#endif
+        return 1;
+    }
+
     // Create new DTD taskpool
     parsec_taskpool_t *tp = parsec_dtd_taskpool_new();
 
