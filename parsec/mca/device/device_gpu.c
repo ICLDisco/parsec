@@ -1745,6 +1745,11 @@ parsec_device_data_reserve_space( parsec_device_gpu_module_t* gpu_device,
                                      lru_gpu_elem, lru_gpu_elem->super.super.obj_reference_count,
                                      lru_gpu_elem->original, lru_gpu_elem->version);
                 assert(parsec_data_copy_is_placeholder(lru_gpu_elem));
+                /* Only the memory goes. The copy keeps our reference, its only
+                 * one, as a data points at its copies without counting them.
+                 * Out of our lists it is out of reach of our teardown, so its
+                 * data releases it instead.
+                 */
                 goto malloc_data;
             }
             PARSEC_DEBUG_VERBOSE(30, parsec_gpu_output_stream,
@@ -2143,7 +2148,11 @@ parsec_gpu_data_copy_release_reader(parsec_device_gpu_module_t *gpu_device,
     }
 
     readers = parsec_atomic_fetch_sub_int32(&copy->readers, 1) - 1;
-    if( (0 == readers) && make_available && (NULL != owner) ) {
+    /* Both lists hold memory to be reclaimed. A copy the device already
+     * emptied has none, and an eviction popping it would free a pointer that
+     * is not there. */
+    if( (0 == readers) && make_available && (NULL != owner)
+     && !parsec_data_copy_is_placeholder(copy) ) {
         parsec_list_item_ring_chop((parsec_list_item_t*)copy);
         PARSEC_LIST_ITEM_SINGLETON(copy);
         /* D2D source copies can still own the latest version after the
