@@ -94,12 +94,13 @@ testing_redistribute_select_sbc_uplo(int mb, int nb,
 }
 
 static int
-testing_redistribute_validate_sbc_region(testing_redistribute_matrix_t *matrix,
-                                         const char *name,
-                                         int size_row, int size_col,
-                                         int disi, int disj)
+testing_redistribute_validate_triangular_region(testing_redistribute_matrix_t *matrix,
+                                                const char *name,
+                                                int size_row, int size_col,
+                                                int disi, int disj)
 {
-    if( REDISTRIBUTE_DIST_SBC != matrix->distribution ) {
+    if( (REDISTRIBUTE_DIST_SYM_2DBC != matrix->distribution) &&
+        (REDISTRIBUTE_DIST_SBC != matrix->distribution) ) {
         return PARSEC_SUCCESS;
     }
 
@@ -111,10 +112,11 @@ testing_redistribute_validate_sbc_region(testing_redistribute_matrix_t *matrix,
 
     if( 0 == matrix->desc->super.myrank ) {
         fprintf(stderr,
-                "ERROR: %s SBC descriptor stores the %s triangle, but the requested "
+                "ERROR: %s %s descriptor stores the %s triangle, but the requested "
                 "rectangle crosses the tile diagonal. Move the displacement or shrink "
                 "the submatrix so every referenced tile is stored.\n",
-                name, (PARSEC_MATRIX_LOWER == matrix->uplo) ? "lower" : "upper");
+                name, redistribute_distribution_name(matrix->distribution),
+                (PARSEC_MATRIX_LOWER == matrix->uplo) ? "lower" : "upper");
     }
 
     return PARSEC_ERR_BAD_PARAM;
@@ -123,8 +125,20 @@ testing_redistribute_validate_sbc_region(testing_redistribute_matrix_t *matrix,
 static parsec_matrix_uplo_t
 testing_redistribute_apply_uplo(const testing_redistribute_matrix_t *matrix)
 {
-    return (REDISTRIBUTE_DIST_SBC == matrix->distribution) ?
-           matrix->uplo : PARSEC_MATRIX_FULL;
+    return ((REDISTRIBUTE_DIST_SYM_2DBC == matrix->distribution) ||
+            (REDISTRIBUTE_DIST_SBC == matrix->distribution)) ?
+               matrix->uplo : PARSEC_MATRIX_FULL;
+}
+
+static int
+testing_redistribute_tile_is_stored(const testing_redistribute_matrix_t *matrix,
+                                    int m, int n)
+{
+    if( (REDISTRIBUTE_DIST_SYM_2DBC != matrix->distribution) &&
+        (REDISTRIBUTE_DIST_SBC != matrix->distribution) ) {
+        return 1;
+    }
+    return (PARSEC_MATRIX_LOWER == matrix->uplo) ? (m >= n) : (n >= m);
 }
 
 static int
@@ -296,7 +310,12 @@ testing_redistribute_make_device_resident(testing_redistribute_matrix_t *matrix)
             parsec_data_copy_t *cpu_copy;
             parsec_data_copy_t *gpu_copy;
             size_t data_size;
-            uint32_t owner = dc->rank_of(dc, m, n);
+            uint32_t owner;
+
+            if( !testing_redistribute_tile_is_stored(matrix, m, n) ) {
+                continue;
+            }
+            owner = dc->rank_of(dc, m, n);
 
             if( owner != dc->myrank ) {
                 continue;
@@ -351,6 +370,7 @@ testing_redistribute_make_device_resident(testing_redistribute_matrix_t *matrix)
 static int
 testing_redistribute_init_matrix(testing_redistribute_matrix_t *matrix,
                                  parsec_matrix_block_cyclic_t *bc,
+                                 parsec_matrix_sym_block_cyclic_t *sym,
                                  parsec_matrix_sbc_t *sbc,
                                  const char *name,
                                  int distribution,
@@ -373,6 +393,15 @@ testing_redistribute_init_matrix(testing_redistribute_matrix_t *matrix,
                                         supertile_rows, supertile_cols, 0, 0);
         matrix->desc = (parsec_tiled_matrix_t *)bc;
         matrix->mat = &bc->mat;
+    } else if( REDISTRIBUTE_DIST_SYM_2DBC == distribution ) {
+        matrix->uplo = testing_redistribute_select_sbc_uplo(mb, nb, size_row, size_col,
+                                                            disi, disj);
+        parsec_matrix_sym_block_cyclic_init(sym, PARSEC_MATRIX_DOUBLE,
+                                           rank, mb, nb, lm, ln, 0, 0,
+                                           lm, ln, grid_rows, grid_cols,
+                                           matrix->uplo);
+        matrix->desc = (parsec_tiled_matrix_t *)sym;
+        matrix->mat = &sym->mat;
     } else if( REDISTRIBUTE_DIST_SBC == distribution ) {
         int r = testing_redistribute_sbc_infer_r(grid_rows, grid_cols, nodes);
         int rc;
@@ -404,8 +433,8 @@ testing_redistribute_init_matrix(testing_redistribute_matrix_t *matrix,
     }
     parsec_data_collection_set_key((parsec_data_collection_t *)matrix->desc, name);
 
-    return testing_redistribute_validate_sbc_region(matrix, name, size_row, size_col,
-                                                   disi, disj);
+    return testing_redistribute_validate_triangular_region(matrix, name, size_row, size_col,
+                                                           disi, disj);
 }
 
 /**
@@ -524,6 +553,7 @@ int main(int argc, char *argv[])
 
     /* Initializing matrix structure */
     parsec_matrix_block_cyclic_t dcY_2dbc, dcT_2dbc;
+    parsec_matrix_sym_block_cyclic_t dcY_sym, dcT_sym;
     parsec_matrix_sbc_t dcY_sbc, dcT_sbc;
     testing_redistribute_matrix_t dcY = {0};
     testing_redistribute_matrix_t dcT = {0};
@@ -534,17 +564,19 @@ int main(int argc, char *argv[])
     }
 
     if( no_optimization_version &&
-        ((REDISTRIBUTE_DIST_SBC == source_distribution) ||
+        ((REDISTRIBUTE_DIST_SYM_2DBC == source_distribution) ||
+         (REDISTRIBUTE_DIST_SYM_2DBC == target_distribution) ||
+         (REDISTRIBUTE_DIST_SBC == source_distribution) ||
          (REDISTRIBUTE_DIST_SBC == target_distribution)) ) {
         if( 0 == rank ) {
             fprintf(stderr,
-                    "ERROR: the no-optimization PTG path is not supported with SBC descriptors\n");
+                    "ERROR: the no-optimization PTG path is not supported with triangular descriptors\n");
         }
         rc = PARSEC_ERR_NOT_SUPPORTED;
         goto cleanup_all;
     }
 
-    rc = testing_redistribute_init_matrix(&dcY, &dcY_2dbc, &dcY_sbc, "dcY",
+    rc = testing_redistribute_init_matrix(&dcY, &dcY_2dbc, &dcY_sym, &dcY_sbc, "dcY",
                                           source_distribution, source_memory,
                                           rank, nodes, P, Q, SMB, SNB,
                                           MB + 2 * R, NB + 2 * R,
@@ -554,7 +586,7 @@ int main(int argc, char *argv[])
         goto cleanup_all;
     }
 
-    rc = testing_redistribute_init_matrix(&dcT, &dcT_2dbc, &dcT_sbc, "dcT",
+    rc = testing_redistribute_init_matrix(&dcT, &dcT_2dbc, &dcT_sym, &dcT_sbc, "dcT",
                                           target_distribution, target_memory,
                                           rank, nodes, PR, QR, SMBR, SNBR,
                                           MBR + 2 * R, NBR + 2 * R,
