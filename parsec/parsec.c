@@ -417,7 +417,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     int slow_option_used = 0;
 #if defined(PARSEC_PROF_TRACE)
     int profiling_file_requested = 0;
-    int profiling_id = 0;
+    int profiling_initialized = 0;
     int profiling_enabled = 0;
 #if defined(PARSEC_PROF_TRACE_NVTX)
     int profiling_nvtx_enabled = 0;
@@ -508,10 +508,10 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     int mpi_is_up;
     MPI_Initialized(&mpi_is_up);
     if( mpi_is_up ) {
+        /* The application brought MPI up, so we already know who we are. When
+         * the backend brings it up instead, parsec_remote_dep_init() below is
+         * what reveals our identity. */
         MPI_Comm_rank(MPI_COMM_WORLD, &parsec_debug_rank);
-#if defined(PARSEC_PROF_TRACE)
-        profiling_id = parsec_debug_rank;
-#endif
         parsec_weaksym_exit = parsec_mpi_exit;
     }
 #endif
@@ -627,9 +627,6 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     char *dot_param = NULL;
     parsec_mca_param_reg_string_name("profile", "dot", "Prefix for the DOT file name containing the DAGs executed by parsec (one file per rank)",
                                      false, false, dot_param, &dot_param);
-    if( NULL != dot_param ) {
-        asprintf(&parsec_dot_file, "%s-%d.dot", dot_param, parsec_debug_rank);
-    }
 #endif
     nb_vp = parsec_vpmap_get_nb_vp();
 
@@ -726,42 +723,20 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
 #if defined(PARSEC_PROF_TRACE_NVTX)
     profiling_nvtx_enabled = parsec_profiling_nvtx_register_mca();
 #endif
+    /* Initialized early so that every component can register its dictionary
+     * keywords as it starts. The backend file is named after this process, so
+     * it can only be created once the communication engine has established our
+     * identity, at the end of parsec_init(). Until then streams exist but
+     * nothing can be traced into them. */
     if( (profiling_file_requested
 #if defined(PARSEC_PROF_TRACE_NVTX)
          || profiling_nvtx_enabled
 #endif
-        ) && (0 == parsec_profiling_init( profiling_id )) ) {
+        ) && (0 == parsec_profiling_init( parsec_debug_rank )) ) {
         int i, l;
         char *cmdline_info = NULL;
 
-        if( profiling_file_requested ) {
-            /* Use either the app name (argv[0]) or the user provided filename */
-            if( 0 == strncmp(parsec_enable_profiling, "<app>", 5) ) {
-                /* Specialize the profiling filename to avoid collision with other instances */
-                ret = asprintf( &cmdline_info, "%s_%d", parsec_app_name, (int)getpid() );
-                if (ret < 0) {
-                    cmdline_info = strdup(parsec_app_name);
-                }
-                ret = parsec_profiling_dbp_start( cmdline_info, parsec_app_name );
-                free(cmdline_info);
-            } else {
-                ret = parsec_profiling_dbp_start( parsec_enable_profiling, parsec_app_name );
-            }
-            if( ret != 0 ) {
-                parsec_warning("Profiling file substrate deactivated because of error %s.", parsec_profiling_strerror());
-#if defined(PARSEC_PROF_TRACE_NVTX)
-                if( !profiling_nvtx_enabled ) {
-                    (void)parsec_profiling_fini();
-                    goto profiling_setup_done;
-                }
-#else
-                (void)parsec_profiling_fini();
-                goto profiling_setup_done;
-#endif
-            } else {
-                profiling_enabled = 1;
-            }
-        }
+        profiling_initialized = 1;
 
         l = strlen(parsec_app_name);  /* use the known application name */
         if( (NULL != pargc) && (NULL != pargv) && (NULL != *pargv) ) {
@@ -820,12 +795,8 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
         parsec_profiling_add_dictionary_keyword( "Device delegate", "fill:#EAE7C6",
                                                 0, NULL,
                                                 &device_delegate_begin, &device_delegate_end);
-profiling_setup_done:
-        ;
     }
 #endif  /* PARSEC_PROF_TRACE */
-    assert (NULL != parsec_enable_profiling);
-    free(parsec_enable_profiling);
 
     /* Extract the expected thread placement */
     parsec_parse_comm_binding_parameter(comm_binding_parameter, context);
@@ -833,6 +804,45 @@ profiling_setup_done:
 
     /* Introduce communication engine */
     (void)parsec_remote_dep_init(context);
+
+    /* When the backend brought the distributed environment up, our rank was
+     * unknown until now. Everything named after this process must follow. */
+    parsec_debug_rank = context->my_rank;
+
+#if defined(PARSEC_PROF_GRAPHER)
+    if( NULL != dot_param ) {
+        asprintf(&parsec_dot_file, "%s-%d.dot", dot_param, parsec_debug_rank);
+    }
+#endif  /* defined(PARSEC_PROF_GRAPHER) */
+
+#if defined(PARSEC_PROF_TRACE)
+    if( profiling_initialized && profiling_file_requested ) {
+        char *profile_filename = NULL;
+
+        parsec_profiling_set_process_id(parsec_debug_rank);
+        /* Use either the app name (argv[0]) or the user provided filename */
+        if( 0 == strncmp(parsec_enable_profiling, "<app>", 5) ) {
+            /* Specialize the profiling filename to avoid collision with other instances */
+            ret = asprintf( &profile_filename, "%s_%d", parsec_app_name, (int)getpid() );
+            if (ret < 0) {
+                profile_filename = strdup(parsec_app_name);
+            }
+            ret = parsec_profiling_dbp_start( profile_filename, parsec_app_name );
+            free(profile_filename);
+        } else {
+            ret = parsec_profiling_dbp_start( parsec_enable_profiling, parsec_app_name );
+        }
+        if( ret != 0 ) {
+            /* The profiling system stays initialized: without a backend file,
+             * tracing into the existing streams is a no-op. */
+            parsec_warning("Profiling file substrate deactivated because of error %s.", parsec_profiling_strerror());
+        } else {
+            profiling_enabled = 1;
+        }
+    }
+#endif  /* PARSEC_PROF_TRACE */
+    assert (NULL != parsec_enable_profiling);
+    free(parsec_enable_profiling);
 
 #if defined(PARSEC_HAVE_HWLOC)
     if( parsec_report_bindings) {
@@ -1000,9 +1010,20 @@ int parsec_version( int* version_major, int* version_minor, int* version_release
 
 int parsec_version_ex( size_t len, char* version_string) {
     int ret;
+    char comm_runtime[128] = "";
+    char *comm_components = mca_components_list_compiled("comm");
     char *sched_components = mca_components_list_compiled("sched");
     char *device_components = mca_components_list_compiled("device");
     char *pins_components = mca_components_list_compiled("pins");
+
+    /* How the distributed environment was brought up is runtime information,
+     * so it comes from the engine and not from the component list. */
+    if( NULL != parsec_ce.describe ) {
+        char description[96];
+        if( 0 < parsec_ce.describe(&parsec_ce, sizeof(description), description) ) {
+            snprintf(comm_runtime, sizeof(comm_runtime), " (%s)", description);
+        }
+    }
 
     ret = snprintf(version_string, len,
         "version\t\t= %d.%d.%d\n"
@@ -1016,7 +1037,7 @@ int parsec_version_ex( size_t len, char* version_string) {
 #if defined(PARSEC_PROF_TRACE)
         "pins\t\t= %s\n"
 #endif
-        "comms\t\t= %s\n"
+        "comms\t\t= %s%s\n"
         "devices\t\t= %s\n"
         "scheds\t\t= %s\n"
         "hwloc\t\t= %s\n"
@@ -1070,18 +1091,9 @@ int parsec_version_ex( size_t len, char* version_string) {
         "no"
 #endif /*PARSEC_PROF_TRACE*/
         ,
-#if defined(PARSEC_HAVE_MPI)
-        "mpi"
-#if defined(PARSEC_HAVE_MPI_20)
-        "2"
-#endif
-#if defined(PARSEC_DIST_THREAD)
-        "+thread_multiple"
-#endif
-#else  /* defined(PARSEC_HAVE_MPI) */
-        "single process only"
-#endif
-        ,
+        /* An empty component list means no communication capability at all. */
+        ('\0' == comm_components[0]) ? "single process only" : comm_components,
+        comm_runtime,
         device_components,
         sched_components,
 #if defined(PARSEC_HAVE_HWLOC)
@@ -1130,6 +1142,7 @@ int parsec_version_ex( size_t len, char* version_string) {
         CMAKE_PARSEC_C_COMPILER,
         CMAKE_PARSEC_C_FLAGS
     );
+    free(comm_components);
     free(device_components);
     free(sched_components);
     free(pins_components);
@@ -2210,16 +2223,19 @@ void parsec_taskpool_sync_ids_context( intptr_t comm )
     parsec_atomic_lock( &taskpool_array_lock );
     idx = (int)taskpool_array_pos;
     msz = (int)taskpool_array_size;
-#if defined(DISTRIBUTED) && defined(PARSEC_HAVE_MPI)
-    int mpi_is_on;
-    MPI_Initialized(&mpi_is_on);
-    if( mpi_is_on ) {
-        MPI_Allreduce( MPI_IN_PLACE, &idx, 1, MPI_INT, MPI_MAX, (MPI_Comm)comm );
-        while (idx >= msz){
-            msz <<= 1;
-        }
+#if defined(DISTRIBUTED)
+    /* Without a communication engine there is nobody to agree with, so the
+     * local next id stands. */
+    int rc = PARSEC_ERR_NOT_IMPLEMENTED;
+    if( NULL != parsec_ce.taskpool_sync_ids ) {
+        rc = parsec_ce.taskpool_sync_ids(&parsec_ce, comm, &idx);
     }
-#endif
+    while( (PARSEC_SUCCESS == rc) && (idx >= msz) ) {
+        msz <<= 1;
+    }
+#else
+    (void)comm;
+#endif  /* defined(DISTRIBUTED) */
     if( msz > taskpool_array_size ) {
         taskpool_array = (parsec_taskpool_t**)realloc(taskpool_array, msz * sizeof(parsec_taskpool_t*) );
         /* NULLify all the new elements */
@@ -2799,45 +2815,49 @@ int parsec_parse_binding_parameter(const char * option, parsec_context_t* contex
  */
 static int parsec_check_overlapping_binding(parsec_context_t *context)
 {
-#if defined(DISTRIBUTED) && defined(PARSEC_HAVE_MPI) && defined(PARSEC_HAVE_HWLOC) && defined(PARSEC_HAVE_HWLOC_BITMAP)
-    if( context->nb_nodes <= parsec_report_binding_issues ) {
-        MPI_Comm comml = MPI_COMM_NULL, commw = (MPI_Comm)context->comm_ctx;
-        int nl;
-        assert(-1 != context->comm_ctx);
-        MPI_Comm_split_type(commw, MPI_COMM_TYPE_SHARED, 0, MPI_INFO_NULL, &comml);
-        MPI_Comm_size(comml, &nl);
-        if( 1 < nl ) {
-            /* double check that our binding is not conflicting with other local procs */
-            hwloc_cpuset_t proc_global_mask = parsec_hwloc_cpuset_convert_to_system(context->cpuset_used_mask);
-            int idx, last_pu = hwloc_bitmap_last(proc_global_mask);  /* find the highest PU for this process */
-            MPI_Allreduce(MPI_IN_PLACE, &last_pu, 1, MPI_INT, MPI_MAX, comml);  /* find the highest PU for this node */
-            /* last_pu is the index of the highest PU in use, so one slot per PU means
-             * last_pu+1 entries. It is -1 when no PU is bound anywhere on this node. */
-            if( 0 <= last_pu ) {
-                int length = last_pu + 1;
-                uint8_t *proc_mask = alloca(length);
-                memset(proc_mask, 0, length);
+#if defined(DISTRIBUTED) && defined(PARSEC_HAVE_HWLOC) && defined(PARSEC_HAVE_HWLOC_BITMAP)
+    if( (context->nb_nodes <= parsec_report_binding_issues) &&
+        (NULL != parsec_ce.node_reduce) ) {
+        hwloc_cpuset_t proc_global_mask;
+        int idx, last_pu, nl = 1;
 
-                hwloc_bitmap_foreach_begin(idx, proc_global_mask)
-                    proc_mask[idx]++;
-                hwloc_bitmap_foreach_end();
+        if( PARSEC_SUCCESS != parsec_ce.node_reduce(&parsec_ce, NULL, 0, PARSEC_DATATYPE_NULL,
+                                                    PARSEC_CE_REDUCE_OP_MAX, &nl) ) {
+            return PARSEC_ERROR;
+        }
+        if( 1 >= nl ) return PARSEC_SUCCESS;  /* alone on this node, nothing to conflict with */
 
-                MPI_Allreduce(MPI_IN_PLACE, proc_mask, length, MPI_BYTE, MPI_SUM, comml);
-                for( int i = 0; i < length; i++ ) {
-                    if( 1 < proc_mask[i] ) {
-                        parsec_warning("/!\\ PERFORMANCE MIGHT BE REDUCED /!\\: "
-                                       "Multiple PaRSEC processes on the same node may share the same physical core(s);\n"
-                                        "\tThis is often unintentional, and will perform poorly.\n"
-                                       "\tNote that in managed environments (e.g., ALPS, jsrun), the launcher may set `cgroups`\n"
-                                       "\tand hide the real binding from PaRSEC; if you verified that the binding is correct,\n"
-                                       "\tthis message can be silenced using the MCA argument `runtime_warn_slow_binding`.\n");
-                        break;
-                    }
+        /* double check that our binding is not conflicting with other local procs */
+        proc_global_mask = parsec_hwloc_cpuset_convert_to_system(context->cpuset_used_mask);
+        last_pu = hwloc_bitmap_last(proc_global_mask);  /* find the highest PU for this process */
+        parsec_ce.node_reduce(&parsec_ce, &last_pu, 1, parsec_datatype_int_t,
+                              PARSEC_CE_REDUCE_OP_MAX, NULL);  /* find the highest PU for this node */
+        /* An index, so one slot per PU means last_pu+1 entries. It stays at -1
+         * when no PU is bound anywhere on this node. */
+        if( 0 <= last_pu ) {
+            int length = last_pu + 1;
+            uint8_t *proc_mask = alloca(length);
+            memset(proc_mask, 0, length);
+
+            hwloc_bitmap_foreach_begin(idx, proc_global_mask)
+                proc_mask[idx]++;
+            hwloc_bitmap_foreach_end();
+
+            parsec_ce.node_reduce(&parsec_ce, proc_mask, length, parsec_datatype_uint8_t,
+                                  PARSEC_CE_REDUCE_OP_SUM, NULL);
+            for( int i = 0; i < length; i++ ) {
+                if( 1 < proc_mask[i] ) {
+                    parsec_warning("/!\\ PERFORMANCE MIGHT BE REDUCED /!\\: "
+                                   "Multiple PaRSEC processes on the same node may share the same physical core(s);\n"
+                                    "\tThis is often unintentional, and will perform poorly.\n"
+                                   "\tNote that in managed environments (e.g., ALPS, jsrun), the launcher may set `cgroups`\n"
+                                   "\tand hide the real binding from PaRSEC; if you verified that the binding is correct,\n"
+                                   "\tthis message can be silenced using the MCA argument `runtime_warn_slow_binding`.\n");
+                    break;
                 }
             }
-            hwloc_bitmap_free(proc_global_mask);
         }
-        MPI_Comm_free(&comml);
+        hwloc_bitmap_free(proc_global_mask);
     }
     return PARSEC_SUCCESS;
 #else
@@ -3167,8 +3187,9 @@ int parsec_context_query(parsec_context_t *context, parsec_context_query_cmd_t c
     switch(cmd) {
         case PARSEC_CONTEXT_QUERY_NODES:
             switch (parsec_communication_engine_up) {
-                case 0: return 0;  /* context not ready for distributed runs, and lacking datatype handling capabilities */
-                case 1: return 1;  /* single node runs, but the context has datatype management capabilities */
+                case -1: return 1;  /* no communication capabilities, this process is the entire world */
+                case 0: return PARSEC_ERR_NOT_FOUND;  /* the communication engine is not initialized yet, so nb_nodes is unknown */
+                case 1: return context->nb_nodes;  /* communication engine initialized, but not necessarily awake */
                 case 2: return PARSEC_ERR_NOT_FOUND; /* we are in a distributed run, but the MPI engine is not yet ready, so the nb_nodes might not be accurate */
                 case 3: return context->nb_nodes;
             }

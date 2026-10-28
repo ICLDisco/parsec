@@ -1,3 +1,6 @@
+#
+# Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
+#
 
 import pandas as pd
 import os, sys
@@ -7,10 +10,10 @@ assert os.path.isfile(filename)
 t = pd.HDFStore(filename)
 
 result = {
-    'MPI_ACTIVATE': { 'nb': 100, 'lensum': 12000 },
-    'MPI_DATA_CTL': { 'nb': 100, 'lensum': 209715200 },
-    'MPI_DATA_PLD_SND': { 'nb': 100, 'lensum': 209715200 },
-    'MPI_DATA_PLD_RCV': { 'nb': 100, 'lensum': 209715200 }
+    'RDEP_ACTIVATE': { 'nb': 100, 'lensum': 12000 },
+    'RDEP_DATA_CTL': { 'nb': 100, 'lensum': 209715200 },
+    'RDEP_DATA_PLD_SND': { 'nb': 100, 'lensum': 209715200 },
+    'RDEP_DATA_PLD_RCV': { 'nb': 100, 'lensum': 209715200 }
 }
 
 cmdline = 'mpirun -np 2 bw_test -n 10 -f 10 -l 2097152'

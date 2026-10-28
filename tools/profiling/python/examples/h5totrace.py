@@ -1,6 +1,7 @@
 #!/usr/bin/env python
-
-
+#
+# Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
+#
 
 import numpy as np
 import pandas as pd
@@ -328,10 +329,10 @@ if __name__ == '__main__':
 
     if args.COMM:
         try:
-            snd_type = store.event_types['MPI_DATA_PLD_SND']
-            rcv_type = store.event_types['MPI_DATA_PLD_RCV']
+            snd_type = store.event_types['RDEP_DATA_PLD_SND']
+            rcv_type = store.event_types['RDEP_DATA_PLD_RCV']
         except KeyError:
-            warning("You requested to display communication, but no MPI event types were logged in this profile")
+            warning("You requested to display communication, but no remote dependency event types were logged in this profile")
         else:
             sends = store.events[ store.events.type == snd_type ]
             nblink = 0

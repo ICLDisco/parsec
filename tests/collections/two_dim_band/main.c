@@ -2,18 +2,17 @@
  * Copyright (c) 2017-2022 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/data_dist/matrix/matrix.h"
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic_band.h"
 #include "parsec/data_dist/matrix/sym_two_dim_rectangle_cyclic_band.h"
+#include "parsec/utils/debug.h"
+#include "tests/tests_runtime.h"
 #include "two_dim_band_test.h"
 #include <string.h>
-
-#if defined(PARSEC_HAVE_MPI)
-#include <mpi.h>
-#endif
 
 int main(int argc, char *argv[])
 {
@@ -23,22 +22,11 @@ int main(int argc, char *argv[])
     char **pargv = NULL;
     parsec_matrix_uplo_t uplo = PARSEC_MATRIX_UPPER; //PARSEC_MATRIX_LOWER
     parsec_matrix_uplo_t full = PARSEC_MATRIX_FULL;
+    int rc;
     /* Super */
     int N = 16, NB = 4, P = 1, KP = 1, KQ = 1;
     /* Band */
     int P_BAND = 1, KP_BAND = 1, KQ_BAND = 1, BAND_SIZE = 1;
-
-#if defined(PARSEC_HAVE_MPI)
-    {
-        int provided;
-        MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
-    }
-    MPI_Comm_size(MPI_COMM_WORLD, &nodes);
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-#else
-    nodes = 1;
-    rank = 0;
-#endif
 
     for(i = 1; i < argc; i++) {
         if( strcmp(argv[i], "--") == 0 ) {
@@ -49,7 +37,10 @@ int main(int argc, char *argv[])
     }
 
     /* Initialize PaRSEC */
-    parsec = parsec_init(-1, &pargc, &pargv);
+    rc = parsec_tests_context_init(-1, PARSEC_TEST_THREAD_MULTIPLE,
+                                   &pargc, &pargv,
+                                   &parsec, &rank, &nodes);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_init");
 
     while ((ch = getopt(argc, argv, "N:T:s:S:P:p:f:F:b:h")) != -1) {
         switch (ch) {
@@ -143,11 +134,8 @@ int main(int argc, char *argv[])
     parsec_tiled_matrix_destroy(&dcYP.off_band.super);
 
     /* Clean up parsec*/
-    parsec_fini(&parsec);
-
-#ifdef PARSEC_HAVE_MPI
-    MPI_Finalize();
-#endif
+    rc = parsec_tests_context_fini(&parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_fini");
 
     return 0;
 }

@@ -2,6 +2,7 @@
  * Copyright (c) 2009-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
 
 #ifndef _PARSEC_profiling_h
@@ -144,6 +145,20 @@ typedef struct parsec_profiling_stream_s parsec_profiling_stream_t;
  * @remark not thread safe
  */
 int parsec_profiling_init( int rank );
+
+/**
+ * @brief Update the unique identifier of the process.
+ *
+ * @details In a distributed run the identity of the process may only become
+ *   known once the communication engine is up, after
+ *   @ref parsec_profiling_init(). Must be called before
+ *   @ref parsec_profiling_dbp_start(), which names the backend file after it.
+ *   @param [IN] rank: the unique identifier of the process,
+ *      typically the rank of the process in an MPI application.
+ *
+ * @remark not thread safe
+ */
+void parsec_profiling_set_process_id( int rank );
 
 /**
  * @brief Set the reference time to now in the profiling system.

@@ -1,7 +1,10 @@
+#
+# Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
+#
 
 parsec_addtest_cmd(collections/reduce ${SHM_TEST_CMD_LIST} collections/reduce)
 
-if( PARSEC_HAVE_MPI )
+if( MPI_C_FOUND )
     parsec_addtest_cmd(collections/redistribute:mp ${MPI_TEST_CMD_LIST} 8 collections/redistribute/testing_redistribute -M 2400 -N 2400 -a 2400 -A 2400 -t 300 -T 300 -b 200 -B 200 -m 2000 -n 2000 -I 30 -J 40 -i 100 -j 121 -v -z -x -P 2 -Q 4 -p 4 -q 2)
 
     set(PARSEC_REDISTRIBUTE_SMALL_ARGS
@@ -42,26 +45,25 @@ if( PARSEC_HAVE_MPI )
     endforeach()
 
     parsec_addtest_cmd(collections/redistribute_random:mp ${MPI_TEST_CMD_LIST} 8 collections/redistribute/testing_redistribute_random -M 2400 -N 2400 -a 2400 -A 2400 -t 300 -T 300 -b 200 -B 200 -m 2000 -n 2000 -I 30 -J 40 -i 100 -j 121 -v -z -x -P 2 -Q 4 -p 4 -q 2)
-endif( PARSEC_HAVE_MPI )
+endif( MPI_C_FOUND )
 
-parsec_addtest_cmd(collections/reshape ${SHM_TEST_CMD_LIST} collections/reshape/reshape -N 120 -t 9 -c 10)
-parsec_addtest_cmd(collections/reshape:mt ${SHM_TEST_CMD_LIST} collections/reshape/reshape -N 120 -t 9 -c 10 -m 1)
+# Reshaping describes a copy as two different layouts, which a build without a
+# communication backend cannot represent: every derived type collapses to
+# PARSEC_DATATYPE_NULL. Even the single process flavors need a distributed build.
 if( MPI_C_FOUND )
+  parsec_addtest_cmd(collections/reshape ${SHM_TEST_CMD_LIST} collections/reshape/reshape -N 120 -t 9 -c 10)
+  parsec_addtest_cmd(collections/reshape:mt ${SHM_TEST_CMD_LIST} collections/reshape/reshape -N 120 -t 9 -c 10 -m 1)
   parsec_addtest_cmd(collections/reshape:mp ${MPI_TEST_CMD_LIST} 4 collections/reshape/reshape -N 120 -t 9 -c 10)
   parsec_addtest_cmd(collections/reshape:mp:mt ${MPI_TEST_CMD_LIST} 4 collections/reshape/reshape -N 120 -t 9 -c 10 -m 1 )
-endif( MPI_C_FOUND)
 
-parsec_addtest_cmd(collections/reshape/input_single_copy ${SHM_TEST_CMD_LIST} collections/reshape/input_dep_reshape_single_copy -N 12 -t 2 -c 2)
-parsec_addtest_cmd(collections/reshape/input_single_copy:mt ${SHM_TEST_CMD_LIST} collections/reshape/input_dep_reshape_single_copy -N 12 -t 2 -c 2 -m 1)
-if( MPI_C_FOUND )
+  parsec_addtest_cmd(collections/reshape/input_single_copy ${SHM_TEST_CMD_LIST} collections/reshape/input_dep_reshape_single_copy -N 12 -t 2 -c 2)
+  parsec_addtest_cmd(collections/reshape/input_single_copy:mt ${SHM_TEST_CMD_LIST} collections/reshape/input_dep_reshape_single_copy -N 12 -t 2 -c 2 -m 1)
   parsec_addtest_cmd(collections/reshape/input_single_copy:mp ${MPI_TEST_CMD_LIST} 4 collections/reshape/input_dep_reshape_single_copy -N 12 -t 2 -c 2)
   parsec_addtest_cmd(collections/reshape/input_single_copy:mp:mt ${MPI_TEST_CMD_LIST} 4 collections/reshape/input_dep_reshape_single_copy -N 12 -t 2 -c 2 -m 1 )
-endif( MPI_C_FOUND)
 
-#These tests will fail with runtime_comm_short_limit != 0. Explanation on testing_remote_multiple_outs_same_pred_flow.c
-parsec_addtest_cmd(collections/reshape/remote_multiple_outs_same_pred_flow ${SHM_TEST_CMD_LIST} collections/reshape/remote_multiple_outs_same_pred_flow -N 320 -t 9 -c 10 -- --mca runtime_comm_short_limit 0)
-parsec_addtest_cmd(collections/reshape/remote_multiple_outs_same_pred_flow:mt ${SHM_TEST_CMD_LIST} collections/reshape/remote_multiple_outs_same_pred_flow -N 320 -t 9 -c 10 -m 1 -- --mca runtime_comm_short_limit 0)
-if( MPI_C_FOUND )
+  #These tests will fail with runtime_comm_short_limit != 0. Explanation on testing_remote_multiple_outs_same_pred_flow.c
+  parsec_addtest_cmd(collections/reshape/remote_multiple_outs_same_pred_flow ${SHM_TEST_CMD_LIST} collections/reshape/remote_multiple_outs_same_pred_flow -N 320 -t 9 -c 10 -- --mca runtime_comm_short_limit 0)
+  parsec_addtest_cmd(collections/reshape/remote_multiple_outs_same_pred_flow:mt ${SHM_TEST_CMD_LIST} collections/reshape/remote_multiple_outs_same_pred_flow -N 320 -t 9 -c 10 -m 1 -- --mca runtime_comm_short_limit 0)
   parsec_addtest_cmd(collections/reshape/remote_multiple_outs_same_pred_flow:mp ${MPI_TEST_CMD_LIST} 4 collections/reshape/remote_multiple_outs_same_pred_flow -N 320 -t 9 -c 10  -- --mca runtime_comm_short_limit 0)
   parsec_addtest_cmd(collections/reshape/remote_multiple_outs_same_pred_flow:mp:mt ${MPI_TEST_CMD_LIST} 4 collections/reshape/remote_multiple_outs_same_pred_flow -N 320 -t 9 -c 10 -m 1  -- --mca runtime_comm_short_limit 0)
 endif( MPI_C_FOUND)

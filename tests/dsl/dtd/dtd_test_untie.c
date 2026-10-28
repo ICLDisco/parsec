@@ -21,10 +21,6 @@
 #include <string.h>
 #endif  /* defined(PARSEC_HAVE_STRING_H) */
 
-#if defined(PARSEC_HAVE_MPI)
-#include <mpi.h>
-#endif  /* defined(PARSEC_HAVE_MPI) */
-
 double time_elapsed = 0.0;
 double sync_time_elapsed = 0.0;
 
@@ -95,24 +91,13 @@ int main(int argc, char ** argv)
     if( 0 >= cores )
         cores = 8;  /* fix it to a sane number */
 
-#if defined(PARSEC_HAVE_MPI)
-    {
-        int provided;
-        MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
-        if(MPI_THREAD_MULTIPLE > provided) {
-            parsec_fatal( "This benchmark requires MPI_THREAD_MULTIPLE because it uses simultaneously MPI within the PaRSEC runtime, and in the main program loop (in SYNC_TIME_START)");
-        }
-    }
-    MPI_Comm_size(MPI_COMM_WORLD, &world);
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-#else
-    world = 1;
-    rank = 0;
-#endif
+    rc = parsec_tests_context_init(cores, PARSEC_TEST_THREAD_MULTIPLE,
+                                   &argc, &argv, &parsec, &rank, &world);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_init");
 
     if( world != 1 ) {
-        parsec_fatal( "Nope! world is not right, we need exactly one MPI process. "
-                      "Try with \"mpirun -np 1 .....\"\n" );
+        parsec_fatal( "Nope! world is not right, we need exactly one process. "
+                      "Try with a single-process launcher.\n" );
     }
 
     int m, n;
@@ -125,8 +110,6 @@ int main(int argc, char ** argv)
 
     no_of_chain = cores;
     int tasks_in_each_chain[3] = {1000, 10000, 100000};
-
-    parsec = parsec_init( cores, &argc, &argv );
 
     dtd_tp = parsec_dtd_taskpool_new();
 
@@ -153,7 +136,7 @@ int main(int argc, char ** argv)
 
     for( i = 0; i < 3; i++ ) {
 
-        SYNC_TIME_START();
+        SYNC_TIME_START(parsec);
         for( n = 0; n < no_of_chain; n++ ) {
             for( m = 0; m < tasks_in_each_chain[i]; m++ ) {
                 parsec_dtd_insert_task(dtd_tp, test_task, 0, PARSEC_DEV_CPU, "Test_Task",
@@ -167,12 +150,12 @@ int main(int argc, char ** argv)
         rc = parsec_taskpool_wait( dtd_tp );
         PARSEC_CHECK_ERROR(rc, "parsec_taskpool_wait");
 
-        SYNC_TIME_PRINT(rank, ("No of chains : %d, No of tasks in each chain: %d,  Amount of work: %d\n", no_of_chain, tasks_in_each_chain[i], amount_of_work[work_index]));
+        SYNC_TIME_PRINT(parsec, rank, ("No of chains : %d, No of tasks in each chain: %d,  Amount of work: %d\n", no_of_chain, tasks_in_each_chain[i], amount_of_work[work_index]));
     }
 
     count = 0;
     for( i = 0; i < 3; i++ ) {
-        SYNC_TIME_START();
+        SYNC_TIME_START(parsec);
         int step = parsec_dtd_window_size, iteration = 0;
 
         for( n = 0; n < no_of_chain; n++ ) {
@@ -190,7 +173,7 @@ int main(int argc, char ** argv)
         rc = parsec_taskpool_wait( dtd_tp );
         PARSEC_CHECK_ERROR(rc, "parsec_taskpool_wait");
 
-        SYNC_TIME_PRINT(rank, ("No of chains : %d, No of tasks in each chain: %d,  Amount of work: %d\n", no_of_chain, tasks_in_each_chain[i], amount_of_work[work_index]));
+        SYNC_TIME_PRINT(parsec, rank, ("No of chains : %d, No of tasks in each chain: %d,  Amount of work: %d\n", no_of_chain, tasks_in_each_chain[i], amount_of_work[work_index]));
     }
     rc = parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
@@ -201,11 +184,8 @@ int main(int argc, char ** argv)
 
     parsec_taskpool_free( dtd_tp );
 
-    parsec_fini(&parsec);
-
-#ifdef PARSEC_HAVE_MPI
-    MPI_Finalize();
-#endif
+    rc = parsec_tests_context_fini(&parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_fini");
 
     return 0;
 }

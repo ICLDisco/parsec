@@ -11,12 +11,9 @@
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "parsec/interfaces/dtd/insert_function_internal.h"
 #include "tests/tests_data.h"
+#include "tests/tests_runtime.h"
 
 #include <limits.h>
-
-#if defined(PARSEC_HAVE_MPI)
-#include <mpi.h>
-#endif  /* defined(PARSEC_HAVE_MPI) */
 
 /* Update this test's private PARSEC_VALUE arguments in place to model a
  * coroutine continuation. DTD parameter descriptors are a counted array, not
@@ -491,33 +488,20 @@ int main(int argc, char* argv[])
 {
     int ret;
     parsec_context_t *parsec_context = NULL;
-    int rank, world;
+    int world;
 
-#if defined(PARSEC_HAVE_MPI)
-    {
-        int provided;
-        MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
-    }
-    MPI_Comm_size(MPI_COMM_WORLD, &world);
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-#else
-    world = 1;
-    rank = 0;
-#endif
-    (void)rank;
+    ret = parsec_tests_context_init(-1, PARSEC_TEST_THREAD_SERIALIZED,
+                                    &argc, &argv, &parsec_context, NULL, &world);
+    PARSEC_CHECK_ERROR(ret, "parsec_tests_context_init");
     (void)world;
-
-    parsec_context = parsec_init(-1, &argc, &argv);
 
     /* Every task class below carries a CUDA chore only, so without an
      * accelerator task creation fatals on an unsatisfiable device mask. Report
      * a skip instead (see SKIP_RETURN_CODE in tests/CMakeLists.txt). */
     if( parsec_context_query(parsec_context, PARSEC_CONTEXT_QUERY_DEVICES, PARSEC_DEV_CUDA) <= 0 ) {
         parsec_warning("This test can only run if at least one CUDA device is present");
-        parsec_fini(&parsec_context);
-#if defined(PARSEC_HAVE_MPI)
-        MPI_Finalize();
-#endif
+        ret = parsec_tests_context_fini(&parsec_context);
+        PARSEC_CHECK_ERROR(ret, "parsec_tests_context_fini");
         return -PARSEC_ERR_DEVICE;
     }
 
@@ -673,10 +657,8 @@ int main(int argc, char* argv[])
 
     parsec_taskpool_free(tp);
 
-    parsec_fini(&parsec_context);
+    int fini_rc = parsec_tests_context_fini(&parsec_context);
+    PARSEC_CHECK_ERROR(fini_rc, "parsec_tests_context_fini");
 
-#if defined(PARSEC_HAVE_MPI)
-    MPI_Finalize();
-#endif
     return ret;
 }
