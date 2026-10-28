@@ -371,7 +371,7 @@ static int parsec_cuda_memcpy_multi_async(struct parsec_device_gpu_module_s *gpu
                                           parsec_device_transfer_direction_t *directions, int nb_items)
 {
     parsec_cuda_exec_stream_t *cuda_stream = (parsec_cuda_exec_stream_t *)gpu_stream;
-    cudaMemcpyAttributes attrs = {0};
+    struct cudaMemcpyAttributes attrs = {0};
     size_t attrsIdx = 0;
     cudaError_t cudaStatus;
 
