@@ -197,6 +197,31 @@ attached to `gpu_task` is retained by the event. A hook may instead keep
 members itself, but then it owns completing those execution contexts and
 releasing their wrappers; merely breaking the links leaves them unreachable.
 
+Batch composition and progress
+------------------------------
+
+The collector reports the tasks already pending on the stream at the moment it
+is called. The runtime does not add tasks to that queue while a submit hook is
+running, so the batch a hook receives is the batch it has for that invocation.
+
+A hook must not return `PARSEC_HOOK_RETURN_AGAIN` in order to wait for more
+tasks to join the batch. A thread that enters the GPU manager stays there until
+the device has no further work, and does not return to the scheduler in the
+meantime, so ready tasks held by the scheduler are not drained while it runs.
+New work is submitted to the device by other threads. When a single core is
+running PaRSEC tasks there is no other thread to submit it, and a hook that
+waits for a second task waits indefinitely: one task stays in flight, the
+pending queue stays empty, and the hook never completes.
+
+`parsec_init()` derives the number of cores from what hwloc reports for the
+process, so a restricted cpuset or a single-core allocation produces this
+configuration without it being requested explicitly.
+
+A hook should make progress with the batch it is given, submitting a singleton
+when no other task is pending; later invocations batch whatever has
+accumulated by then. A hook that requires a minimum batch size must bound its
+own wait and fall back to submitting the tasks it already has.
+
 Ownership examples
 ------------------
 
