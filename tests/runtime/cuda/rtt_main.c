@@ -21,7 +21,7 @@
 #endif
  #include <math.h>
 
-static int nb_gpus = 1, gpu_mask = 0xff;
+static int nb_gpus = 1, gpu_mask = -1;
 static int cuda_device_index_len = 0, *cuda_device_index = NULL;
 extern int rtt_verbose;
 
@@ -106,7 +106,7 @@ int main(int argc, char *argv[])
                 fprintf(stderr,
                         "-c : number of cores to use (default 2)\n"
                         "-g : number of GPU to use (default 1)\n"
-                        "-G : GPU mask to use (-1 to modulo rank per node)\n"
+                        "-G : GPU mask to use (-1 to give each rank of a node its own devices)\n"
                         "-l : loops of bandwidth(default: 100)\n"
                         "-f : frags, number of fragments (default: 1)\n"
                         "-m : size, size of message (default: 1024 * 8)\n"
@@ -133,20 +133,22 @@ int main(int argc, char *argv[])
     MPI_Comm_size(MPI_COMM_WORLD, &size);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 #if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
-    if (0xFF == gpu_mask) {
+    {
         extern char **environ;
-        MPI_Comm local_comm;
-        int local_rank, local_size;
-        MPI_Comm_split_type(MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, 0,
-                            MPI_INFO_NULL, &local_comm);
-        MPI_Comm_rank(local_comm, &local_rank);
-        MPI_Comm_size(local_comm, &local_size);
-        MPI_Comm_free(&local_comm);
-        int gpu_mask = 0;
-        for (int i = 0; i < nb_gpus; i++) {
-            gpu_mask |= ((1 << local_rank) << i);
-        }
         char *value;
+        if (-1 == gpu_mask) {
+            /* Give each process of this node its own nb_gpus devices. */
+            MPI_Comm local_comm;
+            int local_rank;
+            MPI_Comm_split_type(MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, 0,
+                                MPI_INFO_NULL, &local_comm);
+            MPI_Comm_rank(local_comm, &local_rank);
+            MPI_Comm_free(&local_comm);
+            gpu_mask = 0;
+            for (int i = 0; i < nb_gpus; i++) {
+                gpu_mask |= 1U << (local_rank * nb_gpus + i);
+            }
+        }
         asprintf(&value, "%d", gpu_mask);
         parsec_setenv_mca_param("device_cuda_mask", value, &environ);
         free(value);
