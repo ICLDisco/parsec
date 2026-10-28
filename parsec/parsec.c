@@ -2259,6 +2259,14 @@ void parsec_taskpool_unregister( parsec_taskpool_t* tp )
 void parsec_taskpool_free(parsec_taskpool_t *tp)
 {
     assert(NULL != tp);
+    /* Take the taskpool off its context before letting go of it. The context
+     * list holds a borrowed pointer and only the destructor takes it off, so a
+     * taskpool freed while a termination detector is still on its way to
+     * dropping its own reference stays reachable, and the next wait on the
+     * context finds it and makes it ready again. The application is done with
+     * it, which is what the list has to reflect.
+     */
+    (void)parsec_context_remove_taskpool(tp);
     PARSEC_OBJ_RELEASE(tp);
 }
 
