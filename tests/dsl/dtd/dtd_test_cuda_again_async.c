@@ -70,6 +70,30 @@ static parsec_gpu_task_t *stop_candidate;
 static int stop_observed;
 static int stop_candidate_completed;
 
+/* A hook must not return AGAIN to wait for its batch without bounding the wait
+ * (see task-batching.md): the peer it waits for may never reach the device,
+ * for instance when the thread that would submit it is the one running the GPU
+ * manager. Each hook below waits at most CUDA_BATCH_MAX_RETRIES times for a
+ * peer, and then proceeds with the tasks it has. The checks at the end of main
+ * still require a batch to have formed, so a run where none does fails instead
+ * of timing out. The counts are kept per task, as the device wrapper does not
+ * persist across a change of device. The bound stays below the GPU manager's
+ * default AGAIN warning threshold.
+ */
+#define CUDA_BATCH_MAX_RETRIES 500
+static int async_retries[STATUS_TASKS];
+static int again_batch_retries[STATUS_TASKS];
+static int next_retries[STATUS_TASKS];
+static int priority_retries[STATUS_TASKS];
+static int stop_retries[STATUS_TASKS];
+
+static inline int
+cuda_batch_retry(int *retries, int id)
+{
+    assert(id >= 0 && id < STATUS_TASKS);
+    return ++retries[id] <= CUDA_BATCH_MAX_RETRIES;
+}
+
 /* Observe the release of selected device wrappers: an allocator interposed in
  * front of the one a wrapper was created with records the release and then
  * forwards it.
@@ -163,7 +187,8 @@ int cuda_task_async(parsec_device_gpu_module_t *gpu_device,
         /* Fill the execution stream before handing tasks out asynchronously so
          * at least one invocation exercises ASYNC with a real task ring.
          */
-        if( (1 == batch_count) && !async_batch_observed ) {
+        if( (1 == batch_count) && !async_batch_observed &&
+            cuda_batch_retry(async_retries, i) ) {
             return PARSEC_HOOK_RETURN_AGAIN;
         }
         if( batch_count > 1 ) {
@@ -253,8 +278,16 @@ int cuda_task_batch_again(parsec_device_gpu_module_t *gpu_device,
                                                         cuda_batch_match_same_phase,
                                                         NULL);
         if( 1 == batch_count ) {
-            /* No work was collected, so this remains a normal singleton retry. */
-            return PARSEC_HOOK_RETURN_AGAIN;
+            /* No work was collected, so this remains a normal singleton retry,
+             * until the task gives up and completes alone. */
+            if( cuda_batch_retry(again_batch_retries, id) ) {
+                return PARSEC_HOOK_RETURN_AGAIN;
+            }
+            if( 0 != again_batch_completed[id] ) {
+                return PARSEC_HOOK_RETURN_ERROR;
+            }
+            again_batch_completed[id] = 1;
+            return PARSEC_HOOK_RETURN_DONE;
         }
 
         again_batch_observed = batch_count;
@@ -361,7 +394,8 @@ int cuda_task_next(parsec_device_gpu_module_t *gpu_device,
     batch_count = 1 + parsec_gpu_task_collect_batch(gpu_stream, gpu_task,
                                                     cuda_batch_match_same_phase,
                                                     NULL);
-    if( !next_returned ) {
+    parsec_dtd_unpack_args(gpu_task->ec, &i, &phase);
+    if( !next_returned && ((1 < batch_count) || cuda_batch_retry(next_retries, i)) ) {
         /* AGAIN fills the stream until NEXT can be returned with followers.
          * NEXT must restore those followers and requeue only the head.
          */
@@ -411,7 +445,7 @@ int cuda_task_priority(parsec_device_gpu_module_t *gpu_device,
                        parsec_gpu_exec_stream_t *gpu_stream)
 {
     parsec_gpu_task_t *current;
-    int batch_count, position = 0;
+    int batch_count, position = 0, id, phase;
 
     (void)gpu_device;
     if( priority_batch_observed ) {
@@ -424,7 +458,9 @@ int cuda_task_priority(parsec_device_gpu_module_t *gpu_device,
                                                     cuda_batch_match_same_phase,
                                                     NULL);
     if( 1 == batch_count ) {
-        return PARSEC_HOOK_RETURN_AGAIN;
+        parsec_dtd_unpack_args(gpu_task->ec, &id, &phase);
+        return cuda_batch_retry(priority_retries, id) ? PARSEC_HOOK_RETURN_AGAIN
+                                                      : PARSEC_HOOK_RETURN_DONE;
     }
     priority_batch_observed = batch_count;
     current = gpu_task;
@@ -481,7 +517,11 @@ int cuda_task_batch_stop(parsec_device_gpu_module_t *gpu_device,
         return nb_batched;
     }
     if( !stop_observed ) {
-        return PARSEC_HOOK_RETURN_AGAIN;
+        int id;
+
+        parsec_dtd_unpack_args(gpu_task->ec, &id);
+        return cuda_batch_retry(stop_retries, id) ? PARSEC_HOOK_RETURN_AGAIN
+                                                  : PARSEC_HOOK_RETURN_DONE;
     }
     return (0 == nb_batched) ? PARSEC_HOOK_RETURN_DONE
                              : PARSEC_HOOK_RETURN_ERROR;
