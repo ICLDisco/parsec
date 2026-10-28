@@ -3681,9 +3681,10 @@ parsec_device_kernel_push( parsec_device_gpu_module_t      *gpu_device,
             continue;
         }
 
-        assert( NULL != parsec_data_copy_get_ptr(this_task->data[i].data_in)
-             || NULL != this_task->data[i].data_in->alloc_cb );
-
+        /* An empty input is not a reason to stop here: the device it lives on
+         * may have emptied it to make room, in which case its value is on the
+         * host mirror and the stage in reads it from there, or defers.
+         */
         PARSEC_DEBUG_VERBOSE(20, parsec_gpu_output_stream,
                              "GPU[%d:%s]:\t\tIN  Data of %s <%x> on GPU",
                              gpu_device->super.device_index, gpu_device->super.name, flow->name,
