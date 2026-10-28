@@ -158,10 +158,21 @@ before that error remain attached to `gpu_task`; tasks not accepted remain in
 The submit hook does not need a completion callback merely to return the ring to
 the runtime. If a batched submit hook returns a non-singleton task ring, the GPU
 progress engine automatically chains that ring into the next stream's pending
-FIFO after the recorded device event completes. The normal data retrieval,
-epilog, ownership, pushout, and task completion paths then process the tasks one
-at a time. Every stream insertion merges all ring members according to the
-stream's priority policy; equal-priority members retain their ring order.
+FIFO after the recorded device event completes. Every stream insertion merges
+all ring members according to the stream's priority policy; equal-priority
+members retain their ring order.
+
+The data movement stages handle batch-capable tasks by rings as well,
+independently of the rings formed by submit hooks. The GPU manager moves up to
+`PARSEC_DEVICE_MAX_BATCH_SIZE` consecutive tasks that selected the same
+batch-capable incarnation from the device queue into the device at once. The
+stage-in and stage-out streams then process rings of up to that many pending
+tasks sharing an incarnation: the transfers of all members relying on the
+default stage functions are merged into batched copies, and the members share a
+single stream event. Ownership, pushout, epilog, and completion are still
+decided for each task separately, and a member that has to wait (for device
+memory, or for a transfer to complete) leaves its ring without holding the
+others back.
 
 The submit result settles ownership of the complete ring:
 

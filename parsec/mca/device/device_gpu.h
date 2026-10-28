@@ -25,6 +25,13 @@ BEGIN_C_DECLS
 #define PARSEC_MAX_EVENTS_PER_STREAM  4
 #define PARSEC_GPU_MAX_WORKSPACE      2
 
+/**
+ * Maximum number of tasks moved together from the shared queue into the
+ * device, and handed together to the data movement stages. Ideally the task
+ * class would express its preferred batch size instead.
+ */
+#define PARSEC_DEVICE_MAX_BATCH_SIZE  64
+
 struct parsec_gpu_task_s;
 typedef struct parsec_gpu_task_s parsec_gpu_task_t;
 
