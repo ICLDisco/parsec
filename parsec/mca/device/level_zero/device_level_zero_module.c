@@ -338,6 +338,8 @@ int parsec_level_zero_module_init( int dev_id, parsec_device_level_zero_driver_t
         exec_stream->name         = NULL;
         exec_stream->fifo_pending = (parsec_list_t*)PARSEC_OBJ_NEW(parsec_list_t);
         PARSEC_OBJ_CONSTRUCT(exec_stream->fifo_pending, parsec_list_t);
+        /* The execution streams keep their batchable tasks apart */
+        exec_stream->fifo_batch   = (j >= 2) ? PARSEC_OBJ_NEW(parsec_list_t) : NULL;
         exec_stream->tasks    = (parsec_gpu_task_t**)malloc(exec_stream->max_events
                                                             * sizeof(parsec_gpu_task_t*));
         level_zero_stream->fences   = (ze_fence_handle_t*)malloc(exec_stream->max_events * sizeof(ze_fence_handle_t));
@@ -480,6 +482,9 @@ int parsec_level_zero_module_init( int dev_id, parsec_device_level_zero_driver_t
             if( NULL != exec_stream->fifo_pending ) {
                 PARSEC_OBJ_RELEASE(exec_stream->fifo_pending);
             }
+            if( NULL != exec_stream->fifo_batch ) {
+                PARSEC_OBJ_RELEASE(exec_stream->fifo_batch);
+            }
             if( NULL != exec_stream->tasks ) {
                 free(exec_stream->tasks); exec_stream->tasks = NULL;
             }
@@ -549,7 +554,12 @@ parsec_level_zero_module_fini(parsec_device_module_t* device)
         exec_stream->max_events = 0;
         free(level_zero_stream->fences); level_zero_stream->fences = NULL;
         free(exec_stream->tasks); exec_stream->tasks = NULL;
-        free(exec_stream->fifo_pending); exec_stream->fifo_pending = NULL;
+        if( NULL != exec_stream->fifo_pending ) {
+            PARSEC_OBJ_RELEASE(exec_stream->fifo_pending);
+        }
+        if( NULL != exec_stream->fifo_batch ) {
+            PARSEC_OBJ_RELEASE(exec_stream->fifo_batch);
+        }
         /* Deleting the sycl queue wrapper and/or the command queue conflicts with the
          *   cleaning procedure of the Level Zero runtime... Didn't find a way to do it
          *   cleanly. Don't cleanup for now... */

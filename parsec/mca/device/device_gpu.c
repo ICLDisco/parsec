@@ -52,6 +52,7 @@ static int parsec_gpu_profiling_initiated = 0;
 #endif  /* defined(PROFILING) */
 int parsec_gpu_output_stream = -1;
 int parsec_gpu_verbosity;
+int32_t parsec_gpu_exec_delay_batch = 1;
 
 typedef struct parsec_gpu_host_mirror_lookup_s {
     const parsec_flow_t            *producer_flow;
@@ -2724,14 +2725,15 @@ parsec_gpu_task_is_singleton(parsec_gpu_task_t *task)
     return (item->list_next == item) && (item->list_prev == item);
 }
 
-/* Merge a singleton or task ring into a stream using the stream's ordering
- * policy. The generic list sorter needs an integer embedded in every list
- * item, so refresh the wrapper priority snapshots before the merge instead of
- * incorrectly applying parsec_task_t's priority offset to parsec_gpu_task_t.
+/* Merge a singleton or task ring into one of the pending queues of a stream
+ * using the stream's ordering policy. The generic list sorter needs an integer
+ * embedded in every list item, so refresh the wrapper priority snapshots before
+ * the merge instead of incorrectly applying parsec_task_t's priority offset to
+ * parsec_gpu_task_t.
  */
 static inline void
-parsec_gpu_stream_chain_pending(parsec_gpu_exec_stream_t *stream,
-                                parsec_list_item_t *ring)
+parsec_gpu_queue_chain_pending(parsec_list_t *queue,
+                               parsec_list_item_t *ring)
 {
 #if PARSEC_GPU_USE_PRIORITIES
     parsec_gpu_task_t *task = (parsec_gpu_task_t *)ring;
@@ -2743,11 +2745,153 @@ parsec_gpu_stream_chain_pending(parsec_gpu_exec_stream_t *stream,
         current = (parsec_gpu_task_t *)current->list_item.list_next;
     } while( current != task );
 
-    parsec_list_nolock_chain_sorted(stream->fifo_pending, ring,
+    parsec_list_nolock_chain_sorted(queue, ring,
                                     offsetof(parsec_gpu_task_t, priority));
 #else
-    parsec_list_nolock_chain_back(stream->fifo_pending, ring);
+    parsec_list_nolock_chain_back(queue, ring);
 #endif
+}
+
+static inline int
+parsec_gpu_task_selected_chore_allows_batch(parsec_task_t *task,
+                                            parsec_device_module_t *device);
+
+/* Returns 1 if the selected incarnation of @p task can be batched on the device
+ * the task was scheduled on.
+ */
+static inline int
+parsec_gpu_task_is_batchable(parsec_gpu_task_t *task)
+{
+    parsec_task_t *ec = task->ec;
+
+    return (NULL != ec) && (NULL != ec->selected_device) &&
+           parsec_mca_device_type_supports_batch(ec->selected_device->type) &&
+           parsec_gpu_task_selected_chore_allows_batch(ec, ec->selected_device);
+}
+
+/* Merge a singleton or task ring into a stream using the stream's ordering
+ * policy. Execution streams keep their batchable tasks in fifo_batch, apart
+ * from the other tasks (see parsec_gpu_stream_grab()).
+ */
+static inline void
+parsec_gpu_stream_chain_pending(parsec_gpu_exec_stream_t *stream,
+                                parsec_list_item_t *ring)
+{
+    parsec_list_item_t *batchable = NULL, *others = NULL, *item, *next;
+
+    if( NULL == stream->fifo_batch ) {
+        parsec_gpu_queue_chain_pending(stream->fifo_pending, ring);
+        return;
+    }
+    for( item = ring; NULL != item; item = next ) {
+        next = parsec_list_item_ring_chop(item);
+        PARSEC_LIST_ITEM_SINGLETON(item);
+        if( parsec_gpu_task_is_batchable((parsec_gpu_task_t *)item) ) {
+            batchable = (NULL == batchable) ? item : parsec_list_item_ring_push(batchable, item);
+        } else {
+            others = (NULL == others) ? item : parsec_list_item_ring_push(others, item);
+        }
+    }
+    if( NULL != batchable ) {
+        parsec_gpu_queue_chain_pending(stream->fifo_batch, batchable);
+    }
+    if( NULL != others ) {
+        parsec_gpu_queue_chain_pending(stream->fifo_pending, others);
+    }
+}
+
+/* Returns true if the batchable tasks pending on the execution stream @p stream
+ * are held back because the stream still has work in flight. They could not
+ * start before that work completed anyway, and delaying their submission lets
+ * the submit function batch them with the tasks arriving in the meantime.
+ * A ring parked behind its event with AGAIN does not count: it records a new
+ * event every time it is continued, so it would hold the delay for as long as
+ * its hook keeps returning AGAIN, and that hook may well be waiting for one of
+ * the tasks the delay holds back.
+ */
+static inline int
+parsec_gpu_stream_delays_batch(parsec_gpu_exec_stream_t *stream)
+{
+    if( !parsec_gpu_exec_delay_batch ) {
+        return 0;
+    }
+    for( int32_t i = 0, slot = stream->end; i < stream->max_events; i++ ) {
+        parsec_gpu_task_t *task = stream->tasks[slot];
+        if( NULL == task ) {
+            break;
+        }
+        if( PARSEC_HOOK_RETURN_AGAIN != task->last_status ) {
+            return 1;
+        }
+        slot = (slot + 1) % stream->max_events;
+    }
+    return 0;
+}
+
+/* Extract the next task to submit from the pending queues of @p stream. On an
+ * execution stream, the task with the highest priority (the oldest one in case
+ * of a tie) of the tasks at the front of the two queues is selected. Unless
+ * PARSEC_GPU_USE_PRIORITIES is set, the queues are FIFOs and their fronts are
+ * their oldest tasks: the priorities only arbitrate between the two queues,
+ * which mostly receive tasks in the priority order the device queue hands them
+ * out in. If the selected task is batchable but
+ * batchable tasks are delayed (see parsec_gpu_stream_delays_batch()), nothing is
+ * submitted: tasks with a lower priority wait as well, otherwise they would
+ * keep the stream busy and delay the batch further.
+ */
+static inline parsec_gpu_task_t *
+parsec_gpu_stream_grab(parsec_gpu_exec_stream_t *stream)
+{
+    parsec_list_t *queue = stream->fifo_pending;
+    parsec_gpu_task_t *task = NULL, *batch_task;
+
+    if( (NULL != stream->fifo_batch) && !parsec_list_nolock_is_empty(stream->fifo_batch) ) {
+        batch_task = (parsec_gpu_task_t *)PARSEC_LIST_ITERATOR_FIRST(stream->fifo_batch);
+        if( !parsec_list_nolock_is_empty(stream->fifo_pending) ) {
+            task = (parsec_gpu_task_t *)PARSEC_LIST_ITERATOR_FIRST(stream->fifo_pending);
+        }
+        if( (NULL == task) ||
+            (batch_task->priority > task->priority) ||
+            ((batch_task->priority == task->priority) && (batch_task->heap_seq < task->heap_seq)) ) {
+            if( parsec_gpu_stream_delays_batch(stream) ) {
+                return NULL;
+            }
+            queue = stream->fifo_batch;
+        }
+    }
+    return (parsec_gpu_task_t *)parsec_list_nolock_pop_front(queue);
+}
+
+/* If the execution stream @p stream is idle and has nothing pending, take over
+ * a batchable task delayed on another execution stream, so that it does not
+ * wait for that stream to drain. Once submitted, the task can collect the other
+ * delayed tasks into its batch (see parsec_gpu_task_collect_batch()).
+ */
+static void
+parsec_gpu_stream_take_delayed(parsec_device_gpu_module_t *gpu_device,
+                               parsec_gpu_exec_stream_t *stream)
+{
+    parsec_gpu_exec_stream_t *other;
+    parsec_list_item_t *item;
+
+    if( !parsec_gpu_exec_delay_batch || (NULL == stream->fifo_batch) ||
+        (NULL != stream->tasks[stream->end]) ||
+        !parsec_list_nolock_is_empty(stream->fifo_pending) ||
+        !parsec_list_nolock_is_empty(stream->fifo_batch) ) {
+        return;
+    }
+    for( int i = 2; i < gpu_device->num_exec_streams; i++ ) {
+        other = gpu_device->exec_stream[i];
+        if( (other == stream) || (NULL == other->fifo_batch) ||
+            !parsec_gpu_stream_delays_batch(other) ||
+            parsec_list_nolock_is_empty(other->fifo_batch) ) {
+            continue;
+        }
+        item = parsec_list_nolock_pop_front(other->fifo_batch);
+        PARSEC_LIST_ITEM_SINGLETON(item);
+        parsec_list_nolock_push_back(stream->fifo_batch, item);
+        return;
+    }
 }
 
 static inline void
@@ -2960,17 +3104,63 @@ parsec_gpu_task_selected_chore_allows_batch(parsec_task_t *task,
            (0 != (chore->type & PARSEC_DEV_CHORE_ALLOW_BATCH));
 }
 
+/* Move the tasks of @p queue accepted by @p callback into the ring of
+ * @p batch_head, and account for them in *nb_tasks. Returns 0 once the queue has
+ * been scanned, 1 if the callback stopped the collection, and
+ * PARSEC_HOOK_RETURN_ERROR if the callback returned an invalid action, in which
+ * case *nb_tasks still accounts for the tasks accepted before.
+ */
+static int
+parsec_gpu_task_collect_batch_from(parsec_list_t *queue,
+                                   parsec_device_module_t *device,
+                                   parsec_gpu_task_t *batch_head,
+                                   parsec_gpu_task_batch_cb_t callback,
+                                   void *callback_data,
+                                   int *nb_tasks)
+{
+    parsec_list_item_t *item, *next;
+    int rc;
+
+    /* The collector deliberately has no scan bound. Submit-hook policy decides
+     * when enough work has been considered and returns STOP at that candidate.
+     */
+    for(item = (parsec_list_item_t *)queue->ghost_element.list_next;
+        item != &queue->ghost_element;
+        item = next) {
+        parsec_gpu_task_t *candidate = (parsec_gpu_task_t *)item;
+        parsec_task_t *candidate_task = candidate->ec;
+
+        next = (parsec_list_item_t *)item->list_next;
+        if( !parsec_gpu_task_selected_chore_allows_batch(candidate_task, device) ) {
+            continue;
+        }
+        rc = callback(candidate, batch_head, callback_data);
+        if( PARSEC_GPU_TASK_BATCH_STOP == rc ) {
+            return 1;
+        }
+        if( PARSEC_GPU_TASK_BATCH_ACCEPT == rc ) {
+            (void)parsec_list_nolock_remove(queue, item);
+            (void)parsec_list_item_ring_push(&batch_head->list_item, item);
+            (*nb_tasks)++;
+            continue;
+        }
+        if( PARSEC_GPU_TASK_BATCH_REJECT != rc ) {
+            return PARSEC_HOOK_RETURN_ERROR;
+        }
+    }
+    return 0;
+}
+
 int
 parsec_gpu_task_collect_batch(parsec_gpu_exec_stream_t *gpu_stream,
                               parsec_gpu_task_t *batch_head,
                               parsec_gpu_task_batch_cb_t callback,
                               void *callback_data)
 {
-    parsec_list_t *fifo_pending;
-    parsec_list_item_t *item, *next;
+    parsec_device_gpu_module_t *gpu_device;
     parsec_task_t *head_task;
     parsec_device_module_t *device;
-    int nb_tasks = 0;
+    int i, first = -1, nb_exec_streams, nb_tasks = 0;
     int rc;
 
     assert(NULL != gpu_stream);
@@ -3004,34 +3194,47 @@ parsec_gpu_task_collect_batch(parsec_gpu_exec_stream_t *gpu_stream,
         return nb_tasks;
     }
 
-    fifo_pending = gpu_stream->fifo_pending;
-    assert(NULL != fifo_pending);
+    assert(NULL != gpu_stream->fifo_pending);
 
-    /* The collector deliberately has no scan bound. Submit-hook policy decides
-     * when enough work has been considered and returns STOP at that candidate.
+    /* Start with the tasks pending on the calling stream. Execution streams keep
+     * their batchable tasks in fifo_batch, the other streams in fifo_pending.
      */
-    for(item = (parsec_list_item_t *)fifo_pending->ghost_element.list_next;
-        item != &fifo_pending->ghost_element;
-        item = next) {
-        parsec_gpu_task_t *candidate = (parsec_gpu_task_t *)item;
-        parsec_task_t *candidate_task = candidate->ec;
-
-        next = (parsec_list_item_t *)item->list_next;
-        if( !parsec_gpu_task_selected_chore_allows_batch(candidate_task, device) ) {
-            continue;
+    if( NULL != gpu_stream->fifo_batch ) {
+        rc = parsec_gpu_task_collect_batch_from(gpu_stream->fifo_batch, device, batch_head,
+                                                callback, callback_data, &nb_tasks);
+        if( 0 != rc ) {
+            return (rc < 0) ? rc : nb_tasks;
         }
-        rc = callback(candidate, batch_head, callback_data);
-        if( PARSEC_GPU_TASK_BATCH_STOP == rc ) {
+    }
+    rc = parsec_gpu_task_collect_batch_from(gpu_stream->fifo_pending, device, batch_head,
+                                            callback, callback_data, &nb_tasks);
+    if( 0 != rc ) {
+        return (rc < 0) ? rc : nb_tasks;
+    }
+
+    /* Then take the batchable tasks of the other execution streams of the device:
+     * tasks pending on an execution stream are done with the stage in, so they can
+     * execute on any of them. The pending queues of all streams are only accessed
+     * by the thread managing the device.
+     */
+    gpu_device = (parsec_device_gpu_module_t *)device;
+    nb_exec_streams = gpu_device->num_exec_streams - 2;
+    for( i = 0; i < nb_exec_streams; i++ ) {
+        if( gpu_device->exec_stream[2 + i] == gpu_stream ) {
+            first = i;
             break;
         }
-        if( PARSEC_GPU_TASK_BATCH_ACCEPT == rc ) {
-            (void)parsec_list_nolock_remove(fifo_pending, item);
-            (void)parsec_list_item_ring_push(&batch_head->list_item, item);
-            nb_tasks++;
-            continue;
-        }
-        if( PARSEC_GPU_TASK_BATCH_REJECT != rc ) {
-            return PARSEC_HOOK_RETURN_ERROR;
+    }
+    if( first < 0 ) {
+        return nb_tasks;  /* not called from an execution stream */
+    }
+    for( i = 1; i < nb_exec_streams; i++ ) {
+        parsec_gpu_exec_stream_t *stream = gpu_device->exec_stream[2 + (first + i) % nb_exec_streams];
+        if( NULL == stream->fifo_batch ) continue;
+        rc = parsec_gpu_task_collect_batch_from(stream->fifo_batch, device, batch_head,
+                                                callback, callback_data, &nb_tasks);
+        if( 0 != rc ) {
+            return (rc < 0) ? rc : nb_tasks;
         }
     }
 
@@ -3489,7 +3692,7 @@ parsec_device_progress_stream( parsec_device_gpu_module_t* gpu_device,
   grab_a_task:
     assert(NULL == task);
     if( NULL == stream->tasks[stream->start] ) {  /* there is room on the stream */
-        task = (parsec_gpu_task_t*)parsec_list_nolock_pop_front(stream->fifo_pending);  /* get the next task */
+        task = parsec_gpu_stream_grab(stream);  /* get the next task */
     }
     if( NULL == task ) {  /* No tasks, we're done */
         return PARSEC_HOOK_RETURN_DONE;
@@ -5110,6 +5313,7 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
         PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,  "GPU[%d:%s]:\tExecute %s", gpu_device->super.device_index, gpu_device->super.name,
                              parsec_task_snprintf(tmp, MAX_TASK_STRLEN, gpu_task->ec));
     }
+    parsec_gpu_stream_take_delayed(gpu_device, gpu_device->exec_stream[2+exec_stream]);
     rc = parsec_device_progress_stream( gpu_device,
                                         es,
                                         gpu_device->exec_stream[2+exec_stream],

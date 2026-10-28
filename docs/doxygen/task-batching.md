@@ -60,6 +60,19 @@ The MCA parameter `device_enable_batching` defaults to the compile-time batching
 capability and can be used to disable batching globally at runtime. It is
 read-only when batching support is not compiled in.
 
+A batch-capable task gains from waiting for more compatible tasks. By default,
+an execution stream does not submit batch-capable tasks while it still has work
+in flight: they could not start earlier anyway, and the tasks arriving in the
+meantime can join their batch. Tasks with a lower priority than the next
+batch-capable one wait as well, so they cannot keep the stream busy, while
+higher-priority tasks that cannot be batched are still submitted. A ring
+waiting for its hook to be continued after `PARSEC_HOOK_RETURN_AGAIN` does not
+count as work in flight: the hook may be waiting for one of the tasks held back.
+An idle execution stream takes over a batch-capable task held back on another
+one. The MCA parameter `device_cuda_exec_delay_batch`
+(`device_level_zero_exec_delay_batch` for Level Zero) set to 0 submits
+batch-capable tasks as soon as there is room on the stream instead.
+
 Recommended collection helper
 -----------------------------
 
@@ -75,7 +88,7 @@ scanning or modifying the pending FIFO.
 
 The callback has the type `parsec_gpu_task_batch_cb_t` and receives:
 
-- `candidate`: a pending task from `gpu_stream->fifo_pending`;
+- `candidate`: a pending task (see below for the queues that are scanned);
 - `batch_head`: the task originally passed to the submit hook;
 - `callback_data`: user data passed through by the caller.
 
@@ -88,13 +101,20 @@ The callback return value controls the iterator:
 - `PARSEC_GPU_TASK_BATCH_STOP`: end collection successfully, leaving the
   current candidate and all unvisited candidates pending.
 
+The collector first scans the pending queues of `gpu_stream`. An execution
+stream keeps its batch-capable tasks in `gpu_stream->fifo_batch`, apart from the
+other tasks in `gpu_stream->fifo_pending`, and both are scanned. The collector
+then scans the batch-capable tasks pending on the other execution streams of the
+device: these tasks are done with the stage in, so they can execute on any
+execution stream, and taking them builds larger batches.
+
 The collector does not impose a scan or batch-size bound. The submit hook owns
 that policy and its callback should return `PARSEC_GPU_TASK_BATCH_STOP` once it
 has accepted enough work. The callback executes inside the collector's
-traversal of `gpu_stream->fifo_pending`, which is private to the GPU manager
-thread and therefore walked without locking, so it must remain short and
-nonblocking. It must not modify that FIFO, call the collector recursively, or
-otherwise reenter pending-task operations on the same stream.
+traversal of the pending queues, which are private to the GPU manager thread
+and therefore walked without locking, so it must remain short and nonblocking.
+It must not modify these queues, call the collector recursively, or otherwise
+reenter pending-task operations on the device streams.
 
 Example:
 
@@ -152,8 +172,8 @@ stopped before accepting one, no compatible pending task was found, batching
 is disabled or unsupported by the head task's selected device, or the head
 task's selected incarnation is not batch-capable. Any callback value outside
 the three actions above returns `PARSEC_HOOK_RETURN_ERROR`. Tasks accepted
-before that error remain attached to `gpu_task`; tasks not accepted remain in
-`gpu_stream->fifo_pending`.
+before that error remain attached to `gpu_task`; tasks not accepted remain
+pending.
 
 The submit hook does not need a completion callback merely to return the ring to
 the runtime. If a batched submit hook returns a non-singleton task ring, the GPU
@@ -201,10 +221,10 @@ means that the collected batch has started and must continue as one unit.
 
 The runtime never disbands a ring on its own. A submit hook that no longer
 wants to continue with every member calls `parsec_gpu_task_split_batch()`
-before returning, which hands the declined members back to
-`gpu_stream->fifo_pending` under the same ordering policy the collector took
-them from. If the hook returns `AGAIN` after a split, only what remains
-attached to `gpu_task` is retained by the event. A hook may instead keep
+before returning, which hands the declined members back to the pending queues
+of `gpu_stream` under the ordering policy of the stream. If the hook returns
+`AGAIN` after a split, only what remains attached to `gpu_task` is retained by
+the event. A hook may instead keep
 members itself, but then it owns completing those execution contexts and
 releasing their wrappers; merely breaking the links leaves them unreachable.
 
@@ -297,8 +317,8 @@ The asynchronous owner must retain the execution contexts, not pointers to
 
 `parsec_gpu_task_split_batch()` is the inverse of the collector. It walks the
 members attached to `gpu_task` and asks the callback which ones to keep;
-`PARSEC_GPU_TASK_SPLIT_RETURN` sends a member back to
-`gpu_stream->fifo_pending`, `PARSEC_GPU_TASK_SPLIT_KEEP` leaves it in the ring,
+`PARSEC_GPU_TASK_SPLIT_RETURN` sends a member back to the pending queues of
+`gpu_stream`, `PARSEC_GPU_TASK_SPLIT_KEEP` leaves it in the ring,
 and `PARSEC_GPU_TASK_SPLIT_STOP` ends the walk with the current and all
 unvisited members still attached. Call it from the submit hook after the
 collector returns, never from the collector callback while the pending FIFO is
@@ -331,7 +351,7 @@ if( nb_returned < 0 ) {
 `gpu_task` is never visited and always stays attached, so the hook always has a
 valid head to return `AGAIN`, `NEXT`, or `DONE` with. The hook must submit
 progress for whatever remains in the ring before returning `AGAIN`; the
-returned members already have a new owner through `fifo_pending`.
+returned members already have a new owner through the pending queues.
 
 Returned members are still in the device's care, so the manager's outstanding
 task count does not change, and each one keeps its open execution-profiling
@@ -390,10 +410,12 @@ the pending FIFO and task ring itself.
 This style is more fragile and should be reserved for code that is already
 device-runtime aware. The hook must preserve FIFO correctness and keep rejected
 tasks pending. The FIFO is private to the GPU manager thread, so the walk uses
-the `nolock` list operations.
+the `nolock` list operations. Execution streams keep the batch-capable tasks in
+`fifo_batch`, other streams in `fifo_pending`.
 
 ```c
-parsec_list_t *pending = gpu_stream->fifo_pending;
+parsec_list_t *pending = (NULL != gpu_stream->fifo_batch) ? gpu_stream->fifo_batch
+                                                          : gpu_stream->fifo_pending;
 parsec_list_item_t *item;
 parsec_list_item_t *next;
 int batch_count = 1;

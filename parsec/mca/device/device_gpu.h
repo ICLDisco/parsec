@@ -72,11 +72,11 @@ typedef enum parsec_gpu_task_batch_action_e {
 
 /* Callback used by parsec_gpu_task_collect_batch() to decide whether a
  * pending task can be appended to the current batched task ring. It executes
- * inside the collector's traversal of gpu_stream->fifo_pending, which is
- * private to the GPU manager thread and therefore walked without locking. The
- * callback must be short and nonblocking, and must not modify the same FIFO,
- * call the collector recursively, or otherwise reenter pending-task operations
- * on this stream.
+ * inside the collector's traversal of the pending queues of the device streams,
+ * which are private to the GPU manager thread and therefore walked without
+ * locking. The callback must be short and nonblocking, and must not modify
+ * these queues, call the collector recursively, or otherwise reenter
+ * pending-task operations on the device streams.
  *
  * Return PARSEC_GPU_TASK_BATCH_ACCEPT to append the candidate,
  * PARSEC_GPU_TASK_BATCH_REJECT to leave it pending and continue, or
@@ -399,6 +399,8 @@ struct parsec_gpu_exec_stream_s {
     int32_t                           start;  /* circular buffer management start and end positions */
     int32_t                           end;
     parsec_list_t                    *fifo_pending;
+    parsec_list_t                    *fifo_batch;  /* batchable tasks pending on an execution stream,
+                                                    * NULL on the data movement streams */
     parsec_gpu_workspace_t           *workspace;
     parsec_info_object_array_t        infos; /**< Per-stream info objects are stored here */
 
@@ -420,6 +422,9 @@ typedef struct parsec_gpu_workspace_s {
 PARSEC_DECLSPEC extern int parsec_gpu_output_stream;
 PARSEC_DECLSPEC extern int parsec_gpu_verbosity;
 PARSEC_DECLSPEC extern int32_t parsec_gpu_d2h_max_flows;
+/* Delay the submission of batchable tasks on an execution stream until the work
+ * in flight on that stream completed, so they can be batched with later tasks. */
+PARSEC_DECLSPEC extern int32_t parsec_gpu_exec_delay_batch;
 
 /**
  * Debugging functions.
@@ -449,18 +454,23 @@ parsec_gpu_task_t* parsec_gpu_create_w2r_task(parsec_device_gpu_module_t *gpu_de
 int parsec_gpu_complete_w2r_task(parsec_device_gpu_module_t *gpu_device, parsec_gpu_task_t *w2r_task, parsec_execution_stream_t *es);
 
 /**
- * Iterate over gpu_stream->fifo_pending and append accepted tasks to
- * batch_head. The callback receives each pending candidate, the task passed to
- * the submit function, and user data. The scan is intentionally unbounded: the
- * callback is responsible for returning PARSEC_GPU_TASK_BATCH_STOP when its
- * policy has accepted enough work. STOP ends collection successfully and
- * leaves the current and all unvisited candidates pending.
+ * Iterate over the tasks pending on gpu_stream and append accepted tasks to
+ * batch_head. The pending queues of gpu_stream (fifo_batch, then fifo_pending)
+ * are scanned first. When gpu_stream is an execution stream, the batchable
+ * tasks pending on the other execution streams of the device (their fifo_batch)
+ * are scanned next: they are done with the stage in, so they can execute on any
+ * execution stream. The callback receives each pending candidate, the task
+ * passed to the submit function, and user data. The scan is intentionally
+ * unbounded: the callback is responsible for returning
+ * PARSEC_GPU_TASK_BATCH_STOP when its policy has accepted enough work. STOP
+ * ends collection successfully and leaves the current and all unvisited
+ * candidates pending.
  *
- * The callback executes inside the collector's traversal of
- * gpu_stream->fifo_pending, which is private to the GPU manager thread and
- * therefore walked without locking. It must be short and nonblocking, and must
- * not modify the same FIFO, call this collector recursively, or otherwise
- * reenter pending-task operations on this stream.
+ * The callback executes inside the collector's traversal of the pending
+ * queues, which are private to the GPU manager thread and therefore walked
+ * without locking. It must be short and nonblocking, and must not modify these
+ * queues, call this collector recursively, or otherwise reenter pending-task
+ * operations on the device streams.
  * If batching is disabled, unsupported by the head task's selected device, or
  * not enabled on batch_head's selected incarnation, no iteration is performed
  * and batch_head remains a singleton. Pending tasks whose selected incarnation
@@ -471,13 +481,13 @@ int parsec_gpu_complete_w2r_task(parsec_device_gpu_module_t *gpu_device, parsec_
  * success. Any callback result other than PARSEC_GPU_TASK_BATCH_ACCEPT,
  * PARSEC_GPU_TASK_BATCH_REJECT, or PARSEC_GPU_TASK_BATCH_STOP is normalized to
  * PARSEC_HOOK_RETURN_ERROR. If an error is returned, tasks already accepted
- * remain attached to batch_head and the remaining candidates stay in
- * fifo_pending.
+ * remain attached to batch_head and the remaining candidates stay pending.
  *
- * On an initial singleton submission, the collector scans fifo_pending and
- * builds a tentative ring. On a batched PARSEC_HOOK_RETURN_AGAIN continuation,
- * batch_head already owns the committed ring; the collector leaves it intact,
- * does not scan fifo_pending, and returns its existing follower count.
+ * On an initial singleton submission, the collector scans the pending queues
+ * and builds a tentative ring. On a batched PARSEC_HOOK_RETURN_AGAIN
+ * continuation, batch_head already owns the committed ring; the collector
+ * leaves it intact, does not scan the pending queues, and returns its existing
+ * follower count.
  *
  * A submit result applies to the complete ring. AGAIN records an event and
  * re-enters the submit hook with the same ring after the event completes; it
@@ -501,9 +511,12 @@ int parsec_gpu_task_collect_batch(parsec_gpu_exec_stream_t *gpu_stream,
 /**
  * Walk the members attached to batch_head and give back the ones the callback
  * declines to keep. This is the inverse of parsec_gpu_task_collect_batch():
- * returned members are removed from the ring and merged into
- * gpu_stream->fifo_pending under the same ordering policy the collector took
- * them from, so a hook never has to manipulate the ring or the FIFO directly.
+ * returned members are removed from the ring and merged into the pending
+ * queues of gpu_stream under the ordering policy of the stream, so a hook never
+ * has to manipulate the ring or the queues directly. As the collector also takes
+ * tasks pending on the other execution streams, this is not necessarily the
+ * stream a returned member was taken from: declining a member moves it to
+ * gpu_stream.
  *
  * batch_head itself is never visited and always stays attached. It is the task
  * the submit hook was called with and the one the runtime applies the hook

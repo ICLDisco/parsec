@@ -163,6 +163,9 @@ static int device_cuda_component_register(void)
     (void)parsec_mca_param_reg_int_name("device_cuda", "max_number_of_ejected_data",
                                         "Sets up the maximum number of blocks that can be ejected from GPU memory",
                                         false, false, MAX_PARAM_COUNT, &parsec_gpu_d2h_max_flows);
+    (void)parsec_mca_param_reg_int_name("device_cuda", "exec_delay_batch",
+                                        "Boolean to delay the submission of batchable tasks on an execution stream until the work in flight on that stream completed, so they can be batched with the tasks arriving in the meantime",
+                                        false, false, 1, &parsec_gpu_exec_delay_batch);
     (void)parsec_mca_param_reg_int_name("device_cuda", "max_streams",
                                         "Maximum number of Streams to use for the GPU engine; 2 streams are used for communication between host and device, so the minimum is 3",
                                         false, false, PARSEC_GPU_MAX_STREAMS, &parsec_cuda_max_streams);
