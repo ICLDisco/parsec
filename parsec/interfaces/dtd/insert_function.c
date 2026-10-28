@@ -775,7 +775,8 @@ parsec_dtd_unpack_args_internal(parsec_task_t *this_task, va_list arguments)
             *tmp_ref = current_param->pointer_to_tile;
         } else if((current_param->op_type & PARSEC_GET_OP_TYPE) == PARSEC_INPUT ||
                   (current_param->op_type & PARSEC_GET_OP_TYPE) == PARSEC_INOUT ||
-                  (current_param->op_type & PARSEC_GET_OP_TYPE) == PARSEC_OUTPUT ) {
+                  (current_param->op_type & PARSEC_GET_OP_TYPE) == PARSEC_OUTPUT ||
+                  (current_param->op_type & PARSEC_GET_OP_TYPE) == PARSEC_ATOMIC_WRITE ) {
             void **tmp_ref = (void **)tmp_arg;
             /* A body must be handed the copy that lives on the device it was
              * scheduled on. The device layer elects that copy into data_out
@@ -2106,8 +2107,13 @@ data_lookup_of_dtd_task(parsec_execution_stream_t *es,
             parsec_arena_allocate_device_private(copy, adt->arena, 1, 0, adt->opaque_dtt);
         }
 
-        if (PARSEC_OUTPUT & op_type_on_current_flow) {
-            /* If we output this copy it shall have no readers when we acquire it*/
+        /* An exclusive writer must own the copy, so it waits until no reader is
+         * left. PARSEC_ATOMIC_WRITE is deliberately absent: it is the one write
+         * that runs alongside the other users of the copy, and it retains a
+         * reader of its own, so demanding an empty reader count would never be
+         * satisfied. */
+        if( PARSEC_OUTPUT == op_type_on_current_flow ||
+            PARSEC_INOUT == op_type_on_current_flow ) {
             if( parsec_dtd_data_copy_reader_count(copy) > 0 ) {
                 return PARSEC_HOOK_RETURN_AGAIN;
             }
@@ -2214,9 +2220,13 @@ parsec_dtd_create_task_classv(const char *name,
     }
     for(int i = 0; i < nb_params; i++) {
         if( params[i].size == PASSED_BY_REF ) {
-            assert( (params[i].op & PARSEC_GET_OP_TYPE) != PARSEC_VALUE &&
-                    (params[i].op & PARSEC_GET_OP_TYPE) != PARSEC_SCRATCH &&
-                    (params[i].op & PARSEC_GET_OP_TYPE) != PARSEC_REF );
+            int op = params[i].op & PARSEC_GET_OP_TYPE;
+            if( op & PARSEC_NOT_A_FLOW ) {
+                parsec_fatal("DTD task class '%s' passes parameter %d by reference with access type 0x%x, which "
+                             "does not name a data flow. Use PARSEC_INPUT, PARSEC_OUTPUT, PARSEC_INOUT or "
+                             "PARSEC_ATOMIC_WRITE, and give exactly one of them: they are values of a single "
+                             "field rather than combinable bits.\n", name, i, op);
+            }
             flow_count++;
         } else {
             total_size_of_param += params[i].size;
@@ -2340,7 +2350,7 @@ parsec_dtd_create_task_class(parsec_taskpool_t *tp,
         }
         params[nb_params].profile_info = NULL;
         if( tile_op_type & PARSEC_PROFILE_INFO ) {
-            if( !(tile_op_type & PARSEC_VALUE) ) {
+            if( PARSEC_VALUE != (tile_op_type & PARSEC_GET_OP_TYPE) ) {
                 parsec_fatal("Argument %d of DTD task '%s' is a profile info but not a PARSEC_VALUE. Only PARSEC_VALUEs can be saved as PROFILE INFOs.\n",
                              nb_params+1, name);
             }
@@ -2679,11 +2689,9 @@ parsec_dtd_set_flow_in_task_class(parsec_task_class_t *tc,
      */
     flow->flow_datatype_mask = (parsec_dependency_t)(1U << flow_index);
 
-    if( op_type == PARSEC_ATOMIC_WRITE ) {
-        flow->flow_flags = PARSEC_FLOW_ACCESS_WRITE;
-    } else {
-        flow->flow_flags = (uint8_t)((op_type >> 18) & PARSEC_FLOW_ACCESS_MASK);
-    }
+    flow->flow_flags = (uint8_t)((op_type >> 18) & PARSEC_FLOW_ACCESS_MASK);
+    assert(0 != flow->flow_flags);
+    assert(0 != flow->flow_flags);
 
     parsec_flow_t **in = (parsec_flow_t **)&tc->in[flow_index];
     *in = flow;
@@ -3041,6 +3049,17 @@ parsec_insert_dtd_task(parsec_task_t *__this_task)
         }
         (FLOW_OF(this_task, flow_index))->arena_index = (tile_op_type & PARSEC_GET_REGION_INFO);
 
+        if((tile_op_type & PARSEC_GET_OP_TYPE) == PARSEC_ATOMIC_WRITE &&
+           this_task->rank != tile->rank ) {
+            /* Concurrent unordered writes have no reconciliation protocol between
+             * ranks, so the only writes we can let race are the ones landing in the
+             * copy this rank owns. */
+            parsec_fatal("DTD task '%s' declares a PARSEC_ATOMIC_WRITE flow on data owned by rank %d while the\n"
+                         "task is placed on rank %d. That access type is only supported on data local to the task.\n"
+                         "Add PARSEC_AFFINITY to this flow to place the task where the data resides.\n",
+                         this_task->super.task_class->name, tile->rank, this_task->rank);
+        }
+
         /* Locking the last_user of the tile */
         parsec_dtd_last_user_lock(&(tile->last_user));
 
@@ -3048,7 +3067,9 @@ parsec_insert_dtd_task(parsec_task_t *__this_task)
         READ_FROM_TILE(last_writer, tile->last_writer);
 
         if( NULL == last_user.task &&
-            (this_task->rank != tile->rank || (tile_op_type & PARSEC_GET_OP_TYPE) == PARSEC_INPUT)) {
+            (this_task->rank != tile->rank ||
+             (tile_op_type & PARSEC_GET_OP_TYPE) == PARSEC_INPUT ||
+             (tile_op_type & PARSEC_GET_OP_TYPE) == PARSEC_ATOMIC_WRITE)) {
             parsec_dtd_last_user_unlock(&(tile->last_user));
 
             /* parentless */
@@ -3382,7 +3403,8 @@ __parsec_dtd_taskpool_create_task(parsec_taskpool_t *tp,
             if( rank == -1 ) {
                 if((tile_op_type & PARSEC_GET_OP_TYPE) == PARSEC_INPUT ||
                    (tile_op_type & PARSEC_GET_OP_TYPE) == PARSEC_INOUT ||
-                   (tile_op_type & PARSEC_GET_OP_TYPE) == PARSEC_OUTPUT ) {
+                   (tile_op_type & PARSEC_GET_OP_TYPE) == PARSEC_OUTPUT ||
+                   (tile_op_type & PARSEC_GET_OP_TYPE) == PARSEC_ATOMIC_WRITE ) {
                     rank = ((parsec_dtd_tile_t *)tile)->rank;
                 } else if((tile_op_type & PARSEC_GET_OP_TYPE) == PARSEC_VALUE ) {
                     rank = *(int *)tile;
@@ -3402,14 +3424,19 @@ __parsec_dtd_taskpool_create_task(parsec_taskpool_t *tp,
             }
         }
 
+        /* Every access type that names a data flow has to be counted here: the
+         * count keys the task class cache, and parsec_dtd_create_task_classv()
+         * derives nb_flows from the same set. */
         if((tile_op_type & PARSEC_GET_OP_TYPE) == PARSEC_INPUT ||
            (tile_op_type & PARSEC_GET_OP_TYPE) == PARSEC_INOUT ||
-           (tile_op_type & PARSEC_GET_OP_TYPE) == PARSEC_OUTPUT ) {
+           (tile_op_type & PARSEC_GET_OP_TYPE) == PARSEC_OUTPUT ||
+           (tile_op_type & PARSEC_GET_OP_TYPE) == PARSEC_ATOMIC_WRITE ) {
             flow_count_of_tc++;
             if( NULL != tile ) {
                 if( !(tile_op_type & PARSEC_DONT_TRACK)) {
                     if( PARSEC_INOUT == (tile_op_type & PARSEC_GET_OP_TYPE) ||
-                        PARSEC_OUTPUT == (tile_op_type & PARSEC_GET_OP_TYPE)) {
+                        PARSEC_OUTPUT == (tile_op_type & PARSEC_GET_OP_TYPE) ||
+                        PARSEC_ATOMIC_WRITE == (tile_op_type & PARSEC_GET_OP_TYPE)) {
                         write_flow_count++;
                     }
                 }
@@ -3568,6 +3595,8 @@ __parsec_dtd_taskpool_create_task(parsec_taskpool_t *tp,
                 arg_size = (int)dtd_tc->params[nb_params].size;
             }
 
+            /* No PARSEC_ATOMIC_WRITE here: it is rejected on data this rank does
+             * not own, so a remote task never carries such a flow. */
             if((tile_op_type & PARSEC_GET_OP_TYPE) == PARSEC_INPUT ||
                (tile_op_type & PARSEC_GET_OP_TYPE) == PARSEC_INOUT ||
                (tile_op_type & PARSEC_GET_OP_TYPE) == PARSEC_OUTPUT ) {

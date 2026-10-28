@@ -16,6 +16,7 @@ parsec_addtest_cmd(dsl/dtd/global_id_for_dc_assumed ${SHM_TEST_CMD_LIST} dsl/dtd
 parsec_addtest_cmd(dsl/dtd/hierarchy ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_test_hierarchy)
 parsec_addtest_cmd(dsl/dtd/insert_task_interface ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_test_insert_task_interface)
 parsec_addtest_cmd(dsl/dtd/flag_dont_track ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_test_flag_dont_track)
+parsec_addtest_cmd(dsl/dtd/dont_track_with_successor ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_test_dont_track_with_successor)
 parsec_addtest_cmd(dsl/dtd/multiple_handle_wait ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_test_multiple_handle_wait)
 parsec_addtest_cmd(dsl/dtd/null_as_tile ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_test_null_as_tile)
 parsec_addtest_cmd(dsl/dtd/reduce ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_test_reduce)
