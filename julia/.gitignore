@@ -1,0 +1,17 @@
+# Generated C wrappers
+src/*.so
+src/*.o
+src/*.d
+
+# Generated env helper
+parsec_env.sh
+
+# Local Julia environments (cluster-specific MPI prefs, Manifest)
+.runenv/
+Manifest.toml
+julia_depot/
+
+# IDE
+.vscode/
+.idea/
+*.jl.cov
