@@ -768,6 +768,17 @@ int main(int argc, char *argv[]) {
     set(PARSEC_HAVE_CUDA ${CUDAToolkit_FOUND} CACHE BOOL "True if PaRSEC provide support for CUDA")
     if (CUDAToolkit_FOUND)
       message(STATUS "Found CUDA ${CUDAToolkit_VERSION} in ${CUDAToolkit_LIBRARY_DIR}")
+      # The CUDA peer attributes say whether a peer can be reached and how well,
+      # but not over what. NVML names the link, and reports the fabric when two
+      # accelerators are joined through a switch rather than directly, which is
+      # what tells a real NVLink mesh from peer access over PCIe.
+      if(TARGET CUDA::nvml)
+        set(PARSEC_HAVE_NVML 1 CACHE BOOL "True if PaRSEC can read the NVLink topology through NVML")
+        list(APPEND EXTRA_LIBS CUDA::nvml)
+        message(STATUS "Found NVML, the NVLink topology will be read from it")
+      else()
+        message(STATUS "NVML not found, NVLink detection falls back on the CUDA peer attributes")
+      endif()
       get_target_property(extra_cuda_libs CUDA::cudart INTERFACE_LINK_LIBRARIES)
       if(extra_cuda_libs)
           list(APPEND EXTRA_LIBS ${extra_cuda_libs})

@@ -30,6 +30,10 @@
 
 #include <cuda.h>
 #include <cuda_runtime_api.h>
+#if defined(PARSEC_HAVE_NVML)
+#include <nvml.h>
+#include <strings.h>
+#endif  /* defined(PARSEC_HAVE_NVML) */
 
 /**
  * According to
@@ -144,6 +148,125 @@ static int parsec_cuda_device_lookup_cudamp_floprate(const struct cudaDeviceProp
     return PARSEC_SUCCESS;
 }
 
+#if defined(PARSEC_HAVE_NVML)
+/**
+ * Ask NVML whether two accelerators share an NVLink fabric.
+ *
+ * Answers 1 when they do, 0 when NVML is certain they do not, and -1 when it
+ * cannot tell, leaving the caller with the CUDA attributes alone.
+ *
+ * Links come in two shapes. One lands directly on the peer and carries its PCI
+ * address at the remote end; the other lands on a switch, and then the peer is
+ * somewhere behind the fabric and the address is the switch's. A switched mesh
+ * joins every accelerator that has a live link into it, so a link to a switch
+ * at both ends says as much as a direct link between the two.
+ */
+static int parsec_cuda_nvml_peer_over_nvlink(int source_cuda_index, int target_cuda_index)
+{
+    char source_busid[NVML_DEVICE_PCI_BUS_ID_BUFFER_SIZE];
+    char target_busid[NVML_DEVICE_PCI_BUS_ID_BUFFER_SIZE];
+    nvmlDevice_t source_handle, target_handle;
+    int source_reaches_switch = 0, target_reaches_switch = 0;
+
+    if( (cudaSuccess != cudaDeviceGetPCIBusId(source_busid, sizeof(source_busid), source_cuda_index)) ||
+        (cudaSuccess != cudaDeviceGetPCIBusId(target_busid, sizeof(target_busid), target_cuda_index)) ) {
+        (void)cudaGetLastError();
+        return -1;
+    }
+    if( (NVML_SUCCESS != nvmlDeviceGetHandleByPciBusId_v2(source_busid, &source_handle)) ||
+        (NVML_SUCCESS != nvmlDeviceGetHandleByPciBusId_v2(target_busid, &target_handle)) )
+        return -1;
+
+    for( unsigned int link = 0; link < NVML_NVLINK_MAX_LINKS; link++ ) {
+        nvmlEnableState_t state;
+        nvmlIntNvLinkDeviceType_t remote_type;
+        nvmlPciInfo_t remote_pci;
+
+        /* A device that has no such link says so here, and the rest of the
+         * queries on it would fail anyway. */
+        if( NVML_SUCCESS != nvmlDeviceGetNvLinkState(source_handle, link, &state) )
+            continue;
+        if( NVML_FEATURE_ENABLED != state )
+            continue;
+        if( (NVML_SUCCESS == nvmlDeviceGetNvLinkRemoteDeviceType(source_handle, link, &remote_type)) &&
+            (NVML_NVLINK_DEVICE_TYPE_SWITCH == remote_type) ) {
+            source_reaches_switch = 1;
+            continue;
+        }
+        if( NVML_SUCCESS != nvmlDeviceGetNvLinkRemotePciInfo_v2(source_handle, link, &remote_pci) )
+            continue;
+        if( 0 == strcasecmp(remote_pci.busId, target_busid) )
+            return 1;
+    }
+    if( !source_reaches_switch )
+        return 0;
+
+    for( unsigned int link = 0; link < NVML_NVLINK_MAX_LINKS; link++ ) {
+        nvmlEnableState_t state;
+        nvmlIntNvLinkDeviceType_t remote_type;
+
+        if( NVML_SUCCESS != nvmlDeviceGetNvLinkState(target_handle, link, &state) )
+            continue;
+        if( NVML_FEATURE_ENABLED != state )
+            continue;
+        if( (NVML_SUCCESS == nvmlDeviceGetNvLinkRemoteDeviceType(target_handle, link, &remote_type)) &&
+            (NVML_NVLINK_DEVICE_TYPE_SWITCH == remote_type) ) {
+            target_reaches_switch = 1;
+            break;
+        }
+    }
+    return target_reaches_switch;
+}
+#endif  /* defined(PARSEC_HAVE_NVML) */
+
+/**
+ * Tell a peer whose memory a kernel can read at a cost close to its own from one
+ * that is merely reachable. Peer access is enabled over PCIe just as it is over
+ * NVLink, and the two cannot be used interchangeably here: reading an input
+ * through PCIe for the lifetime of a kernel is slower than copying it once, so
+ * only the fast links may stand in for a copy.
+ *
+ * Native atomics tell the two apart on every architecture PaRSEC supports, as
+ * they ride on NVLink and are absent from PCIe peer-to-peer. Where NVML can be
+ * reached it is asked as well, since it names the link rather than inferring it
+ * from what the link can do, and its answer is taken over the inference.
+ */
+static int parsec_cuda_peer_is_direct(const parsec_device_cuda_module_t *source,
+                                      const parsec_device_cuda_module_t *target)
+{
+    int native_atomics = 0, perf_rank = -1, verdict;
+    cudaError_t cudastatus;
+
+    cudastatus = cudaDeviceGetP2PAttribute(&native_atomics, cudaDevP2PAttrNativeAtomicSupported,
+                                           source->cuda_index, target->cuda_index);
+    if( cudaSuccess != cudastatus ) {
+        (void)cudaGetLastError();  /* the query failed, assume the slow link */
+        native_atomics = 0;
+    }
+    (void)cudaDeviceGetP2PAttribute(&perf_rank, cudaDevP2PAttrPerformanceRank,
+                                    source->cuda_index, target->cuda_index);
+    verdict = (0 != native_atomics);
+#if defined(PARSEC_HAVE_NVML)
+    int nvml_says = parsec_cuda_nvml_peer_over_nvlink(source->cuda_index, target->cuda_index);
+    if( 0 <= nvml_says )
+        verdict = nvml_says;
+    PARSEC_DEBUG_VERBOSE(4, parsec_gpu_output_stream,
+                         "GPU[%d:%s]: peer cuda(%d) native atomics %d, performance rank %d, "
+                         "NVML %s -> %s link",
+                         source->super.super.device_index, source->super.super.name,
+                         target->cuda_index, native_atomics, perf_rank,
+                         (0 > nvml_says) ? "undecided" : (nvml_says ? "NVLink" : "no NVLink"),
+                         verdict ? "direct" : "slow");
+#else
+    PARSEC_DEBUG_VERBOSE(4, parsec_gpu_output_stream,
+                         "GPU[%d:%s]: peer cuda(%d) native atomics %d, performance rank %d -> %s link",
+                         source->super.super.device_index, source->super.super.name,
+                         target->cuda_index, native_atomics, perf_rank,
+                         verdict ? "direct" : "slow");
+#endif  /* defined(PARSEC_HAVE_NVML) */
+    return verdict;
+}
+
 static int parsec_cuda_all_devices_attached(parsec_device_module_t *device)
 {
     parsec_device_cuda_module_t *source_gpu, *target_gpu;
@@ -157,6 +280,7 @@ static int parsec_cuda_all_devices_attached(parsec_device_module_t *device)
      * as the rest of the runtime reads it to tell a copy that is already
      * here from one that would have to be moved. */
     source_gpu->super.peer_access_mask = (int16_t)(1 << i);
+    source_gpu->super.peer_direct_mask = (int16_t)(1 << i);
 
     if( ! ( (1<<i) & parsec_cuda_nvlink_mask ) ) {
         /* The user disabled NVLINK for that GPU */
@@ -167,6 +291,12 @@ static int parsec_cuda_all_devices_attached(parsec_device_module_t *device)
     cudastatus = cudaSetDevice( source_gpu->cuda_index );
     PARSEC_CUDA_CHECK_ERROR( "(parsec_device_cuda_component_query) cudaSetDevice", cudastatus,
                             {return PARSEC_ERR_DEVICE;} );
+
+#if defined(PARSEC_HAVE_NVML)
+    /* Both calls count references, so this neither disturbs nor is disturbed by
+     * anything else in the process that uses NVML. */
+    int nvml_up = (NVML_SUCCESS == nvmlInit_v2());
+#endif  /* defined(PARSEC_HAVE_NVML) */
 
     for( int j = 0; NULL != (target_gpu = (parsec_device_cuda_module_t*)parsec_device_cuda_component.modules[j]); j++ ) {
         if( target_gpu == source_gpu ) continue;  /* self-access is already set */
@@ -180,8 +310,17 @@ static int parsec_cuda_all_devices_attached(parsec_device_module_t *device)
                                      {continue;} );
             source_gpu->super.peer_access_mask = (int16_t)(source_gpu->super.peer_access_mask |
                 (int16_t)(1 << target_gpu->super.super.device_index));
+            if( parsec_cuda_peer_is_direct(source_gpu, target_gpu) ) {
+                source_gpu->super.peer_direct_mask = (int16_t)(source_gpu->super.peer_direct_mask |
+                    (int16_t)(1 << target_gpu->super.super.device_index));
+            }
         }
     }
+#if defined(PARSEC_HAVE_NVML)
+    /* A failed init leaves the queries to fail on their own and the detection
+     * to fall back on the CUDA attributes, so only a successful one is undone. */
+    if( nvml_up ) nvmlShutdown();
+#endif  /* defined(PARSEC_HAVE_NVML) */
     parsec_device_gpu_discover_peer_mesh();
     return PARSEC_SUCCESS;
 }
@@ -637,6 +776,7 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
                      offsetof(parsec_gpu_task_t, heap_seq));
 
     gpu_device->peer_access_mask = 0;  /* No GPU to GPU direct transfer by default */
+    gpu_device->peer_direct_mask = 0;
 
     device->memory_register      = parsec_cuda_memory_register;
     device->memory_unregister    = parsec_cuda_memory_unregister;

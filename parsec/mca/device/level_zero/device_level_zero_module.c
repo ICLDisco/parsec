@@ -203,6 +203,7 @@ static int parsec_level_zero_all_devices_attached(parsec_device_module_t *device
     /* Direct transfers between devices are not implemented for this backend,
      * so a device only ever reaches its own memory. */
     gpu_device->peer_access_mask = (int16_t)(1 << device->device_index);
+    gpu_device->peer_direct_mask = (int16_t)(1 << device->device_index);
     parsec_device_gpu_discover_peer_mesh();
     return PARSEC_SUCCESS;
 }
@@ -438,6 +439,7 @@ int parsec_level_zero_module_init( int dev_id, parsec_device_level_zero_driver_t
                      offsetof(parsec_gpu_task_t, heap_seq));
 
     gpu_device->peer_access_mask = 0;  /* No GPU to GPU direct transfer by default */
+    gpu_device->peer_direct_mask = 0;
 
     device->memory_register          = NULL; // TODO there seem to be no memory pinning in level_zero?
     device->memory_unregister        = NULL; // TODO there seem to be no memory pinning in level_zero?
