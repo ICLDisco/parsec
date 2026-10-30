@@ -6,7 +6,7 @@
 
 #if defined(PARSEC_PROF_TRACE_NVTX)
 
-#include "parsec/profiling_nvtx.h"
+#include "parsec/profiling_internal.h"
 
 #include <ctype.h>
 #include <pthread.h>
@@ -16,6 +16,8 @@
 #include <nvtx3/nvToolsExt.h>
 
 #include "parsec/utils/mca_param.h"
+
+typedef struct parsec_profiling_nvtx_range_s parsec_profiling_nvtx_range_t;
 
 struct parsec_profiling_nvtx_range_s {
     struct parsec_profiling_nvtx_range_s *next;
@@ -86,7 +88,7 @@ static uint32_t parsec_profiling_nvtx_parse_color(const char *attributes, int ke
     return 0xff000000 | color;
 }
 
-int parsec_profiling_nvtx_register_mca(void)
+static int parsec_profiling_nvtx_register_mca(void)
 {
     if( !parsec_profiling_nvtx_mca_registered ) {
         parsec_mca_param_reg_int_name("profile", "nvtx",
@@ -99,24 +101,20 @@ int parsec_profiling_nvtx_register_mca(void)
     return parsec_profiling_nvtx_enabled;
 }
 
-int parsec_profiling_nvtx_is_enabled(void)
-{
-    return parsec_profiling_nvtx_enabled;
-}
-
-void parsec_profiling_nvtx_init(int process_id)
+static int parsec_profiling_nvtx_init(int process_id)
 {
     (void)process_id;
 
     parsec_profiling_nvtx_register_mca();
     if( !parsec_profiling_nvtx_enabled ) {
-        return;
+        return PARSEC_ERR_NOT_SUPPORTED;
     }
 
     parsec_profiling_nvtx_domain = nvtxDomainCreateA("PaRSEC");
+    return (NULL != parsec_profiling_nvtx_domain) ? 0 : PARSEC_ERROR;
 }
 
-void parsec_profiling_nvtx_dictionary_flush(void)
+static void parsec_profiling_nvtx_dictionary_flush(void)
 {
     for(int i = 0; i < parsec_profiling_nvtx_keys_count; i++) {
         free(parsec_profiling_nvtx_keys[i].name);
@@ -127,7 +125,7 @@ void parsec_profiling_nvtx_dictionary_flush(void)
     parsec_profiling_nvtx_keys_size = 0;
 }
 
-void parsec_profiling_nvtx_fini(void)
+static void parsec_profiling_nvtx_fini(void)
 {
     parsec_profiling_nvtx_dictionary_flush();
     if( NULL != parsec_profiling_nvtx_domain ) {
@@ -136,8 +134,8 @@ void parsec_profiling_nvtx_fini(void)
     }
 }
 
-void parsec_profiling_nvtx_register_key(int key, const char *name,
-                                        const char *attributes)
+static void parsec_profiling_nvtx_register_key(int key, const char *name,
+                                               const char *attributes)
 {
     char *new_name;
 
@@ -244,8 +242,8 @@ parsec_profiling_nvtx_unlink_owner_locked(parsec_profiling_nvtx_range_t *range)
     range->owner_active = NULL;
 }
 
-void parsec_profiling_nvtx_release_stream(parsec_profiling_nvtx_range_t **active,
-                                          parsec_profiling_nvtx_range_t **freelist)
+static void parsec_profiling_nvtx_release_stream(parsec_profiling_nvtx_range_t **active,
+                                                 parsec_profiling_nvtx_range_t **freelist)
 {
     parsec_profiling_nvtx_range_t *range, *to_end = NULL;
 
@@ -306,10 +304,10 @@ parsec_profiling_nvtx_find_active_locked(int key,
     return NULL;
 }
 
-void parsec_profiling_nvtx_trace(parsec_profiling_nvtx_range_t **active,
-                                 parsec_profiling_nvtx_range_t **freelist,
-                                 int key, int is_start,
-                                 uint64_t event_id, uint32_t taskpool_id)
+static void parsec_profiling_nvtx_trace(parsec_profiling_nvtx_range_t **active,
+                                        parsec_profiling_nvtx_range_t **freelist,
+                                        int key, int is_start,
+                                        uint64_t event_id, uint32_t taskpool_id)
 {
     parsec_profiling_nvtx_range_t *range;
     nvtxEventAttributes_t event_attrib;
@@ -361,5 +359,64 @@ void parsec_profiling_nvtx_trace(parsec_profiling_nvtx_range_t **active,
         parsec_profiling_nvtx_range_free(freelist, range);
     }
 }
+
+/* Substrate interface */
+
+typedef struct parsec_profiling_nvtx_stream_s {
+    parsec_profiling_nvtx_range_t *ranges;
+    parsec_profiling_nvtx_range_t *freelist;
+} parsec_profiling_nvtx_stream_t;
+
+static void nvtx_register_key(int key, const parsec_profiling_key_t *entry)
+{
+    parsec_profiling_nvtx_register_key(key, entry->name, entry->attributes);
+}
+
+static int nvtx_stream_init(parsec_profiling_stream_t *stream, void **state)
+{
+    (void)stream;
+    *state = calloc(1, sizeof(parsec_profiling_nvtx_stream_t));
+    return (NULL != *state) ? 0 : PARSEC_ERR_OUT_OF_RESOURCE;
+}
+
+static void nvtx_stream_reset(parsec_profiling_stream_t *stream, void *state)
+{
+    parsec_profiling_nvtx_stream_t *s = (parsec_profiling_nvtx_stream_t*)state;
+    (void)stream;
+    parsec_profiling_nvtx_release_stream(&s->ranges, &s->freelist);
+}
+
+static void nvtx_stream_fini(parsec_profiling_stream_t *stream, void *state)
+{
+    nvtx_stream_reset(stream, state);
+    free(state);
+}
+
+static int nvtx_trace(parsec_profiling_stream_t *stream, void *state,
+                      const parsec_profiling_trace_event_t *event)
+{
+    parsec_profiling_nvtx_stream_t *s = (parsec_profiling_nvtx_stream_t*)state;
+    (void)stream;
+    if( NULL != s ) {
+        parsec_profiling_nvtx_trace(&s->ranges, &s->freelist,
+                                    event->key, event->is_start,
+                                    event->event_id, event->taskpool_id);
+    }
+    return 0;
+}
+
+parsec_profiling_substrate_t parsec_profiling_substrate_nvtx = {
+    .name             = "nvtx",
+    .kind             = PARSEC_PROFILING_SUBSTRATE_MIRROR,
+    .register_mca     = parsec_profiling_nvtx_register_mca,
+    .init             = parsec_profiling_nvtx_init,
+    .fini             = parsec_profiling_nvtx_fini,
+    .register_key     = nvtx_register_key,
+    .dictionary_flush = parsec_profiling_nvtx_dictionary_flush,
+    .stream_init      = nvtx_stream_init,
+    .stream_reset     = nvtx_stream_reset,
+    .stream_fini      = nvtx_stream_fini,
+    .trace            = nvtx_trace,
+};
 
 #endif /* defined(PARSEC_PROF_TRACE_NVTX) */

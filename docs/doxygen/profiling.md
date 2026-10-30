@@ -6,11 +6,17 @@ parsec_public_profiling API and through the PaRSEC INStrumentation
 system (PINS). The profiling API provides the storage and event model;
 PINS decides which runtime events, such as task execution, are emitted.
 
-Profiling is a build-time feature. A build can provide one file-based
-profiling substrate, either the PaRSEC binary trace format or OTF2, and
-can also mirror emitted events to NVTX ranges for NVIDIA Nsight Systems.
-At runtime, file-based substrates require a profile filename. NVTX does
-not write a PaRSEC profile file and is enabled with its own MCA parameter.
+Profiling is a build-time feature. The emitted events are forwarded to
+independent substrates, any number of which can be active in the same
+run:
+
+- file substrates write a trace file: the PaRSEC binary trace format
+  (always built) and OTF2 (when found at configure time). They are
+  selected with the `profile_format` MCA parameter and require a profile
+  filename;
+- mirror substrates replay the events into an external tool: NVTX ranges
+  for NVIDIA Nsight Systems and Score-P user regions. They do not write a
+  PaRSEC profile file and are enabled with their own MCA parameters.
 
 ## Build-Time Support
 
@@ -26,8 +32,9 @@ The `configure` wrapper can also enable the common profiling support:
 ./configure --enable-prof-trace
 ```
 
-By default, `PARSEC_PROF_TRACE=ON` selects the PaRSEC binary trace
-format. To select OTF2 instead, configure with:
+`PARSEC_PROF_TRACE=ON` always builds the PaRSEC binary trace format. To
+also build OTF2 support, and make OTF2 the default format, configure
+with:
 
 ```
 cmake -S <src> -B <build> \
@@ -57,6 +64,25 @@ or, through the `configure` wrapper:
 
 `PARSEC_NVTX_ROOT` and `--with-nvtx` are optional when the NVTX headers
 can be found from the CUDA Toolkit or the system include paths.
+
+To add Score-P support, enable both the common profiling layer and the
+Score-P mirror:
+
+```
+cmake -S <src> -B <build> \
+  -DPARSEC_PROF_TRACE=ON \
+  -DPARSEC_PROF_TRACE_SCOREP=ON \
+  -DPARSEC_SCOREP_ROOT=<scorep-prefix>
+```
+
+or, through the `configure` wrapper:
+
+```
+./configure --enable-prof-scorep --with-scorep=<scorep-prefix>
+```
+
+`PARSEC_SCOREP_ROOT` and `--with-scorep` are optional when `scorep-config`
+is in the `PATH` or `SCOREP_ROOT` is set.
 
 ## Runtime Instrumentation
 
@@ -91,8 +117,8 @@ the separator.
 
 ## PaRSEC Binary Trace Format
 
-The PaRSEC binary trace format is the default file-based substrate when
-profiling is compiled in:
+The PaRSEC binary trace format is always available when profiling is
+compiled in, and is the default file format unless OTF2 support is built:
 
 ```
 cmake -S <src> -B <build> -DPARSEC_PROF_TRACE=ON
@@ -125,8 +151,8 @@ Python tools and viewers.
 
 ## OTF2
 
-OTF2 is selected at configure time instead of the PaRSEC binary trace
-format:
+OTF2 support is built in addition to the PaRSEC binary trace format, and
+becomes the default format, with:
 
 ```
 cmake -S <src> -B <build> \
@@ -148,6 +174,22 @@ For OTF2, `profile_filename` names the archive path used by the OTF2
 writer. The parent directory must already exist and must be writable by
 the application. The generated archive can be opened with standard OTF2
 trace analysis tools.
+
+## Selecting the File Formats
+
+The `profile_format` MCA parameter is a comma-separated list of the file
+formats written when a `profile_filename` is provided. Its default is
+`otf2` when OTF2 support is built, and `binary` otherwise. Both formats
+can be written in the same run, using the same base name:
+
+```
+./app <app-arguments> -- \
+  --mca profile_filename traces/run \
+  --mca profile_format binary,otf2 \
+  --mca mca_pins task_profiler
+```
+
+A format that is not available in the build is ignored with a warning.
 
 ## NVTX and NVIDIA Nsight Systems
 
@@ -200,6 +242,65 @@ nsys profile --trace=nvtx,cuda -o parsec_report \
   --mca mca_pins task_profiler
 ```
 
+## Score-P
+
+Score-P support mirrors PaRSEC profiling events into Score-P user
+regions, through the Score-P user adapter. Each profiling dictionary
+entry (for example, each task class) becomes a Score-P region in the
+`PaRSEC` group, so PaRSEC tasks appear in Score-P profiles (CUBE) and
+traces (OTF2) next to the MPI, CUDA, or other events recorded by
+Score-P. No PaRSEC profile file is created.
+
+Build with Score-P support:
+
+```
+cmake -S <src> -B <build> \
+  -DPARSEC_PROF_TRACE=ON \
+  -DPARSEC_PROF_TRACE_SCOREP=ON
+```
+
+PaRSEC only needs the Score-P headers at build time: the user adapter
+functions are weak symbols in libparsec, so libparsec and applications
+that are not linked with Score-P build and run as usual. The Score-P
+measurement system is provided by the application, which must be linked
+with the Score-P user adapter and, for multi-threaded runs, with pthread
+support:
+
+```
+scorep --user --thread=pthread --mpp=mpi mpicc -o app app.o -lparsec
+```
+
+If Score-P was built as static libraries, the linker has no reason to
+pull the user adapter functions into the application, add
+`-Wl,-u,SCOREP_User_RegionInit -Wl,-u,SCOREP_User_RegionEnter
+-Wl,-u,SCOREP_User_RegionEnd -Wl,-u,SCOREP_User_RegionSetGroup` (with
+a leading `_` on the symbol names on macOS) to the link line.
+
+Collect Score-P measurements by enabling the Score-P mirror and the PINS
+task profiler:
+
+```
+SCOREP_ENABLE_TRACING=true \
+./app <app-arguments> -- \
+  --mca profile_scorep 1 \
+  --mca mca_pins task_profiler
+```
+
+If `profile_scorep` is set but the application is not linked with the
+Score-P user adapter, PaRSEC prints a warning and disables the Score-P
+mirror. Score-P filter files apply to the PaRSEC regions as to any other
+user region and can be used to select the recorded task classes.
+
+Score-P requires the regions to be properly nested on each thread. By
+default, only the events traced by a thread into its own profiling stream
+(worker threads and the communication thread) are mirrored. Events traced
+on behalf of another stream, such as the events of the GPU streams emitted
+by the GPU manager thread, are skipped. They can be included with
+`--mca profile_scorep_all_streams 1`. When an event ends while events
+started after it are still open on the same thread, those enclosed
+regions are closed early to keep the Score-P measurement consistent, and
+a warning is printed once.
+
 ## Troubleshooting Empty Traces
 
 If a profiling run completes but the trace is empty, check the following
@@ -207,7 +308,10 @@ items:
 
 - The build was configured with `PARSEC_PROF_TRACE=ON`.
 - NVTX runs were also configured with `PARSEC_PROF_TRACE_NVTX=ON`.
-- File-based runs provided `--mca profile_filename <name>`.
+- Score-P runs were also configured with `PARSEC_PROF_TRACE_SCOREP=ON`,
+  and the application was linked with `scorep --user`.
+- File-based runs provided `--mca profile_filename <name>`, and
+  `profile_format` names a format available in the build.
 - Task event collection enabled the PINS task profiler with
   `--mca mca_pins task_profiler`.
 - The selected application path actually executed PaRSEC tasks.
@@ -219,3 +323,16 @@ items:
 When using Nsight Systems, `nsys status --environment` can also confirm
 whether the current system supports the requested CUDA and tracing
 features.
+
+## Adding a Substrate
+
+The profiling core (`parsec/profiling.c`) implements the public profiling
+API. It owns the dictionary, the streams, the information key/values and
+the time base, and forwards every event to the active substrates. A
+substrate implements the `parsec_profiling_substrate_t` interface defined
+in `parsec/profiling_internal.h` (`profiling_binary.c`,
+`profiling_otf2.c`, `profiling_nvtx.c` and `profiling_scorep.c` are the
+existing implementations) and is added to the list of substrates at the
+top of `parsec/profiling.c`. A substrate activated after keys or streams
+were created receives them when it is activated, so substrates do not
+depend on the order in which the profiling calls are made.
