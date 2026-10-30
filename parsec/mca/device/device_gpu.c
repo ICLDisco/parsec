@@ -52,6 +52,7 @@ static int parsec_gpu_profiling_initiated = 0;
 #endif  /* defined(PROFILING) */
 int parsec_gpu_output_stream = -1;
 int parsec_gpu_verbosity;
+int32_t parsec_gpu_exec_delay_batch = 1;
 
 typedef struct parsec_gpu_host_mirror_lookup_s {
     const parsec_flow_t            *producer_flow;
@@ -1790,6 +1791,60 @@ parsec_device_generic_memcpy_multi_async(parsec_device_gpu_module_t *gpu, parsec
     return PARSEC_SUCCESS;
 }
 
+/* Append the copies staging in every flow set in flow_mask of gtask to the
+ * parallel arrays dsts/srcs/sizes/directions, starting at index *nb_items. The
+ * arrays must have room for MAX_PARAM_COUNT more entries. Upon return *nb_items
+ * accounts for the new entries and, if any was added, *dev is the device that
+ * must issue them.
+ */
+static void
+parsec_default_gpu_stage_in_collect(parsec_gpu_task_t                  *gtask,
+                                    uint32_t                            flow_mask,
+                                    void                              **dsts,
+                                    void                              **srcs,
+                                    size_t                             *sizes,
+                                    parsec_device_transfer_direction_t *directions,
+                                    int                                *nb_items,
+                                    parsec_device_gpu_module_t        **dev)
+{
+    parsec_data_copy_t * src_copy;
+    parsec_data_copy_t * dst_copy;
+    parsec_device_gpu_module_t *src_dev;
+    parsec_device_gpu_module_t *dst_dev;
+    parsec_task_t *task = gtask->ec;
+    size_t count;
+    parsec_device_transfer_direction_t dir;
+    int n = *nb_items;
+
+    for(uint32_t i = 0; i < gtask->nb_flows  /* not task->task_class->nb_flows */; i++) {
+        if( !(flow_mask & (1U << i)) ) continue;
+        src_copy = gtask->flow_info[i].source;
+        assert(src_copy->device_private != NULL);
+        dst_copy = task->data[i].data_out;
+        src_dev = (parsec_device_gpu_module_t *)parsec_mca_device_get(src_copy->device_index);
+        dst_dev = (parsec_device_gpu_module_t *)parsec_mca_device_get(dst_copy->device_index);
+        /* All flows are batched into a single transfer issued on *dev, so they must
+         * all target the same device (data_out is the copy reserved on the pushing device). */
+        assert((NULL == *dev) || (*dev == dst_dev));
+        *dev = dst_dev;
+
+        if((src_dev->super.type & PARSEC_DEV_ANY_TYPE) == (dst_dev->super.type & PARSEC_DEV_ANY_TYPE)) {
+            assert( src_dev->peer_access_mask & (1 << dst_dev->super.device_index) );
+            dir = parsec_device_gpu_transfer_direction_d2d;
+        } else {
+            dir = parsec_device_gpu_transfer_direction_h2d;
+        }
+
+        count = (src_copy->original->span <= dst_copy->original->span) ? src_copy->original->span : dst_copy->original->span;
+        dsts[n]       = dst_copy->device_private;
+        srcs[n]       = src_copy->device_private;
+        sizes[n]      = count;
+        directions[n] = dir;
+        n++;
+    }
+    *nb_items = n;
+}
+
 /* Default stage_in function to transfer data to the GPU device.
  * Transfer the <count> contiguous bytes for every flow set in flow_mask from
  * task->data[i].data_in to task->data[i].data_out, as a single multi-item transfer.
@@ -1805,50 +1860,90 @@ parsec_default_gpu_stage_in(parsec_gpu_task_t        *gtask,
                             parsec_gpu_exec_stream_t *gpu_stream)
 {
     int ret, nb_items = 0;
-    parsec_data_copy_t * src_copy;
-    parsec_data_copy_t * dst_copy;
-    parsec_device_gpu_module_t *src_dev;
     parsec_device_gpu_module_t *dst_dev = NULL;
-    parsec_task_t *task = gtask->ec;
-    size_t count;
-    parsec_device_transfer_direction_t dir;
     void *dsts[MAX_PARAM_COUNT];
     void *srcs[MAX_PARAM_COUNT];
     size_t sizes[MAX_PARAM_COUNT];
     parsec_device_transfer_direction_t directions[MAX_PARAM_COUNT];
 
-    for(uint32_t i = 0; i < gtask->nb_flows  /* not task->task_class->nb_flows */; i++) {
-        if( !(flow_mask & (1U << i)) ) continue;
-        src_copy = gtask->flow_info[i].source;
-        assert(src_copy->device_private != NULL);
-        dst_copy = task->data[i].data_out;
-        src_dev = (parsec_device_gpu_module_t *)parsec_mca_device_get(src_copy->device_index);
-        parsec_device_gpu_module_t *flow_dst_dev = (parsec_device_gpu_module_t *)parsec_mca_device_get(dst_copy->device_index);
-        /* All flows are batched into a single transfer issued on dst_dev, so they must
-         * all target the same device (data_out is the copy reserved on the pushing device). */
-        assert((NULL == dst_dev) || (dst_dev == flow_dst_dev));
-        dst_dev = flow_dst_dev;
-
-        if((src_dev->super.type & PARSEC_DEV_ANY_TYPE) == (dst_dev->super.type & PARSEC_DEV_ANY_TYPE)) {
-            assert( src_dev->peer_access_mask & (1 << dst_dev->super.device_index) );
-            dir = parsec_device_gpu_transfer_direction_d2d;
-        } else {
-            dir = parsec_device_gpu_transfer_direction_h2d;
-        }
-
-        count = (src_copy->original->span <= dst_copy->original->span) ? src_copy->original->span : dst_copy->original->span;
-        assert(nb_items < MAX_PARAM_COUNT);
-        dsts[nb_items]       = dst_copy->device_private;
-        srcs[nb_items]       = src_copy->device_private;
-        sizes[nb_items]      = count;
-        directions[nb_items] = dir;
-        nb_items++;
-    }
+    parsec_default_gpu_stage_in_collect(gtask, flow_mask, dsts, srcs, sizes, directions,
+                                        &nb_items, &dst_dev);
     if( 0 == nb_items )
         return PARSEC_HOOK_RETURN_DONE;
     ret = dst_dev->memcpy_multi_async( dst_dev, gpu_stream, dsts, srcs, sizes, directions, nb_items );
     if(PARSEC_SUCCESS != ret)
         return PARSEC_HOOK_RETURN_ERROR;
+    return PARSEC_HOOK_RETURN_DONE;
+}
+
+/* Append the copies staging out every flow set in flow_mask of gtask to the
+ * parallel arrays dsts/srcs/sizes/directions, starting at index *nb_items. The
+ * arrays must have room for MAX_PARAM_COUNT more entries. Upon return *nb_items
+ * accounts for the new entries and, if any was added, *dev is the device that
+ * must issue them.
+ * Returns PARSEC_HOOK_RETURN_DONE, or PARSEC_HOOK_RETURN_ERROR if a flow has no
+ * host buffer to receive its data, in which case the entries collected for the
+ * flows before it are kept.
+ */
+static int
+parsec_default_gpu_stage_out_collect(parsec_gpu_task_t                  *gtask,
+                                     uint32_t                            flow_mask,
+                                     void                              **dsts,
+                                     void                              **srcs,
+                                     size_t                             *sizes,
+                                     parsec_device_transfer_direction_t *directions,
+                                     int                                *nb_items,
+                                     parsec_device_gpu_module_t        **dev)
+{
+    parsec_data_copy_t * src_copy;
+    parsec_data_copy_t * dst_copy;
+    parsec_device_gpu_module_t *dst_dev, *src_dev;
+    parsec_task_t *task = gtask->ec;
+    size_t count;
+    parsec_device_transfer_direction_t dir;
+    int n = *nb_items;
+
+    for(uint32_t i = 0; i < gtask->nb_flows  /* not task->task_class->nb_flows */; i++){
+        if(flow_mask & (1U << i)){
+            src_copy = task->data[i].data_out;
+            dst_copy = src_copy->original->device_copies[0];
+            if( NULL == dst_copy ) {
+                /* Kernel-pop normally materializes a host mirror before
+                 * calling the default stage-out path. Keep this guard here for
+                 * direct/custom callers so a missing CPU target fails cleanly
+                 * instead of dereferencing a NULL device_copies[0].
+                 */
+                *nb_items = n;
+                return PARSEC_HOOK_RETURN_ERROR;
+            }
+            dst_dev = (parsec_device_gpu_module_t*)parsec_mca_device_get(dst_copy->device_index);
+            src_dev = (parsec_device_gpu_module_t*)parsec_mca_device_get(src_copy->device_index);
+            /* All flows are batched into a single transfer issued on *dev, so they must
+             * all originate from the same device (data_out is the copy on the popping device). */
+            assert((NULL == *dev) || (*dev == src_dev));
+            *dev = src_dev;
+            count = (src_copy->original->span <= dst_copy->original->span) ? src_copy->original->span : dst_copy->original->span;
+            if( (src_dev->super.type & PARSEC_DEV_ANY_TYPE) == (dst_dev->super.type & PARSEC_DEV_ANY_TYPE) ) {
+                assert( src_dev->peer_access_mask & (1 << dst_dev->super.device_index) );
+                dir = parsec_device_gpu_transfer_direction_d2d;
+            } else {
+                dir = parsec_device_gpu_transfer_direction_d2h;
+                if (dst_copy->device_private == NULL && dst_copy->alloc_cb != NULL) {
+                    dst_copy->alloc_cb(dst_copy, 0); // allocate on host
+                }
+                if (dst_copy->device_private == NULL) {
+                    *nb_items = n;
+                    return PARSEC_HOOK_RETURN_ERROR;
+                }
+            }
+            dsts[n]       = dst_copy->device_private;
+            srcs[n]       = src_copy->device_private;
+            sizes[n]      = count;
+            directions[n] = dir;
+            n++;
+        }
+    }
+    *nb_items = n;
     return PARSEC_HOOK_RETURN_DONE;
 }
 
@@ -1867,56 +1962,16 @@ parsec_default_gpu_stage_out(parsec_gpu_task_t        *gtask,
                              parsec_gpu_exec_stream_t *gpu_stream)
 {
     int ret, nb_items = 0;
-    parsec_data_copy_t * src_copy;
-    parsec_data_copy_t * dst_copy;
-    parsec_device_gpu_module_t *dst_dev, *src_dev = NULL;
-    parsec_task_t *task = gtask->ec;
-    size_t count;
-    parsec_device_transfer_direction_t dir;
+    parsec_device_gpu_module_t *src_dev = NULL;
     void *dsts[MAX_PARAM_COUNT];
     void *srcs[MAX_PARAM_COUNT];
     size_t sizes[MAX_PARAM_COUNT];
     parsec_device_transfer_direction_t directions[MAX_PARAM_COUNT];
 
-    for(uint32_t i = 0; i < gtask->nb_flows  /* not task->task_class->nb_flows */; i++){
-        if(flow_mask & (1U << i)){
-            src_copy = task->data[i].data_out;
-            dst_copy = src_copy->original->device_copies[0];
-            if( NULL == dst_copy ) {
-                /* Kernel-pop normally materializes a host mirror before
-                 * calling the default stage-out path. Keep this guard here for
-                 * direct/custom callers so a missing CPU target fails cleanly
-                 * instead of dereferencing a NULL device_copies[0].
-                 */
-                return PARSEC_HOOK_RETURN_ERROR;
-            }
-            dst_dev = (parsec_device_gpu_module_t*)parsec_mca_device_get(dst_copy->device_index);
-            parsec_device_gpu_module_t *flow_src_dev = (parsec_device_gpu_module_t*)parsec_mca_device_get(src_copy->device_index);
-            /* All flows are batched into a single transfer issued on src_dev, so they must
-             * all originate from the same device (data_out is the copy on the popping device). */
-            assert((NULL == src_dev) || (src_dev == flow_src_dev));
-            src_dev = flow_src_dev;
-            count = (src_copy->original->span <= dst_copy->original->span) ? src_copy->original->span : dst_copy->original->span;
-            if( (src_dev->super.type & PARSEC_DEV_ANY_TYPE) == (dst_dev->super.type & PARSEC_DEV_ANY_TYPE) ) {
-                assert( src_dev->peer_access_mask & (1 << dst_dev->super.device_index) );
-                dir = parsec_device_gpu_transfer_direction_d2d;
-            } else {
-                dir = parsec_device_gpu_transfer_direction_d2h;
-                if (dst_copy->device_private == NULL && dst_copy->alloc_cb != NULL) {
-                    dst_copy->alloc_cb(dst_copy, 0); // allocate on host
-                }
-                if (dst_copy->device_private == NULL) {
-                    return PARSEC_HOOK_RETURN_ERROR;
-                }
-            }
-            assert(nb_items < MAX_PARAM_COUNT);
-            dsts[nb_items]       = dst_copy->device_private;
-            srcs[nb_items]       = src_copy->device_private;
-            sizes[nb_items]      = count;
-            directions[nb_items] = dir;
-            nb_items++;
-        }
-    }
+    ret = parsec_default_gpu_stage_out_collect(gtask, flow_mask, dsts, srcs, sizes, directions,
+                                               &nb_items, &src_dev);
+    if( PARSEC_HOOK_RETURN_DONE != ret )
+        return ret;
     if( 0 == nb_items )
         return PARSEC_HOOK_RETURN_DONE;
     ret = src_dev->memcpy_multi_async( src_dev, gpu_stream, dsts, srcs, sizes, directions, nb_items );
@@ -2670,14 +2725,15 @@ parsec_gpu_task_is_singleton(parsec_gpu_task_t *task)
     return (item->list_next == item) && (item->list_prev == item);
 }
 
-/* Merge a singleton or task ring into a stream using the stream's ordering
- * policy. The generic list sorter needs an integer embedded in every list
- * item, so refresh the wrapper priority snapshots before the merge instead of
- * incorrectly applying parsec_task_t's priority offset to parsec_gpu_task_t.
+/* Merge a singleton or task ring into one of the pending queues of a stream
+ * using the stream's ordering policy. The generic list sorter needs an integer
+ * embedded in every list item, so refresh the wrapper priority snapshots before
+ * the merge instead of incorrectly applying parsec_task_t's priority offset to
+ * parsec_gpu_task_t.
  */
 static inline void
-parsec_gpu_stream_chain_pending(parsec_gpu_exec_stream_t *stream,
-                                parsec_list_item_t *ring)
+parsec_gpu_queue_chain_pending(parsec_list_t *queue,
+                               parsec_list_item_t *ring)
 {
 #if PARSEC_GPU_USE_PRIORITIES
     parsec_gpu_task_t *task = (parsec_gpu_task_t *)ring;
@@ -2689,11 +2745,153 @@ parsec_gpu_stream_chain_pending(parsec_gpu_exec_stream_t *stream,
         current = (parsec_gpu_task_t *)current->list_item.list_next;
     } while( current != task );
 
-    parsec_list_nolock_chain_sorted(stream->fifo_pending, ring,
+    parsec_list_nolock_chain_sorted(queue, ring,
                                     offsetof(parsec_gpu_task_t, priority));
 #else
-    parsec_list_nolock_chain_back(stream->fifo_pending, ring);
+    parsec_list_nolock_chain_back(queue, ring);
 #endif
+}
+
+static inline int
+parsec_gpu_task_selected_chore_allows_batch(parsec_task_t *task,
+                                            parsec_device_module_t *device);
+
+/* Returns 1 if the selected incarnation of @p task can be batched on the device
+ * the task was scheduled on.
+ */
+static inline int
+parsec_gpu_task_is_batchable(parsec_gpu_task_t *task)
+{
+    parsec_task_t *ec = task->ec;
+
+    return (NULL != ec) && (NULL != ec->selected_device) &&
+           parsec_mca_device_type_supports_batch(ec->selected_device->type) &&
+           parsec_gpu_task_selected_chore_allows_batch(ec, ec->selected_device);
+}
+
+/* Merge a singleton or task ring into a stream using the stream's ordering
+ * policy. Execution streams keep their batchable tasks in fifo_batch, apart
+ * from the other tasks (see parsec_gpu_stream_grab()).
+ */
+static inline void
+parsec_gpu_stream_chain_pending(parsec_gpu_exec_stream_t *stream,
+                                parsec_list_item_t *ring)
+{
+    parsec_list_item_t *batchable = NULL, *others = NULL, *item, *next;
+
+    if( NULL == stream->fifo_batch ) {
+        parsec_gpu_queue_chain_pending(stream->fifo_pending, ring);
+        return;
+    }
+    for( item = ring; NULL != item; item = next ) {
+        next = parsec_list_item_ring_chop(item);
+        PARSEC_LIST_ITEM_SINGLETON(item);
+        if( parsec_gpu_task_is_batchable((parsec_gpu_task_t *)item) ) {
+            batchable = (NULL == batchable) ? item : parsec_list_item_ring_push(batchable, item);
+        } else {
+            others = (NULL == others) ? item : parsec_list_item_ring_push(others, item);
+        }
+    }
+    if( NULL != batchable ) {
+        parsec_gpu_queue_chain_pending(stream->fifo_batch, batchable);
+    }
+    if( NULL != others ) {
+        parsec_gpu_queue_chain_pending(stream->fifo_pending, others);
+    }
+}
+
+/* Returns true if the batchable tasks pending on the execution stream @p stream
+ * are held back because the stream still has work in flight. They could not
+ * start before that work completed anyway, and delaying their submission lets
+ * the submit function batch them with the tasks arriving in the meantime.
+ * A ring parked behind its event with AGAIN does not count: it records a new
+ * event every time it is continued, so it would hold the delay for as long as
+ * its hook keeps returning AGAIN, and that hook may well be waiting for one of
+ * the tasks the delay holds back.
+ */
+static inline int
+parsec_gpu_stream_delays_batch(parsec_gpu_exec_stream_t *stream)
+{
+    if( !parsec_gpu_exec_delay_batch ) {
+        return 0;
+    }
+    for( int32_t i = 0, slot = stream->end; i < stream->max_events; i++ ) {
+        parsec_gpu_task_t *task = stream->tasks[slot];
+        if( NULL == task ) {
+            break;
+        }
+        if( PARSEC_HOOK_RETURN_AGAIN != task->last_status ) {
+            return 1;
+        }
+        slot = (slot + 1) % stream->max_events;
+    }
+    return 0;
+}
+
+/* Extract the next task to submit from the pending queues of @p stream. On an
+ * execution stream, the task with the highest priority (the oldest one in case
+ * of a tie) of the tasks at the front of the two queues is selected. Unless
+ * PARSEC_GPU_USE_PRIORITIES is set, the queues are FIFOs and their fronts are
+ * their oldest tasks: the priorities only arbitrate between the two queues,
+ * which mostly receive tasks in the priority order the device queue hands them
+ * out in. If the selected task is batchable but
+ * batchable tasks are delayed (see parsec_gpu_stream_delays_batch()), nothing is
+ * submitted: tasks with a lower priority wait as well, otherwise they would
+ * keep the stream busy and delay the batch further.
+ */
+static inline parsec_gpu_task_t *
+parsec_gpu_stream_grab(parsec_gpu_exec_stream_t *stream)
+{
+    parsec_list_t *queue = stream->fifo_pending;
+    parsec_gpu_task_t *task = NULL, *batch_task;
+
+    if( (NULL != stream->fifo_batch) && !parsec_list_nolock_is_empty(stream->fifo_batch) ) {
+        batch_task = (parsec_gpu_task_t *)PARSEC_LIST_ITERATOR_FIRST(stream->fifo_batch);
+        if( !parsec_list_nolock_is_empty(stream->fifo_pending) ) {
+            task = (parsec_gpu_task_t *)PARSEC_LIST_ITERATOR_FIRST(stream->fifo_pending);
+        }
+        if( (NULL == task) ||
+            (batch_task->priority > task->priority) ||
+            ((batch_task->priority == task->priority) && (batch_task->heap_seq < task->heap_seq)) ) {
+            if( parsec_gpu_stream_delays_batch(stream) ) {
+                return NULL;
+            }
+            queue = stream->fifo_batch;
+        }
+    }
+    return (parsec_gpu_task_t *)parsec_list_nolock_pop_front(queue);
+}
+
+/* If the execution stream @p stream is idle and has nothing pending, take over
+ * a batchable task delayed on another execution stream, so that it does not
+ * wait for that stream to drain. Once submitted, the task can collect the other
+ * delayed tasks into its batch (see parsec_gpu_task_collect_batch()).
+ */
+static void
+parsec_gpu_stream_take_delayed(parsec_device_gpu_module_t *gpu_device,
+                               parsec_gpu_exec_stream_t *stream)
+{
+    parsec_gpu_exec_stream_t *other;
+    parsec_list_item_t *item;
+
+    if( !parsec_gpu_exec_delay_batch || (NULL == stream->fifo_batch) ||
+        (NULL != stream->tasks[stream->end]) ||
+        !parsec_list_nolock_is_empty(stream->fifo_pending) ||
+        !parsec_list_nolock_is_empty(stream->fifo_batch) ) {
+        return;
+    }
+    for( int i = 2; i < gpu_device->num_exec_streams; i++ ) {
+        other = gpu_device->exec_stream[i];
+        if( (other == stream) || (NULL == other->fifo_batch) ||
+            !parsec_gpu_stream_delays_batch(other) ||
+            parsec_list_nolock_is_empty(other->fifo_batch) ) {
+            continue;
+        }
+        item = parsec_list_nolock_pop_front(other->fifo_batch);
+        PARSEC_LIST_ITEM_SINGLETON(item);
+        parsec_list_nolock_push_back(stream->fifo_batch, item);
+        return;
+    }
 }
 
 static inline void
@@ -2906,17 +3104,63 @@ parsec_gpu_task_selected_chore_allows_batch(parsec_task_t *task,
            (0 != (chore->type & PARSEC_DEV_CHORE_ALLOW_BATCH));
 }
 
+/* Move the tasks of @p queue accepted by @p callback into the ring of
+ * @p batch_head, and account for them in *nb_tasks. Returns 0 once the queue has
+ * been scanned, 1 if the callback stopped the collection, and
+ * PARSEC_HOOK_RETURN_ERROR if the callback returned an invalid action, in which
+ * case *nb_tasks still accounts for the tasks accepted before.
+ */
+static int
+parsec_gpu_task_collect_batch_from(parsec_list_t *queue,
+                                   parsec_device_module_t *device,
+                                   parsec_gpu_task_t *batch_head,
+                                   parsec_gpu_task_batch_cb_t callback,
+                                   void *callback_data,
+                                   int *nb_tasks)
+{
+    parsec_list_item_t *item, *next;
+    int rc;
+
+    /* The collector deliberately has no scan bound. Submit-hook policy decides
+     * when enough work has been considered and returns STOP at that candidate.
+     */
+    for(item = (parsec_list_item_t *)queue->ghost_element.list_next;
+        item != &queue->ghost_element;
+        item = next) {
+        parsec_gpu_task_t *candidate = (parsec_gpu_task_t *)item;
+        parsec_task_t *candidate_task = candidate->ec;
+
+        next = (parsec_list_item_t *)item->list_next;
+        if( !parsec_gpu_task_selected_chore_allows_batch(candidate_task, device) ) {
+            continue;
+        }
+        rc = callback(candidate, batch_head, callback_data);
+        if( PARSEC_GPU_TASK_BATCH_STOP == rc ) {
+            return 1;
+        }
+        if( PARSEC_GPU_TASK_BATCH_ACCEPT == rc ) {
+            (void)parsec_list_nolock_remove(queue, item);
+            (void)parsec_list_item_ring_push(&batch_head->list_item, item);
+            (*nb_tasks)++;
+            continue;
+        }
+        if( PARSEC_GPU_TASK_BATCH_REJECT != rc ) {
+            return PARSEC_HOOK_RETURN_ERROR;
+        }
+    }
+    return 0;
+}
+
 int
 parsec_gpu_task_collect_batch(parsec_gpu_exec_stream_t *gpu_stream,
                               parsec_gpu_task_t *batch_head,
                               parsec_gpu_task_batch_cb_t callback,
                               void *callback_data)
 {
-    parsec_list_t *fifo_pending;
-    parsec_list_item_t *item, *next;
+    parsec_device_gpu_module_t *gpu_device;
     parsec_task_t *head_task;
     parsec_device_module_t *device;
-    int nb_tasks = 0;
+    int i, first = -1, nb_exec_streams, nb_tasks = 0;
     int rc;
 
     assert(NULL != gpu_stream);
@@ -2950,34 +3194,47 @@ parsec_gpu_task_collect_batch(parsec_gpu_exec_stream_t *gpu_stream,
         return nb_tasks;
     }
 
-    fifo_pending = gpu_stream->fifo_pending;
-    assert(NULL != fifo_pending);
+    assert(NULL != gpu_stream->fifo_pending);
 
-    /* The collector deliberately has no scan bound. Submit-hook policy decides
-     * when enough work has been considered and returns STOP at that candidate.
+    /* Start with the tasks pending on the calling stream. Execution streams keep
+     * their batchable tasks in fifo_batch, the other streams in fifo_pending.
      */
-    for(item = (parsec_list_item_t *)fifo_pending->ghost_element.list_next;
-        item != &fifo_pending->ghost_element;
-        item = next) {
-        parsec_gpu_task_t *candidate = (parsec_gpu_task_t *)item;
-        parsec_task_t *candidate_task = candidate->ec;
-
-        next = (parsec_list_item_t *)item->list_next;
-        if( !parsec_gpu_task_selected_chore_allows_batch(candidate_task, device) ) {
-            continue;
+    if( NULL != gpu_stream->fifo_batch ) {
+        rc = parsec_gpu_task_collect_batch_from(gpu_stream->fifo_batch, device, batch_head,
+                                                callback, callback_data, &nb_tasks);
+        if( 0 != rc ) {
+            return (rc < 0) ? rc : nb_tasks;
         }
-        rc = callback(candidate, batch_head, callback_data);
-        if( PARSEC_GPU_TASK_BATCH_STOP == rc ) {
+    }
+    rc = parsec_gpu_task_collect_batch_from(gpu_stream->fifo_pending, device, batch_head,
+                                            callback, callback_data, &nb_tasks);
+    if( 0 != rc ) {
+        return (rc < 0) ? rc : nb_tasks;
+    }
+
+    /* Then take the batchable tasks of the other execution streams of the device:
+     * tasks pending on an execution stream are done with the stage in, so they can
+     * execute on any of them. The pending queues of all streams are only accessed
+     * by the thread managing the device.
+     */
+    gpu_device = (parsec_device_gpu_module_t *)device;
+    nb_exec_streams = gpu_device->num_exec_streams - 2;
+    for( i = 0; i < nb_exec_streams; i++ ) {
+        if( gpu_device->exec_stream[2 + i] == gpu_stream ) {
+            first = i;
             break;
         }
-        if( PARSEC_GPU_TASK_BATCH_ACCEPT == rc ) {
-            (void)parsec_list_nolock_remove(fifo_pending, item);
-            (void)parsec_list_item_ring_push(&batch_head->list_item, item);
-            nb_tasks++;
-            continue;
-        }
-        if( PARSEC_GPU_TASK_BATCH_REJECT != rc ) {
-            return PARSEC_HOOK_RETURN_ERROR;
+    }
+    if( first < 0 ) {
+        return nb_tasks;  /* not called from an execution stream */
+    }
+    for( i = 1; i < nb_exec_streams; i++ ) {
+        parsec_gpu_exec_stream_t *stream = gpu_device->exec_stream[2 + (first + i) % nb_exec_streams];
+        if( NULL == stream->fifo_batch ) continue;
+        rc = parsec_gpu_task_collect_batch_from(stream->fifo_batch, device, batch_head,
+                                                callback, callback_data, &nb_tasks);
+        if( 0 != rc ) {
+            return (rc < 0) ? rc : nb_tasks;
         }
     }
 
@@ -3435,7 +3692,7 @@ parsec_device_progress_stream( parsec_device_gpu_module_t* gpu_device,
   grab_a_task:
     assert(NULL == task);
     if( NULL == stream->tasks[stream->start] ) {  /* there is room on the stream */
-        task = (parsec_gpu_task_t*)parsec_list_nolock_pop_front(stream->fifo_pending);  /* get the next task */
+        task = parsec_gpu_stream_grab(stream);  /* get the next task */
     }
     if( NULL == task ) {  /* No tasks, we're done */
         return PARSEC_HOOK_RETURN_DONE;
@@ -3551,6 +3808,343 @@ parsec_device_progress_stream( parsec_device_gpu_module_t* gpu_device,
 }
 
 /**
+ * Returns 1 if the two tasks selected the same incarnation hook. This is what
+ * matters for batching: DSLs such as TTG create a task class per task, so the
+ * task classes of compatible tasks may differ.
+ */
+static inline int
+parsec_gpu_task_same_chore(parsec_gpu_task_t *task1, parsec_gpu_task_t *task2)
+{
+    parsec_task_t *t1 = task1->ec;
+    parsec_task_t *t2 = task2->ec;
+
+    if( (NULL == t1) ||
+        (NULL == t1->task_class) ||
+        (NULL == t2) ||
+        (NULL == t2->task_class) ||
+        (t1->selected_chore < 0) ||
+        (t1->selected_chore != t2->selected_chore) ||
+        (t1->selected_device != t2->selected_device) ||
+        (t1->task_class->incarnations[t1->selected_chore].hook !=
+         t2->task_class->incarnations[t2->selected_chore].hook) ) {
+        return 0;
+    }
+    return 1;
+}
+
+/* Append @p task (a single task or a task ring) at the end of @p *ring. */
+static inline void
+parsec_gpu_task_ring_append(parsec_gpu_task_t **ring,
+                            parsec_gpu_task_t *task)
+{
+    if( NULL == *ring ) {
+        *ring = task;
+    } else {
+        parsec_list_item_ring_merge(&(*ring)->list_item, &task->list_item);
+    }
+}
+
+/* Detach the first task of @p ring and return the rest of the ring, or NULL if
+ * the task was alone.
+ */
+static inline parsec_gpu_task_t *
+parsec_gpu_task_ring_pop(parsec_gpu_task_t *ring)
+{
+    parsec_gpu_task_t *next;
+
+    next = (parsec_gpu_task_t *)parsec_list_item_ring_chop(&ring->list_item);
+    PARSEC_LIST_ITEM_SINGLETON(&ring->list_item);
+    return next;
+}
+
+/**
+ * Extract the next ring of tasks to progress from the pending queue of @p stream.
+ * The ring gathers up to PARSEC_DEVICE_MAX_BATCH_SIZE pending tasks whose selected
+ * incarnation allows batching on @p gpu_device and that share the incarnation of
+ * the first pending task. Pending tasks that do not match are left in the queue,
+ * in order, for the following rings. A task that cannot be batched always forms
+ * a ring of its own.
+ */
+static inline parsec_gpu_task_t *
+parsec_gpu_stream_grab_ring(parsec_device_gpu_module_t *gpu_device,
+                            parsec_gpu_exec_stream_t *stream)
+{
+    parsec_list_t *fifo_pending = stream->fifo_pending;
+    parsec_list_item_t *item, *next;
+    parsec_gpu_task_t *ring, *task;
+    int nb_tasks = 1;
+
+    ring = (parsec_gpu_task_t *)parsec_list_nolock_pop_front(fifo_pending);
+    if( NULL == ring ) {
+        return NULL;
+    }
+    PARSEC_LIST_ITEM_SINGLETON(&ring->list_item);
+
+    /* Only kernel tasks are batched, as when they enter the device (see
+     * parsec_device_kernel_scheduler()) */
+    if( (PARSEC_GPU_TASK_TYPE_KERNEL != ring->task_type) ||
+        !parsec_mca_device_type_supports_batch(gpu_device->super.type) ||
+        !parsec_gpu_task_selected_chore_allows_batch(ring->ec, &gpu_device->super) ) {
+        return ring;
+    }
+
+    for( item = (parsec_list_item_t *)fifo_pending->ghost_element.list_next;
+         (item != &fifo_pending->ghost_element) && (nb_tasks < PARSEC_DEVICE_MAX_BATCH_SIZE);
+         item = next ) {
+        next = (parsec_list_item_t *)item->list_next;
+        task = (parsec_gpu_task_t *)item;
+        if( (PARSEC_GPU_TASK_TYPE_KERNEL != task->task_type) ||
+            !parsec_gpu_task_selected_chore_allows_batch(task->ec, &gpu_device->super) ||
+            !parsec_gpu_task_same_chore(task, ring) ) {
+            continue;  /* leave it for a following ring */
+        }
+        (void)parsec_list_nolock_remove(fifo_pending, item);
+        PARSEC_LIST_ITEM_SINGLETON(item);
+        (void)parsec_list_item_ring_push(&ring->list_item, item);
+        nb_tasks++;
+    }
+    return ring;
+}
+
+/* Sort a task into the ring matching the return code @p rc of one of its stage
+ * functions: the tasks that completed the stage go into @p done_ring, the tasks
+ * withdrawn from the device (PARSEC_HOOK_RETURN_ASYNC) into @p async_ring, and
+ * the tasks that failed into @p error_ring, in which case *error_rc keeps the
+ * first error.
+ */
+static inline void
+parsec_gpu_stage_result_sort(int rc,
+                             parsec_gpu_task_t *task,
+                             parsec_gpu_task_t **done_ring,
+                             parsec_gpu_task_t **async_ring,
+                             parsec_gpu_task_t **error_ring,
+                             int *error_rc)
+{
+    if( PARSEC_HOOK_RETURN_DONE == rc ) {
+        parsec_gpu_task_ring_append(done_ring, task);
+    } else if( PARSEC_HOOK_RETURN_ASYNC == rc ) {
+        parsec_gpu_task_ring_append(async_ring, task);
+    } else {
+        if( NULL == *error_ring ) {
+            /* Unknown negative values are normalized to ERROR at this boundary */
+            *error_rc = (PARSEC_HOOK_RETURN_DISABLE == rc) ?
+                        PARSEC_HOOK_RETURN_DISABLE : PARSEC_HOOK_RETURN_ERROR;
+        }
+        task->last_status = *error_rc;
+        parsec_gpu_task_ring_append(error_ring, task);
+    }
+}
+
+/* Release the tasks in @p ring that a data movement stage withdrew from the
+ * device while other tasks it returns keep this thread managing the device, so
+ * the outstanding count cannot drop to zero here.
+ */
+static void
+parsec_gpu_release_withdrawn_tasks(parsec_device_gpu_module_t *gpu_device,
+                                   parsec_gpu_task_t *ring)
+{
+    int released_tasks = parsec_gpu_task_ring_release(ring);
+    int rc = parsec_atomic_fetch_sub_int32(&(gpu_device->mutex), released_tasks);
+    assert(rc >= released_tasks); (void)rc;
+}
+
+/**
+ * Progress one of the data movement streams (stage in or stage out). Unlike
+ * parsec_device_progress_stream(), which hands the tasks one at a time to the
+ * submit function of the execution streams, tasks are handed to
+ * @p progress_fct by rings of compatible tasks (see parsec_gpu_stream_grab_ring()),
+ * so that the transfers of all tasks of a ring can be merged into batched copies.
+ * @p task, if not NULL, is a task or a ring of tasks to be added to the pending
+ * queue of @p stream.
+ *
+ * @p progress_fct stores the outcome of each task of the ring in its last_status,
+ * following the parsec_gpu_step_function_t convention: a positive value if work
+ * was queued on the stream, 0 if nothing was queued, or a negative
+ * parsec_hook_return_t. All tasks of a ring that queued work, or asked to retry
+ * once that work completed (PARSEC_HOOK_RETURN_AGAIN), share a single event.
+ *
+ * Every call either completes the oldest event of the stream, or submits a
+ * single ring, so that the caller progresses all stages evenly.
+ *
+ * Beware: this function does not generate errors by itself, instead it
+ * propagates upward the return codes of the progress function.
+ *
+ * @returns
+ *   PARSEC_HOOK_RETURN_DONE: *out_task is the ring of tasks that completed the
+ *                            stage, or NULL.
+ *   PARSEC_HOOK_RETURN_ASYNC: *out_task is the ring of tasks withdrawn from the
+ *                             device, and no task completed the stage.
+ *   PARSEC_HOOK_RETURN_NEXT: tasks were delayed because of physical constraints,
+ *                            and no task completed the stage. *out_task is NULL.
+ *   PARSEC_HOOK_RETURN_AGAIN: the stream could not be queried. *out_task is NULL.
+ *   PARSEC_HOOK_RETURN_ERROR or PARSEC_HOOK_RETURN_DISABLE: *out_task is the
+ *                             ring of tasks that failed.
+ */
+static int
+parsec_device_progress_stream_batch( parsec_device_gpu_module_t* gpu_device,
+                                     parsec_execution_stream_t* es,
+                                     parsec_gpu_exec_stream_t* stream,
+                                     parsec_gpu_step_function_t progress_fct,
+                                     parsec_gpu_task_t* task,
+                                     parsec_gpu_task_t** out_task )
+{
+    parsec_gpu_task_t *done_ring = NULL;   /* tasks that completed the stage */
+    parsec_gpu_task_t *async_ring = NULL;  /* tasks withdrawn from the device */
+    parsec_gpu_task_t *next_ring = NULL;   /* tasks delayed by physical constraints */
+    parsec_gpu_task_t *again_ring = NULL;  /* tasks to retry on this stream */
+    parsec_gpu_task_t *error_ring = NULL;  /* tasks that failed */
+    parsec_gpu_task_t *ring, *event_ring = NULL, *iter, *next;
+    int rc, error_rc = PARSEC_HOOK_RETURN_DONE;
+#if defined(PARSEC_DEBUG_NOISIER)
+    char task_str[MAX_TASK_STRLEN];
+#endif
+
+    if( NULL != task ) {
+        parsec_gpu_stream_push_pending(stream, task);
+    }
+    *out_task = NULL;
+
+    if( NULL != stream->tasks[stream->end] ) {
+        rc = gpu_device->event_query(gpu_device, stream, stream->end);
+        if( 1 == rc ) {
+            ring = stream->tasks[stream->end];
+            PARSEC_DEBUG_VERBOSE(19, parsec_gpu_output_stream,
+                                 "GPU[%d:%s]: Completed %s on stream %s{%p}",
+                                 gpu_device->super.device_index, gpu_device->super.name,
+                                 parsec_task_snprintf(task_str, MAX_TASK_STRLEN, ring->ec),
+                                 stream->name, (void*)stream);
+            stream->tasks[stream->end] = NULL;
+            stream->end = (stream->end + 1) % stream->max_events;
+
+            /* Complete the stage for all the tasks sharing the event, in submission order */
+            for( iter = ring; NULL != iter; iter = next ) {
+                next = parsec_gpu_task_ring_pop(iter);
+#if defined(PARSEC_PROF_TRACE)
+                parsec_gpu_profile_event_complete(
+                    stream, iter, PARSEC_HOOK_RETURN_AGAIN == iter->last_status);
+#endif /* (PARSEC_PROF_TRACE) */
+                if( PARSEC_HOOK_RETURN_AGAIN == iter->last_status ) {
+                    /* The stage made progress on this task: retry it now that
+                     * the work it queued completed. */
+                    parsec_gpu_task_ring_append(&again_ring, iter);
+                    continue;
+                }
+                assert( PARSEC_HOOK_RETURN_ASYNC != iter->last_status );
+                rc = PARSEC_HOOK_RETURN_DONE;
+                if( iter->complete_stage )
+                    rc = iter->complete_stage(gpu_device, &iter, stream);
+                /* the task can be withdrawn by the system */
+                if( NULL != iter )
+                    parsec_gpu_stage_result_sort(rc, iter, &done_ring, &async_ring,
+                                                 &error_ring, &error_rc);
+            }
+            if( (NULL != done_ring) || (NULL != async_ring) || (NULL != error_ring) ) {
+                /* Hand the tasks that completed to the upper level right away,
+                 * and keep the ones to retry at the front of the queue. */
+                if( NULL != again_ring ) {
+                    parsec_list_nolock_chain_front(stream->fifo_pending, &again_ring->list_item);
+                }
+                goto complete;
+            }
+        } else if( 0 != rc ) {
+            return PARSEC_HOOK_RETURN_AGAIN;
+        }
+    }
+
+    if( NULL != stream->tasks[stream->start] ) {  /* no room on the stream */
+        assert(NULL == again_ring);  /* a slot was just released for them */
+        return PARSEC_HOOK_RETURN_DONE;
+    }
+    /* Tasks to retry come first, they were submitted before the pending ones */
+    ring = (NULL != again_ring) ? again_ring : parsec_gpu_stream_grab_ring(gpu_device, stream);
+    if( NULL == ring ) {  /* No tasks, we're done */
+        return PARSEC_HOOK_RETURN_DONE;
+    }
+
+    (void)progress_fct( gpu_device, es, ring, stream );
+
+    for( iter = ring; NULL != iter; iter = next ) {
+        next = parsec_gpu_task_ring_pop(iter);
+        rc = iter->last_status;
+        if( (rc > 0) || (PARSEC_HOOK_RETURN_AGAIN == rc) ||
+            ((0 == rc) && !parsec_device_skip_empty_events) ) {
+            /* Do not skip the event: some inputs might still be on their way to
+             * the device, and activating the task too early would let it execute
+             * on data not yet available. AGAIN is not an error: the event
+             * completion retries the stage instead of advancing the task. */
+            parsec_gpu_task_ring_append(&event_ring, iter);
+        } else if( 0 == rc ) {
+            /* Nothing was queued on the stream for this task, skip the event */
+#if defined(PARSEC_PROF_TRACE)
+            parsec_gpu_profile_event_complete(stream, iter, 0);
+#endif
+            rc = PARSEC_HOOK_RETURN_DONE;
+            if( iter->complete_stage )
+                rc = iter->complete_stage(gpu_device, &iter, stream);
+            if( NULL != iter )
+                parsec_gpu_stage_result_sort(rc, iter, &done_ring, &async_ring,
+                                             &error_ring, &error_rc);
+        } else if( PARSEC_HOOK_RETURN_NEXT == rc ) {
+            /* We are running into physical constraints, delay the resubmission
+             * of this task as much as possible without losing track of it. */
+            parsec_gpu_task_ring_append(&next_ring, iter);
+        } else if( PARSEC_DEVICE_TASK_STARVED == rc ) {
+            /* The task found no room on the device and queued nothing, so it has
+             * no event to wait for. Hold it on the device until a write-back gives
+             * it a chance, see parsec_device_progress_stream(). */
+            parsec_list_nolock_push_back(&gpu_device->starved_tasks,
+                                         (parsec_list_item_t*)iter);
+        } else {
+            /* Withdrawn from the device, or failed: return it to the upper
+             * level for a final decision on its fate. */
+            parsec_gpu_stage_result_sort(rc, iter, &done_ring, &async_ring,
+                                         &error_ring, &error_rc);
+        }
+    }
+    if( NULL != event_ring ) {
+        rc = gpu_device->event_record(gpu_device, stream, stream->start);
+        assert(PARSEC_SUCCESS == rc);
+        stream->tasks[stream->start] = event_ring;
+        stream->start = (stream->start + 1) % stream->max_events;
+        PARSEC_DEBUG_VERBOSE(20, parsec_gpu_output_stream,
+                             "GPU[%d:%s]: Submitted %s(task %p) on stream %s{%p}",
+                             gpu_device->super.device_index, gpu_device->super.name,
+                             event_ring->ec->task_class->name, (void*)event_ring->ec,
+                             stream->name, (void*)stream);
+    }
+
+  complete:
+    for( iter = next_ring; NULL != iter; iter = next ) {
+        /* Don't reorder the push_back, see above */
+        next = parsec_gpu_task_ring_pop(iter);
+        parsec_gpu_stream_push_pending(stream, iter);
+    }
+    if( NULL != error_ring ) {
+        /* ERROR and DISABLE are terminal. Other tasks of the ring may have queued
+         * work before the failure, so quiesce the stream before returning the
+         * failed tasks for cleanup. The device is disabled, so the other tasks
+         * are not taken care of. */
+        if( PARSEC_SUCCESS != parsec_gpu_stream_quiesce_after_failure(gpu_device, stream) ) {
+            error_rc = PARSEC_HOOK_RETURN_ERROR;
+        }
+        *out_task = error_ring;
+        return error_rc;
+    }
+    if( NULL != async_ring ) {
+        if( NULL == done_ring ) {
+            *out_task = async_ring;
+            return PARSEC_HOOK_RETURN_ASYNC;
+        }
+        parsec_gpu_release_withdrawn_tasks(gpu_device, async_ring);
+    }
+    if( NULL != done_ring ) {
+        *out_task = done_ring;
+        return PARSEC_HOOK_RETURN_DONE;
+    }
+    return (NULL != next_ring) ? PARSEC_HOOK_RETURN_NEXT : PARSEC_HOOK_RETURN_DONE;
+}
+
+/**
  * @brief Release any GPU reader acquired by parsec_device_data_stage_in() for the
  *    flows marked in @p transfer_mask. Called when the combined gpu_task->stage_in
  *    call covering those flows ultimately fails: no completion event will ever fire
@@ -3580,32 +4174,190 @@ parsec_device_kernel_push_release_readers_on_failure(parsec_device_gpu_module_t 
     }
 }
 
+/* Capacity of the copy descriptor arrays merging the default stage_in/stage_out
+ * transfers of the tasks of a ring into batched copies. The arrays are flushed
+ * whenever the next task might not fit anymore.
+ */
+#define PARSEC_DEVICE_MAX_BATCH_COPIES (4 * MAX_PARAM_COUNT)
+
+typedef struct parsec_device_copy_batch_s {
+    int                                nb_items;
+    int                                nb_tasks;
+    parsec_gpu_task_t                 *tasks[PARSEC_DEVICE_MAX_BATCH_SIZE];  /**< tasks with copies in the batch */
+    uint32_t                           masks[PARSEC_DEVICE_MAX_BATCH_SIZE];  /**< the flows they transfer */
+    void                              *dsts[PARSEC_DEVICE_MAX_BATCH_COPIES];
+    void                              *srcs[PARSEC_DEVICE_MAX_BATCH_COPIES];
+    size_t                             sizes[PARSEC_DEVICE_MAX_BATCH_COPIES];
+    parsec_device_transfer_direction_t directions[PARSEC_DEVICE_MAX_BATCH_COPIES];
+} parsec_device_copy_batch_t;
+
+/* A transfer decided by the push stage could not be issued: no completion event
+ * will release what the stage in acquired for it, so do it here, and fail the task.
+ * parsec_device_data_stage_in() gave each destination copy the version it was to
+ * receive before any byte moved, with UNDER_TRANSFER as the only guard, and nothing
+ * tells which of the copies the device carried out: a failing batched copy may have
+ * moved some, all or none of them, for this task and for the others in the batch.
+ * Declare every destination copy indeterminate instead, so that no one waits for a
+ * transfer that will never complete or trusts a version the copy may not hold.
+ */
+static void
+parsec_device_stage_in_failed(parsec_device_gpu_module_t *gpu_device,
+                              parsec_gpu_task_t *gpu_task, uint32_t transfer_mask)
+{
+    parsec_task_t *this_task = gpu_task->ec;
+
+    /* Takes the lock of each source original, which is also the destination's */
+    parsec_device_kernel_push_release_readers_on_failure(gpu_device, gpu_task, transfer_mask);
+    for( uint32_t i = 0; i < gpu_task->nb_flows; i++ ) {
+        if( !(transfer_mask & (1U << i)) ) continue;
+        parsec_data_copy_t *gpu_elem = this_task->data[i].data_out;
+        parsec_data_t *original = gpu_elem->original;
+        parsec_atomic_lock(&original->lock);
+        gpu_elem->coherency_state = PARSEC_DATA_COHERENCY_INVALID;
+        gpu_elem->version = UINT_MAX;  /* scrap value */
+        gpu_elem->data_transfer_status = PARSEC_DATA_STATUS_NOT_TRANSFER;
+        parsec_atomic_unlock(&original->lock);
+    }
+    gpu_task->last_status = PARSEC_HOOK_RETURN_ERROR;
+}
+
+/* Issue the copies collected in @p batch as a single batched copy on @p gpu_stream.
+ * If that fails, every task that contributed copies to the batch fails, with
+ * @p error_rc for the stage out.
+ */
+static void
+parsec_device_copy_batch_flush(parsec_device_gpu_module_t *gpu_device,
+                               parsec_device_copy_batch_t *batch,
+                               parsec_gpu_exec_stream_t   *gpu_stream,
+                               bool                        stage_in,
+                               int                         error_rc)
+{
+    int rc;
+
+    if( 0 != batch->nb_items ) {
+        rc = gpu_device->memcpy_multi_async(gpu_device, gpu_stream, batch->dsts, batch->srcs,
+                                            batch->sizes, batch->directions, batch->nb_items);
+        if( PARSEC_SUCCESS != rc ) {
+            parsec_warning("GPU[%d:%s]: batched copy of %d items for %d tasks failed rc=%d @%s:%d",
+                           gpu_device->super.device_index, gpu_device->super.name,
+                           batch->nb_items, batch->nb_tasks, rc, __func__, __LINE__);
+            for( int i = 0; i < batch->nb_tasks; i++ ) {
+                if( stage_in ) {
+                    parsec_device_stage_in_failed(gpu_device, batch->tasks[i], batch->masks[i]);
+                } else {
+                    batch->tasks[i]->last_status = error_rc;
+                }
+            }
+        }
+    }
+    batch->nb_items = 0;
+    batch->nb_tasks = 0;
+}
+
+/**
+ * Issue the transfers decided for the @p nb_tasks tasks in @p tasks, as recorded in
+ * the flow masks @p masks, on @p gpu_stream. The transfers of all tasks relying on
+ * the default stage function are merged into batched copies, the other tasks issue
+ * their transfers through their own stage function. Tasks whose transfers could not
+ * be issued fail: with PARSEC_HOOK_RETURN_ERROR for the stage in, and with
+ * @p error_rc for the stage out.
+ */
+static void
+parsec_device_issue_transfers(parsec_device_gpu_module_t  *gpu_device,
+                              parsec_gpu_exec_stream_t    *gpu_stream,
+                              parsec_gpu_task_t          **tasks,
+                              uint32_t                    *masks,
+                              int                          nb_tasks,
+                              bool                         stage_in,
+                              int                          error_rc)
+{
+    parsec_device_copy_batch_t batch;
+    parsec_device_gpu_module_t *dev = gpu_device;
+    parsec_stage_in_function_t *stage_fct;
+    int rc, nb_items;
+
+    batch.nb_items = 0;
+    batch.nb_tasks = 0;
+    for( int t = 0; t < nb_tasks; t++ ) {
+        parsec_gpu_task_t *gpu_task = tasks[t];
+        if( 0 == masks[t] ) continue;
+
+        stage_fct = stage_in ? gpu_task->stage_in : gpu_task->stage_out;
+        if( stage_fct == (stage_in ? parsec_default_gpu_stage_in : parsec_default_gpu_stage_out) ) {
+            if( batch.nb_items + MAX_PARAM_COUNT > PARSEC_DEVICE_MAX_BATCH_COPIES ) {
+                parsec_device_copy_batch_flush(gpu_device, &batch, gpu_stream, stage_in, error_rc);
+            }
+            nb_items = batch.nb_items;
+            if( stage_in ) {
+                parsec_default_gpu_stage_in_collect(gpu_task, masks[t], batch.dsts, batch.srcs,
+                                                    batch.sizes, batch.directions, &batch.nb_items, &dev);
+                rc = PARSEC_HOOK_RETURN_DONE;
+            } else {
+                rc = parsec_default_gpu_stage_out_collect(gpu_task, masks[t], batch.dsts, batch.srcs,
+                                                          batch.sizes, batch.directions, &batch.nb_items, &dev);
+            }
+            /* all copies are issued by the device managing the tasks */
+            assert(dev == gpu_device);
+            if( PARSEC_HOOK_RETURN_DONE != rc ) {
+                /* don't copy anything for a task that fails */
+                batch.nb_items = nb_items;
+                parsec_warning("GPU[%d:%s]: no host memory to stage out data of task %s transfer_mask=0x%x @%s:%d",
+                               gpu_device->super.device_index, gpu_device->super.name,
+                               gpu_task->ec->task_class->name, masks[t], __func__, __LINE__);
+                gpu_task->last_status = error_rc;
+                continue;
+            }
+            assert(batch.nb_tasks < PARSEC_DEVICE_MAX_BATCH_SIZE);
+            batch.tasks[batch.nb_tasks] = gpu_task;
+            batch.masks[batch.nb_tasks] = masks[t];
+            batch.nb_tasks++;
+        } else {
+            rc = (NULL != stage_fct) ? stage_fct(gpu_task, masks[t], gpu_stream) : PARSEC_SUCCESS;
+            if( PARSEC_SUCCESS != rc ) {
+                parsec_warning( "GPU[%d:%s]: gpu_task->%s rc=%d @%s:%d for task %s transfer_mask=0x%x",
+                                gpu_device->super.device_index, gpu_device->super.name,
+                                stage_in ? "stage_in to device" : "stage_out from device", rc, __func__, __LINE__,
+                                gpu_task->ec->task_class->name, masks[t]);
+                if( stage_in ) {
+                    parsec_device_stage_in_failed(gpu_device, gpu_task, masks[t]);
+                } else {
+                    gpu_task->last_status = error_rc;
+                }
+            }
+        }
+    }
+    parsec_device_copy_batch_flush(gpu_device, &batch, gpu_stream, stage_in, error_rc);
+    (void)dev;
+}
+
 /**
  *  @brief This function prepare memory on the target device for all the inputs and output
- *  of the task, and then initiate the necessary copies from the best location of the input
+ *  of the task, and then decides which copies are needed from the best location of the input
  *  data. The best location is defined as any other accelerator that has the same version
  *  of the data (taking advantage of faster accelerator-to-accelerator connectors, such as
  *  NVLink), or from the CPU memory if no other candidate is found.
+ *  The copies are not issued here: the flows to transfer are marked in @p transfer_mask,
+ *  and the caller must issue their transfers, even if an error is returned (see
+ *  parsec_device_kernel_push()).
  *
  *  @returns
  *     a positive number: the number of data to be moved.
- *     -1: data cannot be moved into the GPU.
- *     -2: No more room on the GPU to move this data.
+ *     0: all data is already available on the device.
+ *     a negative parsec_hook_return_t (or PARSEC_DEVICE_TASK_STARVED) if the task
+ *     cannot be pushed now.
  */
 static int
-parsec_device_kernel_push( parsec_device_gpu_module_t      *gpu_device,
-                           parsec_execution_stream_t       *es,
-                           parsec_gpu_task_t               *gpu_task,
-                           parsec_gpu_exec_stream_t        *gpu_stream)
+parsec_device_kernel_push_task( parsec_device_gpu_module_t      *gpu_device,
+                                parsec_gpu_task_t               *gpu_task,
+                                parsec_gpu_exec_stream_t        *gpu_stream,
+                                uint32_t                        *transfer_mask )
 {
     parsec_task_t *this_task = gpu_task->ec;
     const parsec_flow_t *flow;
     int ret = 0, input_stream_work = 0;
-    uint32_t transfer_mask = 0;
 #if defined(PARSEC_DEBUG_NOISIER)
     char tmp[MAX_TASK_STRLEN];
 #endif
-    (void)es;
 
     /* If no changes were made to the available memory/data state, avoid
      * immediately rewalking the same reservation path. This shortcut is safe
@@ -3651,7 +4403,6 @@ parsec_device_kernel_push( parsec_device_gpu_module_t      *gpu_device,
         gpu_task->last_data_check_epoch = gpu_device->data_avail_epoch;
         return ret;
     }
-    gpu_task->last_status = 0;  /* mark the task as clean */
     for( uint32_t i = 0; i < gpu_task->nb_flows  /* not this_task->task_class->nb_flows */; i++ ) {
 
         flow = gpu_task->flow_info[i].flow;
@@ -3690,11 +4441,11 @@ parsec_device_kernel_push( parsec_device_gpu_module_t      *gpu_device,
                              gpu_device->super.device_index, gpu_device->super.name, flow->name,
                              this_task->data[i].data_out->original->key);
         ret = parsec_device_data_stage_in( gpu_device, flow,
-                                           &(this_task->data[i]), gpu_task, gpu_stream, &transfer_mask );
+                                           &(this_task->data[i]), gpu_task, gpu_stream, transfer_mask );
         if( ret < 0 ) {
-            /* Flush any transfers already decided for earlier flows before propagating
-             * this error/retry: those flows are already marked UNDER_TRANSFER and must
-             * have a matching physical copy actually issued for them.
+            /* Transfers already decided for earlier flows are left in *transfer_mask:
+             * those flows are already marked UNDER_TRANSFER, and the caller must issue
+             * a matching physical copy for them before propagating this error/retry.
              *
              * On a retry (AGAIN/NEXT) nothing releases that state here: complete_stage
              * is only set once the whole push succeeds, so parsec_device_callback_complete_push
@@ -3706,19 +4457,6 @@ parsec_device_kernel_push( parsec_device_gpu_module_t      *gpu_device,
              * progress_stream records for this attempt; with NEXT no event is recorded, so
              * this is only safe because the input stream is in-order and the event recorded
              * by the later successful push covers the copies issued here. */
-            if( transfer_mask != 0 ) {
-                int rc = gpu_task->stage_in ? gpu_task->stage_in(gpu_task, transfer_mask, gpu_stream) : PARSEC_SUCCESS;
-                if( PARSEC_SUCCESS != rc ) {
-                    parsec_warning( "GPU[%d:%s]: gpu_task->stage_in to device rc=%d @%s:%d for task %s transfer_mask=0x%x",
-                                    gpu_device->super.device_index, gpu_device->super.name, rc, __func__, __LINE__,
-                                    this_task->task_class->name, transfer_mask);
-                    parsec_device_kernel_push_release_readers_on_failure(gpu_device, gpu_task, transfer_mask);
-                    assert(0);
-                    gpu_task->last_status = PARSEC_HOOK_RETURN_ERROR;
-                    return PARSEC_HOOK_RETURN_ERROR;
-                }
-            }
-            gpu_task->last_status = ret;
             return ret;
         }
         /* A positive return means either a transfer was submitted, or an
@@ -3727,18 +4465,6 @@ parsec_device_kernel_push( parsec_device_gpu_module_t      *gpu_device,
          * event before the task can advance to execution.
          */
         input_stream_work += ret;
-    }
-    if( transfer_mask != 0 ) {
-        int rc = gpu_task->stage_in ? gpu_task->stage_in(gpu_task, transfer_mask, gpu_stream) : PARSEC_SUCCESS;
-        if( PARSEC_SUCCESS != rc ) {
-            parsec_warning( "GPU[%d:%s]: gpu_task->stage_in to device rc=%d @%s:%d for task %s transfer_mask=0x%x",
-                            gpu_device->super.device_index, gpu_device->super.name, rc, __func__, __LINE__,
-                            this_task->task_class->name, transfer_mask);
-            parsec_device_kernel_push_release_readers_on_failure(gpu_device, gpu_task, transfer_mask);
-            assert(0);
-            gpu_task->last_status = PARSEC_HOOK_RETURN_ERROR;
-            return PARSEC_HOOK_RETURN_ERROR;
-        }
     }
     PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
                          "GPU[%d:%s]: Push task %s DONE",
@@ -3749,6 +4475,72 @@ parsec_device_kernel_push( parsec_device_gpu_module_t      *gpu_device,
     gpu_task->prof_stage_key_end = -1; /* We do not log that event as the completion of this task */
 #endif
     return input_stream_work;
+}
+
+/* Gather the tasks of @p ring into @p tasks, which has room for
+ * PARSEC_DEVICE_MAX_BATCH_SIZE tasks, and return how many there are. The stage
+ * functions may release tasks, so the ring cannot be walked afterwards. The
+ * rings reaching the data movement stages are formed under the same bound, which
+ * also bounds the tasks of the copy batches built from them.
+ */
+static inline int
+parsec_gpu_task_ring_to_array(parsec_gpu_task_t *ring,
+                              parsec_gpu_task_t **tasks)
+{
+    parsec_gpu_task_t *iter = ring;
+    int nb_tasks = 0;
+
+    do {
+        if( nb_tasks >= PARSEC_DEVICE_MAX_BATCH_SIZE ) {
+            parsec_fatal("ring of GPU task %p holds more than %d tasks",
+                         (void*)ring, PARSEC_DEVICE_MAX_BATCH_SIZE);
+        }
+        tasks[nb_tasks++] = iter;
+        iter = (parsec_gpu_task_t*)iter->list_item.list_next;
+    } while( iter != ring );
+    return nb_tasks;
+}
+
+/**
+ *  @brief Stage in the data of a ring of tasks. Each task of the ring is handled
+ *  by parsec_device_kernel_push_task(), and its outcome stored in its last_status.
+ *  The transfers of all tasks are then issued together, merging the copies of the
+ *  tasks relying on the default stage_in function into batched copies.
+ *
+ *  @returns PARSEC_HOOK_RETURN_DONE, the outcome of each task is in its last_status.
+ */
+static int
+parsec_device_kernel_push( parsec_device_gpu_module_t      *gpu_device,
+                           parsec_execution_stream_t       *es,
+                           parsec_gpu_task_t               *gpu_tasks,
+                           parsec_gpu_exec_stream_t        *gpu_stream)
+{
+    parsec_gpu_task_t *tasks[PARSEC_DEVICE_MAX_BATCH_SIZE];
+    uint32_t masks[PARSEC_DEVICE_MAX_BATCH_SIZE];
+    int nb_tasks;
+    bool starved = false;
+    (void)es;
+
+    nb_tasks = parsec_gpu_task_ring_to_array(gpu_tasks, tasks);
+    for( int t = 0; t < nb_tasks; t++ ) {
+        masks[t] = 0;
+        if( starved ) {
+            /* The tasks of a ring share their incarnation: once one of them found no
+             * room on the device, the following ones would most likely starve too.
+             * Don't scan the LRU for them before the device state changed, park them
+             * with the starved task instead. Going through the early exit of
+             * parsec_device_kernel_push_task() would return AGAIN, and if nothing was
+             * queued they would come straight back here.
+             */
+            tasks[t]->last_status = PARSEC_DEVICE_TASK_STARVED;
+            continue;
+        }
+        tasks[t]->last_status = parsec_device_kernel_push_task(gpu_device, tasks[t], gpu_stream, &masks[t]);
+        starved = starved || (PARSEC_DEVICE_TASK_STARVED == tasks[t]->last_status);
+    }
+    parsec_device_issue_transfers(gpu_device, gpu_stream, tasks, masks, nb_tasks,
+                                  true, PARSEC_HOOK_RETURN_ERROR);
+    return PARSEC_HOOK_RETURN_DONE;
 }
 
 /**
@@ -3842,28 +4634,32 @@ parsec_device_kernel_exec( parsec_device_gpu_module_t      *gpu_device,
 /**
  *  This function schedule the move of all the modified data for a
  *  specific task from the GPU memory into the main memory.
+ *  The copies are not issued here: the flows to transfer are marked in
+ *  @p transfer_mask, and the caller must issue their transfers.
  *
- *  Returns: HOOK_ERROR if any error occurred.
+ *  Returns: HOOK_DISABLE if any error occurred.
  *           positive: the number of data to be moved.
  */
 static int
-parsec_device_kernel_pop( parsec_device_gpu_module_t   *gpu_device,
-                          parsec_execution_stream_t    *es,
-                          parsec_gpu_task_t            *gpu_task,
-                          parsec_gpu_exec_stream_t     *gpu_stream)
+parsec_device_kernel_pop_task( parsec_device_gpu_module_t   *gpu_device,
+                               parsec_execution_stream_t    *es,
+                               parsec_gpu_task_t            *gpu_task,
+                               parsec_gpu_exec_stream_t     *gpu_stream,
+                               uint32_t                     *transfer_mask )
 {
     parsec_task_t *this_task = gpu_task->ec;
     parsec_gpu_data_copy_t     *gpu_copy;
     parsec_data_t              *original;
     size_t                      span;
     const parsec_flow_t        *flow;
-    int return_code = 0, rc, how_many = 0, update_data_epoch = 0;
+    int return_code = 0, how_many = 0, update_data_epoch = 0;
 #if defined(PARSEC_DEBUG_NOISIER)
     char tmp[MAX_TASK_STRLEN];
 #endif
 
+    (void)gpu_stream;  /* only used for tracing */
+
     if (gpu_task->task_type == PARSEC_GPU_TASK_TYPE_D2HTRANSFER) {
-        uint32_t transfer_mask = 0;
         for( int i = 0; i < this_task->locals[0].value; i++ ) {
             gpu_copy = this_task->data[i].data_out;
             /* If the gpu copy is not owned by parsec, we don't manage it at all */
@@ -3890,19 +4686,9 @@ parsec_device_kernel_pop( parsec_device_gpu_module_t   *gpu_device,
             /* Sanity check: MAX_PARAM_COUNT may be increased to accommodate more parameters,
              * but the transfer_mask must still be able to represent all of them.
              */
-            assert(i < (sizeof(transfer_mask)*8));
-            transfer_mask |= (1U << i);
+            assert(i < (sizeof(*transfer_mask)*8));
+            *transfer_mask |= (1U << i);
             how_many++;
-        }
-        if( transfer_mask != 0 ) {
-            rc = gpu_task->stage_out ? gpu_task->stage_out(gpu_task, transfer_mask, gpu_stream): PARSEC_SUCCESS;
-            if(PARSEC_SUCCESS != rc) {
-                parsec_warning( "GPU[%d:%s]: gpu_task->stage_out from device rc=%d @%s:%d for task %s transfer_mask=0x%x",
-                                gpu_device->super.device_index, gpu_device->super.name, rc, __func__, __LINE__,
-                                this_task->task_class->name, transfer_mask);
-                return_code = PARSEC_HOOK_RETURN_DISABLE;
-                goto release_and_return_error;
-            }
         }
         return how_many;
     }
@@ -3912,7 +4698,6 @@ parsec_device_kernel_pop( parsec_device_gpu_module_t   *gpu_device,
                         gpu_device->super.device_index, gpu_device->super.name,
                         parsec_task_snprintf(tmp, MAX_TASK_STRLEN, this_task) );
 
-    uint32_t transfer_mask = 0;
     size_t pending_bytes = 0;
 
     for( uint32_t i = 0; i < gpu_task->nb_flows  /* not this_task->task_class->nb_flows */; i++ ) {
@@ -4041,14 +4826,14 @@ parsec_device_kernel_pop( parsec_device_gpu_module_t   *gpu_device,
                     }
                 }
 #endif
-                /* Defer the actual transfer: accumulate this flow into transfer_mask and
-                 * issue one combined gpu_task->stage_out call after the full loop. The
+                /* Defer the actual transfer: accumulate this flow into transfer_mask,
+                 * the caller issues the transfers of all flows (and tasks) at once. The
                  * cpu_copy is marked as under transfer here, while we still hold this
                  * flow's original->lock. */
                 assert(cpu_copy->data_transfer_status != PARSEC_DATA_STATUS_UNDER_TRANSFER);
                 assert(flow->flow_index < MAX_PARAM_COUNT);
-                assert(flow->flow_index < (sizeof(transfer_mask)*8));
-                transfer_mask |= (1U << flow->flow_index);
+                assert(flow->flow_index < (sizeof(*transfer_mask)*8));
+                *transfer_mask |= (1U << flow->flow_index);
                 cpu_copy->data_transfer_status = PARSEC_DATA_STATUS_UNDER_TRANSFER;
                 pending_bytes += span; /* TODO: not hardcoded, use datatype size */
                 how_many++;
@@ -4059,15 +4844,7 @@ parsec_device_kernel_pop( parsec_device_gpu_module_t   *gpu_device,
         parsec_atomic_unlock(&original->lock);
     }
 
-    if( transfer_mask != 0 ) {
-        rc = gpu_task->stage_out? gpu_task->stage_out(gpu_task, transfer_mask, gpu_stream): PARSEC_SUCCESS;
-        if(PARSEC_SUCCESS != rc) {
-            parsec_warning( "GPU[%d:%s]: gpu_task->stage_out from device rc=%d @%s:%d for task %s transfer_mask=0x%x",
-                            gpu_device->super.device_index, gpu_device->super.name, rc, __func__, __LINE__,
-                            this_task->task_class->name, transfer_mask);
-            return_code = PARSEC_HOOK_RETURN_DISABLE;
-            goto release_and_return_error;
-        }
+    if( *transfer_mask != 0 ) {
         gpu_device->super.data_out_to_host += pending_bytes;
     }
 
@@ -4081,6 +4858,37 @@ parsec_device_kernel_pop( parsec_device_gpu_module_t   *gpu_device,
                          parsec_task_snprintf(tmp, MAX_TASK_STRLEN, this_task), return_code < 0 ? return_code: how_many, gpu_device->data_avail_epoch );
 
     return (return_code < 0 ? return_code : how_many);
+}
+
+/**
+ *  @brief Stage out the data of a ring of tasks. Each task of the ring is handled
+ *  by parsec_device_kernel_pop_task(), and its outcome stored in its last_status.
+ *  The transfers of all tasks are then issued together, merging the copies of the
+ *  tasks relying on the default stage_out function into batched copies.
+ *
+ *  @returns PARSEC_HOOK_RETURN_DONE, the outcome of each task is in its last_status.
+ */
+static int
+parsec_device_kernel_pop( parsec_device_gpu_module_t   *gpu_device,
+                          parsec_execution_stream_t    *es,
+                          parsec_gpu_task_t            *gpu_tasks,
+                          parsec_gpu_exec_stream_t     *gpu_stream)
+{
+    parsec_gpu_task_t *tasks[PARSEC_DEVICE_MAX_BATCH_SIZE];
+    uint32_t masks[PARSEC_DEVICE_MAX_BATCH_SIZE];
+    int nb_tasks;
+
+    nb_tasks = parsec_gpu_task_ring_to_array(gpu_tasks, tasks);
+    for( int t = 0; t < nb_tasks; t++ ) {
+        masks[t] = 0;
+        tasks[t]->last_status = parsec_device_kernel_pop_task(gpu_device, es, tasks[t], gpu_stream, &masks[t]);
+        if( tasks[t]->last_status < 0 ) {
+            masks[t] = 0;  /* nothing is moved out for a task that failed */
+        }
+    }
+    parsec_device_issue_transfers(gpu_device, gpu_stream, tasks, masks, nb_tasks,
+                                  false, PARSEC_HOOK_RETURN_DISABLE);
+    return PARSEC_HOOK_RETURN_DONE;
 }
 
 /**
@@ -4375,6 +5183,7 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
     parsec_gpu_task_t *progress_task = NULL;
     parsec_gpu_task_t *gpu_task = (parsec_gpu_task_t*)_gpu_task;
     parsec_gpu_task_t *failed_batch = NULL;
+    parsec_gpu_task_t *release_ring, *iter, *ring_next;
     int failed_batch_staged = 1;
     parsec_hook_return_t failure_status = PARSEC_HOOK_RETURN_DISABLE;
 #if defined(PARSEC_DEBUG_NOISIER)
@@ -4462,12 +5271,12 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
                              gpu_device->super.device_index, gpu_device->super.name,
                              parsec_device_describe_gpu_task(tmp, MAX_TASK_STRLEN, gpu_task));
     }
-    rc = parsec_device_progress_stream( gpu_device,
-                                        es,
-                                        gpu_device->exec_stream[0],
-                                        parsec_device_kernel_push,
-                                        gpu_task, &progress_task );
-    if( rc < 0 ) {  /* In case of error progress_task is the task that raised it */
+    rc = parsec_device_progress_stream_batch( gpu_device,
+                                              es,
+                                              gpu_device->exec_stream[0],
+                                              parsec_device_kernel_push,
+                                              gpu_task, &progress_task );
+    if( rc < 0 ) {  /* In case of error progress_task is the ring of tasks that raised it */
         if( PARSEC_HOOK_RETURN_ERROR == rc ) {
             failure_status = PARSEC_HOOK_RETURN_ERROR;
             failed_batch = progress_task;
@@ -4504,6 +5313,7 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
         PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,  "GPU[%d:%s]:\tExecute %s", gpu_device->super.device_index, gpu_device->super.name,
                              parsec_task_snprintf(tmp, MAX_TASK_STRLEN, gpu_task->ec));
     }
+    parsec_gpu_stream_take_delayed(gpu_device, gpu_device->exec_stream[2+exec_stream]);
     rc = parsec_device_progress_stream( gpu_device,
                                         es,
                                         gpu_device->exec_stream[2+exec_stream],
@@ -4559,19 +5369,25 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
     gpu_task = progress_task;
 
   get_data_out_of_device:
-    if( (NULL != gpu_task) && (PARSEC_GPU_TASK_TYPE_KERNEL == gpu_task->task_type) ) {
-        parsec_gpu_task_update_pushout(es, gpu_task);
+    if( NULL != gpu_task ) {
+        /* A batched submit function returns all the tasks of its batch */
+        _LIST_ITEM_ITERATOR(&gpu_task->list_item, &gpu_task->list_item, item, {
+            parsec_gpu_task_t *member = (parsec_gpu_task_t *)item;
+            if( PARSEC_GPU_TASK_TYPE_KERNEL == member->task_type ) {
+                parsec_gpu_task_update_pushout(es, member);
+            }
+        });
     }
     if( NULL != gpu_task ) {  /* This task has completed its execution */
         PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,  "GPU[%d:%s]:\tRetrieve data (if any) for %s", gpu_device->super.device_index, gpu_device->super.name,
                             parsec_task_snprintf(tmp, MAX_TASK_STRLEN, gpu_task->ec));
     }
     /* Task is ready to move the data back to main memory */
-    rc = parsec_device_progress_stream( gpu_device,
-                                        es,
-                                        gpu_device->exec_stream[1],
-                                        parsec_device_kernel_pop,
-                                        gpu_task, &progress_task );
+    rc = parsec_device_progress_stream_batch( gpu_device,
+                                              es,
+                                              gpu_device->exec_stream[1],
+                                              parsec_device_kernel_pop,
+                                              gpu_task, &progress_task );
     if( rc < 0 ) {
         if( (PARSEC_HOOK_RETURN_ERROR == rc) || (PARSEC_HOOK_RETURN_DISABLE == rc) ) {
             failure_status = rc;
@@ -4581,9 +5397,9 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
         }
     }
     if( NULL != progress_task ) {
-        /* We have a successfully completed task. However, it is not gpu_task, as
-         * it was just submitted into the data retrieval system. Instead, the task
-         * ready to move into the next level is the progress_task.
+        /* We have successfully completed tasks. However, they are not gpu_task, as
+         * it was just submitted into the data retrieval system. Instead, the ring of
+         * tasks ready to move into the next level is the progress_task.
          */
         gpu_task = progress_task;
         progress_task = NULL;
@@ -4617,6 +5433,26 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
             gpu_task->ec = NULL;
             goto remove_gpu_task;
         }
+        /* Move the following tasks sharing the batchable incarnation of gpu_task
+         * into the device with it, so that the data movement stages can handle
+         * them together. Stop at the first task that differs, so that tasks keep
+         * entering the device in priority order.
+         */
+        if( parsec_mca_device_type_supports_batch(gpu_device->super.type) &&
+            parsec_gpu_task_selected_chore_allows_batch(gpu_task->ec, &gpu_device->super) ) {
+            for( int nb_tasks = 1; nb_tasks < PARSEC_DEVICE_MAX_BATCH_SIZE; nb_tasks++ ) {
+                parsec_gpu_task_t *candidate = (parsec_gpu_task_t*)parsec_heap_peek(&gpu_device->pending_heap);
+                if( (NULL == candidate) ||
+                    (PARSEC_GPU_TASK_TYPE_KERNEL != candidate->task_type) ||
+                    !parsec_gpu_task_selected_chore_allows_batch(candidate->ec, &gpu_device->super) ||
+                    !parsec_gpu_task_same_chore(gpu_task, candidate) ) {
+                    break;
+                }
+                (void)parsec_heap_pop(&gpu_device->pending_heap);
+                candidate->last_data_check_epoch = gpu_device->data_avail_epoch - 1;  /* force at least one tour */
+                (void)parsec_list_item_ring_push(&gpu_task->list_item, &candidate->list_item);
+            }
+        }
     } else {
         pop_null++;
         /* There is nothing left to run, so whatever memory this device is ever
@@ -4635,31 +5471,40 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
 
  complete_task:
     assert( NULL != gpu_task );
-    PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,  "GPU[%d:%s]:\tComplete %s",
-                         gpu_device->super.device_index, gpu_device->super.name,
-                         parsec_task_snprintf(tmp, MAX_TASK_STRLEN, gpu_task->ec));
-    /* Everything went fine so far, the result is correct and back in the main memory */
-    PARSEC_LIST_ITEM_SINGLETON(gpu_task);
-    if (gpu_task->task_type == PARSEC_GPU_TASK_TYPE_D2HTRANSFER) {
-        parsec_device_wake_starved_tasks(gpu_device,
-                                         parsec_gpu_complete_w2r_task(gpu_device, gpu_task, es));
+    /* Everything went fine so far, the results are correct and back in the main memory */
+    release_ring = NULL;
+    for( iter = gpu_task; NULL != iter; iter = ring_next ) {
+        ring_next = parsec_gpu_task_ring_pop(iter);
+        PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,  "GPU[%d:%s]:\tComplete %s",
+                             gpu_device->super.device_index, gpu_device->super.name,
+                             parsec_task_snprintf(tmp, MAX_TASK_STRLEN, iter->ec));
+        if (iter->task_type == PARSEC_GPU_TASK_TYPE_D2HTRANSFER) {
+            /* the write-back is not accounted for as an outstanding task */
+            parsec_device_wake_starved_tasks(gpu_device,
+                                             parsec_gpu_complete_w2r_task(gpu_device, iter, es));
+            continue;
+        }
+        if (iter->task_type == PARSEC_GPU_TASK_TYPE_D2D_COMPLETE) {
+            free( iter->ec );
+            iter->ec = NULL;
+        } else {
+            parsec_device_kernel_epilog( gpu_device, iter );
+            __parsec_complete_execution( es, iter->ec );
+            /* Completing a GPU task can reserve one newly enabled successor in this
+             * manager's private next_task slot. The manager does not return to normal
+             * task selection while GPU work remains, so make that successor stealable.
+             */
+            rc = __parsec_schedule_flush_private(es);
+            assert(PARSEC_SUCCESS == rc);
+            gpu_device->super.executed_tasks++;
+        }
+        parsec_gpu_task_ring_append(&release_ring, iter);
+    }
+    gpu_task = release_ring;
+    if( NULL == gpu_task ) {
         gpu_task = progress_task;
         goto fetch_task_from_shared_queue;
     }
-    if (gpu_task->task_type == PARSEC_GPU_TASK_TYPE_D2D_COMPLETE) {
-        free( gpu_task->ec );
-        gpu_task->ec = NULL;
-        goto remove_gpu_task;
-    }
-    parsec_device_kernel_epilog( gpu_device, gpu_task );
-    __parsec_complete_execution( es, gpu_task->ec );
-    /* Completing a GPU task can reserve one newly enabled successor in this
-     * manager's private next_task slot. The manager does not return to normal
-     * task selection while GPU work remains, so make that successor stealable.
-     */
-    rc = __parsec_schedule_flush_private(es);
-    assert(PARSEC_SUCCESS == rc);
-    gpu_device->super.executed_tasks++;
   remove_gpu_task:
     PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream, "GPU[%d:%s]: gpu_task %p freed",
                          gpu_device->super.device_index, gpu_device->super.name,
