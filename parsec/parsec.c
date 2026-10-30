@@ -58,8 +58,8 @@
 #ifdef PARSEC_PROF_TRACE
 #include "parsec/profiling.h"
 #endif
-#if defined(PARSEC_PROF_TRACE_NVTX)
-#include "parsec/profiling_nvtx.h"
+#if defined(PARSEC_PROF_TRACE)
+#include "parsec/profiling_internal.h"
 #endif
 
 #include "parsec/parsec_hwloc.h"
@@ -375,6 +375,9 @@ static void* __parsec_thread_init( __parsec_temporary_thread_initialization_t* s
     }
 
     void *ret = (void*)(long)__parsec_context_wait(es);
+#if defined(PARSEC_PROF_TRACE)
+    parsec_profiling_thread_fini();
+#endif
     PARSEC_PAPI_SDE_THREAD_FINI();
     return ret;
 }
@@ -419,9 +422,6 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     int profiling_file_requested = 0;
     int profiling_id = 0;
     int profiling_enabled = 0;
-#if defined(PARSEC_PROF_TRACE_NVTX)
-    int profiling_nvtx_enabled = 0;
-#endif
 #endif
 
     gethostname(parsec_hostname_array, sizeof(parsec_hostname_array));
@@ -714,7 +714,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
 
     parsec_mca_param_reg_string_name("profile", "filename",
 #if defined(PARSEC_PROF_TRACE)
-                                    "Path to the profiling file/archive for file-based profiling substrates (<none> to disable, <app> for app name, <*> otherwise). NVTX does not require this.",
+                                    "Path to the profiling file/archive for file-based profiling substrates (<none> to disable, <app> for app name, <*> otherwise). The formats written are selected with profile_format. NVTX and Score-P do not require this.",
                                     false, false,
 #else
                                     "Path to the profiling file (unused due to profiling being turned off during building)",
@@ -723,14 +723,9 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
                                     "<none>", &parsec_enable_profiling);
 #if defined(PARSEC_PROF_TRACE)
     profiling_file_requested = (0 != strncasecmp(parsec_enable_profiling, "<none>", 6));
-#if defined(PARSEC_PROF_TRACE_NVTX)
-    profiling_nvtx_enabled = parsec_profiling_nvtx_register_mca();
-#endif
-    if( (profiling_file_requested
-#if defined(PARSEC_PROF_TRACE_NVTX)
-         || profiling_nvtx_enabled
-#endif
-        ) && (0 == parsec_profiling_init( profiling_id )) ) {
+    /* The mirror substrates (NVTX, Score-P) are activated by the init when
+     * requested, the file substrates by parsec_profiling_dbp_start */
+    if( 0 == parsec_profiling_init( profiling_id ) ) {
         int i, l;
         char *cmdline_info = NULL;
 
@@ -749,18 +744,13 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
             }
             if( ret != 0 ) {
                 parsec_warning("Profiling file substrate deactivated because of error %s.", parsec_profiling_strerror());
-#if defined(PARSEC_PROF_TRACE_NVTX)
-                if( !profiling_nvtx_enabled ) {
-                    (void)parsec_profiling_fini();
-                    goto profiling_setup_done;
-                }
-#else
-                (void)parsec_profiling_fini();
-                goto profiling_setup_done;
-#endif
             } else {
                 profiling_enabled = 1;
             }
+        }
+        if( !parsec_profiling_is_active() ) {
+            (void)parsec_profiling_fini();
+            goto profiling_setup_done;
         }
 
         l = strlen(parsec_app_name);  /* use the known application name */

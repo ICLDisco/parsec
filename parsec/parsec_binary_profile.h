@@ -24,10 +24,6 @@
 
 BEGIN_C_DECLS
 
-#if defined(PARSEC_PROF_TRACE_NVTX)
-struct parsec_profiling_nvtx_range_s;
-#endif
-
 typedef struct parsec_profiling_output_base_event_s {
     uint16_t  key;
     uint16_t  flags;
@@ -102,70 +98,10 @@ typedef struct {
     /* Padding to align on profile_buffer_size -- required to allow for mmaping of buffers */
 } parsec_profiling_binary_file_header_t;
 
-typedef struct parsec_profiling_info_s {
-    struct parsec_profiling_info_s *next;
-    char                          *key;
-    char                          *value;
-} parsec_profiling_info_t;
-
-/**
- * Profiling performance measures 
- */
-#define PERF_RESIZE   0
-#define PERF_MEMSET   1
-#define PERF_WAITING  2
-#if defined(PARSEC_PROFILING_USE_MMAP)
-#define PERF_MMAP     3
-#define PERF_MUNMAP   4
-#else
-#define PERF_MALLOC   3
-#define PERF_FREE     4
-#define PERF_LSEEK    5
-#define PERF_WRITE    6
-#endif
-#if defined(PARSEC_PROFILING_USE_HELPER_THREAD)
-#define PERF_USER_WAITING 7
-#endif
-#define PERF_MAX      8
-typedef struct parsec_profiling_perf_s {
-    uint64_t perf_time_spent;
-    uint32_t perf_number_calls;
-} parsec_profiling_perf_t;
-
-struct tl_freelist_s;
-
-struct parsec_profiling_stream_s {
-    parsec_list_item_t         list;
-    int64_t                    next_event_position; /* When in write mode, points to the next available storage byte
-                                                     *   in current_events_buffer */
-    char                      *hr_id;
-    parsec_profiling_perf_t    thread_perf[PERF_MAX];
-    struct tl_freelist_s      *buffers_freelist;
-    uint64_t                   nb_events;
-    parsec_profiling_info_t   *infos;
-    off_t                      first_events_buffer_offset; /* Offset (in the file) of the first events buffer */
-    pthread_t                  thread_owner;
-    off_t                      current_events_buffer_offset;
-    parsec_profiling_buffer_t *current_events_buffer;     /* points to the events buffer in which we are writing. */
-#if defined(PARSEC_PROF_TRACE_NVTX)
-    struct parsec_profiling_nvtx_range_s *nvtx_ranges;
-    struct parsec_profiling_nvtx_range_s *nvtx_freelist;
-#endif
-};
-
-typedef struct {
-    char *name;
-    char *attributes;
-    char *convertor;
-    int32_t info_length;
-} parsec_profiling_key_t;
-
 #define PARSEC_PROFILING_MAGICK "#PARSEC BINARY PROFILE "
 
 /** here key is the key given to the USER */
 #define BASE_KEY(key)     ((key) >> 1)
-#define EVENT_LENGTH(key, has_info) (sizeof(parsec_profiling_output_base_event_t) + \
-                                     ((has_info) ? parsec_prof_keys[BASE_KEY(key)].info_length : 0))
 #define EVENT_HAS_INFO(EV)  ((EV)->event.flags & PARSEC_PROFILING_EVENT_HAS_INFO)
 #define KEY_IS_END(key)   ((key) == END_KEY(BASE_KEY(key)))
 #define KEY_IS_START(key) ((key) == START_KEY(BASE_KEY(key)))

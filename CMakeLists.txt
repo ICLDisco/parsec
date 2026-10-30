@@ -237,11 +237,13 @@ endif()
 option(PARSEC_PROF_TRACE
   "Enable the generation of the profiling information during
   execution" OFF)
-  set(PARSEC_PROF_TRACE_SYSTEM "PaRSEC Binary Tracing Format" CACHE STRING "Select the profiling system, if PARSEC_PROF_TRACE is ON")
+  set(PARSEC_PROF_TRACE_SYSTEM "PaRSEC Binary Tracing Format" CACHE STRING "Default profiling file format, if PARSEC_PROF_TRACE is ON. The PaRSEC Binary Tracing Format is always available; OTF2 adds support for OTF2 archives (the format is selected at runtime with the profile_format MCA parameter)")
 #This enforces that only valid values are available in ccmake or cmake-gui
 set_property(CACHE PARSEC_PROF_TRACE_SYSTEM PROPERTY STRINGS "OTF2" "PaRSEC Binary Tracing Format")
 option(PARSEC_PROF_TRACE_NVTX
   "Mirror PaRSEC profiling events as NVIDIA NVTX ranges for Nsight Systems" OFF)
+option(PARSEC_PROF_TRACE_SCOREP
+  "Mirror PaRSEC profiling events as Score-P user regions" OFF)
 option(PARSEC_PROF_TRACE_PTG_INTERNAL_INIT
   "Generate Profiling traces for the internal_init tasks in the PTG interface (expert mode only)" OFF)
 mark_as_advanced(PARSEC_PROF_TRACE_PTG_INTERNAL_INIT) #This is available in export mode only
@@ -994,6 +996,38 @@ if(PARSEC_PROF_TRACE_NVTX)
   message(STATUS "Profiling will emit NVTX annotations using ${PARSEC_NVTX_INCLUDE_DIR}")
 endif()
 mark_as_advanced(PARSEC_NVTX_INCLUDE_DIR)
+
+if(PARSEC_PROF_TRACE_SCOREP)
+  if(NOT PARSEC_PROF_TRACE)
+    message(FATAL_ERROR "PARSEC_PROF_TRACE_SCOREP requires PARSEC_PROF_TRACE=ON")
+  endif()
+  # Only the user adapter headers are needed: the Score-P symbols are weak in
+  # libparsec and are provided by the application when linked with Score-P.
+  find_path(PARSEC_SCOREP_INCLUDE_DIR
+            NAMES scorep/SCOREP_User_Functions.h
+            HINTS ${PARSEC_SCOREP_ROOT}
+                  ${SCOREP_ROOT}
+                  ENV SCOREP_ROOT
+            PATH_SUFFIXES include)
+  if(NOT PARSEC_SCOREP_INCLUDE_DIR)
+    find_program(PARSEC_SCOREP_CONFIG scorep-config
+                 HINTS ${PARSEC_SCOREP_ROOT} ${SCOREP_ROOT} ENV SCOREP_ROOT
+                 PATH_SUFFIXES bin)
+    if(PARSEC_SCOREP_CONFIG)
+      get_filename_component(_scorep_prefix "${PARSEC_SCOREP_CONFIG}" DIRECTORY)
+      get_filename_component(_scorep_prefix "${_scorep_prefix}" DIRECTORY)
+      find_path(PARSEC_SCOREP_INCLUDE_DIR
+                NAMES scorep/SCOREP_User_Functions.h
+                HINTS ${_scorep_prefix}
+                PATH_SUFFIXES include)
+    endif()
+  endif()
+  if(NOT PARSEC_SCOREP_INCLUDE_DIR)
+    message(FATAL_ERROR "PARSEC_PROF_TRACE_SCOREP was requested, but scorep/SCOREP_User_Functions.h was not found. Set SCOREP_ROOT or PARSEC_SCOREP_INCLUDE_DIR.")
+  endif()
+  message(STATUS "Profiling will emit Score-P user regions using ${PARSEC_SCOREP_INCLUDE_DIR}")
+endif()
+mark_as_advanced(PARSEC_SCOREP_INCLUDE_DIR PARSEC_SCOREP_CONFIG)
 
 #
 # First go for the tools.

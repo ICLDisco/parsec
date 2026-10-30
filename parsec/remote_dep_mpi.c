@@ -9,6 +9,9 @@
 
 #include <mpi.h>
 #include "profiling.h"
+#if defined(PARSEC_PROF_TRACE)
+#include "parsec/profiling_internal.h"
+#endif
 #include "parsec/class/list.h"
 #include "parsec/utils/output.h"
 #include "parsec/utils/mca_param.h"
@@ -599,6 +602,9 @@ void* remote_dep_dequeue_main(parsec_context_t* context)
     }
 
     /* Release resources */
+#if defined(PARSEC_PROF_TRACE)
+    parsec_profiling_thread_fini();
+#endif
     PARSEC_PAPI_SDE_THREAD_FINI();
 
     return (void*)context;
