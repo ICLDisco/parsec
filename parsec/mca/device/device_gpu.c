@@ -5696,6 +5696,7 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
     parsec_gpu_task_t *gpu_task = (parsec_gpu_task_t*)_gpu_task;
     parsec_gpu_task_t *failed_batch = NULL;
     parsec_gpu_task_t *release_ring, *iter, *ring_next;
+    int completed_w2r = 0;  /* write-backs completed here, each counted at creation */
     int failed_batch_staged = 1;
     parsec_hook_return_t failure_status = PARSEC_HOOK_RETURN_DISABLE;
 #if defined(PARSEC_DEBUG_NOISIER)
@@ -5825,8 +5826,16 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
     if( (NULL == progress_task) &&
         ((rc < 0) || !parsec_list_nolock_is_empty(&gpu_device->starved_tasks)) ) {
         gpu_task = parsec_gpu_create_w2r_task(gpu_device, es);
-        if( NULL != gpu_task )
+        if( NULL != gpu_task ) {
+            /* A write-back claims the host mirror of every copy it carries, and
+             * only its completion, here on the manager, hands those back. Count
+             * it among the work this device owes, or the manager may leave with
+             * the transfer still on the stream and the mirrors held for good:
+             * whoever waits for one then waits for a thread that is gone.
+             */
+            (void)parsec_atomic_fetch_inc_int32(&gpu_device->mutex);
             goto get_data_out_of_device;
+        }
     }
     gpu_task = progress_task;
 
@@ -5996,15 +6005,18 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
     assert( NULL != gpu_task );
     /* Everything went fine so far, the results are correct and back in the main memory */
     release_ring = NULL;
+    completed_w2r = 0;
     for( iter = gpu_task; NULL != iter; iter = ring_next ) {
         ring_next = parsec_gpu_task_ring_pop(iter);
         PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,  "GPU[%d:%s]:\tComplete %s",
                              gpu_device->super.device_index, gpu_device->super.name,
                              parsec_task_snprintf(tmp, MAX_TASK_STRLEN, iter->ec));
         if (iter->task_type == PARSEC_GPU_TASK_TYPE_D2HTRANSFER) {
-            /* the write-back is not accounted for as an outstanding task */
             parsec_device_wake_starved_tasks(gpu_device,
                                              parsec_gpu_complete_w2r_task(gpu_device, iter, es));
+            /* The mirrors are back, so the count this transfer took goes back too.
+             * It is not part of the release ring: its completion is handled here. */
+            completed_w2r++;
             continue;
         }
         if (iter->task_type == PARSEC_GPU_TASK_TYPE_D2D_COMPLETE) {
@@ -6027,6 +6039,11 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
     }
     gpu_task = release_ring;
     if( NULL == gpu_task ) {
+        if( 0 != completed_w2r ) {
+            released_tasks = completed_w2r;
+            completed_w2r = 0;  /* consumed: later paths must not count it again */
+            goto release_device_slots;
+        }
         gpu_task = progress_task;
         goto fetch_task_from_shared_queue;
     }
@@ -6037,7 +6054,10 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
     /* Release the GPU task */
     released_tasks = parsec_gpu_task_ring_release(gpu_task);
     assert(released_tasks > 0);
+    released_tasks += completed_w2r;
+    completed_w2r = 0;  /* consumed: later paths must not count it again */
 
+  release_device_slots:
     rc = parsec_atomic_fetch_sub_int32(&(gpu_device->mutex), released_tasks);
     assert(rc >= released_tasks);
     if( released_tasks == rc ) {  /* I released the last outstanding task(s) */
