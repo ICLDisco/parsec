@@ -2,22 +2,25 @@
  * Copyright (c) 2018-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      Stony Brook University.  All rights reserved.
+ */
+
+/*
+ * Profiling substrate writing OTF2 archives.
  */
 
 #include "parsec/parsec_config.h"
 
 #include "parsec/profiling.h"
-#if defined(PARSEC_PROF_TRACE_NVTX)
-#include "parsec/profiling_nvtx.h"
-#endif
-#include "parsec/data_distribution.h"
+#include "parsec/profiling_internal.h"
 #include "parsec/utils/debug.h"
-#include "parsec/parsec_hwloc.h"
 #include "parsec/os-spec-timing.h"
 #include "parsec/sys/atomic.h"
 #include "parsec/utils/mca_param.h"
-#include "parsec/sys/tls.h"
 
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 #include <sys/stat.h>
 #include <otf2/otf2.h>
 #if MPI_VERSION < 3
@@ -33,8 +36,7 @@ static MPI_Comm parsec_otf2_profiling_comm;
 static int parsec_profiling_mpi_on = 0;
 static int process_id = 0;
 
-/* where to start region IDs */
-#define REGION_ID_OFFSET 2
+#define set_last_error parsec_profiling_set_last_error
 
 #define STREAM_NAME_MAX 128
 
@@ -48,16 +50,12 @@ typedef struct {
     char               name[STREAM_NAME_MAX];
 } parsec_profiling_stream_data_t;
 
-struct parsec_profiling_stream_s {
-    parsec_list_item_t super;
-    parsec_list_t      informations;
-    OTF2_EvtWriter    *evt_writer;
+/* State of a profiling stream in this substrate */
+typedef struct otf2_stream_s {
+    OTF2_EvtWriter                *evt_writer;
+    int                            local_id;
     parsec_profiling_stream_data_t data;
-#if defined(PARSEC_PROF_TRACE_NVTX)
-    parsec_profiling_nvtx_range_t *nvtx_ranges;
-    parsec_profiling_nvtx_range_t *nvtx_freelist;
-#endif
-};
+} otf2_stream_t;
 
 typedef struct {
     char *name;
@@ -65,8 +63,8 @@ typedef struct {
     int   id;
 } parsec_profiling_attribute_t;
 
+/* One region per dictionary entry, the region id is the dictionary key */
 typedef struct {
-    int    otf2_region_id;
     char  *name;
     char  *alternative_name;
     char  *description;
@@ -74,29 +72,6 @@ typedef struct {
     int    otf2_nb_attributes;
     parsec_profiling_attribute_t *attr_info;
 } parsec_profiling_region_t;
-
-typedef struct {
-    parsec_list_item_t super;
-    char *key;
-    char *value;
-} parsec_profiling_info_t;
-
-PARSEC_DECLSPEC PARSEC_OBJ_CLASS_DECLARATION(parsec_profiling_info_t);
-PARSEC_OBJ_CLASS_INSTANCE(parsec_profiling_info_t, parsec_list_item_t,
-                   NULL, NULL);
-
-int parsec_profile_enabled = 0;
-
-static PARSEC_TLS_DECLARE(tls_profiling);
-static parsec_list_t threads;
-static int __profile_initialized = 0;  /* not initialized */
-static int __already_called = 0;
-static parsec_time_t parsec_start_time;
-static int          start_called = 0;
-#define MAX_PROFILING_ERROR_STRING_LEN 1024
-static char  parsec_profiling_last_error[MAX_PROFILING_ERROR_STRING_LEN+1] = { '\0', };
-static int   parsec_profiling_raise_error = 0;
-static parsec_list_t global_informations;
 
 static parsec_profiling_region_t *regions = NULL;
 static int nbregions                      = 0;
@@ -123,18 +98,6 @@ static otf2_convertor_t otf2_convertor[] = {
     { "double", OTF2_TYPE_DOUBLE },
 };
 static int nb_native_otf2_types = (int)sizeof(otf2_convertor)/sizeof(otf2_convertor_t);
-
-static void set_last_error(const char *format, ...)
-{
-    va_list ap;
-    int rc;
-    va_start(ap, format);
-    rc = vsnprintf(parsec_profiling_last_error, MAX_PROFILING_ERROR_STRING_LEN, format, ap);
-    va_end(ap);
-    parsec_warning("ParSEC profiling OTF2 -- Last error set to %s", parsec_profiling_last_error);
-    parsec_profiling_raise_error = 1;
-    (void)rc;
-}
 
 static OTF2_FlushType pre_flush(void*            userData,
                                 OTF2_FileType    fileType,
@@ -171,60 +134,9 @@ static OTF2_GlobalDefWriter* global_def_writer = NULL;
 static int32_t next_strid = 1;
 static int emptystrid = 0;
 
-static int parsec_profiling_has_active_substrate(void)
-{
-    if( NULL != otf2_archive ) {
-        return 1;
-    }
-#if defined(PARSEC_PROF_TRACE_NVTX)
-    return parsec_profiling_nvtx_is_enabled();
-#else
-    return 0;
-#endif
-}
-
 static int next_otf2_global_strid(void)
 {
     return parsec_atomic_fetch_inc_int32(&next_strid);
-}
-
-char *parsec_profiling_strerror(void)
-{
-    return parsec_profiling_last_error;
-}
-
-void parsec_profiling_add_information( const char *key, const char *value )
-{
-    parsec_profiling_info_t *new_info;
-    char *c;
-
-    if( !__profile_initialized ) return;
-
-    new_info = PARSEC_OBJ_NEW(parsec_profiling_info_t);
-    /* OTF2 format: keys must be in a namespace separated by ::,
-     *              keys are in [a-zA-Z0-9_]+ */
-    asprintf(&new_info->key, "PARSEC::%s", key);
-    for(c = new_info->key; *c!='\0'; c++) {
-        if( ! ( (*c>='a' && *c <= 'z') ||
-                (*c>='A' && *c <= 'Z') ||
-                (*c>='0' && *c <= '9') ||
-                (*c == ':') ||
-                (*c == '_') ) ) {
-            *c = '_';
-        }
-    }
-    /* OTF2 cannot handle empty property values so make them explicit */
-    new_info->value = (0 == strlen(value)) ? strdup("<empty>") : strdup(value);
-    parsec_list_push_back(&global_informations, &new_info->super);
-}
-
-void parsec_profiling_stream_add_information(parsec_profiling_stream_t* stream,
-                                             const char *key, const char *value )
-{
-    char *info;
-    asprintf(&info, "%s [Thread %d]", key, stream->data.id);
-    parsec_profiling_add_information(info, value);
-    free(info);
 }
 
 void parsec_profiling_otf2_set_comm(void *_pcomm)
@@ -237,66 +149,16 @@ void parsec_profiling_otf2_set_comm(void *_pcomm)
     }
 }
 
-int parsec_profiling_init( int process_id )
+static int otf2_init( int _process_id )
 {
-    if( __profile_initialized ) return PARSEC_ERR_NOT_SUPPORTED;
-
-    (void)process_id; /* OTF2 renames the processes according to their rank */
-
-    PARSEC_TLS_KEY_CREATE(tls_profiling);
-
-    PARSEC_OBJ_CONSTRUCT( &threads, parsec_list_t );
-    PARSEC_OBJ_CONSTRUCT(&global_informations, parsec_list_t);
+    (void)_process_id; /* OTF2 renames the processes according to their rank */
 
     parsec_mca_param_reg_int_name("profile", "max_streams", "Maximum number of profiling streams per process",
                                   false, false, max_stream_id, &max_stream_id);
-#if defined(PARSEC_PROF_TRACE_NVTX)
-    parsec_profiling_nvtx_init(process_id);
-#endif
-
-    /* As we called the _start function automatically, the timing will be
-     * based on this moment. By forcing back the __already_called to 0, we
-     * allow the caller to decide when to rebase the timing in case there
-     * is a need.
-     */
-    __already_called = 0;
-    parsec_profile_enabled = 1;  /* turn on the profiling */
-
-    /* add the hostname, for the sake of explicit profiling */
-    char buf[HOST_NAME_MAX];
-    if (0 == gethostname(buf, HOST_NAME_MAX))
-        parsec_profiling_add_information("hostname", buf);
-    else
-        parsec_profiling_add_information("hostname", "");
-
-    /* the current working directory may also be helpful */
-    char * newcwd = NULL;
-    int bufsize = HOST_NAME_MAX;
-    errno = 0;
-    char * cwd = getcwd(buf, bufsize);
-    while (cwd == NULL && errno == ERANGE) {
-        bufsize *= 2;
-        cwd = realloc(cwd, bufsize);
-        if (cwd == NULL)            /* failed  - just give up */
-            break;
-        errno = 0;
-        newcwd = getcwd(cwd, bufsize);
-        if (newcwd == NULL) {
-            free(cwd);
-            cwd = NULL;
-        }
-    }
-    if (cwd != NULL) {
-        parsec_profiling_add_information("cwd", cwd);
-        if (cwd != buf)
-            free(cwd);
-    } else
-        parsec_profiling_add_information("cwd", "");
 
     nbregions = 128;
-    regions = (parsec_profiling_region_t*)malloc(sizeof(parsec_profiling_region_t) * nbregions);
-    /* start regions with 2 to allow for positive and negative values, -1 is an invalid region */
-    next_region = REGION_ID_OFFSET;
+    regions = (parsec_profiling_region_t*)calloc(nbregions, sizeof(parsec_profiling_region_t));
+    next_region = 0;
 
     if( !parsec_profiling_mpi_on ) {
         /* Nobody has called parsec_profiling_otf2_set_comm yet,
@@ -304,24 +166,29 @@ int parsec_profiling_init( int process_id )
         MPI_Comm comm = MPI_COMM_WORLD;
         parsec_profiling_otf2_set_comm( &comm );
     }
-
-    __profile_initialized = 1; //* confirmed */
     return 0;
 }
 
-parsec_profiling_stream_t* parsec_profiling_stream_init( size_t length, const char *format, ...)
+static void otf2_attach_writer(otf2_stream_t *s)
 {
-    parsec_profiling_stream_t* res;
+    /* adjust the id for the communicator rank */
+    s->data.id += process_id*max_stream_id;
+    s->evt_writer = OTF2_Archive_GetEvtWriter( otf2_archive, s->data.id );
+    if( NULL == s->evt_writer ) {
+        parsec_warning("PaRSEC Profiling -- OTF2: could not allocate event writer for location %d\n", s->data.id);
+    }
+}
 
-    (void)length;
+static int otf2_stream_init(parsec_profiling_stream_t *stream, void **state)
+{
+    otf2_stream_t *res;
 
-    if( !__profile_initialized ) return NULL;
-
-    res = (parsec_profiling_stream_t*)calloc(sizeof(parsec_profiling_stream_t), 1);
-    PARSEC_OBJ_CONSTRUCT(res, parsec_list_item_t);
-    PARSEC_OBJ_CONSTRUCT(&res->informations, parsec_list_t);
-
+    res = (otf2_stream_t*)calloc(1, sizeof(otf2_stream_t));
+    if( NULL == res ) {
+        return PARSEC_ERR_OUT_OF_RESOURCE;
+    }
     res->data.id = parsec_atomic_fetch_inc_int32(&thread_profiling_id);
+    res->local_id = res->data.id;
     res->data.nb_evt = 0;
     res->evt_writer = NULL;
 
@@ -330,44 +197,28 @@ parsec_profiling_stream_t* parsec_profiling_stream_init( size_t length, const ch
                        max_stream_id);
     }
 
-    va_list ap;
-    va_start(ap, format);
-    vsnprintf(res->data.name, STREAM_NAME_MAX, format, ap);
-    va_end(ap);
+    snprintf(res->data.name, STREAM_NAME_MAX, "%s", stream->hr_id);
 
-
-    if (start_called && NULL != otf2_archive) {
-        /* adjust for the communicator rank */
-        res->data.id += process_id*max_stream_id;
-        res->evt_writer = OTF2_Archive_GetEvtWriter( otf2_archive, res->data.id );
-        if( NULL == res->evt_writer ) {
-            parsec_warning("PaRSEC Profiling -- OTF2: could not allocate event writer for location %d\n", res->data.id);
-        }
+    if( parsec_profiling_is_started() && NULL != otf2_archive ) {
+        otf2_attach_writer(res);
     }
 
-    parsec_list_push_back( &threads, (parsec_list_item_t*)res );
-
-    return res;
+    *state = res;
+    return 0;
 }
 
-parsec_profiling_stream_t *parsec_profiling_set_default_thread( parsec_profiling_stream_t *new )
+static void otf2_stream_fini(parsec_profiling_stream_t *stream, void *state)
 {
-    parsec_profiling_stream_t *old;
-    old = PARSEC_TLS_GET_SPECIFIC(tls_profiling);
-    PARSEC_TLS_SET_SPECIFIC(tls_profiling, new);
-    return old;
+    (void)stream;
+    free(state);
 }
 
-int parsec_profiling_dbp_start( const char *_basefile, const char *hr_info )
+static int otf2_open( const char *_basefile, const char *hr_info )
 {
     char *archive_path, *archive_name, *c, *basefile;
     struct stat sb;
     OTF2_ErrorCode rc;
     char hostname[256];
-    char *xmlbuffer;
-    int buflen;
-
-    if( !__profile_initialized ) return -1;
 
     basefile = strdup(_basefile);
     archive_name = NULL;
@@ -393,13 +244,6 @@ int parsec_profiling_dbp_start( const char *_basefile, const char *hr_info )
         free(archive_name);
         return PARSEC_ERR_NOT_FOUND;
     }
-
-    /* Reset the error system */
-    snprintf(parsec_profiling_last_error, MAX_PROFILING_ERROR_STRING_LEN, "PaRSEC Profiling System: success");
-    parsec_profiling_raise_error = 0;
-
-    /* It's fine to re-reset the event date: we're back with a zero-length event set */
-    start_called = 0;
 
     otf2_archive = OTF2_Archive_Open( archive_path,
                                       archive_name,
@@ -445,6 +289,7 @@ int parsec_profiling_dbp_start( const char *_basefile, const char *hr_info )
     if( OTF2_SUCCESS != rc ) {
         set_last_error("PaRSEC Profiling System: OTF2 error -- %s (%s)", OTF2_Error_GetName(rc), OTF2_Error_GetDescription(rc));
         OTF2_Archive_Close(otf2_archive);
+        otf2_archive = NULL;
         return PARSEC_ERROR;
     }
 
@@ -469,93 +314,81 @@ int parsec_profiling_dbp_start( const char *_basefile, const char *hr_info )
         return PARSEC_ERROR;
     }
 
-    if( parsec_hwloc_export_topology(&buflen, &xmlbuffer) != -1 &&
-        buflen > 0 ) {
-        parsec_profiling_add_information("HWLOC-XML", xmlbuffer);
-        parsec_hwloc_free_xml_buffer(xmlbuffer);
-    }
-
     return 0;
 }
 
-void parsec_profiling_start(void)
+static void otf2_start(void)
 {
     parsec_list_item_t *r;
-    parsec_profiling_stream_t *tp;
+    parsec_list_t *threads = parsec_profiling_streams();
 
-    if(start_called)
-        return;
-
-    if( !__profile_initialized || !parsec_profiling_has_active_substrate() ) {
+    if( NULL == otf2_archive ) {
         return;
     }
 
-    if( NULL != otf2_archive ) {
-        parsec_list_lock( &threads );
-        for( r = PARSEC_LIST_ITERATOR_FIRST(&threads);
-             r != PARSEC_LIST_ITERATOR_END(&threads);
-             r = PARSEC_LIST_ITERATOR_NEXT(r) ) {
-            tp = (parsec_profiling_stream_t*)r;
-            /* adjust the id for the communicator rank */
-            tp->data.id += process_id*max_stream_id;
-            tp->evt_writer = OTF2_Archive_GetEvtWriter( otf2_archive, tp->data.id );
-            if( NULL == tp->evt_writer ) {
-                parsec_warning("PaRSEC Profiling -- OTF2: could not allocate event writer for location %d\n", tp->data.id);
-            }
-        }
-        parsec_list_unlock( &threads );
-
-        if( parsec_profiling_mpi_on ) {
-            MPI_Barrier(parsec_otf2_profiling_comm);
+    parsec_list_lock( threads );
+    for( r = PARSEC_LIST_ITERATOR_FIRST(threads);
+         r != PARSEC_LIST_ITERATOR_END(threads);
+         r = PARSEC_LIST_ITERATOR_NEXT(r) ) {
+        otf2_stream_t *tp = parsec_profiling_stream_state((parsec_profiling_stream_t*)r,
+                                                          &parsec_profiling_substrate_otf2);
+        if( NULL != tp && NULL == tp->evt_writer ) {
+            otf2_attach_writer(tp);
         }
     }
+    parsec_list_unlock( threads );
 
-    start_called = 1;
-    parsec_start_time = take_time();
+    if( parsec_profiling_mpi_on ) {
+        MPI_Barrier(parsec_otf2_profiling_comm);
+    }
 }
 
-
-int parsec_profiling_reset( void )
+static void otf2_free_region(parsec_profiling_region_t *region)
 {
-    return 0;
+    free(region->name);
+    free(region->alternative_name);
+    free(region->description);
+    if( NULL != region->attr_info ) {
+        for( int i = 0; i < region->otf2_nb_attributes; i++ ) {
+            free(region->attr_info[i].name);
+        }
+        free(region->attr_info);
+    }
+    memset(region, 0, sizeof(parsec_profiling_region_t));
 }
 
-int parsec_profiling_add_dictionary_keyword( const char* key_name, const char* attributes,
-                                             size_t info_length,
-                                             const char* orig_convertor_code,
-                                             int* key_start, int* key_end )
+static void otf2_register_key( int region, const parsec_profiling_key_t *entry )
 {
-    int region;
     int rc;
     char *c;
     char *name, *type;
     int t;
     int strid;
     char *convertor_code = NULL;
+    const char *key_name = entry->name;
+    const char *orig_convertor_code = entry->convertor;
 
-    if( !__profile_initialized ) return 0;
-
-    (void)attributes;
-
-    if( next_region + 1 >= nbregions ) {
-        nbregions += 128;
+    if( region >= nbregions ) {
+        int old = nbregions;
+        while( region >= nbregions ) {
+            nbregions += 128;
+        }
         regions = realloc(regions, sizeof(parsec_profiling_region_t) * nbregions);
+        memset(&regions[old], 0, sizeof(parsec_profiling_region_t) * (nbregions - old));
     }
-    region = next_region;
-    next_region++;
+    if( region >= next_region ) {
+        next_region = region + 1;
+    }
+    otf2_free_region(&regions[region]);
 
-    regions[region].otf2_region_id = region;
     regions[region].name = strdup(key_name);
     regions[region].alternative_name = strdup(key_name);
     regions[region].description = strdup("");
-    regions[region].info_length = info_length;
+    regions[region].info_length = entry->info_length;
     regions[region].attr_info = NULL;
     regions[region].otf2_nb_attributes = 0;
-#if defined(PARSEC_PROF_TRACE_NVTX)
-    parsec_profiling_nvtx_register_key(region, key_name, attributes);
-#endif
 
-    if( NULL == orig_convertor_code ) {
+    if( NULL == orig_convertor_code || '\0' == orig_convertor_code[0] ) {
         /* skip converter code parsing */
         goto malformed_convertor_code;
     }
@@ -592,8 +425,8 @@ int parsec_profiling_add_dictionary_keyword( const char* key_name, const char* a
         }
     }
 
-    regions[region].attr_info = (parsec_profiling_attribute_t*)malloc(sizeof(parsec_profiling_attribute_t)
-                                                                      * regions[region].otf2_nb_attributes);
+    regions[region].attr_info = (parsec_profiling_attribute_t*)calloc(regions[region].otf2_nb_attributes,
+                                                                      sizeof(parsec_profiling_attribute_t));
     c = convertor_code;
     name = c;
     regions[region].otf2_nb_attributes = 0;
@@ -635,16 +468,20 @@ int parsec_profiling_add_dictionary_keyword( const char* key_name, const char* a
             /**
              * check if this attribute has been defined already for another region
              */
-            for (int r = REGION_ID_OFFSET; r < next_region; ++r) {
+            for (int r = 0; r < next_region; ++r) {
+                if( r == region || NULL == regions[r].attr_info ) {
+                    continue;
+                }
                 for (int i = 0; i < regions[r].otf2_nb_attributes; ++i) {
-                    if (0 == strcmp(regions[r].attr_info[i].name, name)) {
+                    if (NULL != regions[r].attr_info[i].name &&
+                        0 == strcmp(regions[r].attr_info[i].name, name)) {
                         if (otf2_type != regions[r].attr_info[i].type) {
                             parsec_warning("parsec_profiling: found different types for attribute %s in dictionary entries %s and %s\n"
                                            "Your trace might not be visualized correctly in some tools",
                                            name, regions[region].name, regions[r].name);
                         } else {
                             regions[region].attr_info[regions[region].otf2_nb_attributes].type = otf2_type;
-                            regions[region].attr_info[regions[region].otf2_nb_attributes].name = strdup(regions[r].name);
+                            regions[region].attr_info[regions[region].otf2_nb_attributes].name = strdup(name);
                             regions[region].attr_info[regions[region].otf2_nb_attributes].id   = regions[r].attr_info[i].id;
                             attr_found = true;
                         }
@@ -705,84 +542,27 @@ int parsec_profiling_add_dictionary_keyword( const char* key_name, const char* a
 
 malformed_convertor_code:
     free(convertor_code);
-    *key_start = region;
-    *key_end   = -region;
-
-    return 0;
 }
 
-
-int parsec_profiling_dictionary_flush( void )
+static void otf2_dictionary_flush( void )
 {
-#if defined(PARSEC_PROF_TRACE_NVTX)
-    parsec_profiling_nvtx_dictionary_flush();
-#endif
-    return 0;
-}
-
-int parsec_profiling_ts_trace_flags_info_fn(int key, uint64_t event_id, uint32_t taskpool_id,
-                                            parsec_profiling_info_fn_t *info_fn, const void *info_data, uint16_t flags )
-{
-    parsec_profiling_stream_t* ctx;
-
-    if( !__profile_initialized ||
-        !start_called ||
-        !parsec_profiling_has_active_substrate() ) {
-        return PARSEC_ERR_NOT_SUPPORTED;
+    for( int r = 0; r < next_region; r++ ) {
+        otf2_free_region(&regions[r]);
     }
-
-    ctx = PARSEC_TLS_GET_SPECIFIC(tls_profiling);
-    if( NULL != ctx )
-        return parsec_profiling_trace_flags_info_fn(ctx, key, event_id, taskpool_id, info_fn, info_data, flags);
-
-    set_last_error("Profiling system: error: called parsec_profiling_ts_trace_flags_info_fn"
-                   " from a thread that did not call parsec_profiling_stream_init\n");
-    return PARSEC_ERR_NOT_SUPPORTED;
+    next_region = 0;
 }
 
-int
-parsec_profiling_trace_flags(parsec_profiling_stream_t* context, int key,
-                            uint64_t event_id, uint32_t taskpool_id,
-                            const void *info, uint16_t flags)
+static int otf2_trace(parsec_profiling_stream_t *stream, void *state,
+                      const parsec_profiling_trace_event_t *event)
 {
-    return parsec_profiling_trace_flags_info_fn(context, key, event_id, taskpool_id, memcpy, info, flags);
-}
-
-int
-parsec_profiling_trace_flags_info_fn(parsec_profiling_stream_t* context, int key,
-                                     uint64_t event_id, uint32_t taskpool_id,
-                                     parsec_profiling_info_fn_t *info_fn, const void *info_data, uint16_t flags)
-{
-    parsec_time_t now;
-    int region;
+    otf2_stream_t *context = (otf2_stream_t*)state;
+    int region = event->key;
     int rc = OTF2_SUCCESS;
     OTF2_AttributeList *attribute_list = NULL;
     uint64_t timestamp;
 
-    (void)taskpool_id;
-    (void)event_id;
-    (void)flags;
-
-    if( !__profile_initialized ||
-        !start_called ||
-        !parsec_profiling_has_active_substrate() ) {
-        return PARSEC_ERR_NOT_SUPPORTED;
-    }
-
-    if (key > -REGION_ID_OFFSET && key < REGION_ID_OFFSET) {
-        /* -1 is an invalid key, silently ignore it */
-        return PARSEC_ERR_BAD_PARAM;
-    }
-
-#if defined(PARSEC_PROF_TRACE_NVTX)
-    parsec_profiling_nvtx_trace(&context->nvtx_ranges,
-                                &context->nvtx_freelist,
-                                key < 0 ? -key : key,
-                                key > 0,
-                                event_id, taskpool_id);
-#endif
-
-    if( NULL == otf2_archive ) {
+    (void)stream;
+    if( NULL == otf2_archive || NULL == context ) {
         return 0;
     }
 
@@ -790,15 +570,13 @@ parsec_profiling_trace_flags_info_fn(parsec_profiling_stream_t* context, int key
         return PARSEC_ERR_BAD_PARAM;
     }
 
-    now = take_time();
-    timestamp = diff_time(parsec_start_time, now);
+    timestamp = parsec_profiling_get_time();
 
-    region = key < 0 ? -key : key;
-
-    if( (NULL != info_fn) && (NULL != info_data) ) {
+    if( (NULL != event->info_fn) && (NULL != event->info_data) &&
+        region < next_region && NULL != regions[region].attr_info ) {
         size_t info_length = regions[region].info_length;
         char *info = alloca(info_length);
-        info_fn(info, info_data, info_length);
+        event->info_fn(info, event->info_data, info_length);
         attribute_list = OTF2_AttributeList_New();
         const char *ptr = info;
         for(int t = 0; t < regions[region].otf2_nb_attributes; t++) {
@@ -854,8 +632,7 @@ parsec_profiling_trace_flags_info_fn(parsec_profiling_stream_t* context, int key
         }
     }
 
-    region -= REGION_ID_OFFSET;
-    if( key > 0 )
+    if( event->is_start )
         rc = OTF2_EvtWriter_Enter( context->evt_writer,
                                    attribute_list,
                                    timestamp,
@@ -864,7 +641,7 @@ parsec_profiling_trace_flags_info_fn(parsec_profiling_stream_t* context, int key
         rc = OTF2_EvtWriter_Leave( context->evt_writer,
                                    attribute_list,
                                    timestamp,
-                                  region );
+                                   region );
     if(rc != OTF2_SUCCESS) {
         parsec_warning("PaRSEC Profiling System: OTF2 Error -- %s (%s)", OTF2_Error_GetName(rc), OTF2_Error_GetDescription(rc));
     } else {
@@ -880,12 +657,77 @@ parsec_profiling_trace_flags_info_fn(parsec_profiling_stream_t* context, int key
     return 0;
 }
 
-int parsec_profiling_dbp_dump( void )
+/* Save an information as an archive property */
+static void otf2_set_property(const char *key, const char *value)
+{
+    char *name, *c;
+    int rc;
+
+    /* OTF2 format: keys must be in a namespace separated by ::,
+     *              keys are in [a-zA-Z0-9_]+ */
+    if( asprintf(&name, "PARSEC::%s", key) < 0 ) {
+        return;
+    }
+    for(c = name; *c!='\0'; c++) {
+        if( ! ( (*c>='a' && *c <= 'z') ||
+                (*c>='A' && *c <= 'Z') ||
+                (*c>='0' && *c <= '9') ||
+                (*c == ':') ||
+                (*c == '_') ) ) {
+            *c = '_';
+        }
+    }
+    /* OTF2 cannot handle empty property values so make them explicit */
+    if((rc = OTF2_Archive_SetProperty(otf2_archive, name, (0 == strlen(value)) ? "<empty>" : value, 1)) != OTF2_SUCCESS) {
+        set_last_error("PaRSEC Profiling System: error -- %s (%s)", OTF2_Error_GetName(rc), OTF2_Error_GetDescription(rc));
+    }
+    free(name);
+}
+
+static void otf2_set_properties(void)
+{
+    parsec_profiling_info_t *i, **infos;
+    parsec_list_t *threads = parsec_profiling_streams();
+    parsec_list_item_t *r;
+    int nb = 0;
+
+    /* The global informations are stored most recent first, the most recent
+     * value of a key must be the one kept. */
+    for( i = parsec_profiling_global_infos(); NULL != i; i = i->next ) nb++;
+    infos = (parsec_profiling_info_t**)malloc(nb * sizeof(parsec_profiling_info_t*));
+    nb = 0;
+    for( i = parsec_profiling_global_infos(); NULL != i; i = i->next ) infos[nb++] = i;
+    while( nb-- > 0 ) {
+        otf2_set_property(infos[nb]->key, infos[nb]->value);
+    }
+    free(infos);
+
+    for( r = PARSEC_LIST_ITERATOR_FIRST(threads);
+         r != PARSEC_LIST_ITERATOR_END(threads);
+         r = PARSEC_LIST_ITERATOR_NEXT(r) ) {
+        parsec_profiling_stream_t *stream = (parsec_profiling_stream_t*)r;
+        otf2_stream_t *tp = parsec_profiling_stream_state(stream, &parsec_profiling_substrate_otf2);
+        if( NULL == tp ) {
+            continue;
+        }
+        for( i = stream->infos; NULL != i; i = i->next ) {
+            char *key;
+            if( asprintf(&key, "%s [Thread %d]", i->key, tp->local_id) < 0 ) {
+                continue;
+            }
+            otf2_set_property(key, i->value);
+            free(key);
+        }
+    }
+}
+
+static int otf2_dump( void )
 {
     uint64_t epoch, gepoch;
     uint64_t *perlocation = NULL;
     uint64_t nb_local_threads = 0;
     parsec_list_item_t *r;
+    parsec_list_t *threads = parsec_profiling_streams();
     int rc;
     int strid;
     char string[64];
@@ -893,8 +735,6 @@ int parsec_profiling_dbp_dump( void )
 
     if( NULL == otf2_archive )
         return PARSEC_ERR_NOT_SUPPORTED;
-
-    if( !__profile_initialized ) return 0;
 
     epoch = parsec_profiling_get_time();
 
@@ -907,11 +747,15 @@ int parsec_profiling_dbp_dump( void )
     }
     stream_data = malloc(total_num_locations*sizeof(*stream_data));
 
-    parsec_list_lock( &threads );
-    for( r = PARSEC_LIST_ITERATOR_FIRST(&threads);
-         r != PARSEC_LIST_ITERATOR_END(&threads);
+    parsec_list_lock( threads );
+    for( r = PARSEC_LIST_ITERATOR_FIRST(threads);
+         r != PARSEC_LIST_ITERATOR_END(threads);
          r = PARSEC_LIST_ITERATOR_NEXT(r) ) {
-        parsec_profiling_stream_t *tp = (parsec_profiling_stream_t*)r;
+        otf2_stream_t *tp = parsec_profiling_stream_state((parsec_profiling_stream_t*)r,
+                                                          &parsec_profiling_substrate_otf2);
+        if( NULL == tp ) {
+            continue;
+        }
         rc = OTF2_Archive_CloseEvtWriter( otf2_archive, tp->evt_writer );
         if(rc != OTF2_SUCCESS) {
             parsec_warning("PaRSEC Profiling System: OTF2 Error -- %s (%s)", OTF2_Error_GetName(rc), OTF2_Error_GetDescription(rc));
@@ -932,7 +776,7 @@ int parsec_profiling_dbp_dump( void )
         }
     }
     assert((uint64_t)thread_profiling_id == nb_local_threads);
-    parsec_list_unlock( &threads );
+    parsec_list_unlock( threads );
 
 
     if( parsec_profiling_mpi_on ) {
@@ -980,27 +824,24 @@ int parsec_profiling_dbp_dump( void )
 
 
     if ( 0 == process_id ) {
-        r = PARSEC_LIST_ITERATOR_FIRST(&global_informations);
-        while( r != PARSEC_LIST_ITERATOR_END(&global_informations) ) {
-            parsec_profiling_info_t *pi = (parsec_profiling_info_t*)r;
-            if((rc = OTF2_Archive_SetProperty(otf2_archive, pi->key, pi->value, 1)) != OTF2_SUCCESS) {
-                set_last_error("PaRSEC Profiling System: error -- %s (%s)", OTF2_Error_GetName(rc), OTF2_Error_GetDescription(rc));
-            }
-            free(pi->key);
-            free(pi->value);
-            r = PARSEC_LIST_ITERATOR_NEXT(r);
-            PARSEC_OBJ_RELEASE(pi);
-        }
+        otf2_set_properties();
 
         rc = OTF2_GlobalDefWriter_WriteClockProperties( global_def_writer,
                                                         1000000000,
-                                                        0, gepoch + 1);
+                                                        0, gepoch + 1
+#if OTF2_VERSION_MAJOR >= 3
+                                                        , OTF2_UNDEFINED_TIMESTAMP /* realtime timestamp */
+#endif
+                                                        );
         if(rc != OTF2_SUCCESS) {
             parsec_warning("PaRSEC Profiling System: OTF2 Error -- %s (%s)", OTF2_Error_GetName(rc), OTF2_Error_GetDescription(rc));
         }
 
         /* Define the dictionary */
-        for(int r = REGION_ID_OFFSET; r < next_region; r++) {
+        for(int r = 0; r < next_region; r++) {
+            if( NULL == regions[r].name ) {
+                continue;
+            }
             int nameid = next_otf2_global_strid();
             rc = OTF2_GlobalDefWriter_WriteString( global_def_writer, nameid, regions[r].name );
             if(rc != OTF2_SUCCESS) {
@@ -1018,7 +859,7 @@ int parsec_profiling_dbp_dump( void )
             }
 
             rc = OTF2_GlobalDefWriter_WriteRegion( global_def_writer,
-                                                   regions[r].otf2_region_id - REGION_ID_OFFSET /* id */,
+                                                   r /* id */,
                                                    nameid /* region name  */,
                                                    altnameid /* alternative name */,
                                                    descid /* description */,
@@ -1073,7 +914,11 @@ int parsec_profiling_dbp_dump( void )
                                                           r,
                                                           strid,
                                                           OTF2_LOCATION_GROUP_TYPE_PROCESS,
-                                                          0 /* system tree */ );
+                                                          0 /* system tree */
+#if OTF2_VERSION_MAJOR >= 3
+                                                          , OTF2_UNDEFINED_LOCATION_GROUP /* creating location group */
+#endif
+                                                          );
 
             for (uint64_t i = 0; i < perlocation[r]; ++i) {
 
@@ -1168,7 +1013,11 @@ int parsec_profiling_dbp_dump( void )
                                              0 /* Communicator id */,
                                              strid /* name */,
                                              1 /* group */,
-                                             OTF2_UNDEFINED_COMM /* parent */ );
+                                             OTF2_UNDEFINED_COMM /* parent */
+#if OTF2_VERSION_MAJOR >= 3
+                                             , OTF2_COMM_FLAG_NONE
+#endif
+                                             );
         if(rc != OTF2_SUCCESS) {
             parsec_warning("PaRSEC Profiling System: OTF2 Error -- %s (%s)", OTF2_Error_GetName(rc), OTF2_Error_GetDescription(rc));
         }
@@ -1178,11 +1027,14 @@ int parsec_profiling_dbp_dump( void )
         if(rc != OTF2_SUCCESS) {
             parsec_warning("PaRSEC Profiling System: OTF2 Error -- %s (%s)", OTF2_Error_GetName(rc), OTF2_Error_GetDescription(rc));
         }
+        global_def_writer = NULL;
     }
     free(perlocation);
     free(stream_data);
 
-    MPI_Barrier(parsec_otf2_profiling_comm); /* All the ranks must wait here that the rank 0 has written everything */
+    if( parsec_profiling_mpi_on ) {
+        MPI_Barrier(parsec_otf2_profiling_comm); /* All the ranks must wait here that the rank 0 has written everything */
+    }
 
     rc = OTF2_Archive_Close( otf2_archive );
     if(rc != OTF2_SUCCESS) {
@@ -1190,127 +1042,36 @@ int parsec_profiling_dbp_dump( void )
     }
     otf2_archive = NULL;
 
-    if( parsec_profiling_raise_error )
-        return PARSEC_ERROR;
-
     return 0;
 }
 
-uint64_t parsec_profiling_get_time(void) {
-    return diff_time(parsec_start_time, take_time());
-}
-
-void parsec_profiling_enable(void)
+static void otf2_fini( void )
 {
-    parsec_profile_enabled = 1;
-}
-
-void parsec_profiling_disable(void)
-{
-    parsec_profile_enabled = 0;
-}
-
-void profiling_save_dinfo(const char *key, double value)
-{
-    char *svalue;
-    int rv=asprintf(&svalue, "%g", value);
-    (void)rv;
-    parsec_profiling_add_information(key, svalue);
-    free(svalue);
-}
-
-void profiling_save_iinfo(const char *key, int value)
-{
-    char *svalue;
-    int rv=asprintf(&svalue, "%d", value);
-    (void)rv;
-    parsec_profiling_add_information(key, svalue);
-    free(svalue);
-}
-
-void profiling_save_uint64info(const char *key, unsigned long long int value)
-{
-    char *svalue;
-    int rv=asprintf(&svalue, "%llu", value);
-    (void)rv;
-    parsec_profiling_add_information(key, svalue);
-    free(svalue);
-}
-
-void profiling_save_sinfo(const char *key, char* svalue)
-{
-    parsec_profiling_add_information(key, svalue);
-}
-
-void profiling_stream_save_dinfo(parsec_profiling_stream_t* stream,
-                                 const char *key, double value)
-{
-    char *svalue;
-    int rv = asprintf(&svalue, "%g", value);
-    (void)rv;
-    parsec_profiling_stream_add_information(stream, key, svalue);
-    free(svalue);
-}
-
-void profiling_stream_save_iinfo(parsec_profiling_stream_t* stream,
-                                 const char *key, int value)
-{
-    char *svalue;
-    int rv = asprintf(&svalue, "%d", value);
-    (void)rv;
-    parsec_profiling_stream_add_information(stream, key, svalue);
-    free(svalue);
-}
-
-void profiling_stream_save_uint64info(parsec_profiling_stream_t* stream,
-                                      const char *key, unsigned long long int value)
-{
-    char *svalue;
-    int rv = asprintf(&svalue, "%llu", value);
-    (void)rv;
-    parsec_profiling_stream_add_information(stream, key, svalue);
-    free(svalue);
-}
-
-void profiling_stream_save_sinfo(parsec_profiling_stream_t* stream,
-                                 const char *key, char* svalue)
-{
-    parsec_profiling_stream_add_information(stream, key, svalue);
-}
-
-int parsec_profiling_fini( void )
-{
-    parsec_profiling_stream_t *t;
-
-    if( !__profile_initialized ) return PARSEC_ERR_NOT_SUPPORTED;
-
-    if( NULL != otf2_archive ) {
-        if( 0 != parsec_profiling_dbp_dump() ) {
-            return PARSEC_ERROR;
-        }
-    }
-
-    while( (t = (parsec_profiling_stream_t*)parsec_list_nolock_pop_front(&threads)) ) {
-#if defined(PARSEC_PROF_TRACE_NVTX)
-        parsec_profiling_nvtx_release_stream(&t->nvtx_ranges,
-                                             &t->nvtx_freelist);
-#endif
-        free(t);
-    }
-    PARSEC_OBJ_DESTRUCT(&threads);
-
-    parsec_profiling_dictionary_flush();
-#if defined(PARSEC_PROF_TRACE_NVTX)
-    parsec_profiling_nvtx_fini();
-#endif
-    start_called = 0;  /* Allow the profiling to be reinitialized */
-    parsec_profile_enabled = 0;  /* turn off the profiling */
-    __profile_initialized = 0;  /* not initialized */
+    otf2_dictionary_flush();
+    free(regions);
+    regions = NULL;
+    nbregions = 0;
+    next_attr_id = 0;
+    thread_profiling_id = 0;
+    next_strid = 1;
 
     if( parsec_profiling_mpi_on ) {
         MPI_Comm_free(&parsec_otf2_profiling_comm);
         parsec_profiling_mpi_on = 0;
     }
-
-    return 0;
 }
+
+parsec_profiling_substrate_t parsec_profiling_substrate_otf2 = {
+    .name             = "otf2",
+    .kind             = PARSEC_PROFILING_SUBSTRATE_FILE,
+    .init             = otf2_init,
+    .open             = otf2_open,
+    .start            = otf2_start,
+    .dump             = otf2_dump,
+    .fini             = otf2_fini,
+    .register_key     = otf2_register_key,
+    .dictionary_flush = otf2_dictionary_flush,
+    .stream_init      = otf2_stream_init,
+    .stream_fini      = otf2_stream_fini,
+    .trace            = otf2_trace,
+};

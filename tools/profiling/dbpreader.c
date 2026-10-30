@@ -234,8 +234,19 @@ typedef struct {
     int                done;
 } event_cache_t;
 
+/* A profiling stream, as read from the file */
+typedef struct dbp_stream_s {
+    parsec_list_item_t         list;
+    int64_t                    next_event_position;
+    char                      *hr_id;
+    uint64_t                   nb_events;
+    void                      *infos;
+    off_t                      first_events_buffer_offset;
+    parsec_profiling_buffer_t *current_events_buffer;
+} dbp_stream_t;
+
 struct dbp_thread {
-    const parsec_profiling_stream_t *profile;
+    const dbp_stream_t              *profile;
     dbp_file_t                      *file;
     dbp_info_t                      *infos;
     event_cache_t                    cache;
@@ -1011,7 +1022,7 @@ static int read_dictionary(dbp_file_t *file, const parsec_profiling_binary_file_
     return 0;
 }
 
-static size_t read_thread_infos(parsec_profiling_stream_t* res,
+static size_t read_thread_infos(dbp_stream_t* res,
                                 dbp_thread_t *th,
                                 int nb_infos, const char *br)
 {
@@ -1038,7 +1049,7 @@ static size_t read_thread_infos(parsec_profiling_stream_t* res,
 
 static int read_threads(dbp_file_t *dbp, const parsec_profiling_binary_file_header_t *head)
 {
-    parsec_profiling_stream_t *res;
+    dbp_stream_t *res;
     parsec_profiling_stream_buffer_t *br;
     parsec_profiling_buffer_t *b, *next;
     dbp_thread_t *thr;
@@ -1056,7 +1067,7 @@ static int read_threads(dbp_file_t *dbp, const parsec_profiling_binary_file_head
         assert(nbthis > 0);
 
         br = (parsec_profiling_stream_buffer_t*)&(b->buffer[pos]);
-        res = (parsec_profiling_stream_t*)malloc( sizeof(parsec_profiling_stream_t) );
+        res = (dbp_stream_t*)malloc( sizeof(dbp_stream_t) );
         res->next_event_position = -1; /* No need for a next event position */
         res->nb_events = br->nb_events;
         res->hr_id = (char*)malloc(128);

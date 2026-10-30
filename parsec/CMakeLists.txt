@@ -96,16 +96,21 @@ endif( PARSEC_PAPI_SDE )
 # list(APPEND EXTRA_LIBS ${TAU_LIBRARIES})
 # set (CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib" ${TAU_LIBRARY_DIR})
 
-if(NOT PARSEC_HAVE_OTF2)
-  list(APPEND EXTRA_SOURCES "profiling.c")
-  message(STATUS "Profiling uses PaRSEC Binary Tracing Format")
-else(NOT PARSEC_HAVE_OTF2)
+# The profiling core and its substrates. The core and the PaRSEC Binary
+# Tracing Format are always built, the other substrates when available.
+list(APPEND EXTRA_SOURCES "profiling.c" "profiling_binary.c")
+if(PARSEC_HAVE_OTF2)
   list(APPEND EXTRA_SOURCES "profiling_otf2.c")
   list(APPEND EXTRA_LIBS "otf2")
-  message(STATUS "Profiling uses OTF2")
-endif(NOT PARSEC_HAVE_OTF2)
+  message(STATUS "Profiling can write the PaRSEC Binary Tracing Format and OTF2 (default: OTF2)")
+else(PARSEC_HAVE_OTF2)
+  message(STATUS "Profiling can write the PaRSEC Binary Tracing Format")
+endif(PARSEC_HAVE_OTF2)
 if(PARSEC_PROF_TRACE_NVTX)
   list(APPEND EXTRA_SOURCES "profiling_nvtx.c")
+endif()
+if(PARSEC_PROF_TRACE_SCOREP)
+  list(APPEND EXTRA_SOURCES "profiling_scorep.c")
 endif()
 
 set(SOURCES
@@ -238,6 +243,18 @@ if( BUILD_PARSEC )
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/parsec/include>)
   if(PARSEC_PROF_TRACE_NVTX)
     target_include_directories(parsec PRIVATE ${PARSEC_NVTX_INCLUDE_DIR})
+  endif()
+  if(PARSEC_PROF_TRACE_SCOREP)
+    target_include_directories(parsec PRIVATE ${PARSEC_SCOREP_INCLUDE_DIR})
+    if(APPLE)
+      # The Score-P user adapter symbols are weak and resolved at runtime from
+      # the application, if it was linked with Score-P.
+      target_link_options(parsec PRIVATE
+        "LINKER:-U,_SCOREP_User_RegionInit"
+        "LINKER:-U,_SCOREP_User_RegionEnter"
+        "LINKER:-U,_SCOREP_User_RegionEnd"
+        "LINKER:-U,_SCOREP_User_RegionSetGroup")
+    endif()
   endif()
   target_link_libraries(parsec
     PRIVATE
