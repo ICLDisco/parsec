@@ -4912,8 +4912,16 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
     if( (NULL == progress_task) &&
         ((rc < 0) || !parsec_list_nolock_is_empty(&gpu_device->starved_tasks)) ) {
         gpu_task = parsec_gpu_create_w2r_task(gpu_device, es);
-        if( NULL != gpu_task )
+        if( NULL != gpu_task ) {
+            /* A write-back claims the host mirror of every copy it carries, and
+             * only its completion, here on the manager, hands those back. Count
+             * it among the work this device owes, or the manager may leave with
+             * the transfer still on the stream and the mirrors held for good:
+             * whoever waits for one then waits for a thread that is gone.
+             */
+            (void)parsec_atomic_fetch_inc_int32(&gpu_device->mutex);
             goto get_data_out_of_device;
+        }
     }
     gpu_task = progress_task;
 
@@ -5062,8 +5070,9 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
     if (gpu_task->task_type == PARSEC_GPU_TASK_TYPE_D2HTRANSFER) {
         parsec_device_wake_starved_tasks(gpu_device,
                                          parsec_gpu_complete_w2r_task(gpu_device, gpu_task, es));
-        gpu_task = progress_task;
-        goto fetch_task_from_shared_queue;
+        /* The mirrors are back, so the count this transfer took goes back too. */
+        released_tasks = 1;
+        goto release_device_slots;
     }
     if (gpu_task->task_type == PARSEC_GPU_TASK_TYPE_D2D_COMPLETE) {
         /* We have acted on the command, so the copy it named is no longer ours. */
@@ -5089,6 +5098,7 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
     released_tasks = parsec_gpu_task_ring_release(gpu_task);
     assert(released_tasks > 0);
 
+  release_device_slots:
     rc = parsec_atomic_fetch_sub_int32(&(gpu_device->mutex), released_tasks);
     assert(rc >= released_tasks);
     if( released_tasks == rc ) {  /* I released the last outstanding task(s) */
