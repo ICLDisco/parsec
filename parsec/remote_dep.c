@@ -8,6 +8,7 @@
 #include "parsec/parsec_config.h"
 #include "parsec/parsec_internal.h"
 #include "parsec/remote_dep.h"
+#include "parsec/mca/device/device.h"
 #include "parsec/scheduling.h"
 #include "parsec/execution_stream.h"
 #include "parsec/data_internal.h"
@@ -111,6 +112,21 @@ remote_dep_dec_flying_messages(parsec_taskpool_t *handle)
 
 /* Mark that ncompleted of the remote deps are finished, and return the remote dep to
  * the free items queue if it is now done */
+void parsec_dep_description_retarget(struct parsec_dep_type_description_s *desc,
+                                     const parsec_data_copy_t *from,
+                                     const parsec_data_copy_t *to)
+{
+    /* Two copies of the same data hold the same value, which is what makes one
+     * readable in place of the other, but the DSL is free to give them
+     * different shapes. What to send was described against the copy we asked
+     * for, so it only carries over to the one we got while the two agree on a
+     * layout; otherwise the substitute has to be described by its own. */
+    if( PARSEC_SUCCESS == parsec_type_match(from->dtt, to->dtt) ) return;
+    desc->src_datatype = to->dtt;
+    desc->src_count    = 1;
+    desc->src_displ    = 0;
+}
+
 int
 remote_dep_complete_and_cleanup(parsec_remote_deps_t** deps,
                                 int ncompleted)
@@ -129,8 +145,9 @@ remote_dep_complete_and_cleanup(parsec_remote_deps_t** deps,
             if( (1U << i) & (*deps)->outgoing_mask ) {
                 assert( (*deps)->output[i].count_bits );
                 if( NULL != (*deps)->output[i].data.data ) { /* if not CONTROL */
-                    if( PARSEC_TASKPOOL_TYPE_DTD == (*deps)->taskpool->taskpool_type ) {
-                        parsec_dtd_data_copy_reader_release((*deps)->output[i].data.data);
+                    if( (1U << i) & (*deps)->pinned_mask ) {
+                        (*deps)->pinned_mask ^= (1U << i);
+                        parsec_device_data_copy_unpin_reader((*deps)->output[i].data.data);
                     }
                     PARSEC_DATA_COPY_RELEASE((*deps)->output[i].data.data);
                 }
@@ -185,6 +202,7 @@ parsec_remote_deps_t* remote_deps_allocate( parsec_lifo_t* lifo )
     remote_deps->pending_ack     = 0;
     remote_deps->incoming_mask   = 0;
     remote_deps->outgoing_mask   = 0;
+    remote_deps->pinned_mask     = 0;
     PARSEC_DEBUG_VERBOSE(30, parsec_comm_output_stream, "remote_deps_allocate: %p", remote_deps);
     return remote_deps;
 }
@@ -495,6 +513,38 @@ int parsec_remote_dep_activate(parsec_execution_stream_t* es,
              * assert(NULL != output->data.remote.arena);*/
             assert( !parsec_is_CTL_dep(&output->data) );
             PARSEC_DATA_COPY_RETAIN(output->data.data);
+            /* The engine is about to read this memory itself, from its own
+             * thread, for as long as the message is outstanding. Count it among
+             * the readers so the device that owns the copy cannot reclaim the
+             * memory while the network is still reading it.
+             *
+             * A rank that forwards what it received activates an output it is
+             * already reading, having been given it by the receive. One reader
+             * covers both: the mask says this message holds one, and it is the
+             * release of the last user that gives it back.
+             */
+            if( remote_deps->pinned_mask & (1U << i) ) {
+                /* nothing to take, this message already holds it */
+            } else {
+                /* What goes on the wire is the value, not the copy it is read
+                 * from, so a copy whose memory the device took back sends just
+                 * as well from the host mirror it was written down into.
+                 */
+                parsec_data_copy_t *readable = parsec_device_data_copy_pin_value(output->data.data);
+                if( NULL == readable ) {
+                    parsec_warning("Data copy %p was handed to the communication engine after the device "
+                                   "owning it had already reclaimed its memory.", output->data.data);
+                } else {
+                    if( readable != output->data.data ) {
+                        PARSEC_DATA_COPY_RETAIN(readable);
+                        parsec_dep_description_retarget(&output->data.remote,
+                                                        output->data.data, readable);
+                        PARSEC_DATA_COPY_RELEASE(output->data.data);
+                        output->data.data = readable;
+                    }
+                    remote_deps->pinned_mask |= (1U << i);
+                }
+            }
         }
 
         for( array_index = count = 0; count < remote_deps->output[i].count_bits; array_index++ ) {

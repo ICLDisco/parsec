@@ -224,6 +224,7 @@ static void __parsec_task_constructor(parsec_task_t* task) {
     task->selected_chore = -1;
     task->load = 0;
     task->status = PARSEC_TASK_STATUS_NONE;
+    task->pinned_input_mask = 0;
 #if defined(PARSEC_DEBUG_NOISIER)
     /* used during task_snprintf for non-fully initialized task_t */
     memset(&task->data, 0, MAX_PARAM_COUNT * sizeof(parsec_data_pair_t));

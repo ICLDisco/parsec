@@ -145,6 +145,7 @@ struct parsec_remote_deps_s {
     int32_t                          root;          /**< The root of the control message */
     uint32_t                         incoming_mask; /**< track all incoming actions (receives) */
     uint32_t                         outgoing_mask; /**< track all outgoing actions (send) */
+    uint32_t                         pinned_mask;   /**< outputs holding a reader on their copy; a pin can be refused */
     remote_dep_wire_activate_t       msg;           /**< A copy of the message control */
     void                            *eager_msg;     /**< A pointer to the eager buffer if this is an eager msg, otherwise NULL */
     int32_t                          max_priority;
@@ -260,6 +261,16 @@ int parsec_remote_dep_propagate(parsec_execution_stream_t* es,
 #define parsec_remote_dep_new_taskpool(ctx)    0
 #define remote_dep_mpi_initialize_execution_stream(ctx) 0
 #endif /* DISTRIBUTED */
+
+/**
+ * Re-describe a transfer that will read @p to where it was going to read
+ * @p from. Both hold the same value, so the description carries over
+ * unchanged while they agree on a layout, and is rebuilt from the
+ * substitute's own when they do not.
+ */
+void parsec_dep_description_retarget(struct parsec_dep_type_description_s *desc,
+                                     const struct parsec_data_copy_s *from,
+                                     const struct parsec_data_copy_s *to);
 
 /* check if this data description represents a CTL dependency */
 #define parsec_is_CTL_dep(PDEP_DATA_DESC)\
