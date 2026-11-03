@@ -1011,12 +1011,14 @@ int parsec_context_start( parsec_context_t* context )
         (void)parsec_remote_dep_on(context);
         /* Mark the context so that we will skip the initial barrier during the _wait */
         context->flags |= PARSEC_CONTEXT_FLAG_CONTEXT_ACTIVE;
-        /* Wake up the other threads */
-        parsec_barrier_wait( &(context->barrier) );
         /* we keep one extra reference on the context to make sure we only match this with an
-         * explicit call to parsec_context_wait.
+         * explicit call to parsec_context_wait. It must be accounted for before the other
+         * threads are released: a thread that evaluates all_tasks_done() in between reads 0
+         * and leaves the scheduling loop for good.
          */
         (void)parsec_atomic_fetch_inc_int32( &context->active_taskpools );
+        /* Wake up the other threads */
+        parsec_barrier_wait( &(context->barrier) );
         return 0;
     }
     return 1;  /* Someone else start it up */
