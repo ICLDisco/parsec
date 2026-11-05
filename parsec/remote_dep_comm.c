@@ -682,19 +682,48 @@ void parsec_remote_dep_memcpy(parsec_execution_stream_t* es,
     parsec_dequeue_push_back(&dep_cmd_queue, (parsec_list_item_t*) item);
 }
 
+/**
+ * Number of arena elements needed to receive (dst_count, dst_datatype).
+ *
+ * A typed receive counts arena elements. A byte-stream receive does not: the
+ * eager path turns a short, variable-size payload into dst_count bytes of
+ * int8, and the mixed-datatype fallback receives dst_count bytes of
+ * PARSEC_DATATYPE_PACKED. Allocating dst_count arena elements for those would
+ * cost elem_size times the payload (terabytes for a single tile), so convert
+ * the byte count into arena elements instead.
+ */
+static inline uint64_t
+remote_dep_arena_count(const parsec_dep_type_description_t* data)
+{
+    int tsize = 0;
+    uint64_t bytes, count;
+
+    if( NULL == data->arena || 0 == data->arena->elem_size || 0 == data->dst_count ) {
+        return data->dst_count;
+    }
+    if( PARSEC_SUCCESS != parsec_type_size(data->dst_datatype, &tsize) || 1 != tsize ) {
+        return data->dst_count;
+    }
+    bytes = data->dst_count + (uint64_t)(data->dst_displ > 0 ? data->dst_displ : 0);
+    count = (bytes + data->arena->elem_size - 1) / data->arena->elem_size;
+    return count > 0 ? count : 1;
+}
+
 static inline parsec_data_copy_t*
 remote_dep_copy_allocate(parsec_dep_type_description_t* data, int preferred_device)
 {
     parsec_data_copy_t* dc;
+    uint64_t arena_count;
     if( NULL == data->arena ) {
         assert(0 == data->dst_count);
         return NULL;
     }
+    arena_count = remote_dep_arena_count(data);
     /* Go and allocate on the preferred device. If that fails, fall back and allocate a
      * copy on the main memory (device 0), and parsec will transfer the data as needed
      * for all tasks executing on acclerators.
      */
-    dc = parsec_arena_get_new_copy(data->arena, data->dst_count, preferred_device, data->dst_datatype);
+    dc = parsec_arena_get_new_copy(data->arena, arena_count, preferred_device, data->dst_datatype);
     if( NULL == dc ) {
         return NULL;
     }
@@ -714,8 +743,8 @@ remote_dep_copy_allocate(parsec_dep_type_description_t* data, int preferred_devi
         PARSEC_DEBUG_VERBOSE(5, parsec_comm_output_stream, "RDEP:\tFail to allocate tile on device %d and instead allocate on device %d\n",
                              preferred_device, dc->device_index);
     }
-    PARSEC_DEBUG_VERBOSE(5, parsec_comm_output_stream, "RDEP:\tMalloc new temporary tile [dev %d] copy %p size %" PRIu64 " count = %" PRIu64 " displ = %" PRIi64 " %p",
-                         dc->device_index, dc, data->arena->elem_size, data->dst_count, data->dst_displ, data->arena);
+    PARSEC_DEBUG_VERBOSE(5, parsec_comm_output_stream, "RDEP:\tMalloc new temporary tile [dev %d] copy %p size %" PRIu64 " arena count = %" PRIu64 " receive count = %" PRIu64 " displ = %" PRIi64 " %p",
+                         dc->device_index, dc, data->arena->elem_size, arena_count, data->dst_count, data->dst_displ, data->arena);
     return dc;
 }
 
