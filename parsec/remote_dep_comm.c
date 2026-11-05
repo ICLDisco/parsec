@@ -1009,6 +1009,33 @@ remote_dep_comm_retrieve_datatype(parsec_execution_stream_t *eu,
 }
 
 /**
+ * A rank that receives data from a broadcast parent forwards it to its own
+ * children (chain and binomial trees) with the src description, which
+ * remote_dep_comm_retrieve_datatype() takes from the local receiver's type.
+ * When the root sent less than that type (e.g. a variable-size payload sent
+ * as raw bytes into a full-size receive type), every forwarded hop would carry
+ * the full receive type. For a contiguous receive type the payload occupies
+ * the first received bytes, so forward exactly those. Packed, control and
+ * non-contiguous layouts are left unchanged.
+ */
+static inline void
+remote_dep_forward_received_size(parsec_dep_type_description_t* data, uint64_t received_bytes)
+{
+    int dsize = 0, tsize = 0;
+    ptrdiff_t lb = 0, extent = 0;
+
+    if( 0 == received_bytes || 0 == data->dst_count ) return;  /* control flow */
+    if( PARSEC_DATATYPE_NULL == data->dst_datatype || PARSEC_DATATYPE_PACKED == data->dst_datatype ) return;
+    parsec_ce.pack_size(&parsec_ce, data->dst_count, data->dst_datatype, &dsize);
+    if( received_bytes >= (uint64_t)dsize ) return;
+    if( PARSEC_SUCCESS != parsec_type_size(data->dst_datatype, &tsize) ||
+        PARSEC_SUCCESS != parsec_type_extent(data->dst_datatype, &lb, &extent) ) return;
+    if( 0 != lb || extent != (ptrdiff_t)tsize ) return;  /* non-contiguous layout */
+    data->src_datatype = parsec_datatype_int8_t;
+    data->src_count    = received_bytes;
+}
+
+/**
  * Retrieve the datatypes involved in this communication. In addition the flag
  * PARSEC_ACTION_RECV_INIT_REMOTE_DEPS set the priority to the maximum priority
  * of all the children.
@@ -1164,6 +1191,7 @@ remote_dep_get_datatypes(parsec_execution_stream_t* es,
             if( (origin->incoming_mask & ~incoming_mask & (1U<<k)) &&
                 (0 != origin->output[k].data.remote.dst_count) ) {
                 assert(idx < data_sizes[0]);
+                remote_dep_forward_received_size(&origin->output[k].data.remote, data_sizes[idx+1]);
                 idx++;
             } else {
                 origin->output[k].data.remote.src_count = 0;
