@@ -1,0 +1,642 @@
+extern "C" %{
+/*
+ * Copyright (c) 2026
+ */
+
+/**
+ * Benchmark [type_remote = AUTO] against padded, fixed-size receives for
+ * tile-low-rank (TLR) payloads.
+ *
+ * NT tiles of NB x RMAX doubles, the storage of low-rank factors allocated at
+ * the largest rank as HiCMA keeps them, form a ring spread round robin over
+ * the processes. At every iteration i, tile t sends its first NB x rank(i, t)
+ * doubles to the next tile of the ring, which lives on another process
+ * whenever there is more than one: SEND(i, t) -> RECV(i, t+1 mod NT). The rank
+ * is drawn per (i, t) from [RMIN, RMAX], as the rank of a compressed tile in
+ * HiCMA is only known at runtime. The tiles are read only: they are filled
+ * once, and SEND is nothing but the dependency that ships them. A tile sends
+ * its next payload once it has received the previous one (RECV(i, t) ->
+ * SEND(i+1, t), a control dependency), so that at most NT messages are in
+ * flight at any time: this is what lets the receive buffers be reused rather
+ * than allocated anew for every message.
+ *
+ * Two modes, selected with -m=:
+ *  - auto:  the receiver declares [type_remote = AUTO layout_remote = double]
+ *           and the sender packs NB x rank doubles; the runtime sizes the
+ *           receive buffer after the payload, from its power-of-two buckets.
+ *  - fixed: the receiver declares the DEFAULT arena, one element of
+ *           NB x RMAX doubles, and the sender sends the whole padded tile,
+ *           as HiCMA has to do without AUTO: the receiver cannot size its
+ *           buffer after a rank it does not know before the data arrives.
+ * In both modes the receive buffers are the only arena traffic. Both modes
+ * check the NB x rank doubles received; auto also checks that the copy spans
+ * exactly the payload.
+ *
+ * SEND and RECV also have CUDA incarnations, for a build with CUDA: with -d=1
+ * every local tile prefers a GPU of the process (-G=N gives each process of a
+ * node its own N GPUs), so that SEND ships the tile from GPU memory and the
+ * payload is received straight into GPU memory when the communication engine
+ * allows it (mpi_gpu_aware); RECV then checks the data once staged there. On a
+ * GPU the receive buffers come from the zone allocator of the device, sized
+ * by the same buckets, so the reuse counted here is that allocator's.
+ *
+ * Rank 0 prints one line of numbers: the wall time of the exchange (after a
+ * warm-up pass of -w= iterations run as a separate taskpool), the useful
+ * payload bytes against the bytes actually transferred, the peak resident set
+ * (getrusage ru_maxrss) before and after the exchange, and how many receive
+ * buffers landed at an address never seen before, during the warm-up and
+ * during the timed pass: a buffer reused from an arena cache comes back at an
+ * address already seen, a fresh allocation does not (parsec_arena_t is not
+ * read: the count is kept here, from the addresses the tasks see). The bytes
+ * those allocations took from the system are inferred from the size of each
+ * new buffer and the documented policy of its arena: the smallest power-of-two
+ * bucket holding the payload for AUTO (grains of 64 bytes above
+ * parsec_arena_auto_max_bucket), the padded tile for the fixed arena.
+ */
+
+#include <assert.h>
+#include <inttypes.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <sys/resource.h>
+
+#include "parsec.h"
+#include "parsec/arena.h"
+#include "parsec/data_internal.h"
+#include "parsec/mca/device/device.h"
+#include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include "tests/tests_runtime.h"
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
+#include <cuda_runtime.h>
+#endif
+
+#define TLR_MODE_AUTO  0
+#define TLR_MODE_FIXED 1
+
+typedef struct {
+    int64_t recv;       /* payloads received */
+    int64_t remote;     /* ... from another process */
+    int64_t payload;    /* useful bytes: NB x rank doubles per payload */
+    int64_t received;   /* bytes the received copies span */
+    int64_t sent;       /* bytes declared on the sending side */
+    int64_t new_addr;   /* receive buffers at an address never seen before */
+    int64_t alloc_bytes;/* bytes the arenas acquired for them: the bucket, or the padded tile */
+    int64_t body_ns;    /* time spent in the task bodies */
+    int64_t errors;
+    int64_t gpu_send;   /* SEND run on a GPU */
+    int64_t gpu_recv;   /* RECV run on a GPU */
+    int64_t direct;     /* payloads received straight into GPU memory */
+} tlr_stats_t;
+
+static tlr_stats_t g_stats;
+
+/* Set of the addresses receive buffers have been seen at (open addressing) */
+static uintptr_t *g_addr = NULL;
+static size_t g_addr_mask = 0;
+static size_t g_addr_used = 0;
+static parsec_atomic_lock_t g_addr_lock;
+
+/* Record the address of a receive buffer: 1 if it was never seen before */
+static int addr_record(const void *p)
+{
+    uintptr_t a = (uintptr_t)p;
+    size_t h = (size_t)((a >> 4) * 11400714819323198485ULL) & g_addr_mask;
+    int is_new = 0;
+
+    parsec_atomic_lock(&g_addr_lock);
+    for(;;) {
+        if( 0 == g_addr[h] ) {
+            if( g_addr_used < g_addr_mask / 2 ) {  /* otherwise count it, do not store it */
+                g_addr[h] = a;
+                g_addr_used++;
+            }
+            is_new = 1;
+            break;
+        }
+        if( g_addr[h] == a ) break;
+        h = (h + 1) & g_addr_mask;
+    }
+    parsec_atomic_unlock(&g_addr_lock);
+    return is_new;
+}
+
+static inline int64_t now_ns(void)
+{
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (int64_t)ts.tv_sec * 1000000000LL + (int64_t)ts.tv_nsec;
+}
+
+/* The rank of the payload tile t sends at iteration i, spread over [rmin, rmax] */
+static inline int rank_of(int i, int t, int nt, int rmin, int rmax, int seed)
+{
+    uint64_t h = ((uint64_t)i * (uint64_t)nt + (uint64_t)t + 1ULL) * 2654435761ULL + (uint64_t)seed * 40503ULL;
+    h ^= h >> 29;
+    return rmin + (int)(h % (uint64_t)(rmax - rmin + 1));
+}
+
+/* The content of tile t: base_of(t) + j at index j (exact in a double) */
+static inline double base_of(int t)
+{
+    return (double)((t * 7919) & 0xffff);
+}
+
+/* A copy the GPU task reads that arrived directly in GPU memory: the host copy
+ * made next to it was never filled, nothing was staged in. */
+static inline int received_on_gpu(const parsec_data_copy_t *copy)
+{
+    const parsec_data_copy_t *host = copy->original->device_copies[0];
+    return (0 != copy->device_index) &&
+           ((NULL == host) || (PARSEC_DATA_COHERENCY_INVALID == host->coherency_state));
+}
+
+static inline int rank_of_tile(parsec_matrix_block_cyclic_t *desc, int t)
+{
+    parsec_data_collection_t *dc = (parsec_data_collection_t*)desc;
+    return (int)dc->rank_of(dc, t, 0);
+}
+
+static int check_payload(const char *task, int i, int t, const double *u, int64_t n, double base)
+{
+    int64_t bad = 0;
+    for(int64_t j = 0; j < n; j++) {
+        bad += (u[j] != base + (double)j);
+    }
+    if( 0 != bad ) {
+        fprintf(stderr, "tlr_bench: %s(%d, %d) %" PRId64 " of %" PRId64 " doubles are wrong\n",
+                task, i, t, bad, n);
+        return 1;
+    }
+    return 0;
+}
+
+static int check_span(const char *task, int i, int t, const parsec_data_copy_t *copy, size_t bytes)
+{
+    if( copy->original->span != bytes ) {
+        fprintf(stderr, "tlr_bench: %s(%d, %d) spans %zu bytes, expected %zu\n",
+                task, i, t, copy->original->span, bytes);
+        return 1;
+    }
+    return 0;
+}
+
+/* What an AUTO allocation of bytes takes from the system (see parsec/arena.h) */
+static inline int64_t auto_chunk_of(int64_t bytes)
+{
+    int64_t chunk = 64;
+    if( (size_t)bytes > parsec_arena_auto_max_bucket ) {
+        return ((bytes + 63) / 64) * 64;
+    }
+    while( chunk < bytes ) chunk *= 2;
+    return chunk;
+}
+
+static void account_recv(const void *buf, int remote, int64_t payload, int64_t received, int64_t chunk,
+                         int err, int64_t ns)
+{
+    (void)parsec_atomic_fetch_inc_int64(&g_stats.recv);
+    if( remote ) (void)parsec_atomic_fetch_inc_int64(&g_stats.remote);
+    (void)parsec_atomic_fetch_add_int64(&g_stats.payload, payload);
+    (void)parsec_atomic_fetch_add_int64(&g_stats.received, received);
+    if( remote && addr_record(buf) ) {
+        (void)parsec_atomic_fetch_inc_int64(&g_stats.new_addr);
+        (void)parsec_atomic_fetch_add_int64(&g_stats.alloc_bytes, chunk);
+    }
+    (void)parsec_atomic_fetch_add_int64(&g_stats.body_ns, ns);
+    if( err ) (void)parsec_atomic_fetch_add_int64(&g_stats.errors, err);
+}
+%}
+
+descA  [type = "parsec_matrix_block_cyclic_t*"]
+NT     [type = int]   /* tiles in the ring, over all the processes */
+K      [type = int]   /* iterations: every tile sends K payloads */
+NB     [type = int]   /* rows of a low-rank factor */
+RMIN   [type = int]
+RMAX   [type = int]   /* a tile, and the DEFAULT arena, hold NB x RMAX doubles */
+MODE   [type = int]   /* TLR_MODE_AUTO or TLR_MODE_FIXED */
+SEED   [type = int]
+
+SEND(i, t)
+i = 0 .. K-1
+t = 0 .. NT-1
+next = %{ return (t + 1) % NT; %}
+rk   = %{ return rank_of(i, t, NT, RMIN, RMAX, SEED); %}
+
+: descA(t, 0)
+
+/* the next payload leaves once the previous one has arrived */
+CTL C  <- ((i > 0) && (MODE == 0)) ? C RECV_AUTO(i-1, t)
+       <- ((i > 0) && (MODE == 1)) ? C RECV_FIXED(i-1, t)
+
+READ U <- descA(t, 0)
+       -> (MODE == 0) ? U RECV_AUTO(i, next)   [ type_remote   = DEFAULT
+                                                 layout_remote = parsec_datatype_double_t
+                                                 count_remote  = %{ return NB * rk; %} ]
+       -> (MODE == 1) ? U RECV_FIXED(i, next)  [ type_remote   = DEFAULT ]
+
+BODY [type=CUDA]
+{
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
+    /* the tile lives on the GPU: the payload leaves from there */
+    (void)U;
+    (void)parsec_atomic_fetch_add_int64(&g_stats.sent,
+        (int64_t)sizeof(double) * (int64_t)NB * (int64_t)((MODE == 0) ? rk : RMAX));
+    (void)parsec_atomic_fetch_inc_int64(&g_stats.gpu_send);
+#endif  /* defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) */
+}
+END
+
+BODY
+{
+    /* nothing to compute: what the dependency above declares is the payload
+     * (NB x rk doubles), or the whole padded tile */
+    (void)U;
+    (void)parsec_atomic_fetch_add_int64(&g_stats.sent,
+        (int64_t)sizeof(double) * (int64_t)NB * (int64_t)((MODE == 0) ? rk : RMAX));
+}
+END
+
+RECV_AUTO(i, t)
+i = 0 .. %{ return (MODE == 0) ? K - 1 : -1; %}
+t = 0 .. NT-1
+prev = %{ return (t + NT - 1) % NT; %}
+rk   = %{ return rank_of(i, prev, NT, RMIN, RMAX, SEED); %}
+
+: descA(t, 0)
+
+READ U <- U SEND(i, prev)  [ type_remote = AUTO  layout_remote = parsec_datatype_double_t ]
+CTL C  -> (i < K-1) ? C SEND(i+1, t)
+
+BODY [type=CUDA]
+{
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
+    int64_t t0 = now_ns();
+    int64_t n = (int64_t)NB * (int64_t)rk, bytes = n * (int64_t)sizeof(double);
+    int remote = (rank_of_tile(descA, prev) != rank_of_tile(descA, t));
+    int err = 0;
+    double *u = (double*)malloc((size_t)bytes);
+    if( (cudaSuccess != cudaMemcpyAsync(u, U, (size_t)bytes, cudaMemcpyDeviceToHost, parsec_body.stream)) ||
+        (cudaSuccess != cudaStreamSynchronize(parsec_body.stream)) ) {
+        fprintf(stderr, "tlr_bench: RECV_AUTO(%d, %d) cannot read the data back from the GPU\n", i, t);
+        err++;
+    } else {
+        err += check_payload("RECV_AUTO", i, t, u, n, base_of(prev));
+    }
+    free(u);
+    if( remote ) {
+        err += check_span("RECV_AUTO", i, t, _f_U, (size_t)bytes);
+        if( received_on_gpu(_f_U) ) (void)parsec_atomic_fetch_inc_int64(&g_stats.direct);
+    }
+    (void)parsec_atomic_fetch_inc_int64(&g_stats.gpu_recv);
+    account_recv(U, remote, bytes, remote ? (int64_t)_f_U->original->span : bytes,
+                 auto_chunk_of(bytes), err, now_ns() - t0);
+#endif  /* defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) */
+}
+END
+
+BODY
+{
+    int64_t t0 = now_ns();
+    int64_t n = (int64_t)NB * (int64_t)rk, bytes = n * (int64_t)sizeof(double);
+    int remote = (rank_of_tile(descA, prev) != rank_of_tile(descA, t));
+    int err = check_payload("RECV_AUTO", i, t, (const double*)U, n, base_of(prev));
+    if( remote ) {
+        err += check_span("RECV_AUTO", i, t, _f_U, (size_t)bytes);
+    }
+    account_recv(U, remote, bytes, remote ? (int64_t)_f_U->original->span : bytes,
+                 auto_chunk_of(bytes), err, now_ns() - t0);
+}
+END
+
+RECV_FIXED(i, t)
+i = 0 .. %{ return (MODE == 1) ? K - 1 : -1; %}
+t = 0 .. NT-1
+prev = %{ return (t + NT - 1) % NT; %}
+rk   = %{ return rank_of(i, prev, NT, RMIN, RMAX, SEED); %}
+
+: descA(t, 0)
+
+READ U <- U SEND(i, prev)  [ type_remote = DEFAULT ]
+CTL C  -> (i < K-1) ? C SEND(i+1, t)
+
+BODY [type=CUDA]
+{
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
+    int64_t t0 = now_ns();
+    int64_t n = (int64_t)NB * (int64_t)rk, bytes = n * (int64_t)sizeof(double);
+    int64_t tile = (int64_t)sizeof(double) * (int64_t)NB * (int64_t)RMAX;
+    int remote = (rank_of_tile(descA, prev) != rank_of_tile(descA, t));
+    int err = 0;
+    double *u = (double*)malloc((size_t)bytes);
+    if( (cudaSuccess != cudaMemcpyAsync(u, U, (size_t)bytes, cudaMemcpyDeviceToHost, parsec_body.stream)) ||
+        (cudaSuccess != cudaStreamSynchronize(parsec_body.stream)) ) {
+        fprintf(stderr, "tlr_bench: RECV_FIXED(%d, %d) cannot read the data back from the GPU\n", i, t);
+        err++;
+    } else {
+        err += check_payload("RECV_FIXED", i, t, u, n, base_of(prev));
+    }
+    free(u);
+    if( remote ) {
+        err += check_span("RECV_FIXED", i, t, _f_U, (size_t)tile);
+        if( received_on_gpu(_f_U) ) (void)parsec_atomic_fetch_inc_int64(&g_stats.direct);
+    }
+    (void)parsec_atomic_fetch_inc_int64(&g_stats.gpu_recv);
+    account_recv(U, remote, bytes, remote ? (int64_t)_f_U->original->span : tile, tile, err, now_ns() - t0);
+#endif  /* defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) */
+}
+END
+
+BODY
+{
+    int64_t t0 = now_ns();
+    int64_t n = (int64_t)NB * (int64_t)rk, bytes = n * (int64_t)sizeof(double);
+    int64_t tile = (int64_t)sizeof(double) * (int64_t)NB * (int64_t)RMAX;
+    int remote = (rank_of_tile(descA, prev) != rank_of_tile(descA, t));
+    int err = check_payload("RECV_FIXED", i, t, (const double*)U, n, base_of(prev));
+    if( remote ) {
+        err += check_span("RECV_FIXED", i, t, _f_U, (size_t)tile);
+    }
+    account_recv(U, remote, bytes, remote ? (int64_t)_f_U->original->span : tile, tile, err, now_ns() - t0);
+}
+END
+
+extern "C" %{
+static long maxrss_kib(void)
+{
+    struct rusage ru;
+    getrusage(RUSAGE_SELF, &ru);
+    return ru.ru_maxrss;  /* KiB on Linux */
+}
+
+/* Run one pass of iters iterations: returns its wall time in seconds, measured
+ * from a barrier before the context starts to the end of the taskpool. */
+static double run_pass(parsec_context_t *parsec, parsec_matrix_block_cyclic_t *descA,
+                       parsec_arena_datatype_t *adt, int nt, int iters, int nb,
+                       int rmin, int rmax, int mode, int seed)
+{
+    parsec_tlr_bench_taskpool_t *tp;
+    int64_t t0, t1;
+    int rc;
+
+    tp = parsec_tlr_bench_new(descA, nt, iters, nb, rmin, rmax, mode, seed);
+    assert(NULL != tp);
+    tp->arenas_datatypes[PARSEC_tlr_bench_DEFAULT_ADT_IDX] = *adt;
+
+    rc = parsec_context_add_taskpool(parsec, &tp->super);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
+    rc = parsec_tests_barrier(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_barrier");
+    t0 = now_ns();
+    rc = parsec_context_start(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_start");
+    rc = parsec_context_wait(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
+    t1 = now_ns();
+    parsec_taskpool_free(&tp->super);
+    return (double)(t1 - t0) * 1e-9;
+}
+
+static void usage(const char *prog)
+{
+    fprintf(stderr,
+            "Usage: %s [-m=auto|fixed] [-n=tiles per process] [-k=iterations] [-w=warm-up iterations]\n"
+            "          [-b=NB] [-r=RMIN..RMAX] [-t=threads] [-s=seed] [-G=GPUs per process]\n"
+            "          [-d=1: tiles prefer a GPU] [-g=min RECV on a GPU] [-- parsec options]\n"
+            "  Every tile sends k payloads of NB x rank doubles to the next tile of the ring,\n"
+            "  on another process: n*k messages per process.\n", prog);
+}
+
+int main(int argc, char **argv)
+{
+    parsec_context_t *parsec = NULL;
+    parsec_matrix_block_cyclic_t descA;
+    parsec_data_collection_t *dc = (parsec_data_collection_t*)&descA;
+    parsec_arena_datatype_t *adt = PARSEC_OBJ_NEW(parsec_arena_datatype_t);
+    int rank = 0, world = 1, rc;
+    int n = 16, k = 64, warm = 4, nb = 1024, rmin = 8, rmax = 128, threads = 4, seed = 1;
+    int mode = TLR_MODE_AUTO, nt;
+    int gpus_per_process = 0, prefer_gpu = 0, min_gpu = 0;
+    int pargc = 0;
+    char **pargv = NULL, **own_argv = NULL;
+    char mask_str[32];
+    tlr_stats_t warm_stats, timed_stats, sum[2];
+    double times[2] = { 0.0, 0.0 }, time_sum[2];
+    long rss[2], rss_max[2];
+    int64_t rss_growth_sum;
+    int maxloc[2][2], maxloc_out[2][2];
+    size_t addr_size, tile_doubles;
+
+    for(int i = 1; i < argc; i++) {
+        if( 0 == strcmp(argv[i], "--") ) {
+            pargc = argc - i;
+            pargv = argv + i;
+            break;
+        }
+        if( 0 == strncmp(argv[i], "-m=", 3) ) {
+            if( 0 == strcmp(argv[i] + 3, "auto") ) mode = TLR_MODE_AUTO;
+            else if( 0 == strcmp(argv[i] + 3, "fixed") ) mode = TLR_MODE_FIXED;
+            else { usage(argv[0]); return EXIT_FAILURE; }
+            continue;
+        }
+        if( 0 == strncmp(argv[i], "-n=", 3) ) { n = (int)strtol(argv[i] + 3, NULL, 10); continue; }
+        if( 0 == strncmp(argv[i], "-k=", 3) ) { k = (int)strtol(argv[i] + 3, NULL, 10); continue; }
+        if( 0 == strncmp(argv[i], "-w=", 3) ) { warm = (int)strtol(argv[i] + 3, NULL, 10); continue; }
+        if( 0 == strncmp(argv[i], "-b=", 3) ) { nb = (int)strtol(argv[i] + 3, NULL, 10); continue; }
+        if( 0 == strncmp(argv[i], "-t=", 3) ) { threads = (int)strtol(argv[i] + 3, NULL, 10); continue; }
+        if( 0 == strncmp(argv[i], "-s=", 3) ) { seed = (int)strtol(argv[i] + 3, NULL, 10); continue; }
+        if( 0 == strncmp(argv[i], "-G=", 3) ) { gpus_per_process = (int)strtol(argv[i] + 3, NULL, 10); continue; }
+        if( 0 == strncmp(argv[i], "-d=", 3) ) { prefer_gpu = (int)strtol(argv[i] + 3, NULL, 10); continue; }
+        if( 0 == strncmp(argv[i], "-g=", 3) ) { min_gpu = (int)strtol(argv[i] + 3, NULL, 10); continue; }
+        if( 0 == strncmp(argv[i], "-r=", 3) ) {
+            char *end = NULL;
+            rmin = (int)strtol(argv[i] + 3, &end, 10);
+            while( (NULL != end) && (('.' == *end) || (':' == *end) || ('-' == *end)) ) end++;
+            rmax = ((NULL != end) && ('\0' != *end)) ? (int)strtol(end, NULL, 10) : rmin;
+            continue;
+        }
+        usage(argv[0]);
+        return EXIT_FAILURE;
+    }
+    if( n < 1 ) n = 1;
+    if( k < 1 ) k = 1;
+    if( warm < 0 ) warm = 0;
+    if( nb < 1 ) nb = 1;
+    if( rmin < 1 ) rmin = 1;
+    if( rmax < rmin ) rmax = rmin;
+
+    if( gpus_per_process > 0 ) {
+        /* give each process of a node its own N GPUs (no GPU shared between
+         * processes), from the local rank the launcher exports */
+        const char *envs[] = { "OMPI_COMM_WORLD_LOCAL_RANK", "SLURM_LOCALID", "PMI_LOCAL_RANK",
+                               "MV2_COMM_WORLD_LOCAL_RANK", "MPI_LOCALRANKID", NULL };
+        int local_rank = 0;
+        for(int e = 0; NULL != envs[e]; e++) {
+            if( NULL != getenv(envs[e]) ) { local_rank = atoi(getenv(envs[e])); break; }
+        }
+        snprintf(mask_str, sizeof(mask_str), "%d", ((1 << gpus_per_process) - 1) << (local_rank * gpus_per_process));
+        /* "--" "--mca" "device_cuda_mask" mask, then the user's own options */
+        own_argv = (char**)malloc((size_t)(pargc + 5) * sizeof(char*));
+        own_argv[0] = "--"; own_argv[1] = "--mca"; own_argv[2] = "device_cuda_mask"; own_argv[3] = mask_str;
+        for(int i = 1; i < pargc; i++) own_argv[3 + i] = pargv[i];
+        own_argv[(pargc > 0) ? pargc + 3 : 4] = NULL;
+        pargc = (pargc > 0) ? pargc + 3 : 4;
+        pargv = own_argv;
+    }
+
+    rc = parsec_tests_context_init(threads, PARSEC_TEST_THREAD_SERIALIZED, &pargc, &pargv,
+                                   &parsec, &rank, &world);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_init");
+    nt = n * world;
+    tile_doubles = (size_t)nb * (size_t)rmax;
+
+    /* One tile of NB x RMAX doubles per ring slot, round robin over the
+     * processes: SEND(i, t) and RECV(i, t) run where tile t lives, and with
+     * more than one process the previous tile of the ring lives elsewhere. */
+    parsec_matrix_block_cyclic_init(&descA, PARSEC_MATRIX_DOUBLE, PARSEC_MATRIX_TILE,
+                                    rank, (int)tile_doubles, 1, nt * (int)tile_doubles, 1,
+                                    0, 0, nt * (int)tile_doubles, 1,
+                                    world, 1, 1, 1, 0, 0);
+    descA.mat = parsec_data_allocate((size_t)descA.super.nb_local_tiles *
+                                     (size_t)descA.super.bsiz *
+                                     parsec_datadist_getsizeoftype(PARSEC_MATRIX_DOUBLE));
+    for(int t = 0; t < nt; t++) {
+        double *u, base = base_of(t);
+        if( (int)dc->rank_of(dc, t, 0) != rank ) continue;
+        u = (double*)parsec_data_copy_get_ptr(parsec_data_get_copy(dc->data_of(dc, t, 0), 0));
+        for(size_t j = 0; j < tile_doubles; j++) u[j] = base + (double)j;
+    }
+    rc = parsec_matrix_adt_define_rect(adt, parsec_datatype_double_t, nb, rmax, nb);
+    PARSEC_CHECK_ERROR(rc, "parsec_matrix_adt_define_rect");
+
+    if( prefer_gpu > 0 ) {
+        /* every local tile prefers a GPU of this process, round robin: SEND
+         * ships it from there and the payloads for RECV land there when the
+         * communication engine allows it (mpi_gpu_aware) */
+        int gpus[64], ngpus = 0;
+        for(uint32_t d = 0; (d < parsec_nb_devices) && (ngpus < 64); d++) {
+            parsec_device_module_t *dev = parsec_mca_device_get(d);
+            if( (NULL != dev) && PARSEC_DEV_IS_GPU(dev->type) ) gpus[ngpus++] = (int)dev->device_index;
+        }
+        for(int t = 0, g = 0; (ngpus > 0) && (t < nt); t++) {
+            if( (int)dc->rank_of(dc, t, 0) != rank ) continue;
+            parsec_advise_data_on_device(dc->data_of(dc, t, 0), gpus[g], PARSEC_DEV_DATA_ADVICE_PREFERRED_DEVICE);
+            g = (g + 1) % ngpus;
+        }
+    }
+
+    /* room for every payload this process receives to have its own address */
+    for(addr_size = 1024; addr_size < 4 * (size_t)n * (size_t)(k + warm); addr_size *= 2);
+    g_addr = (uintptr_t*)calloc(addr_size, sizeof(uintptr_t));
+    g_addr_mask = addr_size - 1;
+    parsec_atomic_lock_init(&g_addr_lock);
+
+    rss[0] = maxrss_kib();
+    memset(&g_stats, 0, sizeof(g_stats));
+    if( warm > 0 ) {
+        times[0] = run_pass(parsec, &descA, adt, nt, warm, nb, rmin, rmax, mode, seed);
+    }
+    warm_stats = g_stats;
+    memset(&g_stats, 0, sizeof(g_stats));
+    times[1] = run_pass(parsec, &descA, adt, nt, k, nb, rmin, rmax, mode, seed + 1);
+    timed_stats = g_stats;
+    rss[1] = maxrss_kib();
+
+    sum[0] = warm_stats;
+    sum[1] = timed_stats;
+    rc = parsec_tests_allreduce(parsec, NULL, sum, 2 * (int)(sizeof(tlr_stats_t) / sizeof(int64_t)),
+                                parsec_datatype_int64_t, PARSEC_TESTS_REDUCE_SUM);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_allreduce");
+    rc = parsec_tests_allreduce(parsec, times, time_sum, 2, parsec_datatype_double_t, PARSEC_TESTS_REDUCE_SUM);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_allreduce");
+    rss_growth_sum = (int64_t)(rss[1] - rss[0]);
+    rc = parsec_tests_allreduce(parsec, NULL, &rss_growth_sum, 1, parsec_datatype_int64_t, PARSEC_TESTS_REDUCE_SUM);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_allreduce");
+    maxloc[0][0] = (int)rss[0]; maxloc[0][1] = rank;
+    maxloc[1][0] = (int)rss[1]; maxloc[1][1] = rank;
+    rc = parsec_tests_allreduce(parsec, maxloc, maxloc_out, 2, parsec_datatype_int_t, PARSEC_TESTS_REDUCE_MAXLOC_INT);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_allreduce");
+    rss_max[0] = maxloc_out[0][0];
+    rss_max[1] = maxloc_out[1][0];
+
+    parsec_matrix_adt_free(&adt);
+    free(g_addr);
+    free(own_argv);
+    parsec_data_free(descA.mat);
+    parsec_tiled_matrix_destroy((parsec_tiled_matrix_t*)&descA);
+    rc = parsec_tests_context_fini(&parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_fini");
+
+    if( 0 != sum[0].errors + sum[1].errors ) {
+        fprintf(stderr, "tlr_bench: FAILED (%" PRId64 " errors)\n", sum[0].errors + sum[1].errors);
+        return EXIT_FAILURE;
+    }
+    if( sum[1].recv != (int64_t)nt * (int64_t)k ) {
+        fprintf(stderr, "tlr_bench: FAILED (%" PRId64 " payloads received, %" PRId64 " expected)\n",
+                sum[1].recv, (int64_t)nt * (int64_t)k);
+        return EXIT_FAILURE;
+    }
+    if( (world > 1) && (sum[1].remote != sum[1].recv) ) {
+        fprintf(stderr, "tlr_bench: FAILED (%" PRId64 " of %" PRId64 " payloads came from another process)\n",
+                sum[1].remote, sum[1].recv);
+        return EXIT_FAILURE;
+    }
+    if( sum[1].received != sum[1].sent ) {
+        fprintf(stderr, "tlr_bench: FAILED (%" PRId64 " bytes received, %" PRId64 " sent)\n",
+                sum[1].received, sum[1].sent);
+        return EXIT_FAILURE;
+    }
+    if( sum[1].gpu_recv < min_gpu ) {
+        fprintf(stderr, "tlr_bench: FAILED (%" PRId64 " RECV ran on a GPU, at least %d expected)\n",
+                sum[1].gpu_recv, min_gpu);
+        return EXIT_FAILURE;
+    }
+    if( 0 == rank ) {
+        const double mib = 1024.0 * 1024.0;
+        int64_t msgs = sum[1].recv;
+        int64_t padded = msgs * (int64_t)nb * (int64_t)rmax * (int64_t)sizeof(double);
+        double time = time_sum[1] / (double)world;
+        /* one line to parse */
+        printf("TLR mode=%s procs=%d threads=%d nt=%d k=%d warm=%d nb=%d rmin=%d rmax=%d"
+               " msgs=%" PRId64 " msgs_per_proc=%" PRId64 " time_s=%.6f warm_time_s=%.6f"
+               " payload_bytes=%" PRId64 " transferred_bytes=%" PRId64 " padded_bytes=%" PRId64
+               " maxrss_before_kib=%ld maxrss_after_kib=%ld rss_growth_sum_kib=%" PRId64
+               " new_addr_warm=%" PRId64 " recv_warm=%" PRId64 " new_addr_timed=%" PRId64 " recv_timed=%" PRId64
+               " alloc_bytes_warm=%" PRId64 " alloc_bytes_timed=%" PRId64 " body_s=%.6f"
+               " gpu_send=%" PRId64 " gpu_recv=%" PRId64 " direct=%" PRId64 "\n",
+               (TLR_MODE_AUTO == mode) ? "auto" : "fixed", world, threads, nt, k, warm, nb, rmin, rmax,
+               msgs, msgs / world, time, time_sum[0] / (double)world,
+               sum[1].payload, sum[1].sent, padded,
+               rss_max[0], rss_max[1], rss_growth_sum,
+               sum[0].new_addr, sum[0].recv, sum[1].new_addr, sum[1].recv,
+               sum[0].alloc_bytes, sum[1].alloc_bytes,
+               sum[1].body_ns * 1e-9 / (double)world,
+               sum[1].gpu_send, sum[1].gpu_recv, sum[1].direct);
+        /* and the same for a human */
+        printf("tlr_bench: %s, %d processes x %d threads, %d tiles, rank %d..%d, NB=%d:"
+               " %" PRId64 " messages (%" PRId64 " per process) in %.3f s (%.0f msg/s, %.1f MiB/s useful)\n",
+               (TLR_MODE_AUTO == mode) ? "AUTO" : "FIXED", world, threads, nt, rmin, rmax, nb,
+               msgs, msgs / world, time, (double)msgs / time, (double)sum[1].payload / mib / time);
+        printf("tlr_bench:   payload %.1f MiB, transferred %.1f MiB, padded tiles would be %.1f MiB\n",
+               (double)sum[1].payload / mib, (double)sum[1].sent / mib, (double)padded / mib);
+        printf("tlr_bench:   peak RSS per process before %.1f MiB, after %.1f MiB (max over processes);"
+               " growth summed over processes %.1f MiB\n",
+               (double)rss_max[0] / 1024.0, (double)rss_max[1] / 1024.0, (double)rss_growth_sum / 1024.0);
+        printf("tlr_bench:   receive buffers at a new address: %" PRId64 " of %" PRId64 " during warm-up,"
+               " %" PRId64 " of %" PRId64 " during the timed pass\n",
+               sum[0].new_addr, sum[0].recv, sum[1].new_addr, sum[1].recv);
+        printf("tlr_bench:   memory the arenas acquired for them: %.1f MiB during warm-up, %.1f MiB during the timed pass"
+               " (summed over processes)\n",
+               (double)sum[0].alloc_bytes / mib, (double)sum[1].alloc_bytes / mib);
+        printf("tlr_bench:   time in task bodies (checks), per process: %.3f s\n",
+               sum[1].body_ns * 1e-9 / (double)world);
+        if( 0 != sum[1].gpu_send + sum[1].gpu_recv ) {
+            printf("tlr_bench:   SEND on a GPU: %" PRId64 ", RECV on a GPU: %" PRId64 ", payloads received straight into GPU memory: %" PRId64 "\n",
+                   sum[1].gpu_send, sum[1].gpu_recv, sum[1].direct);
+        }
+    }
+    return EXIT_SUCCESS;
+}
+%}

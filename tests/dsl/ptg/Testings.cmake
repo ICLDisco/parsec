@@ -32,6 +32,10 @@ if( MPI_C_FOUND )
   parsec_addtest_cmd(dsl/ptg/receive_auto_mixed ${SHM_TEST_CMD_LIST} dsl/ptg/receive_auto_mixed)
   parsec_addtest_cmd(dsl/ptg/receive_auto_mixed:mp ${MPI_TEST_CMD_LIST} 2 dsl/ptg/receive_auto_mixed)
   parsec_addtest_cmd(dsl/ptg/receive_auto_mixed:rdv:mp ${MPI_TEST_CMD_LIST} 2 dsl/ptg/receive_auto_mixed -- --mca runtime_comm_short_limit 0)
+  # tlr_bench is a benchmark (AUTO against padded receives, see its header); these
+  # short flavors only keep both of its modes building and passing their checks
+  parsec_addtest_cmd(dsl/ptg/tlr_bench:auto:mp ${MPI_TEST_CMD_LIST} 2 dsl/ptg/tlr_bench -m=auto -n=4 -k=8 -w=2 -b=64 -r=1..16 -t=2)
+  parsec_addtest_cmd(dsl/ptg/tlr_bench:fixed:mp ${MPI_TEST_CMD_LIST} 2 dsl/ptg/tlr_bench -m=fixed -n=4 -k=8 -w=2 -b=64 -r=1..16 -t=2)
 endif( MPI_C_FOUND )
 if(PARSEC_HAVE_DEV_CAPABILITY_BATCH)
   parsec_addtest_cmd(dsl/ptg/batch_cpu ${SHM_TEST_CMD_LIST} dsl/ptg/batch_cpu)

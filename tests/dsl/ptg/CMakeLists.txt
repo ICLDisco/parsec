@@ -30,6 +30,11 @@ parsec_addtest_executable(C receive_auto_mixed)
 target_link_libraries(receive_auto_mixed PRIVATE tests_runtime_common)
 target_ptg_sources(receive_auto_mixed PRIVATE "receive_auto_mixed.jdf")
 
+# benchmark: [type_remote = AUTO] against padded receives for variable-rank payloads
+parsec_addtest_executable(C tlr_bench)
+target_link_libraries(tlr_bench PRIVATE tests_runtime_common)
+target_ptg_sources(tlr_bench PRIVATE "tlr_bench.jdf")
+
 if(PARSEC_HAVE_DEV_CAPABILITY_BATCH)
   parsec_addtest_executable(C batch_cpu)
   target_link_libraries(batch_cpu PRIVATE tests_runtime_common)
