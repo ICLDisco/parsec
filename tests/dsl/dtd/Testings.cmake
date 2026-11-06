@@ -62,6 +62,11 @@ if( MPI_C_FOUND )
   parsec_addtest_cmd(dsl/dtd/interleave_actions:mp ${MPI_TEST_CMD_LIST} 4 dsl/dtd/dtd_test_interleave_actions)
   parsec_addtest_cmd(dsl/dtd/allreduce:mp ${MPI_TEST_CMD_LIST} 4 dsl/dtd/dtd_test_allreduce)
   parsec_addtest_cmd(dsl/dtd/broadcast:mp ${MPI_TEST_CMD_LIST} 4 dsl/dtd/dtd_test_broadcast)
+  # A chain and a binomial tree only differ from a star once a peer has to
+  # forward what it received, which takes more than two destinations.
+  parsec_addtest_cmd(dsl/dtd/broadcast:mp:star ${MPI_TEST_CMD_LIST} 4 dsl/dtd/dtd_test_broadcast --mca runtime_comm_coll_bcast 0)
+  parsec_addtest_cmd(dsl/dtd/broadcast:mp:chain ${MPI_TEST_CMD_LIST} 4 dsl/dtd/dtd_test_broadcast --mca runtime_comm_coll_bcast 1)
+  parsec_addtest_cmd(dsl/dtd/broadcast:mp:binomial ${MPI_TEST_CMD_LIST} 4 dsl/dtd/dtd_test_broadcast --mca runtime_comm_coll_bcast 2)
   parsec_addtest_cmd(dsl/dtd/data_flush:mp:2 ${MPI_TEST_CMD_LIST} 2 dsl/dtd/dtd_test_data_flush)
   parsec_addtest_cmd(dsl/dtd/data_flush:mp:3 ${MPI_TEST_CMD_LIST} 3 dsl/dtd/dtd_test_data_flush)
   parsec_addtest_cmd(dsl/dtd/global_id_for_dc_assumed:mp ${MPI_TEST_CMD_LIST} 2 dsl/dtd/dtd_test_global_id_for_dc_assumed)

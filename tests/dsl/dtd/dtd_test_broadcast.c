@@ -45,10 +45,15 @@ task_rank_1( parsec_execution_stream_t *es,
     (void)es;
     int *data;
     int *second_data;
+    int expected;
 
-    parsec_dtd_unpack_args(this_task, &data, &second_data);
+    parsec_dtd_unpack_args(this_task, &expected, &data, &second_data);
 
     printf( "My rank: %d, data: %d\n", this_task->taskpool->context->my_rank, *data );
+    if( expected != *data ) {
+        parsec_fatal("rank %d received %d instead of %d",
+                     this_task->taskpool->context->my_rank, *data, expected);
+    }
 
     return PARSEC_HOOK_RETURN_DONE;
 }
@@ -57,7 +62,7 @@ int main(int argc, char **argv)
 {
     parsec_context_t* parsec;
     int rank, world, cores = -1;
-    int nb, nt, rc;
+    int nb, nt, rc, root = 0, expected;
     parsec_tiled_matrix_t *dcA;
     parsec_arena_datatype_t *adt;
 
@@ -65,6 +70,11 @@ int main(int argc, char **argv)
 
     if(argv[1] != NULL){
         cores = atoi(argv[1]);
+    }
+    /* The propagation tree is laid out relative to the root, so which rank
+     * holds the data is worth varying. */
+    if(argv[1] != NULL && argv[2] != NULL){
+        root = atoi(argv[2]);
     }
 
     rc = parsec_tests_context_init(cores, PARSEC_TEST_THREAD_SERIALIZED,
@@ -90,7 +100,7 @@ int main(int argc, char **argv)
     parsec_data_copy_t *gdata;
     parsec_data_t *data;
     int *real_data, key;
-    int root = 0, i;
+    int i;
 
     /* Registering the dtd_handle with PARSEC context */
     rc = parsec_context_add_taskpool( parsec, dtd_tp );
@@ -99,8 +109,10 @@ int main(int argc, char **argv)
     PARSEC_CHECK_ERROR(rc, "parsec_context_start");
 
     // *********************
+    /* task_rank_0 doubles what the root seeded the tile with */
+    expected = (root + 5) * 2;
     if( rank == root ) {
-        parsec_output( 0, "Testing Broadcast, every node should end up having %d\n", (root+5)*2 );
+        parsec_output( 0, "Testing Broadcast, every node should end up having %d\n", expected );
     }
 
     if( root == rank ) {
@@ -123,6 +135,7 @@ int main(int argc, char **argv)
         for( i = 0; i < world; i++ ) {
             if( i != root ) {
                 parsec_dtd_insert_task(dtd_tp, task_rank_1, 0, PARSEC_DEV_CPU, "task_rank_1",
+                                       sizeof(int), &expected, PARSEC_VALUE,
                                        PASSED_BY_REF, PARSEC_DTD_TILE_OF_KEY(A, root),  PARSEC_INPUT | TILE_FULL,
                                        PASSED_BY_REF, PARSEC_DTD_TILE_OF_KEY(A, i),     PARSEC_INOUT | TILE_FULL | PARSEC_AFFINITY,
                                        PARSEC_DTD_ARG_END);
@@ -130,6 +143,7 @@ int main(int argc, char **argv)
         }
     } else {
         parsec_dtd_insert_task(dtd_tp, task_rank_1, 0, PARSEC_DEV_CPU, "task_rank_1",
+                               sizeof(int), &expected, PARSEC_VALUE,
                                PASSED_BY_REF, PARSEC_DTD_TILE_OF_KEY(A, root), PARSEC_INPUT | TILE_FULL,
                                PASSED_BY_REF, PARSEC_DTD_TILE_OF_KEY(A, rank), PARSEC_INOUT | TILE_FULL | PARSEC_AFFINITY,
                                PARSEC_DTD_ARG_END);
