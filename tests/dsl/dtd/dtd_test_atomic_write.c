@@ -304,7 +304,7 @@ int main(int argc, char ** argv)
         return EXIT_SUCCESS;  /* no error message: the test fails */
     }
 
-    const int group_a = 20, group_b = 4, group_c = 6;
+    const int group_a = 20, group_b = 4, group_c = 6, group_d = 5;
 
     parsec_output( 0, "\nChecking PARSEC_ATOMIC_WRITE: groups of %d, %d and %d unordered tasks between "
                    "readers and exclusive writers%s\n\n", group_a, group_b, group_c,
@@ -327,6 +327,8 @@ int main(int argc, char ** argv)
     insert_check(dtd_tp, A, group_a + group_b, group_a + group_b, 1000);
     insert_group(dtd_tp, A, 0, group_c);
     insert_check(dtd_tp, A, 1000 + group_c, group_c, 0);
+    /* the data is flushed right after a run: the flush has to wait for it */
+    insert_group(dtd_tp, A, 0, group_d);
 
     parsec_dtd_data_flush_all( dtd_tp, A );
 
@@ -334,6 +336,19 @@ int main(int argc, char ** argv)
     PARSEC_CHECK_ERROR(rc, "parsec_taskpool_wait");
     rc = parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
+
+    {
+        parsec_data_copy_t *copy = parsec_data_get_copy(A->data_of_key(A, 0), 0);
+        shared_t *shared = (shared_t *)parsec_data_copy_get_ptr(copy);
+        /* the last check reset the counter, only the last group counts */
+        if( group_d != shared->counter ) {
+            report_error("the flushed counter should be %d, it is %d", group_d, shared->counter);
+        }
+        for( int slot = 0; slot < group_d; slot++ ) {
+            if( slot + 1 != shared->slot[slot] )
+                report_error("the flushed slot %d should be %d, it is %d", slot, slot + 1, shared->slot[slot]);
+        }
+    }
 
     if( check_overlap && !overlap_seen ) {
         report_error("the ATOMIC_WRITE tasks never ran concurrently (at most %d at a time)", max_writers_running);

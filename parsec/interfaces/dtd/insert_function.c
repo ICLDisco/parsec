@@ -2490,30 +2490,27 @@ parsec_dtd_atomic_write_barrier_body(parsec_execution_stream_t *es, parsec_task_
  * Does the access about to be inserted on a tile need an empty task in front of it,
  * to be ordered correctly with respect to the ATOMIC_WRITE accesses?
  *
- * The answer only depends on the sequence of accesses inserted on the tile, and on
- * where the task is placed: never on how far the execution went. Every rank inserts
- * the same tasks, so every rank takes the same decision, which is what keeps the
- * task graph identical everywhere.
+ * A run of ATOMIC_WRITE tasks is delimited by an empty INOUT task on each side:
  *
  *  - The first ATOMIC_WRITE after readers: the readers are chained and activated
  *    together, and an ATOMIC_WRITE must not start before they are done.
- *  - The first reader after ATOMIC_WRITE: it would be chained with them, and read
- *    while they write.
- *  - The first access placed on another rank, after ATOMIC_WRITE: the data would be
- *    sent as soon as the previous writer completes, before the ATOMIC_WRITE tasks ran.
- *    (A local OUTPUT or INOUT already waits for them: they hold the copy like readers.)
+ *  - Any other access after ATOMIC_WRITE: a reader would be chained with them and read
+ *    while they write, and a task placed on another rank would be sent the data as soon
+ *    as the previous writer completes, before the ATOMIC_WRITE tasks ran. A single rule
+ *    for all of them, wherever the task is placed, keeps the logic simple: whatever
+ *    follows a run waits for the barrier, and the barrier waits for the whole run.
+ *
+ * The answer only depends on the sequence of accesses inserted on the tile: never on how
+ * far the execution went, nor on the rank. Every rank inserts the same tasks, so every
+ * rank takes the same decision, which is what keeps the task graph identical everywhere.
  */
 static inline int
-parsec_dtd_atomic_write_needs_barrier(int last_access, int access, int is_on_another_rank)
+parsec_dtd_atomic_write_needs_barrier(int last_access, int access)
 {
     if( PARSEC_ATOMIC_WRITE == access ) {
         return PARSEC_INPUT == last_access;
     }
-    if( PARSEC_ATOMIC_WRITE == last_access ) {
-        return PARSEC_INPUT == access ||
-               ((PARSEC_OUTPUT == access || PARSEC_INOUT == access) && is_on_another_rank);
-    }
-    return 0;
+    return PARSEC_ATOMIC_WRITE == last_access;
 }
 
 static void
@@ -2551,43 +2548,45 @@ parsec_dtd_atomic_write_track(parsec_dtd_task_t *this_task, parsec_dtd_tile_t *t
  * its own copy and the writes would be lost. The first task of the run that gets
  * scheduled picks the device, the others follow.
  *
- * The device that owns the data is the natural choice, since nothing has to be moved.
- * When it cannot execute the task (typically because the data is not owned by a
- * device yet) the lowest index is used, which is the CPU when the task can run there.
+ * The first pick follows the same rules as any other WRITE flow: the preferred device
+ * of the data, or the GPU that owns it (parsec_select_device_for_write_data). When the
+ * data has no opinion the lowest index is used, which is the CPU when the task can
+ * run there.
  */
 static int32_t
 parsec_dtd_atomic_group_pick_device(parsec_task_t *this_task)
 {
     parsec_dtd_task_t *dtd_task = (parsec_dtd_task_t *)this_task;
     parsec_taskpool_t *tp = this_task->taskpool;
-    int owner = -1;
+    unsigned int valid_types = 0;
+
+    for( int chore = 0; NULL != this_task->task_class->incarnations[chore].hook; chore++ ) {
+        if( this_task->chore_mask & (1 << chore) ) {
+            valid_types |= this_task->task_class->incarnations[chore].type & PARSEC_DEV_ANY_TYPE;
+        }
+    }
 
     for( int i = 0; i < (int)this_task->task_class->nb_flows; i++ ) {
         if( PARSEC_ATOMIC_WRITE == (FLOW_OF(dtd_task, i)->op_type & PARSEC_GET_OP_TYPE) &&
             NULL != this_task->data[i].data_in ) {
-            owner = this_task->data[i].data_in->original->owner_device;
+            parsec_device_module_t *device = parsec_select_device_for_write_data(tp, this_task->data[i].data_in->original,
+                                                                                 valid_types);
+            if( NULL != device ) {
+                return device->device_index;
+            }
             break;
         }
     }
 
-    int32_t best = -1;
-    for( int i = -1; i < (int)parsec_nb_devices; i++ ) {
-        /* index -1 stands for the owner: try it first, then the devices in order */
-        int index = (-1 == i) ? owner : i;
-        if( index < 0 ) continue;
+    for( int index = 0; index < (int)parsec_nb_devices; index++ ) {
         parsec_device_module_t *device = parsec_mca_device_get(index);
         if( NULL == device || (device->type & PARSEC_DEV_RECURSIVE) ) continue;
         if( !(tp->devices_index_mask & (1 << index)) ) continue;
-        for( int chore = 0; NULL != this_task->task_class->incarnations[chore].hook; chore++ ) {
-            if( (this_task->chore_mask & (1 << chore)) &&
-                (this_task->task_class->incarnations[chore].type & device->type) ) {
-                best = index;
-                break;
-            }
+        if( device->type & valid_types ) {
+            return index;
         }
-        if( best >= 0 ) break;
     }
-    return best;
+    return -1;
 }
 
 /**
@@ -3247,6 +3246,9 @@ parsec_insert_dtd_task(parsec_task_t *__this_task)
     int flow_index, satisfied_flow = 0, tile_op_type = 0, put_in_chain = 1;
     int should_block = 0;
     parsec_dtd_tile_t *tile = NULL;
+    /* The empty task that closes a run of ATOMIC_WRITE accesses is not ordered by another one */
+    const int is_atomic_write_barrier =
+        ((parsec_dtd_task_class_t *)tc)->cpu_func_ptr == (parsec_hook_t *)parsec_dtd_atomic_write_barrier_body;
 
     /* The tasks of a run of PARSEC_ATOMIC_WRITE accesses share one device, picked once for the
      * run, so a task can only be part of one run: no more than one ATOMIC_WRITE flow, and the
@@ -3317,8 +3319,8 @@ parsec_insert_dtd_task(parsec_task_t *__this_task)
         /* Order this access against the runs of PARSEC_ATOMIC_WRITE ones: it may need an empty
          * task in front of it (see parsec_dtd_atomic_write_needs_barrier). The decision is made
          * from the inserted accesses only, so that all the ranks agree on it. */
-        if( parsec_dtd_atomic_write_needs_barrier(tile->last_access, tile_op_type & PARSEC_GET_OP_TYPE,
-                                                  this_task->rank != tile->rank) ) {
+        if( !is_atomic_write_barrier &&
+            parsec_dtd_atomic_write_needs_barrier(tile->last_access, tile_op_type & PARSEC_GET_OP_TYPE) ) {
             parsec_dtd_atomic_write_insert_barrier(dtd_tp, tile, tile_op_type & PARSEC_GET_REGION_INFO);
         }
 

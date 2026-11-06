@@ -44,18 +44,18 @@ BEGIN_C_DECLS
  *                         - the task must run on the rank that owns the data (use PARSEC_AFFINITY on that
  *                           flow), and cannot be placed anywhere else;
  *                         - all the tasks of a run of ATOMIC_WRITE accesses on the same data execute on the same
- *                           device. The first of them to be scheduled picks it (the device that currently owns the
- *                           data when it can run the task, the CPU otherwise), and the others follow. It
- *                           is an error for one of them not to have a chore for that device;
+ *                           device. The first of them to be scheduled picks it like for any other write: the
+ *                           preferred device of the data if it can run the task, or the GPU that owns the data,
+ *                           or else the CPU (or the lowest device index that has a chore for the task). The others
+ *                           follow. It is an error for one of them not to have a chore for that device;
  *                         - a task has at most one ATOMIC_WRITE flow, and does not use that data in any other flow.
  *                       Like PARSEC_OUTPUT, it is a write-only access: the runtime does not guarantee that the
  *                       previous content of the data is made available to a device other than the one holding it.
  *                       Reading the previous value (e.g. a counter) is therefore only safe on the CPU, or on the
  *                       device that already owns the data.
- *                       To keep the ordering above, the runtime may insert an empty task on the data, before the
- *                       first ATOMIC_WRITE task that follows PARSEC_INPUT tasks, and before the first
- *                       PARSEC_INPUT task (or the first task placed on another rank) that follows
- *                       ATOMIC_WRITE tasks.
+ *                       To keep the ordering above, the runtime inserts an empty task on the data, before the
+ *                       first ATOMIC_WRITE task that follows PARSEC_INPUT tasks, and before the first task of
+ *                       any other access type that follows ATOMIC_WRITE tasks, wherever it is placed.
  *  PARSEC_SCRATCH:      Will be used by the task as scratch pad, does not effect the DAG, tells the runtime
  *                       to allocate memory specified by the user.
  *                       This flag can also be used to pass pointer of any variable. Please look at the usage below.
