@@ -77,7 +77,34 @@ if( MPI_C_FOUND )
   parsec_addtest_cmd(dsl/dtd/war:mp ${MPI_TEST_CMD_LIST} 4 dsl/dtd/dtd_test_war)
   parsec_addtest_cmd(dsl/dtd/interleave_actions:mp ${MPI_TEST_CMD_LIST} 4 dsl/dtd/dtd_test_interleave_actions)
   parsec_addtest_cmd(dsl/dtd/allreduce:mp ${MPI_TEST_CMD_LIST} 4 dsl/dtd/dtd_test_allreduce)
-  parsec_addtest_cmd(dsl/dtd/broadcast:mp ${MPI_TEST_CMD_LIST} 4 dsl/dtd/dtd_test_broadcast)
+  # A chain and a binomial tree only differ from a star once a peer has to
+  # forward what it received, which takes more than two destinations. The
+  # scenarios are what such a peer has to cope with, see the test itself. The
+  # options of the test come after the -- that ends the ones of PaRSEC: the
+  # command line parsing of PaRSEC stops at the first one it does not know.
+  foreach(topology 0:star 1:chain 2:binomial)
+    string(REPLACE ":" ";" topology_parts ${topology})
+    list(GET topology_parts 0 topology_id)
+    list(GET topology_parts 1 topology_name)
+    foreach(scenario plain late writer multi multiset multisingle)
+      parsec_addtest_cmd(dsl/dtd/broadcast:mp:${topology_name}:${scenario} ${MPI_TEST_CMD_LIST} 4 dsl/dtd/dtd_test_broadcast --mca runtime_comm_coll_bcast ${topology_id} -- --scenario ${scenario})
+    endforeach()
+    # the tree is laid out relative to the root, which is not rank 0 here
+    parsec_addtest_cmd(dsl/dtd/broadcast:mp:${topology_name}:root3 ${MPI_TEST_CMD_LIST} 6 dsl/dtd/dtd_test_broadcast --mca runtime_comm_coll_bcast ${topology_id} -- --root 3)
+    # a broadcast to more destinations than the limit is split in groups, each with its own tree
+    if( NOT topology_id EQUAL 0 )
+      parsec_addtest_cmd(dsl/dtd/broadcast:mp:${topology_name}:groups ${MPI_TEST_CMD_LIST} 6 dsl/dtd/dtd_test_broadcast --mca runtime_comm_coll_bcast ${topology_id} --mca runtime_comm_coll_bcast_group 2 -- --root 3)
+      parsec_addtest_cmd(dsl/dtd/broadcast:mp:${topology_name}:groups:multiset ${MPI_TEST_CMD_LIST} 6 dsl/dtd/dtd_test_broadcast --mca runtime_comm_coll_bcast ${topology_id} --mca runtime_comm_coll_bcast_group 2 -- --root 3 --scenario multiset)
+    endif()
+  endforeach()
+  # The topology can also be selected for a taskpool, whatever the default is.
+  foreach(topology star binomial)
+    parsec_addtest_cmd(dsl/dtd/broadcast:mp:taskpool:${topology} ${MPI_TEST_CMD_LIST} 6 dsl/dtd/dtd_test_broadcast --mca runtime_comm_coll_bcast 1 -- --topology ${topology} --root 3)
+  endforeach()
+  # The destinations of a broadcast travel as a list of ranks rather than as a
+  # bitmask when there are fewer of them than words in the bitmask, which takes
+  # more than 64 ranks for the smallest groups.
+  parsec_addtest_cmd(dsl/dtd/broadcast:mp:chain:list ${MPI_TEST_CMD_LIST} 70 dsl/dtd/dtd_test_broadcast 1 --mca runtime_comm_coll_bcast 1 --mca runtime_comm_coll_bcast_group 2)
   parsec_addtest_cmd(dsl/dtd/data_flush:mp:2 ${MPI_TEST_CMD_LIST} 2 dsl/dtd/dtd_test_data_flush)
   parsec_addtest_cmd(dsl/dtd/data_flush:mp:3 ${MPI_TEST_CMD_LIST} 3 dsl/dtd/dtd_test_data_flush)
   parsec_addtest_cmd(dsl/dtd/global_id_for_dc_assumed:mp ${MPI_TEST_CMD_LIST} 2 dsl/dtd/dtd_test_global_id_for_dc_assumed)
