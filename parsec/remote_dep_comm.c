@@ -903,8 +903,9 @@ remote_dep_comm_retrieve_datatype(parsec_execution_stream_t *eu,
          * in the dependency: nothing fills the rest, and receiving it as if
          * something did would hide it. */
         int dsize = 0;
-        parsec_ce.pack_size(&parsec_ce, output->data.remote.dst_count, output->data.remote.dst_datatype, &dsize);
-        if( dsize > (int)output->remote_size ) {
+        if( (PARSEC_SUCCESS == parsec_ce.pack_size(&parsec_ce, output->data.remote.dst_count,
+                                                   output->data.remote.dst_datatype, &dsize)) &&
+            (dsize > 0) && ((uint32_t)dsize > output->remote_size) ) {
             char tmp[MAX_TASK_STRLEN];
             parsec_warning("RDEP: %s declares %d bytes (%d elements) on flow %s, but the sender packed only %u bytes:"
                            " the datatype or count of the dependency does not match the data sent",
