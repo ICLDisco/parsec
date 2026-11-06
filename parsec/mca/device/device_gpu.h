@@ -146,6 +146,10 @@ typedef struct parsec_gpu_flow_info_s {
     parsec_data_copy_t       *source; /* If the driver decides to acquire the data from a different
                                         * source, it will temporary store the best candidate here.
                                         */
+    uint8_t                   writer_registered; /* This flow is counted in the writers of the device copy it
+                                        * writes, see parsec_data_copy_t. Set when the data is staged in,
+                                        * cleared when the task is done with the copy.
+                                        */
 
 } parsec_gpu_flow_info_t;
 

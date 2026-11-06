@@ -174,6 +174,31 @@ typedef int(*parsec_gpu_step_function_t)(parsec_device_gpu_module_t  *gpu_device
                                          parsec_execution_stream_t    *es,
                                          parsec_gpu_task_t           *gpu_task,
                                          parsec_gpu_exec_stream_t    *gpu_stream);
+/**
+ * A copy written by a task is kept out of the lists of the device until the task is done with it.
+ * Tasks that write the same data without being ordered by the runtime (PARSEC_ATOMIC_WRITE) share the
+ * copy, so it goes back to the lists only when the last of them is done: the writers are counted.
+ * A flow is counted once, however many times its data is staged in.
+ */
+static inline void
+parsec_gpu_register_writer(parsec_gpu_task_t *gpu_task, const parsec_flow_t *flow, parsec_gpu_data_copy_t *copy)
+{
+    parsec_gpu_flow_info_t *info = &gpu_task->flow_info[flow->flow_index];
+    if( info->writer_registered ) return;
+    info->writer_registered = 1;
+    (void)parsec_atomic_fetch_inc_int32(&copy->writers);
+}
+
+/* Returns true if no other task is writing the copy anymore */
+static inline int
+parsec_gpu_unregister_writer(parsec_gpu_task_t *gpu_task, uint32_t flow_index, parsec_gpu_data_copy_t *copy)
+{
+    parsec_gpu_flow_info_t *info = &gpu_task->flow_info[flow_index];
+    if( !info->writer_registered ) return 1;
+    info->writer_registered = 0;
+    return 1 == parsec_atomic_fetch_dec_int32(&copy->writers);
+}
+
 static void parsec_device_task_t_constructor(parsec_gpu_task_t *gpu_task)
 {
     gpu_task->task_type = PARSEC_GPU_TASK_TYPE_INVALID; /* need to be set later */
@@ -2245,6 +2270,7 @@ parsec_device_data_stage_in( parsec_device_gpu_module_t* gpu_device,
                 candidate->version++;
                 parsec_list_item_ring_chop((parsec_list_item_t *)candidate);
                 PARSEC_LIST_ITEM_SINGLETON(candidate);
+                parsec_gpu_register_writer(gpu_task, flow, candidate);
             }
             if( PARSEC_FLOW_ACCESS_READ & type ) {
                 parsec_atomic_fetch_add_int32(&candidate->readers, 1);
@@ -2305,6 +2331,7 @@ parsec_device_data_stage_in( parsec_device_gpu_module_t* gpu_device,
         /* make sure the element is not in any tracking lists */
         parsec_list_item_ring_chop((parsec_list_item_t*)gpu_elem);
         PARSEC_LIST_ITEM_SINGLETON(gpu_elem);
+        parsec_gpu_register_writer(gpu_task, flow, gpu_elem);
     }
 
     /* If it is already under transfer, don't schedule the transfer again.
@@ -4119,6 +4146,9 @@ parsec_device_kernel_epilog( parsec_device_gpu_module_t *gpu_device,
         if( 0 == (gpu_copy->flags & PARSEC_DATA_FLAG_PARSEC_OWNED) ) continue;
         assert(0 <= gpu_copy->readers);
 
+        /* Other tasks are still writing this copy: the last of them puts it back */
+        if( !parsec_gpu_unregister_writer(gpu_task, i, gpu_copy) ) continue;
+
         if( gpu_task->pushout & (1 << i) ) {
             parsec_data_t *original = gpu_copy->original;
             parsec_gpu_data_copy_t *cpu_copy = original->device_copies[0];
@@ -4217,6 +4247,11 @@ parsec_device_kernel_cleanout( parsec_device_gpu_module_t *gpu_device,
 
         gpu_copy = this_task->data[i].data_out;
         original = gpu_copy->original;
+        if( !parsec_gpu_unregister_writer(gpu_task, i, gpu_copy) ) {
+            /* Other tasks are still writing this copy, it is theirs to put back */
+            this_task->data[i].data_out = original->device_copies[0];
+            continue;
+        }
         parsec_atomic_lock(&original->lock);
         assert(gpu_copy->super.super.obj_reference_count > 1);
         /* Issue #134 */

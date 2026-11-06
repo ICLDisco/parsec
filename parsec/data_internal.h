@@ -82,6 +82,11 @@ struct parsec_data_copy_s {
     parsec_datatype_t            dtt;                /**< the appropriate type for the network engine to send an element */
     parsec_data_copy_alloc_cb   *alloc_cb;           /**< callback to allocate data copy memory */
     parsec_data_copy_release_cb *release_cb;         /**< callback to release data copy memory */
+    int32_t                      writers;            /**< Number of tasks that are writing this device copy right now.
+                                                      *   It is one for the usual exclusive writer, and more when several
+                                                      *   tasks write the same data without being ordered by the runtime
+                                                      *   (PARSEC_ATOMIC_WRITE in DTD). A device keeps the copy out of its
+                                                      *   lists until the last of them is done. */
 };
 
 #define PARSEC_DATA_CREATE_ON_DEMAND ((parsec_data_copy_t*)(intptr_t)(-1))
