@@ -21,6 +21,10 @@
  *   ATOMIC  group C
  *   INOUT   check            -- must see every write of group C
  *
+ * With more than one rank, the tile is owned by rank 0, where all the ATOMIC_WRITE tasks
+ * run, and tasks placed on rank 1 (through a second tile) read and update it right after
+ * a group: they must see every write of the group.
+ *
  * The tasks of a group must really overlap (when there is more than one core),
  * which a final counter alone cannot tell from a serialized execution.
  * Each task of a group writes its own slot of the tile, and increments a counter
@@ -53,6 +57,8 @@
 #define NB_SLOTS 28
 #define NB_READERS 4
 #define TILE_SIZE_IN_INT32 32
+
+static int TILE_FULL;  /* the arena datatype of a tile: needed to move it between ranks */
 
 /* The content of the tile */
 typedef struct {
@@ -190,12 +196,47 @@ task_check(parsec_execution_stream_t *es, parsec_task_t *this_task)
     return PARSEC_HOOK_RETURN_DONE;
 }
 
+/* INPUT or INOUT from another rank: everything written by the group before has to be there.
+ * The second flow is only there to place the task. */
+int
+task_remote_check(parsec_execution_stream_t *es, parsec_task_t *this_task)
+{
+    (void)es;
+    shared_t *shared;
+    void *placement;
+    int expected_counter, nb_slots;
+
+    parsec_dtd_unpack_args(this_task, &shared, &placement, &expected_counter, &nb_slots);
+
+    if( expected_counter != shared->counter )
+        report_error("rank %d: the counter should be %d once the group is over, it is %d",
+                     this_task->taskpool->context->my_rank, expected_counter, shared->counter);
+    for( int slot = 0; slot < nb_slots; slot++ ) {
+        if( slot + 1 != shared->slot[slot] )
+            report_error("rank %d: slot %d should be %d once the group is over, it is %d",
+                         this_task->taskpool->context->my_rank, slot, slot + 1, shared->slot[slot]);
+    }
+    return PARSEC_HOOK_RETURN_DONE;
+}
+
+static void
+insert_remote_check(parsec_taskpool_t *dtd_tp, parsec_data_collection_t *A, int access,
+                    int expected_counter, int nb_slots)
+{
+    parsec_dtd_insert_task(dtd_tp, task_remote_check, 0, PARSEC_DEV_CPU, "remote_check",
+                           PASSED_BY_REF, PARSEC_DTD_TILE_OF_KEY(A, 0), access | TILE_FULL,
+                           PASSED_BY_REF, PARSEC_DTD_TILE_OF_KEY(A, 1), PARSEC_INOUT | TILE_FULL | PARSEC_AFFINITY,
+                           sizeof(int), &expected_counter, PARSEC_VALUE,
+                           sizeof(int), &nb_slots, PARSEC_VALUE,
+                           PARSEC_DTD_ARG_END);
+}
+
 static void
 insert_readers(parsec_taskpool_t *dtd_tp, parsec_data_collection_t *A, int expected_counter)
 {
     for( int id = 0; id < NB_READERS; id++ ) {
         parsec_dtd_insert_task(dtd_tp, task_read, 0, PARSEC_DEV_CPU, "reader",
-                               PASSED_BY_REF, PARSEC_DTD_TILE_OF_KEY(A, 0), PARSEC_INPUT | PARSEC_AFFINITY,
+                               PASSED_BY_REF, PARSEC_DTD_TILE_OF_KEY(A, 0), PARSEC_INPUT | TILE_FULL | PARSEC_AFFINITY,
                                sizeof(int), &expected_counter, PARSEC_VALUE,
                                sizeof(int), &id, PARSEC_VALUE,
                                PARSEC_DTD_ARG_END);
@@ -208,7 +249,7 @@ insert_group(parsec_taskpool_t *dtd_tp, parsec_data_collection_t *A, int first_s
     for( int i = 0; i < nb_tasks; i++ ) {
         int slot = first_slot + i;
         parsec_dtd_insert_task(dtd_tp, task_atomic_write, 0, PARSEC_DEV_CPU, "ATOMIC_WRITE",
-                               PASSED_BY_REF, PARSEC_DTD_TILE_OF_KEY(A, 0), PARSEC_ATOMIC_WRITE | PARSEC_AFFINITY,
+                               PASSED_BY_REF, PARSEC_DTD_TILE_OF_KEY(A, 0), PARSEC_ATOMIC_WRITE | TILE_FULL | PARSEC_AFFINITY,
                                sizeof(int), &slot, PARSEC_VALUE,
                                PARSEC_DTD_ARG_END);
     }
@@ -219,7 +260,7 @@ insert_check(parsec_taskpool_t *dtd_tp, parsec_data_collection_t *A,
              int expected_counter, int nb_slots, int new_counter)
 {
     parsec_dtd_insert_task(dtd_tp, task_check, 0, PARSEC_DEV_CPU, "check",
-                           PASSED_BY_REF, PARSEC_DTD_TILE_OF_KEY(A, 0), PARSEC_INOUT | PARSEC_AFFINITY,
+                           PASSED_BY_REF, PARSEC_DTD_TILE_OF_KEY(A, 0), PARSEC_INOUT | TILE_FULL | PARSEC_AFFINITY,
                            sizeof(int), &expected_counter, PARSEC_VALUE,
                            sizeof(int), &nb_slots, PARSEC_VALUE,
                            sizeof(int), &new_counter, PARSEC_VALUE,
@@ -245,11 +286,6 @@ int main(int argc, char ** argv)
     rank = 0;
 #endif
 
-    if( world != 1 ) {
-        parsec_fatal( "Nope! world is not right, we need exactly one MPI process. "
-                      "Try with \"mpirun -np 1 .....\"\n" );
-    }
-
     /* "--misuse <kind>" inserts a task that the runtime must reject, see Testings.cmake */
     const char *misuse = NULL;
     if( argc > 2 && 0 == strcmp(argv[1], "--misuse") ) {
@@ -265,8 +301,12 @@ int main(int argc, char ** argv)
 
     parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new(  );
 
+    parsec_arena_datatype_t *adt = parsec_matrix_adt_new_rect(parsec_datatype_int32_t,
+                                                              TILE_SIZE_IN_INT32, 1, TILE_SIZE_IN_INT32);
+    parsec_dtd_attach_arena_datatype(parsec, adt, &TILE_FULL);
+
     /* One tile, large enough for a shared_t */
-    dcA = create_and_distribute_data(rank, world, 8, (NULL != misuse) ? 2 : 1);
+    dcA = create_and_distribute_data(rank, world, 8, (NULL != misuse || world > 1) ? 2 : 1);
     parsec_data_collection_set_key((parsec_data_collection_t *)dcA, "A");
     if( dcA->bsiz * parsec_datadist_getsizeoftype(dcA->mtype) != sizeof(shared_t) ) {
         parsec_fatal("The tile is %d bytes, the test expects %d\n",
@@ -296,6 +336,12 @@ int main(int argc, char ** argv)
                                    PASSED_BY_REF, PARSEC_DTD_TILE_OF_KEY(A, 0), PARSEC_ATOMIC_WRITE | PARSEC_AFFINITY,
                                    PASSED_BY_REF, PARSEC_DTD_TILE_OF_KEY(A, 0), PARSEC_INPUT,
                                    PARSEC_DTD_ARG_END);
+        } else if( 0 == strcmp(misuse, "atomic_on_other_rank") ) {
+            /* The tile 0 is owned by rank 0, the task is placed on the owner of the tile 1 */
+            parsec_dtd_insert_task(dtd_tp, task_misuse, 0, PARSEC_DEV_CPU, "misuse",
+                                   PASSED_BY_REF, PARSEC_DTD_TILE_OF_KEY(A, 0), PARSEC_ATOMIC_WRITE,
+                                   PASSED_BY_REF, PARSEC_DTD_TILE_OF_KEY(A, 1), PARSEC_INOUT | PARSEC_AFFINITY,
+                                   PARSEC_DTD_ARG_END);
         } else {
             fprintf(stderr, "unknown misuse '%s'\n", misuse);
             return EXIT_FAILURE;
@@ -317,15 +363,18 @@ int main(int argc, char ** argv)
     PARSEC_CHECK_ERROR(rc, "parsec_context_start");
 
     parsec_dtd_insert_task(dtd_tp, task_initialize, 0, PARSEC_DEV_CPU, "initialize",
-                           PASSED_BY_REF, PARSEC_DTD_TILE_OF_KEY(A, 0), PARSEC_INOUT | PARSEC_AFFINITY,
+                           PASSED_BY_REF, PARSEC_DTD_TILE_OF_KEY(A, 0), PARSEC_INOUT | TILE_FULL | PARSEC_AFFINITY,
                            PARSEC_DTD_ARG_END);
 
     insert_readers(dtd_tp, A, 0);
     insert_group(dtd_tp, A, 0, group_a);
+    if( world > 1 ) insert_remote_check(dtd_tp, A, PARSEC_INPUT, group_a, group_a);
     insert_readers(dtd_tp, A, group_a);
     insert_group(dtd_tp, A, group_a, group_b);
+    if( world > 1 ) insert_remote_check(dtd_tp, A, PARSEC_INOUT, group_a + group_b, group_a + group_b);
     insert_check(dtd_tp, A, group_a + group_b, group_a + group_b, 1000);
     insert_group(dtd_tp, A, 0, group_c);
+    if( world > 1 ) insert_remote_check(dtd_tp, A, PARSEC_INPUT, 1000 + group_c, group_c);
     insert_check(dtd_tp, A, 1000 + group_c, group_c, 0);
     /* the data is flushed right after a run: the flush has to wait for it */
     insert_group(dtd_tp, A, 0, group_d);
@@ -337,7 +386,8 @@ int main(int argc, char ** argv)
     rc = parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
-    {
+    const int owner = (rank == A->rank_of_key(A, 0));  /* where the ATOMIC_WRITE tasks ran */
+    if( owner ) {
         parsec_data_copy_t *copy = parsec_data_get_copy(A->data_of_key(A, 0), 0);
         shared_t *shared = (shared_t *)parsec_data_copy_get_ptr(copy);
         /* the last check reset the counter, only the last group counts */
@@ -350,13 +400,14 @@ int main(int argc, char ** argv)
         }
     }
 
-    if( check_overlap && !overlap_seen ) {
+    if( owner && check_overlap && !overlap_seen ) {
         report_error("the ATOMIC_WRITE tasks never ran concurrently (at most %d at a time)", max_writers_running);
     }
 
     parsec_dtd_data_collection_fini( A );
     free_data(dcA);
 
+    parsec_dtd_free_arena_datatype(parsec, TILE_FULL);
     parsec_taskpool_free( dtd_tp );
 
     parsec_fini(&parsec);
