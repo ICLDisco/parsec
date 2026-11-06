@@ -158,9 +158,12 @@ static int parsec_termdet_local_taskpool_ready(parsec_taskpool_t *tp)
     assert( tp->tdm.module != NULL );
     assert( tp->tdm.module == &parsec_termdet_local_module.module );
     assert( tp->tdm.monitor == PARSEC_TERMDET_LOCAL_NOT_READY );
+    /* Retain before publishing BUSY: from then on any thread that completes
+     * the last task can detect termination and release this reference, and
+     * a release that came first would free a taskpool still in use. */
+    PARSEC_OBJ_RETAIN(tp);
     parsec_atomic_cas_ptr(&tp->tdm.monitor, PARSEC_TERMDET_LOCAL_NOT_READY, PARSEC_TERMDET_LOCAL_BUSY);
     PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "TERMDET-LOCAL:\tTASKPOOL %p READY", tp);
-    PARSEC_OBJ_RETAIN(tp);
     if( tp->nb_pending_actions == 0) {
         /* It's possible another thread sees nb_pending_actions == 0 and BUSY before me, so call the callback
          * only if I'm the one setting to terminated */
