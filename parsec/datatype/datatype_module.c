@@ -47,7 +47,8 @@ parsec_datatype_module_install(const parsec_datatype_module_t *module)
         (NULL == module->create_indexed_block) ||
         (NULL == module->create_struct) ||
         (NULL == module->create_resized) ||
-        (NULL == module->contiguous) ) {
+        (NULL == module->contiguous) ||
+        (NULL == module->dense) ) {
         return PARSEC_ERR_BAD_PARAM;
     }
 
@@ -203,4 +204,13 @@ parsec_type_contiguous(parsec_datatype_t dtt)
         return PARSEC_ERR_NOT_FOUND;
     }
     return parsec_datatype_selected_module->contiguous(dtt);
+}
+
+int
+parsec_type_dense(parsec_datatype_t dtt)
+{
+    if( !parsec_datatype_module_ready() ) {
+        return PARSEC_ERR_NOT_FOUND;
+    }
+    return parsec_datatype_selected_module->dense(dtt);
 }

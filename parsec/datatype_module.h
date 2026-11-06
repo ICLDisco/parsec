@@ -62,6 +62,7 @@ typedef int (*parsec_datatype_module_create_resized_fn_t)(parsec_datatype_t oldt
                                                           ptrdiff_t extent,
                                                           parsec_datatype_t *newtype);
 typedef int (*parsec_datatype_module_contiguous_fn_t)(parsec_datatype_t type);
+typedef int (*parsec_datatype_module_dense_fn_t)(parsec_datatype_t type);
 
 typedef struct parsec_datatype_module_s {
     parsec_datatype_module_size_fn_t                 size;
@@ -75,6 +76,7 @@ typedef struct parsec_datatype_module_s {
     parsec_datatype_module_create_struct_fn_t        create_struct;
     parsec_datatype_module_create_resized_fn_t       create_resized;
     parsec_datatype_module_contiguous_fn_t           contiguous;
+    parsec_datatype_module_dense_fn_t                dense;
 } parsec_datatype_module_t;
 
 /**
