@@ -186,6 +186,19 @@ extern int parsec_param_comm_thread_multiple;
  */
 void parsec_dep_type_auto_resolve(parsec_dep_type_description_t *remote, size_t bytes);
 
+/**
+ * Same as parsec_dep_type_auto_resolve(), for a description that has to cover
+ * an existing copy rather than an incoming payload: the count is the number of
+ * elements of the datatype set by get_datatype() that fit in @p span bytes of
+ * memory, each taking its extent (not its packed size, which is smaller for a
+ * resized or strided type). When @p span is not a whole number of them the
+ * copy is described as bytes. A span of 0 gives an empty description.
+ *
+ * @param[inout] remote the description to complete.
+ * @param[in] span the number of bytes the copy spans in memory.
+ */
+void parsec_dep_type_auto_resolve_span(parsec_dep_type_description_t *remote, size_t span);
+
 #ifdef DISTRIBUTED
 
 typedef struct {

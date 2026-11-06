@@ -58,6 +58,31 @@ void parsec_dep_type_auto_resolve(parsec_dep_type_description_t *remote, size_t 
     remote->src_count = remote->dst_count = bytes / (size_t)esize;
 }
 
+void parsec_dep_type_auto_resolve_span(parsec_dep_type_description_t *remote, size_t span)
+{
+    ptrdiff_t lb = 0, extent = 0;
+
+    assert(PARSEC_ARENA_AUTO == remote->arena);
+    remote->src_displ = remote->dst_displ = 0;
+    if( 0 == span ) {
+        remote->src_datatype = remote->dst_datatype = PARSEC_DATATYPE_NULL;
+        remote->src_count = remote->dst_count = 0;
+        return;
+    }
+    /* A copy is measured in memory: each element takes its extent there, not
+     * its packed size, and the two differ for a resized or strided type. */
+    if( (PARSEC_SUCCESS != parsec_type_extent(remote->dst_datatype, &lb, &extent)) ||
+        (extent <= 0) || (0 != (span % (size_t)extent)) ) {
+        PARSEC_DEBUG_VERBOSE(10, parsec_comm_output_stream,
+                             "RDEP:\tAUTO copy of %zu bytes is not a whole number of elements of extent %td, describe it as bytes",
+                             span, extent);
+        remote->dst_datatype = parsec_datatype_int8_t;
+        extent = 1;
+    }
+    remote->src_datatype = remote->dst_datatype;
+    remote->src_count = remote->dst_count = span / (size_t)extent;
+}
+
 #ifdef DISTRIBUTED
 
 /* comm_yield mode: see valid values in the corresponding mca_register */

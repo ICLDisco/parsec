@@ -705,6 +705,10 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
                                    " type_remote = AUTO receives). Larger buffers are allocated on demand"
                                    " (0=no caching)",
                                    false, false, parsec_arena_auto_max_bucket, &parsec_arena_auto_max_bucket);
+    parsec_mca_param_reg_sizet_name("arena", "auto_max_cached", "The maximum amount of memory all these buckets"
+                                   " together can cache in their freelists, shared equally between them"
+                                   " (0=no caching)",
+                                   false, false, parsec_arena_auto_max_cached_memory, &parsec_arena_auto_max_cached_memory);
 
     parsec_mca_param_reg_sizet_name("task", "startup_iter", "The number of ready tasks to be generated during the startup "
                                    "before allowing the scheduler to distribute them across the entire execution context.",

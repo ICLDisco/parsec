@@ -15,13 +15,19 @@ extern "C" %{
  *  - D: ndbl(k) doubles sent and received as DSTRIDED, a double resized to
  *       twice its extent, so that the packed size of an element (8) differs
  *       from its extent (16): the count comes from the packed size, the
- *       buffer from the extent.
+ *       buffer from the extent. D goes through MOD(k), on the same process as
+ *       SEND(k), which updates it in place before it leaves.
  * RECV checks the content and, when the data came from another process, that
  * the received copy spans exactly the payload and carries the datatype it was
- * received with. SEND and RECV also have CUDA incarnations: the payloads are
- * then produced on a GPU, and checked once the runtime staged them in GPU
+ * received with. SEND, MOD and RECV also have CUDA incarnations: the payloads
+ * are then produced on a GPU, and checked once the runtime staged them in GPU
  * memory (the transfers are sized by the span); -g=N fails the test unless at
  * least N RECV ran on a GPU.
+ * CHECK(k) reads D after MOD(k) on the host. When MOD(k) ran on a GPU, the
+ * runtime may have had to rebuild the host copy of D to stage it out, sized
+ * after what RECV(k+1) receives: CHECK then checks that this mirror spans
+ * exactly what the GPU copy held; -m=N fails the test unless at least N
+ * mirrors were rebuilt.
  */
 
 #include <assert.h>
@@ -44,7 +50,9 @@ static int32_t g_errors = 0;
 static int32_t g_remote = 0;
 static int32_t g_gpu = 0;       /* RECV run on a GPU */
 static int32_t g_gpu_send = 0;  /* SEND run on a GPU */
+static int32_t g_gpu_mod = 0;   /* MOD run on a GPU */
 static int32_t g_direct = 0;    /* data received straight into GPU memory */
+static int32_t g_mirror = 0;    /* host copies of D rebuilt to stage it out of a GPU */
 
 /* A copy the GPU task reads that arrived directly in GPU memory: the host copy
  * made next to it was never filled, nothing was staged in. */
@@ -94,7 +102,7 @@ static int check_payload(int k, int prev, const uint8_t *a, const double *b, con
             fprintf(stderr, "receive_auto: RECV(%d) wrong double %d of %d\n", k, i, ndbl);
             return 1;
         }
-        if( d[2 * i] != dbl_of(prev, i) ) {  /* the holes are not transferred */
+        if( d[2 * i] != dbl_of(prev, i) + 1.0 ) {  /* updated by MOD; the holes are not transferred */
             fprintf(stderr, "receive_auto: RECV(%d) wrong strided double %d of %d\n", k, i, ndbl);
             return 1;
         }
@@ -103,18 +111,18 @@ static int check_payload(int k, int prev, const uint8_t *a, const double *b, con
 }
 
 /* dtt is only checked when not PARSEC_DATATYPE_NULL */
-static int check_copy(const char *name, int k, const parsec_data_copy_t *copy,
+static int check_copy(const char *task, const char *name, int k, const parsec_data_copy_t *copy,
                       size_t bytes, parsec_datatype_t dtt)
 {
     int err = 0;
     if( copy->original->span != bytes ) {
-        fprintf(stderr, "receive_auto: RECV(%d) %s spans %zu bytes, expected %zu\n",
-                k, name, copy->original->span, bytes);
+        fprintf(stderr, "receive_auto: %s(%d) %s spans %zu bytes, expected %zu\n",
+                task, k, name, copy->original->span, bytes);
         err++;
     }
     if( (PARSEC_DATATYPE_NULL != dtt) && (copy->dtt != dtt) ) {
-        fprintf(stderr, "receive_auto: RECV(%d) %s was not received with the expected datatype\n",
-                k, name);
+        fprintf(stderr, "receive_auto: %s(%d) %s does not carry the expected datatype\n",
+                task, k, name);
         err++;
     }
     return err;
@@ -152,9 +160,7 @@ WRITE C <- NEW          [ type = DEFAULT ]
                           layout_remote = parsec_datatype_int8_t
                           count_remote  = %{ return nbytes; %} ]
 WRITE D <- NEW          [ type = DEFAULT ]
-        -> D RECV(k+1)  [ type_remote   = DEFAULT
-                          layout_remote = DSTRIDED
-                          count_remote  = %{ return ndbl; %} ]
+        -> D MOD(k)
 
 BODY [type=CUDA]
 {
@@ -197,6 +203,86 @@ BODY
 }
 END
 
+MOD(k)
+k = 0 .. NT-2
+ndbl = %{ return ndbl_of(k, MAX_BYTES); %}
+
+: descA(k, 0)
+
+RW D <- D SEND(k)
+     -> D RECV(k+1)  [ type_remote   = DEFAULT
+                       layout_remote = DSTRIDED
+                       count_remote  = %{ return ndbl; %} ]
+     -> D CHECK(k)
+
+BODY [type=CUDA]
+{
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
+    /* Update D where SEND(k) produced it. D has only lived on the GPU so far,
+     * and the runtime may have dropped its host copy by the time it has to
+     * stage D out for CHECK(k) and RECV(k+1). */
+    size_t dbytes = (size_t)ndbl * sizeof(double);
+    double *d = (double*)malloc(2 * dbytes);
+    if( (cudaSuccess != cudaMemcpyAsync(d, D, 2 * dbytes, cudaMemcpyDeviceToHost, parsec_body.stream)) ||
+        (cudaSuccess != cudaStreamSynchronize(parsec_body.stream)) ) {
+        fprintf(stderr, "receive_auto: MOD(%d) cannot read the data from the GPU\n", k);
+        (void)parsec_atomic_fetch_inc_int32(&g_errors);
+    } else {
+        for(int i = 0; i < ndbl; i++) d[2 * i] += 1.0;
+        if( (cudaSuccess != cudaMemcpyAsync(D, d, 2 * dbytes, cudaMemcpyHostToDevice, parsec_body.stream)) ||
+            (cudaSuccess != cudaStreamSynchronize(parsec_body.stream)) ) {
+            fprintf(stderr, "receive_auto: MOD(%d) cannot write the data on the GPU\n", k);
+            (void)parsec_atomic_fetch_inc_int32(&g_errors);
+        }
+    }
+    free(d);
+    (void)parsec_atomic_fetch_inc_int32(&g_gpu_mod);
+#endif  /* defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) */
+}
+END
+
+BODY
+{
+    double *d = (double*)D;
+    for(int i = 0; i < ndbl; i++) d[2 * i] += 1.0;
+}
+END
+
+CHECK(k)
+k = 0 .. NT-2
+ndbl = %{ return ndbl_of(k, MAX_BYTES); %}
+
+: descA(k, 0)
+
+READ D <- D MOD(k)
+
+BODY
+{
+    /* Runs on the host whatever MOD(k) ran on. When MOD(k) ran on a GPU and
+     * the host copy of D had been dropped, the runtime rebuilt one to stage D
+     * out, sized after what RECV(k+1) receives ([type_remote = AUTO
+     * layout_remote = DSTRIDED]): that mirror carries DSTRIDED, and must span
+     * exactly what the GPU copy held, the MAX_BYTES of the DEFAULT arena D was
+     * created from. The host copy D started with carries the datatype of that
+     * arena instead, and is not a mirror. */
+    const double *d = (const double*)D;
+    int err = 0;
+    for(int i = 0; i < ndbl; i++) {
+        if( d[2 * i] != dbl_of(k, i) + 1.0 ) {
+            fprintf(stderr, "receive_auto: CHECK(%d) wrong strided double %d of %d\n", k, i, ndbl);
+            err++;
+            break;
+        }
+    }
+    /* (without MPI there are no derived datatypes to tell the copies apart) */
+    if( (PARSEC_DATATYPE_NULL != DSTRIDED) && (DSTRIDED == _f_D->dtt) ) {
+        (void)parsec_atomic_fetch_inc_int32(&g_mirror);
+        err += check_copy("CHECK", "D", k, _f_D, (size_t)MAX_BYTES, DSTRIDED);
+    }
+    if( err ) (void)parsec_atomic_fetch_add_int32(&g_errors, err);
+}
+END
+
 RECV(k)
 k = 1 .. NT-1
 prev   = %{ return k - 1; %}
@@ -208,7 +294,7 @@ ndbl   = %{ return ndbl_of(prev, MAX_BYTES); %}
 READ A <- A SEND(prev)  [ type_remote = AUTO ]
 READ B <- B SEND(prev)  [ type_remote = AUTO  layout_remote = parsec_datatype_double_t ]
 READ C <- C SEND(prev)  [ type_remote = AUTO  layout_remote = parsec_datatype_double_t ]
-READ D <- D SEND(prev)  [ type_remote = AUTO  layout_remote = DSTRIDED ]
+READ D <- D MOD(prev)   [ type_remote = AUTO  layout_remote = DSTRIDED ]
 
 BODY [type=CUDA]
 {
@@ -230,10 +316,10 @@ BODY [type=CUDA]
     }
     int remote = (rank_of_k(descA, prev) != rank_of_k(descA, k));
     if( remote ) {
-        err += check_copy("A", k, _f_A, (size_t)nbytes, PARSEC_DATATYPE_NULL);
-        err += check_copy("B", k, _f_B, dbytes, PARSEC_DATATYPE_NULL);
-        err += check_copy("C", k, _f_C, (size_t)nbytes, PARSEC_DATATYPE_NULL);
-        err += check_copy("D", k, _f_D, 2 * dbytes, PARSEC_DATATYPE_NULL);
+        err += check_copy("RECV", "A", k, _f_A, (size_t)nbytes, PARSEC_DATATYPE_NULL);
+        err += check_copy("RECV", "B", k, _f_B, dbytes, PARSEC_DATATYPE_NULL);
+        err += check_copy("RECV", "C", k, _f_C, (size_t)nbytes, PARSEC_DATATYPE_NULL);
+        err += check_copy("RECV", "D", k, _f_D, 2 * dbytes, PARSEC_DATATYPE_NULL);
     }
     free(a); free(b); free(c); free(d);
     (void)parsec_atomic_fetch_inc_int32(&g_gpu);
@@ -252,12 +338,12 @@ BODY
                             (const double*)D, nbytes, ndbl);
     int remote = (rank_of_k(descA, prev) != rank_of_k(descA, k));
     if( remote ) {
-        err += check_copy("A", k, _f_A, (size_t)nbytes, parsec_datatype_int8_t);
-        err += check_copy("B", k, _f_B, (size_t)ndbl * sizeof(double), parsec_datatype_double_t);
-        err += check_copy("C", k, _f_C, (size_t)nbytes,
+        err += check_copy("RECV", "A", k, _f_A, (size_t)nbytes, parsec_datatype_int8_t);
+        err += check_copy("RECV", "B", k, _f_B, (size_t)ndbl * sizeof(double), parsec_datatype_double_t);
+        err += check_copy("RECV", "C", k, _f_C, (size_t)nbytes,
                           (0 == (nbytes % 8)) ? parsec_datatype_double_t : parsec_datatype_int8_t);
         /* ndbl elements of 8 packed bytes, each spanning 16 bytes */
-        err += check_copy("D", k, _f_D, (size_t)ndbl * 2 * sizeof(double), DSTRIDED);
+        err += check_copy("RECV", "D", k, _f_D, (size_t)ndbl * 2 * sizeof(double), DSTRIDED);
     }
     account(err, remote);
 }
@@ -270,8 +356,8 @@ int main(int argc, char **argv)
     parsec_receive_auto_taskpool_t *tp;
     parsec_matrix_block_cyclic_t descA;
     parsec_arena_datatype_t *adt = PARSEC_OBJ_NEW(parsec_arena_datatype_t);
-    int rank = 0, world = 1, nt = 64, max_bytes = 256, min_gpu = 0, min_direct = 0, gpus_per_process = 0, rc;
-    int32_t local[5], global[5];
+    int rank = 0, world = 1, nt = 64, max_bytes = 256, min_gpu = 0, min_direct = 0, min_mirror = 0, gpus_per_process = 0, rc;
+    int32_t local[7], global[7];
     int pargc = 0;
     char **pargv = NULL, **own_argv = NULL;
     char mask_str[32];
@@ -309,9 +395,16 @@ int main(int argc, char **argv)
             min_direct = (int)strtol(argv[i] + 3, NULL, 10);
             continue;
         }
+        if( 0 == strncmp(argv[i], "-m=", 3) ) {
+            /* fail unless at least that many host copies of D were rebuilt
+             * to stage it out of a GPU (see CHECK) */
+            min_mirror = (int)strtol(argv[i] + 3, NULL, 10);
+            continue;
+        }
     }
     if( nt < 2 ) nt = 2;
     if( max_bytes < 16 ) max_bytes = 16;
+    max_bytes -= max_bytes % 16;  /* a whole number of DSTRIDED elements */
 
     if( gpus_per_process > 0 ) {
         const char *envs[] = { "OMPI_COMM_WORLD_LOCAL_RANK", "SLURM_LOCALID", "PMI_LOCAL_RANK",
@@ -401,7 +494,9 @@ int main(int argc, char **argv)
     local[2] = g_gpu;
     local[3] = g_gpu_send;
     local[4] = g_direct;
-    rc = parsec_tests_allreduce(parsec, local, global, 5, parsec_datatype_int32_t,
+    local[5] = g_gpu_mod;
+    local[6] = g_mirror;
+    rc = parsec_tests_allreduce(parsec, local, global, 7, parsec_datatype_int32_t,
                                 PARSEC_TESTS_REDUCE_SUM);
     PARSEC_CHECK_ERROR(rc, "parsec_tests_allreduce");
 
@@ -431,9 +526,14 @@ int main(int argc, char **argv)
                 global[4], min_direct);
         return EXIT_FAILURE;
     }
+    if( global[6] < min_mirror ) {
+        fprintf(stderr, "receive_auto: FAILED (%d host copies rebuilt to stage data out of a GPU, at least %d expected)\n",
+                global[6], min_mirror);
+        return EXIT_FAILURE;
+    }
     if( 0 == rank ) {
-        printf("receive_auto: PASS (nt=%d, max_bytes=%d, processes=%d, remote receptions=%d, RECV on GPU=%d, SEND on GPU=%d, received on GPU=%d)\n",
-               nt, max_bytes, world, global[1], global[2], global[3], global[4]);
+        printf("receive_auto: PASS (nt=%d, max_bytes=%d, processes=%d, remote receptions=%d, RECV on GPU=%d, SEND on GPU=%d, MOD on GPU=%d, received on GPU=%d, host copies rebuilt=%d)\n",
+               nt, max_bytes, world, global[1], global[2], global[3], global[5], global[4], global[6]);
     }
     return EXIT_SUCCESS;
 }

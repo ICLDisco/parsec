@@ -1,0 +1,20 @@
+/*
+ * Copyright (c) 2026
+ */
+/**
+ * This test checks that the compiler rejects AUTO as a local type: it only
+ * describes how an input dependency is received (type_remote).
+ */
+TASK(k)
+
+k = 0 .. 10
+
+: A( k )
+
+  RW A <- A(k)            [ type = AUTO ]
+       -> A(k)
+BODY
+{
+    /* Nothing */
+}
+END

@@ -43,6 +43,12 @@ extern size_t parsec_arena_max_cached_memory;
 extern size_t parsec_arena_auto_max_bucket;
 
 /**
+ * Maximum amount of memory cached by all the PARSEC_ARENA_AUTO buckets
+ * together: each bucket keeps an equal part of it.
+ */
+extern size_t parsec_arena_auto_max_cached_memory;
+
+/**
  * Marker standing for an arena picked at allocation time from the size of the
  * request. parsec_arena_get_new_copy() and parsec_arena_allocate_device_private()
  * accept it in place of an arena: the storage for @p count elements of the

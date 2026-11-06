@@ -94,8 +94,9 @@ parsec_device_gpu_retrieve_host_mirror_datatype(parsec_execution_stream_t *es,
     }
     if( PARSEC_ARENA_AUTO == lookup->datatype.remote.arena ) {
         /* The successor sizes what it receives after the payload: mirror all
-         * the GPU copy holds. */
-        parsec_dep_type_auto_resolve(&lookup->datatype.remote, lookup->span);
+         * the GPU copy holds. That is a span of memory, in which an element
+         * takes its extent, not the packed size a payload is measured by. */
+        parsec_dep_type_auto_resolve_span(&lookup->datatype.remote, lookup->span);
         if( 0 == lookup->datatype.remote.dst_count ) {
             return PARSEC_ITERATE_CONTINUE;
         }
@@ -169,6 +170,10 @@ parsec_device_gpu_ensure_host_mirror(parsec_execution_stream_t *es,
         PARSEC_DATA_COPY_RELEASE(cpu_copy);
         return NULL;
     }
+    /* The allocation has just reset the span of the data, which sizes the
+     * stage out: a mirror sized after the GPU copy has to span exactly what
+     * that copy holds, or the transfer reads past it. */
+    assert((PARSEC_ARENA_AUTO != lookup.datatype.remote.arena) || (original->span == lookup.span));
     /* The buffer is empty until the stage out the caller is about to enqueue
      * completes, so it is left announcing no version at all. Invalid is what
      * says it holds nothing, and it is what every reader of a copy has to

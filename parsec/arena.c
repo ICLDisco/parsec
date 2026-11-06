@@ -195,23 +195,56 @@ parsec_arena_release_chunk(parsec_arena_t* arena,
  * Storage behind PARSEC_ARENA_AUTO. A request of up to parsec_arena_auto_max_bucket
  * bytes is served as a single element of the smallest power-of-two bucket that
  * holds it, so that the bucket arena can cache it for the next request of a
- * similar size. Anything larger is served by a byte-granular arena, which never
- * caches. Slot 0 is that byte-granular arena; slot i > 0 is the bucket of 2^i
- * bytes. The arenas are created on first use.
+ * similar size. Anything larger is served, in grains of 64 bytes, by an arena
+ * that never caches: a grain rather than a byte, so that the element counts the
+ * arenas keep (int32_t) measure allocations well past 2GiB. Slot 0 is that
+ * arena; slot i > 0 is the bucket of 2^i bytes. The arenas are created on
+ * first use.
  */
 size_t parsec_arena_auto_max_bucket = 1024*1024;  /* 1MiB */
+size_t parsec_arena_auto_max_cached_memory = 256*1024*1024;  /* 256MB for all the buckets together */
 
 #define PARSEC_ARENA_AUTO_MIN_SHIFT  6   /* 64 bytes */
 #define PARSEC_ARENA_AUTO_MAX_SHIFT 30   /* 1GiB, hard limit on the bucket sizes */
+#define PARSEC_ARENA_AUTO_GRAIN     64   /* bytes per element of the arena serving larger requests */
 
-static parsec_arena_t *parsec_arena_auto_arenas[PARSEC_ARENA_AUTO_MAX_SHIFT + 1];
+static parsec_arena_t *volatile parsec_arena_auto_arenas[PARSEC_ARENA_AUTO_MAX_SHIFT + 1];
 
+/* The smallest bucket holding bytes, as its shift */
+static inline int parsec_arena_auto_shift_of(size_t bytes)
+{
+    int shift;
+    for( shift = PARSEC_ARENA_AUTO_MIN_SHIFT;
+         (shift < PARSEC_ARENA_AUTO_MAX_SHIFT) && ((((size_t)1) << shift) < bytes);
+         shift++ );
+    return shift;
+}
+
+/*
+ * The buckets share parsec_arena_auto_max_cached_memory: each of the buckets
+ * parsec_arena_auto_max_bucket allows for is given an equal part of it, so
+ * that together they never keep more than that cached whatever the sizes a
+ * workload goes through.
+ */
+static size_t parsec_arena_auto_bucket_cache(void)
+{
+    int nb_buckets = parsec_arena_auto_shift_of(parsec_arena_auto_max_bucket) - PARSEC_ARENA_AUTO_MIN_SHIFT + 1;
+    return parsec_arena_auto_max_cached_memory / (size_t)nb_buckets;
+}
+
+/* The arena of a slot, created on its first use: slot 0 is the arena of
+ * grains, which caches nothing, slot i > 0 the bucket of 2^i bytes. */
 static parsec_arena_t *
-parsec_arena_auto_get(int slot, size_t elem_size, size_t max_cached)
+parsec_arena_auto_get(int slot)
 {
     parsec_arena_t *arena = parsec_arena_auto_arenas[slot];
+    size_t elem_size = (0 == slot) ? PARSEC_ARENA_AUTO_GRAIN : (((size_t)1) << slot);
+    size_t max_cached = (0 == slot) ? 0 : parsec_arena_auto_bucket_cache();
 
     if( PARSEC_LIKELY(NULL != arena) ) {
+        /* Pair with the CAS that published it: nothing of the arena is read
+         * before the pointer that was installed after its construction. */
+        parsec_atomic_rmb();
         return arena;
     }
     arena = PARSEC_OBJ_NEW(parsec_arena_t);
@@ -226,6 +259,7 @@ parsec_arena_auto_get(int slot, size_t elem_size, size_t max_cached)
     if( !parsec_atomic_cas_ptr(&parsec_arena_auto_arenas[slot], NULL, arena) ) {
         PARSEC_OBJ_RELEASE(arena);  /* another thread installed this slot first */
         arena = parsec_arena_auto_arenas[slot];
+        parsec_atomic_rmb();
     }
     return arena;
 }
@@ -247,22 +281,20 @@ parsec_arena_auto_select(size_t count, parsec_datatype_t dtt,
         return 0;
     }
     (void)lb;
-    bytes = count * (size_t)extent;
-    if( 0 == bytes ) {
-        return 0;
+    if( (0 == count) || (count > (SIZE_MAX / (size_t)extent)) ) {
+        return 0;  /* nothing, or more than a size_t holds */
     }
+    bytes = count * (size_t)extent;
     if( bytes <= parsec_arena_auto_max_bucket ) {
-        for( shift = PARSEC_ARENA_AUTO_MIN_SHIFT;
-             (shift < PARSEC_ARENA_AUTO_MAX_SHIFT) && ((((size_t)1) << shift) < bytes);
-             shift++ );
+        shift = parsec_arena_auto_shift_of(bytes);
         if( (((size_t)1) << shift) >= bytes ) {
             *arena_count = 1;
-            *arena = parsec_arena_auto_get(shift, ((size_t)1) << shift, parsec_arena_max_cached_memory);
+            *arena = parsec_arena_auto_get(shift);
             return (NULL == *arena) ? 0 : bytes;
         }
     }
-    *arena_count = bytes;
-    *arena = parsec_arena_auto_get(0, 1, 0);
+    *arena_count = bytes / PARSEC_ARENA_AUTO_GRAIN + ((0 != (bytes % PARSEC_ARENA_AUTO_GRAIN)) ? 1 : 0);
+    *arena = parsec_arena_auto_get(0);
     return (NULL == *arena) ? 0 : bytes;
 }
 
