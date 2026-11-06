@@ -63,11 +63,11 @@ if(PARSEC_HAVE_HIP)
 endif(PARSEC_HAVE_HIP)
 
 if(PARSEC_HAVE_CUDA OR PARSEC_HAVE_HIP)
-  # Testing an explicitly scoped device statistics report
+  # Testing device statistics reported over application-chosen intervals
   include(ParsecCompilePTG)
-  parsec_addtest_executable(C device_show_statistics)
-  target_include_directories(device_show_statistics PRIVATE $<$<NOT:${PARSEC_BUILD_INPLACE}>:${CMAKE_CURRENT_SOURCE_DIR}>)
-  target_ptg_sources(device_show_statistics PRIVATE "device_show_statistics.jdf")
+  parsec_addtest_executable(C device_statistics)
+  target_include_directories(device_statistics PRIVATE $<$<NOT:${PARSEC_BUILD_INPLACE}>:${CMAKE_CURRENT_SOURCE_DIR}>)
+  target_ptg_sources(device_statistics PRIVATE "device_statistics.jdf")
 endif()
 
 # Build a single pingpong pair and add the kernels for every enabled GPU

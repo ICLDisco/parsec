@@ -1,0 +1,337 @@
+extern "C" %{
+/*
+ * Copyright (c) 2026 The University of Tennessee and The University
+ *                    of Tennessee Research Foundation. All rights reserved.
+ */
+
+/*
+ * Check that parsec_devices_save_statistics(), parsec_devices_print_statistics()
+ * and parsec_devices_free_statistics() report the device statistics of
+ * application-chosen, possibly overlapping, regions of the execution.
+ *
+ * The test validates the counters itself and reports the result through its
+ * exit code, so it must not be registered with a PASS_REGULAR_EXPRESSION
+ * (which makes ctest ignore the exit code).
+ */
+
+#include "parsec.h"
+#include "parsec/mca/device/device.h"
+#include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include "parsec/utils/mca_param.h"
+
+#include <assert.h>
+#include <inttypes.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
+#include <cuda_runtime.h>
+#endif
+#if defined(PARSEC_HAVE_DEV_HIP_SUPPORT)
+#include <hip/hip_runtime.h>
+#endif
+
+#if defined(PARSEC_HAVE_MPI)
+#include <mpi.h>
+#endif
+
+%}
+
+descA [type = "parsec_matrix_block_cyclic_t*"]
+
+/**************************************************
+ * Run one GPU task for each tile in descA.        *
+ **************************************************/
+TOUCH_TILE(k)
+
+k = 0 .. descA->super.nt-1
+
+: descA(0, k)
+
+RW A <- descA(0, k)
+     -> descA(0, k)
+
+BODY [type=CUDA]
+{
+    cudaError_t status;
+
+    status = cudaMemsetAsync(A, k + 1,
+                             (size_t)descA->super.bsiz * sizeof(double),
+                             parsec_body.stream);
+    if(cudaSuccess != status) {
+        return PARSEC_HOOK_RETURN_ERROR;
+    }
+}
+END
+
+BODY [type=HIP]
+{
+    hipError_t status;
+
+    status = hipMemsetAsync(A, k + 1,
+                            (size_t)descA->super.bsiz * sizeof(double),
+                            parsec_body.stream);
+    if(hipSuccess != status) {
+        return PARSEC_HOOK_RETURN_ERROR;
+    }
+}
+END
+
+extern "C" %{
+
+#define TILE_NB 32
+#define TILE_SIZE ((uint64_t)TILE_NB * TILE_NB * sizeof(double))
+
+static const char *stat_names[PARSEC_DEVICE_STAT_COUNT] = {
+    [PARSEC_DEVICE_STAT_EXECUTED_TASKS] = "executed tasks",
+    [PARSEC_DEVICE_STAT_TRANSFER_IN]    = "bytes transferred in",
+    [PARSEC_DEVICE_STAT_TRANSFER_OUT]   = "bytes transferred out",
+    [PARSEC_DEVICE_STAT_REQUIRED_IN]    = "bytes required in",
+    [PARSEC_DEVICE_STAT_REQUIRED_OUT]   = "bytes required out",
+    [PARSEC_DEVICE_STAT_TRANSFER_D2D]   = "bytes transferred device-to-device",
+    [PARSEC_DEVICE_STAT_EVICTIONS]      = "evictions",
+};
+
+static void
+matrix_init(parsec_matrix_block_cyclic_t *dcA, int rank, int count,
+            const char *key)
+{
+    size_t size;
+
+    parsec_matrix_block_cyclic_init(dcA, PARSEC_MATRIX_DOUBLE,
+                                    PARSEC_MATRIX_TILE, rank,
+                                    TILE_NB, TILE_NB, TILE_NB, count * TILE_NB,
+                                    0, 0, TILE_NB, count * TILE_NB,
+                                    1, 1, 1, 1, 0, 0);
+    size = (size_t)dcA->super.nb_local_tiles *
+           (size_t)dcA->super.bsiz * sizeof(double);
+    dcA->mat = parsec_data_allocate(size);
+    assert(NULL != dcA->mat);
+    memset(dcA->mat, 0, size);
+    (void)key; /* unused when profiling is disabled */
+    parsec_data_collection_set_key((parsec_data_collection_t *)dcA, key);
+}
+
+static int matrix_check(parsec_matrix_block_cyclic_t *dcA)
+{
+    parsec_data_collection_t *dc = &dcA->super.super;
+    const size_t tile_size = (size_t)dcA->super.bsiz * sizeof(double);
+    int errors = 0;
+
+    for(int k = 0; k < dcA->super.nt; k++) {
+        parsec_data_t *data = dc->data_of(dc, 0, k);
+        parsec_data_copy_t *cpu_copy = parsec_data_get_copy(data, 0);
+        const unsigned char *tile = parsec_data_copy_get_ptr(cpu_copy);
+        const unsigned char expected = (unsigned char)(k + 1);
+
+        for(size_t i = 0; i < tile_size; i++) {
+            if(tile[i] != expected) {
+                fprintf(stderr,
+                        "descriptor output mismatch for tile (0,%d), byte %zu: "
+                        "got %u, expected %u\n",
+                        k, i, (unsigned int)tile[i], (unsigned int)expected);
+                errors++;
+                break;
+            }
+        }
+    }
+    return errors;
+}
+
+static void matrix_fini(parsec_matrix_block_cyclic_t *dcA)
+{
+    parsec_data_free(dcA->mat);
+    parsec_tiled_matrix_destroy((parsec_tiled_matrix_t *)dcA);
+}
+
+/* Run one TOUCH_TILE task per tile of dcA and check the data written back. */
+static int
+run_phase(parsec_context_t *parsec, parsec_matrix_block_cyclic_t *dcA)
+{
+    parsec_device_statistics_taskpool_t *taskpool;
+    int rc;
+
+    taskpool = parsec_device_statistics_new(dcA);
+    assert(NULL != taskpool);
+    parsec_matrix_adt_define_square(
+        &taskpool->arenas_datatypes[PARSEC_device_statistics_DEFAULT_ADT_IDX],
+        parsec_datatype_double_t, dcA->super.mb);
+
+    rc = parsec_context_add_taskpool(parsec, (parsec_taskpool_t *)taskpool);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
+    rc = parsec_context_start(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_start");
+    rc = parsec_context_wait(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
+
+    parsec_matrix_arena_datatype_destruct_free_type(
+        &taskpool->arenas_datatypes[PARSEC_device_statistics_DEFAULT_ADT_IDX]);
+    parsec_taskpool_free((parsec_taskpool_t *)taskpool);
+    return matrix_check(dcA);
+}
+
+/*
+ * Compare the counters accumulated since the snapshot @p start against what
+ * @p ntiles TOUCH_TILE tasks must produce: each task runs on the GPU, needs
+ * one tile in and one tile out, and both are transferred because every tile
+ * starts on the host and is written back to its descriptor. Nothing moves
+ * between devices and nothing is evicted, and devices that are not GPUs move
+ * no data. Their executed tasks are not checked: the PTG startup tasks run on
+ * the CPU device, and how many there are is up to the runtime.
+ */
+static int
+check_interval(const char *name, const uint64_t *start, uint64_t ntiles)
+{
+    const uint32_t nb_devices = (uint32_t)parsec_mca_device_enabled();
+    uint64_t expected[PARSEC_DEVICE_STAT_COUNT] = { 0 };
+    uint64_t gpu_total[PARSEC_DEVICE_STAT_COUNT] = { 0 };
+    uint64_t *now = NULL;
+    int errors = 0;
+
+    expected[PARSEC_DEVICE_STAT_EXECUTED_TASKS] = ntiles;
+    expected[PARSEC_DEVICE_STAT_TRANSFER_IN]    = ntiles * TILE_SIZE;
+    expected[PARSEC_DEVICE_STAT_TRANSFER_OUT]   = ntiles * TILE_SIZE;
+    expected[PARSEC_DEVICE_STAT_REQUIRED_IN]    = ntiles * TILE_SIZE;
+    expected[PARSEC_DEVICE_STAT_REQUIRED_OUT]   = ntiles * TILE_SIZE;
+
+    parsec_devices_save_statistics(&now);
+    for(int stat = 0; stat < PARSEC_DEVICE_STAT_COUNT; stat++) {
+        for(uint32_t dev = 0; dev < nb_devices; dev++) {
+            const size_t idx = (size_t)stat * nb_devices + dev;
+            uint64_t delta;
+
+            if(now[idx] < start[idx]) {
+                fprintf(stderr, "%s: device %u %s went backward "
+                        "(%" PRIu64 " -> %" PRIu64 ")\n",
+                        name, dev, stat_names[stat], start[idx], now[idx]);
+                errors++;
+                continue;
+            }
+            delta = now[idx] - start[idx];
+            if(parsec_mca_device_is_gpu(dev)) {
+                gpu_total[stat] += delta;
+            } else if((0 != delta) && (PARSEC_DEVICE_STAT_EXECUTED_TASKS != stat)) {
+                fprintf(stderr, "%s: non-GPU device %u has %" PRIu64 " %s, "
+                        "expected 0\n", name, dev, delta, stat_names[stat]);
+                errors++;
+            }
+        }
+        if(gpu_total[stat] != expected[stat]) {
+            fprintf(stderr, "%s: GPU devices have %" PRIu64 " %s, "
+                    "expected %" PRIu64 "\n",
+                    name, gpu_total[stat], stat_names[stat], expected[stat]);
+            errors++;
+        }
+    }
+    parsec_devices_free_statistics(&now);
+
+    printf("%s: %" PRIu64 " tasks, %s\n", name, ntiles,
+           (0 == errors) ? "counters match" : "COUNTERS MISMATCH");
+    return errors;
+}
+
+int main(int argc, char **argv)
+{
+    parsec_context_t *parsec;
+    parsec_matrix_block_cyclic_t first, second, third;
+    uint64_t *whole = NULL, *outer = NULL, *inner = NULL;
+    int gpu_type;
+    const char *gpu_name;
+    int rank = 0, world = 1;
+    int rc, errors = 0;
+
+#if defined(PARSEC_HAVE_MPI)
+    {
+        int provided;
+        MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
+    }
+    MPI_Comm_size(MPI_COMM_WORLD, &world);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+#endif
+
+    /* A single GPU keeps device-to-device transfers out of the counters. */
+    extern char **environ;
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
+    parsec_setenv_mca_param("device_cuda_enabled", "1", &environ);
+#endif
+#if defined(PARSEC_HAVE_DEV_HIP_SUPPORT)
+    parsec_setenv_mca_param("device_hip_enabled", "1", &environ);
+#endif
+
+    parsec = parsec_init(-1, &argc, &argv);
+    if(NULL == parsec) {
+        return EXIT_FAILURE;
+    }
+    assert(1 == world);
+
+#if defined(PARSEC_HAVE_DEV_HIP_SUPPORT)
+    gpu_type = PARSEC_DEV_HIP;
+    gpu_name = "HIP";
+#else
+    gpu_type = PARSEC_DEV_CUDA;
+    gpu_name = "CUDA";
+#endif
+    if(0 == parsec_context_query(parsec, PARSEC_CONTEXT_QUERY_DEVICES,
+                                 gpu_type)) {
+        /* Report "skipped" to ctest (SKIP_RETURN_CODE in tests/CMakeLists.txt). */
+        parsec_warning("This test requires at least one %s device", gpu_name);
+        parsec_fini(&parsec);
+#if defined(PARSEC_HAVE_MPI)
+        MPI_Finalize();
+#endif
+        return -PARSEC_ERR_DEVICE;
+    }
+
+    /* Separate descriptors keep the phases from reusing cached tiles. */
+    matrix_init(&first,  rank, 2, "device-stats-first");
+    matrix_init(&second, rank, 3, "device-stats-second");
+    matrix_init(&third,  rank, 5, "device-stats-third");
+
+    /*
+     * Three nested intervals: whole spans the three phases, outer the last
+     * two and inner only the last one.
+     */
+    parsec_devices_save_statistics(&whole);
+
+    errors += run_phase(parsec, &first);
+    errors += check_interval("whole, after the first phase", whole, 2);
+
+    parsec_devices_save_statistics(&outer);
+    errors += run_phase(parsec, &second);
+    errors += check_interval("outer, after the second phase", outer, 3);
+    errors += check_interval("whole, after the second phase", whole, 5);
+    parsec_devices_print_statistics(parsec, outer);
+
+    parsec_devices_save_statistics(&inner);
+    errors += run_phase(parsec, &third);
+    errors += check_interval("inner, after the third phase", inner, 5);
+    errors += check_interval("outer, after the third phase", outer, 8);
+    errors += check_interval("whole, after the third phase", whole, 10);
+    parsec_devices_print_statistics(parsec, inner);
+
+    /* Saving into an existing array overwrites it: the new interval is empty. */
+    parsec_devices_save_statistics(&whole);
+    errors += check_interval("whole, saved again", whole, 0);
+
+    parsec_devices_free_statistics(&whole);
+    parsec_devices_free_statistics(&outer);
+    parsec_devices_free_statistics(&inner);
+
+    matrix_fini(&first);
+    matrix_fini(&second);
+    matrix_fini(&third);
+    rc = parsec_fini(&parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_fini");
+
+#if defined(PARSEC_HAVE_MPI)
+    MPI_Finalize();
+#endif
+    if(0 != errors) {
+        fprintf(stderr, "device_statistics: %d error(s)\n", errors);
+        return EXIT_FAILURE;
+    }
+    return EXIT_SUCCESS;
+}
+
+%}

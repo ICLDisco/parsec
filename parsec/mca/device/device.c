@@ -61,14 +61,6 @@ static float load_balance_skew;
  */
 static int parsec_device_load_balance_allow_cpu = 0;
 
-struct parsec_device_statistics_s {
-    uint64_t *start;
-    struct parsec_device_statistics_s *next;
-};
-
-static parsec_device_statistics_t *parsec_device_statistics_active = NULL;
-static int parsec_device_statistics_window_used = 0;
-
 /**
  * Whether to skip input and output stream events that are not strictly
  * necessary (enabled by default).
@@ -491,19 +483,19 @@ void parsec_compute_best_unit( uint64_t length, float* updated_value, char** bes
 
 void parsec_devices_save_statistics(uint64_t **pstats) {
     if(NULL == *pstats) {
-        *pstats = (uint64_t*)calloc(parsec_nb_devices * 7 /* see below for the number of arrays */, sizeof(uint64_t));
+        *pstats = (uint64_t*)calloc(parsec_nb_devices * PARSEC_DEVICE_STAT_COUNT, sizeof(uint64_t));
     }
     else {
-        memset(*pstats, 0, parsec_nb_devices * sizeof(uint64_t) * 7);
+        memset(*pstats, 0, parsec_nb_devices * sizeof(uint64_t) * PARSEC_DEVICE_STAT_COUNT);
     }
     uint64_t *stats = *pstats;
-    uint64_t *executed_tasks = stats;
-    uint64_t *transfer_in    = stats +   parsec_nb_devices;
-    uint64_t *transfer_out   = stats + 2*parsec_nb_devices;
-    uint64_t *req_in         = stats + 3*parsec_nb_devices;
-    uint64_t *req_out        = stats + 4*parsec_nb_devices;
-    uint64_t *transfer_d2d   = stats + 5*parsec_nb_devices;
-    uint64_t *nb_evictions   = stats + 6*parsec_nb_devices;
+    uint64_t *executed_tasks = stats + PARSEC_DEVICE_STAT_EXECUTED_TASKS * parsec_nb_devices;
+    uint64_t *transfer_in    = stats + PARSEC_DEVICE_STAT_TRANSFER_IN    * parsec_nb_devices;
+    uint64_t *transfer_out   = stats + PARSEC_DEVICE_STAT_TRANSFER_OUT   * parsec_nb_devices;
+    uint64_t *req_in         = stats + PARSEC_DEVICE_STAT_REQUIRED_IN    * parsec_nb_devices;
+    uint64_t *req_out        = stats + PARSEC_DEVICE_STAT_REQUIRED_OUT   * parsec_nb_devices;
+    uint64_t *transfer_d2d   = stats + PARSEC_DEVICE_STAT_TRANSFER_D2D   * parsec_nb_devices;
+    uint64_t *nb_evictions   = stats + PARSEC_DEVICE_STAT_EVICTIONS      * parsec_nb_devices;
 
     for(uint32_t i = 0; i < parsec_nb_devices; i++) {
         parsec_device_module_t *device = parsec_devices[i];
@@ -543,18 +535,18 @@ void parsec_devices_print_statistics(parsec_context_t *parsec_context, uint64_t 
     /* initialize the arrays */
     parsec_devices_save_statistics(&end_stats);
     if(NULL != start_stats) {
-        for(i = 0; i < parsec_nb_devices * 7; i++) {
+        for(i = 0; i < parsec_nb_devices * PARSEC_DEVICE_STAT_COUNT; i++) {
             assert(end_stats[i] >= start_stats[i]);
             end_stats[i] -= start_stats[i];
         }
     }
-    uint64_t *executed_tasks    = end_stats;
-    uint64_t *transferred_in    = end_stats +   parsec_nb_devices;
-    uint64_t *transferred_out   = end_stats + 2*parsec_nb_devices;
-    uint64_t *required_in       = end_stats + 3*parsec_nb_devices;
-    uint64_t *required_out      = end_stats + 4*parsec_nb_devices;
-    uint64_t *transferred_d2d   = end_stats + 5*parsec_nb_devices;
-    uint64_t *nb_evictions      = end_stats + 6*parsec_nb_devices;
+    uint64_t *executed_tasks    = end_stats + PARSEC_DEVICE_STAT_EXECUTED_TASKS * parsec_nb_devices;
+    uint64_t *transferred_in    = end_stats + PARSEC_DEVICE_STAT_TRANSFER_IN    * parsec_nb_devices;
+    uint64_t *transferred_out   = end_stats + PARSEC_DEVICE_STAT_TRANSFER_OUT   * parsec_nb_devices;
+    uint64_t *required_in       = end_stats + PARSEC_DEVICE_STAT_REQUIRED_IN    * parsec_nb_devices;
+    uint64_t *required_out      = end_stats + PARSEC_DEVICE_STAT_REQUIRED_OUT   * parsec_nb_devices;
+    uint64_t *transferred_d2d   = end_stats + PARSEC_DEVICE_STAT_TRANSFER_D2D   * parsec_nb_devices;
+    uint64_t *nb_evictions      = end_stats + PARSEC_DEVICE_STAT_EVICTIONS      * parsec_nb_devices;
 
     /* Compute total statistics */
     for(i = 0; i < parsec_nb_devices; i++) {
@@ -623,62 +615,6 @@ void parsec_devices_print_statistics(parsec_context_t *parsec_context, uint64_t 
     parsec_devices_free_statistics(&end_stats);
 }
 
-static int parsec_device_show_statistics_enabled(void)
-{
-    int show_stats_index, show_stats = 0;
-
-    show_stats_index = parsec_mca_param_find("device", NULL, "show_statistics");
-    if( PARSEC_ERROR != show_stats_index ) {
-        parsec_mca_param_lookup_int(show_stats_index, &show_stats);
-    }
-    return show_stats;
-}
-
-parsec_device_statistics_t *
-parsec_device_show_statistics_start(parsec_context_t *parsec_context)
-{
-    parsec_device_statistics_t *statistics;
-
-    (void)parsec_context;
-
-    if( 0 == parsec_nb_devices ) {
-        parsec_warning("%s must be called after device registration", __func__);
-        return NULL;
-    }
-
-    statistics = malloc(sizeof(*statistics));
-    if( NULL == statistics ) {
-        return NULL;
-    }
-    statistics->start = NULL;
-    parsec_devices_save_statistics(&statistics->start);
-    statistics->next = parsec_device_statistics_active;
-    parsec_device_statistics_active = statistics;
-    parsec_device_statistics_window_used = 1;
-    return statistics;
-}
-
-void parsec_device_show_statistics_end(parsec_context_t *parsec_context,
-                                       parsec_device_statistics_t *statistics)
-{
-    parsec_device_statistics_t **current = &parsec_device_statistics_active;
-
-    while( (NULL != *current) && (*current != statistics) ) {
-        current = &(*current)->next;
-    }
-    if( NULL == *current ) {
-        parsec_warning("%s called with an invalid interval", __func__);
-        return;
-    }
-
-    if( parsec_device_show_statistics_enabled() ) {
-        parsec_devices_print_statistics(parsec_context, statistics->start);
-    }
-    *current = statistics->next;
-    parsec_devices_free_statistics(&statistics->start);
-    free(statistics);
-}
-
 void parsec_mca_device_reset_statistics(parsec_context_t *parsec_context) {
     parsec_device_module_t *device;
 
@@ -692,12 +628,6 @@ void parsec_mca_device_reset_statistics(parsec_context_t *parsec_context) {
         device->required_data_in     = 0;
         device->required_data_out    = 0;
         device->nb_evictions         = 0;
-    }
-
-    /* A reset starts a new baseline for every active reporting interval. */
-    for(parsec_device_statistics_t *statistics = parsec_device_statistics_active;
-        NULL != statistics; statistics = statistics->next) {
-        parsec_devices_save_statistics(&statistics->start);
     }
 }
 
@@ -751,23 +681,15 @@ void parsec_mca_device_dump_and_reset_statistics(parsec_context_t* parsec_contex
 
 int parsec_mca_device_fini(void)
 {
-    if( parsec_device_show_statistics_enabled() ) {
-        if( NULL != parsec_device_statistics_active ) {
-            for(parsec_device_statistics_t *statistics = parsec_device_statistics_active;
-                NULL != statistics; statistics = statistics->next) {
-                parsec_devices_print_statistics(NULL, statistics->start);
-            }
-        } else if( !parsec_device_statistics_window_used ) {
-            parsec_mca_device_dump_and_reset_statistics(NULL);
-        }
+    int show_stats_index, show_stats = 0;
+
+    /* If no statistics are required */
+    show_stats_index = parsec_mca_param_find("device", NULL, "show_statistics");
+    if( 0 <= show_stats_index )
+        parsec_mca_param_lookup_int(show_stats_index, &show_stats);
+    if( show_stats ) {
+        parsec_mca_device_dump_and_reset_statistics(NULL);
     }
-    while( NULL != parsec_device_statistics_active ) {
-        parsec_device_statistics_t *statistics = parsec_device_statistics_active;
-        parsec_device_statistics_active = statistics->next;
-        parsec_devices_free_statistics(&statistics->start);
-        free(statistics);
-    }
-    parsec_device_statistics_window_used = 0;
 
     parsec_device_module_t *module;
     mca_base_component_t *component;
