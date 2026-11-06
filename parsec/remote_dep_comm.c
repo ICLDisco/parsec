@@ -222,7 +222,7 @@ static void remote_dep_log_payload(const char *what, int src, int dst,
 #define dep_dtt parsec_datatype_int8_t
 #define dep_count sizeof(remote_dep_wire_activate_t)
 #define dep_extent dep_count
-#define DEP_SHORT_BUFFER_SIZE (dep_extent+RDEP_MSG_SHORT_LIMIT+(1+MAX_DEP_IN_COUNT)*sizeof(uint32_t))
+#define DEP_SHORT_BUFFER_SIZE (dep_extent+RDEP_MSG_SHORT_LIMIT+(1+MAX_DEP_IN_COUNT)*sizeof(uint32_t)+REMOTE_DEP_BCAST_SET_ROOM)
 #if PARSEC_SIZEOF_VOID_P == 4
 #define datakey_dtt parsec_datatype_int32_t
 #else
@@ -1222,10 +1222,27 @@ remote_dep_release_incoming(parsec_execution_stream_t* es,
     }
 
 #ifdef PARSEC_DIST_COLLECTIVES
+    /* A PTG activation rebuilds the propagation tree out of the task's
+     * successors; a DTD one cannot, and instead forwards the destination set it
+     * was handed. Either way we owe the peers below us an activation. */
+    int propagates = (PARSEC_TASKPOOL_TYPE_PTG == origin->taskpool->taskpool_type)
+                  || (0 != origin->msg.bcast_mask);
+
     /* Corresponding comment below on the propagation part */
-    if(0 == origin->incoming_mask && PARSEC_TASKPOOL_TYPE_PTG == origin->taskpool->taskpool_type) {
+    if(0 == origin->incoming_mask && propagates) {
         remote_dep_inc_flying_messages(task.taskpool);
         (void)parsec_atomic_fetch_inc_int32(&origin->pending_ack);
+        /* A DTD forwarder serves its peers out of the copy it just received, so
+         * it must be a reader of that copy before release_deps hands it to the
+         * local tasks: a local writer only waits for the readers it can see, and
+         * would otherwise overwrite the copy before or while it is forwarded.
+         * remote_dep_complete_and_cleanup returns this reference once the sends
+         * are done. */
+        for(i = 0; origin->msg.bcast_mask >> i; i++) {
+            if( !((1U << i) & origin->msg.bcast_mask) ) continue;
+            if( NULL != origin->output[i].data.data )
+                parsec_dtd_data_copy_reader_retain(origin->output[i].data.data);
+        }
     }
 #endif  /* PARSEC_DIST_COLLECTIVES */
 
@@ -1266,8 +1283,14 @@ remote_dep_release_incoming(parsec_execution_stream_t* es,
     origin->outgoing_mask = 0;
 
 #if defined(PARSEC_DIST_COLLECTIVES)
-    if( PARSEC_TASKPOOL_TYPE_PTG == origin->taskpool->taskpool_type ) /* indicates it is a PTG taskpool */
+    if( propagates ) {
+        /* A PTG activation rebuilds the destinations out of the successors of the
+         * task, a DTD one was handed them: either way the peers below us are the
+         * ones the topology picks out of them. An activation served here is only
+         * handled once this rank has inserted the local task it is for (see the
+         * -2 deferral in remote_dep_get_datatypes). */
         parsec_remote_dep_propagate(es, &task, origin);
+    }
 #endif  /* PARSEC_DIST_COLLECTIVES */
     /**
      * Release the dependency owned by the communication engine for all data
@@ -1292,7 +1315,7 @@ remote_dep_release_incoming(parsec_execution_stream_t* es,
         }
     }
 #if defined(PARSEC_DIST_COLLECTIVES)
-    if(PARSEC_TASKPOOL_TYPE_PTG == origin->taskpool->taskpool_type) {
+    if( propagates ) {
         remote_dep_complete_and_cleanup(&origin, 1);
     } else {
         remote_deps_free(origin);
@@ -1498,6 +1521,42 @@ static inline uint64_t remote_dep_comm_profiling_event_id(void)
 #endif  /* PARSEC_PROF_TRACE */
 
 
+#if defined(PARSEC_DIST_COLLECTIVES)
+/**
+ * Write the destinations in positions first .. first+count-1 (starting at 1) of
+ * a root-relative rank set, either as a list of ranks or as a bitmask of
+ * bits_length words, in the order the topologies visit them.
+ */
+static uint32_t *remote_dep_bcast_write_set(uint32_t *out, const uint32_t *rank_bits, uint32_t bits_length,
+                                            int first, int count, int as_list)
+{
+    int position = 0, last = first + count - 1;
+
+    if( !as_list ) {
+        memset(out, 0, bits_length * sizeof(uint32_t));
+    }
+    for(uint32_t bank = 0; (bank < bits_length) && (position < last); bank++) {
+        uint32_t word = rank_bits[bank];
+
+        if( position + remote_dep_popcount(word) < first ) {  /* nothing for us in this bank */
+            position += remote_dep_popcount(word);
+            continue;
+        }
+        for(uint32_t bit = 0; (0 != word) && (position < last); bit++) {
+            if( !((word >> bit) & 1U) ) continue;
+            word ^= (1U << bit);
+            if( ++position < first ) continue;
+            if( as_list ) {
+                *out++ = bank * 32 + bit;
+            } else {
+                out[bank] |= (1U << bit);
+            }
+        }
+    }
+    return as_list ? out : out + bits_length;
+}
+#endif  /* PARSEC_DIST_COLLECTIVES */
+
 /**
  * Given a remote_dep_wire_activate message it packs as much as possible
  * into the provided buffer. If possible (short allowed and enough room
@@ -1518,6 +1577,8 @@ static int remote_dep_comm_pack_dep(int peer,
     remote_dep_wire_activate_t* msg = &deps->msg;
     int k, dsize, data_idx, saved_position = *position;
     uint32_t peer_bank, peer_bit, peer_mask, expected = 0, *data_sizes;
+    uint32_t bcast_words = 0, bcast_bits = remote_dep_rank_bits_length(), bcast_size;
+    int bcast_first[MAX_PARAM_COUNT], bcast_count[MAX_PARAM_COUNT];
 #if defined(PARSEC_DEBUG) || defined(PARSEC_DEBUG_NOISIER)
     char tmp[MAX_TASK_STRLEN];
     tmp[0] = '\0';
@@ -1538,12 +1599,45 @@ static int remote_dep_comm_pack_dep(int peer,
         if( !(deps->output[k].rank_bits[peer_bank] & peer_mask) ) continue;
         data_idx++;
     }
-    if( (length - (*position)) < (dsize + (data_idx + 1) * (int)sizeof(uint32_t)) ) {  /* no room. bail out */
+    /* A PTG peer replays the task's successors to rebuild the propagation tree,
+     * but a DTD peer only ever inserted the tasks touching its own data, so it
+     * cannot know who else is waiting for this output. Append the destination
+     * set to the message to let it forward the activation down the tree. Every
+     * destination gets the complete set (of its group, when the root had to
+     * split a very large broadcast), the same one all the way down, so that all
+     * of them can place themselves in it. In a star nobody forwards, so the set
+     * would only cost bytes on every message; and with a single destination
+     * there is nobody to forward to.
+     */
+    msg->bcast_mask = 0;
+    bcast_size = 0;
+#if defined(PARSEC_DIST_COLLECTIVES)
+    if( (PARSEC_TASKPOOL_TYPE_DTD == deps->taskpool->taskpool_type) && !remote_dep_bcast_is_star(deps->taskpool) ) {
+        int group_size = remote_dep_bcast_group_size(remote_dep_popcount(msg->output_mask));
+
+        for(k = 0; deps->outgoing_mask >> k; k++) {
+            if( !((1U << k) & deps->outgoing_mask )) continue;
+            if( !(deps->output[k].rank_bits[peer_bank] & peer_mask) ) continue;
+            if( deps->output[k].count_bits < 2 ) continue;  /* nothing left to forward */
+            /* the group this peer belongs to: all the destinations, or one slice of them */
+            int group = (remote_dep_rank_position(deps->output[k].rank_bits, peer_bank, peer_bit) - 1) / group_size;
+            bcast_first[k] = group * group_size + 1;
+            bcast_count[k] = (int)deps->output[k].count_bits - group * group_size;
+            if( bcast_count[k] > group_size ) bcast_count[k] = group_size;
+            if( bcast_count[k] < 2 ) continue;  /* alone in its group: nobody to forward to either */
+            msg->bcast_mask |= (1U << k);
+            bcast_words += 1 + (((uint32_t)bcast_count[k] < bcast_bits) ? (uint32_t)bcast_count[k] : bcast_bits);
+        }
+    }
+#endif  /* PARSEC_DIST_COLLECTIVES */
+    bcast_size = bcast_words * (uint32_t)sizeof(uint32_t);
+    if( (length - (*position)) < (dsize + (int)bcast_size + (data_idx + 1) * (int)sizeof(uint32_t)) ) {  /* no room. bail out */
         PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "Can't pack at %d/%d. Bail out!", *position, length);
-        if( length < (dsize + (data_idx + 1) * (int)sizeof(uint32_t)) ) {
+        if( length < (dsize + (int)bcast_size + (data_idx + 1) * (int)sizeof(uint32_t)) ) {
             parsec_fatal("The header plus data cannot be sent on a single message "
-                         "(need %zd but have %zd)\n",
-                         length, dsize + data_idx * sizeof(uint32_t));
+                         "(need %zu but have %d: header and data %d, destination sets %u, data sizes %zu)\n",
+                         (size_t)(dsize + (int)bcast_size + (data_idx + 1) * (int)sizeof(uint32_t)), length,
+                         dsize, bcast_size, (data_idx + 1) * sizeof(uint32_t));
         }
         return 1;
     }
@@ -1554,9 +1648,32 @@ static int remote_dep_comm_pack_dep(int peer,
     data_sizes[0] = data_idx;  /* save the total number of data */
     assert((0 != msg->output_mask) &&   /* this should be preset */
            (msg->output_mask & deps->outgoing_mask) == deps->outgoing_mask);
+    /* The destination sets follow the data sizes. They are root-relative, and
+     * the peer agrees with us on the root, so they travel as they are. */
+#if defined(PARSEC_DIST_COLLECTIVES)
+    if( 0 != msg->bcast_mask ) {
+        uint32_t *bcast = data_sizes + data_idx + 1;
+
+        for(k = 0; msg->bcast_mask >> k; k++) {
+            if( !((1U << k) & msg->bcast_mask) ) continue;
+            int as_list = ((uint32_t)bcast_count[k] < bcast_bits);
+
+            *bcast++ = (uint32_t)bcast_count[k] | (as_list ? REMOTE_DEP_BCAST_SET_LIST : 0);
+            if( !as_list && (bcast_count[k] == (int)deps->output[k].count_bits) ) {
+                /* all of it, as a bitmask */
+                memcpy(bcast, deps->output[k].rank_bits, bcast_bits * sizeof(uint32_t));
+                bcast += bcast_bits;
+            } else {
+                bcast = remote_dep_bcast_write_set(bcast, deps->output[k].rank_bits, bcast_bits,
+                                                   bcast_first[k], bcast_count[k], as_list);
+            }
+        }
+        assert((uint32_t)((bcast - (data_sizes + data_idx + 1)) * sizeof(uint32_t)) == bcast_size);
+    }
+#endif  /* PARSEC_DIST_COLLECTIVES */
     /* update the length of the message */
     msg->length  = deps->taskpool->tdm.module->outgoing_message_piggyback_size;
-    msg->length += (data_idx + 1) * (uint32_t)sizeof(uint32_t);
+    msg->length += (data_idx + 1) * (uint32_t)sizeof(uint32_t) + bcast_size;
     *position += msg->length;
     item->cmd.activate.task.output_mask = 0;  /* clean start */
     /* Treat for special cases: CTL, Short, etc... */
@@ -2096,6 +2213,34 @@ static void remote_dep_comm_recv_activate(parsec_execution_stream_t* es,
 
     /* move the position after the data sizes */
     *position += (data_sizes[0] + 1) * (uint32_t)sizeof(uint32_t);
+    /* Adopt the destination sets the sender appended, see the matching pack.
+     * They put us in the same position as the root, so that the topology can
+     * tell us which peers are ours to activate. */
+    if( 0 != deps->msg.bcast_mask ) {
+        uint32_t bcast_bits = remote_dep_rank_bits_length();
+        uint32_t *bcast = data_sizes + data_sizes[0] + 1;
+
+        for(k = 0; deps->msg.bcast_mask >> k; k++) {
+            if( !(deps->msg.bcast_mask & (1U << k)) ) continue;
+            uint32_t header = *bcast++, count = header & ~REMOTE_DEP_BCAST_SET_LIST;
+
+            deps->output[k].count_bits = count;
+            if( header & REMOTE_DEP_BCAST_SET_LIST ) {
+                memset(deps->output[k].rank_bits, 0, bcast_bits * sizeof(uint32_t));
+                for(uint32_t r = 0; r < count; r++, bcast++) {
+                    if( *bcast >= bcast_bits * 32 ) {
+                        parsec_fatal("A broadcast destination (%u) is out of the range of ranks of the process group (%u)",
+                                     *bcast, bcast_bits * 32);
+                    }
+                    deps->output[k].rank_bits[*bcast / 32] |= (1U << (*bcast % 32));
+                }
+            } else {
+                memcpy(deps->output[k].rank_bits, bcast, bcast_bits * sizeof(uint32_t));
+                bcast += bcast_bits;
+            }
+        }
+        *position += (int)((bcast - (data_sizes + data_sizes[0] + 1)) * sizeof(uint32_t));
+    }
     ds_idx = 0;
 
     for(k = 0; deps->incoming_mask>>k; k++) {

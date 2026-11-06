@@ -16,6 +16,7 @@
 #include "parsec/interfaces/dtd/insert_function_internal.h"
 #include "parsec/utils/debug.h"
 #include <stdio.h>
+#include <limits.h>
 
 /**
  * Indicator for the status of the communication engine. The following values are valid:
@@ -40,8 +41,11 @@ int parsec_param_comm_thread_multiple = -1;
 
 static int remote_dep_bcast_star_child(int me, int him);
 #ifdef PARSEC_DIST_COLLECTIVES
-/* comm_coll_bcast: see values in the corresponding mca_register */
+/* comm_coll_bcast: see values in the corresponding mca_register. This is the
+ * default of the taskpools, which can override it through their bcast_topology. */
 static int parsec_param_comm_coll_bcast = 1;
+/* comm_coll_bcast_group: the most destinations of a broadcast before it gets split */
+static int parsec_param_comm_coll_bcast_group = REMOTE_DEP_BCAST_SET_WORDS;
 static int remote_dep_bcast_chainpipeline_child(int me, int him);
 static int remote_dep_bcast_binomial_child(int me, int him);
 static int (*remote_dep_bcast_child)(int me, int him) = remote_dep_bcast_chainpipeline_child;
@@ -149,6 +153,14 @@ remote_dep_complete_and_cleanup(parsec_remote_deps_t** deps,
                         (*deps)->pinned_mask ^= (1U << i);
                         parsec_device_data_copy_unpin_reader((*deps)->output[i].data.data);
                     }
+                    /* The reference a DTD forwarder took on the copy it received
+                     * (see remote_dep_release_incoming). The pin above does not
+                     * stand in for it: the gate DTD puts in front of a writer
+                     * only counts what it retained itself. */
+                    if( (PARSEC_TASKPOOL_TYPE_DTD == (*deps)->taskpool->taskpool_type)
+                     && ((1U << i) & (*deps)->msg.bcast_mask) ) {
+                        parsec_dtd_data_copy_reader_release((*deps)->output[i].data.data);
+                    }
                     PARSEC_DATA_COPY_RELEASE((*deps)->output[i].data.data);
                 }
             }
@@ -176,7 +188,7 @@ parsec_remote_deps_t* remote_deps_allocate( parsec_lifo_t* lifo )
         remote_deps->origin = lifo;
         remote_deps->taskpool = NULL;
         ptr = (char*)(&(remote_deps->output[parsec_remote_dep_context.max_dep_count]));
-        rank_bit_size = sizeof(uint32_t) * ((parsec_remote_dep_context.max_nodes_number + 31) / 32);
+        rank_bit_size = sizeof(uint32_t) * remote_dep_rank_bits_length();
         memset(ptr, 0, rank_bit_size * parsec_remote_dep_context.max_dep_count);
         for( i = 0; i < parsec_remote_dep_context.max_dep_count; i++ ) {
             PARSEC_OBJ_CONSTRUCT(&remote_deps->output[i].super, parsec_list_item_t);
@@ -215,7 +227,7 @@ inline void remote_deps_free(parsec_remote_deps_t* deps)
     assert(0 == deps->outgoing_mask);
     for( k = 0; k < parsec_remote_dep_context.max_dep_count; k++ ) {
         if( 0 == deps->output[k].count_bits ) continue;
-        for(a = 0; a < (parsec_remote_dep_context.max_nodes_number + 31)/32; a++)
+        for(a = 0; a < remote_dep_rank_bits_length(); a++)
             deps->output[k].rank_bits[a] = 0;
         deps->output[k].count_bits = 0;
         deps->output[k].data.preferred_device = 0;
@@ -300,6 +312,15 @@ int parsec_remote_dep_init(parsec_context_t* context)
         remote_dep_bcast_child = remote_dep_bcast_star_child;
         break;
     }
+    parsec_mca_param_reg_int_name("runtime", "comm_coll_bcast_group", "Maximum number of destinations of a broadcast of a DTD task. "
+                                                                      "A broadcast to more destinations is split into several, each to a distinct group.\n",
+                                  false, false, parsec_param_comm_coll_bcast_group, &parsec_param_comm_coll_bcast_group);
+    if( parsec_param_comm_coll_bcast_group > REMOTE_DEP_BCAST_SET_WORDS ) {
+        parsec_warning("Broadcast groups are limited to %d destinations; %d requested.",
+                       REMOTE_DEP_BCAST_SET_WORDS, parsec_param_comm_coll_bcast_group);
+        parsec_param_comm_coll_bcast_group = REMOTE_DEP_BCAST_SET_WORDS;
+    }
+    if( parsec_param_comm_coll_bcast_group < 2 ) parsec_param_comm_coll_bcast_group = 2;
 #endif
 
     (void)remote_dep_dequeue_init(context);
@@ -345,6 +366,26 @@ static int remote_dep_bcast_star_child(int me, int him)
 }
 
 #ifdef PARSEC_DIST_COLLECTIVES
+int remote_dep_bcast_is_star(const parsec_taskpool_t *taskpool)
+{
+    switch( taskpool->bcast_topology ) {
+    case PARSEC_BCAST_TOPOLOGY_STAR:     return 1;
+    case PARSEC_BCAST_TOPOLOGY_CHAIN:
+    case PARSEC_BCAST_TOPOLOGY_BINOMIAL: return 0;
+    default:                             return remote_dep_bcast_child == remote_dep_bcast_star_child;
+    }
+}
+
+/* The destination sets of all the outputs of an activation have to share the
+ * room of one message, see REMOTE_DEP_BCAST_SET_WORDS. */
+int remote_dep_bcast_group_size(int nb_outputs)
+{
+    int size = parsec_param_comm_coll_bcast_group / (nb_outputs > 0 ? nb_outputs : 1);
+    return size < 2 ? 2 : size;
+}
+#endif
+
+#ifdef PARSEC_DIST_COLLECTIVES
 
 static int remote_dep_bcast_chainpipeline_child(int me, int him)
 {
@@ -375,6 +416,18 @@ static int remote_dep_bcast_binomial_child(int me, int him)
     }
     /* is the remainder suffix "me" ? */
     return him == me;
+}
+
+/* Whether the destination in position him (the root is in position 0) is a
+ * child of the one in position me, in the topology of the taskpool. */
+static int remote_dep_bcast_child_for(const parsec_taskpool_t *taskpool, int me, int him)
+{
+    switch( taskpool->bcast_topology ) {
+    case PARSEC_BCAST_TOPOLOGY_STAR:     return remote_dep_bcast_star_child(me, him);
+    case PARSEC_BCAST_TOPOLOGY_CHAIN:    return remote_dep_bcast_chainpipeline_child(me, him);
+    case PARSEC_BCAST_TOPOLOGY_BINOMIAL: return remote_dep_bcast_binomial_child(me, him);
+    default:                             return remote_dep_bcast_child(me, him);
+    }
 }
 
 /**
@@ -431,27 +484,47 @@ int parsec_remote_dep_propagate(parsec_execution_stream_t* es,
                                 parsec_remote_deps_t* deps)
 {
     const parsec_task_class_t* tc = task->task_class;
-    uint32_t dep_mask = 0;
+    uint32_t dep_mask = 0, propagation_mask = deps->msg.output_mask;
 
     assert(deps->root != es->virtual_process->parsec_context->my_rank );
-    /* If I am not the root of the collective I must rebuild the same
-     * information as the root, i.e. the exact same propagation tree as the
-     * initiator.
-     */
     assert(0 == deps->outgoing_mask);
 
-    /* We need to convert from a dep_datatype_index mask into a dep_index mask */
-    for(int i = 0; NULL != tc->out[i]; i++ )
-        for(int j = 0; NULL != tc->out[i]->dep_out[j]; j++ )
-            if(deps->msg.output_mask & (1U << tc->out[i]->dep_out[j]->dep_datatype_index))
-                dep_mask |= (1U << tc->out[i]->dep_out[j]->dep_index);
+    if( 0 != deps->msg.bcast_mask ) {
+        /* The sender handed us the destination set, so there is nothing to
+         * rebuild: we only have to forward the outputs it covers. */
+        propagation_mask = deps->outgoing_mask = deps->msg.bcast_mask;
+        /* What we serve is the copy as we received it: the layout on the sending
+         * side is the one of our reception, whatever our local consumer
+         * described, so that we never send more than what we hold. We can't
+         * tell whether the ranks of the broadcast described the flow with the
+         * same type signature, and expect them to. */
+        for(int k = 0; propagation_mask >> k; k++) {
+            parsec_dep_type_description_t *remote = &deps->output[k].data.remote;
 
-    tc->iterate_successors(es, task,
-                           dep_mask | PARSEC_ACTION_RELEASE_REMOTE_DEPS,
-                           parsec_gather_collective_pattern,
-                           deps);
+            if( !((1U << k) & propagation_mask) || (NULL == deps->output[k].data.data) ) continue;
+            remote->src_datatype = remote->dst_datatype;
+            remote->src_count    = remote->dst_count;
+            remote->src_displ    = remote->dst_displ;
+        }
+    } else {
+        /* If I am not the root of the collective I must rebuild the same
+         * information as the root, i.e. the exact same propagation tree as the
+         * initiator.
+         */
 
-    return parsec_remote_dep_activate(es, task, deps, deps->msg.output_mask);
+        /* We need to convert from a dep_datatype_index mask into a dep_index mask */
+        for(int i = 0; NULL != tc->out[i]; i++ )
+            for(int j = 0; NULL != tc->out[i]->dep_out[j]; j++ )
+                if(deps->msg.output_mask & (1U << tc->out[i]->dep_out[j]->dep_datatype_index))
+                    dep_mask |= (1U << tc->out[i]->dep_out[j]->dep_index);
+
+        tc->iterate_successors(es, task,
+                               dep_mask | PARSEC_ACTION_RELEASE_REMOTE_DEPS,
+                               parsec_gather_collective_pattern,
+                               deps);
+    }
+
+    return parsec_remote_dep_activate(es, task, deps, propagation_mask);
 }
 #endif
 
@@ -493,6 +566,17 @@ int parsec_remote_dep_activate(parsec_execution_stream_t* es,
     /* Mark the root of the collective as rank 0 */
     remote_dep_mark_forwarded(es, remote_deps, remote_deps->root);
     assert((propagation_mask & remote_deps->outgoing_mask) == remote_deps->outgoing_mask);
+
+    /* The destination set of a DTD collective travels with the activation, and
+     * is limited in size: past that limit the root treats the destinations as
+     * several groups, and all the groups see the root as theirs. The ranks of a
+     * group are numbered from 1 within it, as the topologies expect. */
+    int group_size = INT_MAX;
+#if defined(PARSEC_DIST_COLLECTIVES)
+    if( PARSEC_TASKPOOL_TYPE_DTD == task->taskpool->taskpool_type )
+        group_size = remote_dep_bcast_group_size(remote_dep_popcount(propagation_mask));
+#endif  /* PARSEC_DIST_COLLECTIVES */
+    (void)group_size;
 
     for( i = 0; propagation_mask >> i; i++ ) {
         if( !((1U << i) & propagation_mask )) continue;
@@ -581,17 +665,11 @@ int parsec_remote_dep_activate(parsec_execution_stream_t* es,
                 PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, " TOPO\t%s\troot=%d\t%d (d%d) -? %d (dna)",
                         tmp, remote_deps->root, es->virtual_process->parsec_context->my_rank, my_idx, rank);
 
-                int remote_dep_bcast_child_permits = 0;
-                /* Right now DTD only supports a star broadcast topology */
-                if( PARSEC_TASKPOOL_TYPE_DTD == task->taskpool->taskpool_type ) {
-                    remote_dep_bcast_child_permits = remote_dep_bcast_star_child(my_idx, idx);
-                } else {
 #ifdef PARSEC_DIST_COLLECTIVES
-                    remote_dep_bcast_child_permits = remote_dep_bcast_child(my_idx, idx);
+                int remote_dep_bcast_child_permits = remote_dep_bcast_child_for(task->taskpool, my_idx, ((idx - 1) % group_size) + 1);
 #else
-                    remote_dep_bcast_child_permits = remote_dep_bcast_star_child(my_idx, idx);
+                int remote_dep_bcast_child_permits = remote_dep_bcast_star_child(my_idx, idx);
 #endif  /* PARSEC_DIST_COLLECTIVES */
-                }
 
                 if(remote_dep_bcast_child_permits) {
                     PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "[%d:%d] task %s my_idx %d idx %d rank %d -- send (%x)",
@@ -649,7 +727,7 @@ void remote_deps_allocation_init(int np, int max_output_deps)
 
     if( 0 == parsec_remote_dep_inited ) {
         /* compute the maximum size of the dependencies array */
-        int rankbits_size = sizeof(uint32_t) * ((np + 31)/32);
+        int rankbits_size = sizeof(uint32_t) * remote_dep_rank_bits_length_for(np);
         parsec_remote_deps_t fake_rdep;
 
         parsec_remote_dep_context.max_dep_count = max_output_deps;
