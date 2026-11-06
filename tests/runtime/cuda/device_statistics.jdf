@@ -18,6 +18,7 @@ extern "C" %{
 #include "parsec/mca/device/device.h"
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "parsec/utils/mca_param.h"
+#include "parsec/utils/parsec_environ.h"
 
 #include <assert.h>
 #include <inttypes.h>
@@ -251,7 +252,6 @@ int main(int argc, char **argv)
 #endif
 
     /* A single GPU keeps device-to-device transfers out of the counters. */
-    extern char **environ;
 #if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
     parsec_setenv_mca_param("device_cuda_enabled", "1", &environ);
 #endif
