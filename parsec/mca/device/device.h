@@ -218,6 +218,19 @@ extern int parsec_device_skip_empty_events;
  * on the host to remain universally available.
  */
 extern int parsec_device_peer_mesh_incomplete;
+/**
+ * Whether a read-only input that already sits on an accelerator may be left
+ * where it is and read from there by a kernel running on another one, instead
+ * of being copied over. Only peers linked well enough for a kernel to read
+ * across at a cost close to its own memory are eligible, which keeps a single
+ * instance of such a data for all of them.
+ *
+ * Disabled by default: even over NVLink, a peer is read several times slower
+ * than local memory, so a kernel that streams an input through many times over,
+ * as a GEMM does, is better served by one copy. What this buys is device
+ * memory, and it is for the application that is short of it to ask.
+ */
+extern int parsec_device_peer_direct_access;
 #if defined(PARSEC_DEBUG) || defined(PARSEC_DEBUG_NOISIER)
 /** Debug: make the Nth accelerator kernel submission decline the device. */
 extern int parsec_device_inject_disable;

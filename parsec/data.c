@@ -29,6 +29,7 @@ static void parsec_data_copy_construct(parsec_data_copy_t* obj)
     obj->flags                = 0;
     obj->coherency_state      = PARSEC_DATA_COHERENCY_INVALID;
     obj->readers              = 0;
+    obj->peer_readers         = 0;
     obj->version              = 0;
     obj->older                = NULL;
     obj->original             = NULL;

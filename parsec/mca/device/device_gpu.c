@@ -1227,6 +1227,66 @@ static int parsec_gpu_copy_recoverability(parsec_data_copy_t *copy)
     return PARSEC_GPU_COPY_RECOVERABLE;
 }
 
+static inline int
+parsec_gpu_data_copy_acquire_reader(parsec_data_copy_t *copy,
+                                    parsec_data_t *expected_original,
+                                    uint32_t expected_version);
+
+/**
+ * Tell whether a copy can serve a kernel of this device where it already lies,
+ * instead of being duplicated here first.
+ *
+ * The copy has to sit on a peer this device reads at a cost close to its own
+ * memory, to hold a value, and to be settled: one still under transfer is being
+ * filled by the input stream of the device that owns it, and nothing on this
+ * side orders a kernel after an event recorded over there.
+ */
+static parsec_data_copy_t *
+parsec_device_borrow_peer_direct_copy( parsec_device_gpu_module_t *gpu_device,
+                                       parsec_data_t *original, uint32_t version );
+
+static inline int
+parsec_device_copy_is_peer_direct( const parsec_device_gpu_module_t *gpu_device,
+                                   const parsec_data_copy_t *copy )
+{
+    if( !parsec_device_peer_direct_access ) return 0;
+    if( NULL == copy ) return 0;
+    if( copy->device_index == gpu_device->super.device_index ) return 0;
+    if( !(gpu_device->peer_direct_mask & (1 << copy->device_index)) ) return 0;
+    if( parsec_data_copy_is_placeholder(copy) ) return 0;
+    if( PARSEC_DATA_COHERENCY_INVALID == copy->coherency_state ) return 0;
+    if( PARSEC_DATA_STATUS_UNDER_TRANSFER == copy->data_transfer_status ) return 0;
+    return 1;
+}
+
+/**
+ * Look for a copy of @p original holding @p version on a peer this device reads
+ * directly, and take a reader on it so that its owner cannot reclaim the memory
+ * while a kernel here is reading it. Returns that copy, or NULL when no peer has
+ * one to offer, in which case the caller falls back on making a local copy.
+ *
+ * The lock of @p original must be held.
+ */
+static parsec_data_copy_t *
+parsec_device_borrow_peer_direct_copy( parsec_device_gpu_module_t *gpu_device,
+                                       parsec_data_t *original, uint32_t version )
+{
+    if( !parsec_device_peer_direct_access ) return NULL;
+
+    for( int t = 1; t < (int)parsec_nb_devices; t++ ) {
+        parsec_data_copy_t *peer_copy = PARSEC_DATA_GET_COPY(original, t);
+
+        if( !parsec_device_copy_is_peer_direct(gpu_device, peer_copy) ) continue;
+        if( NULL == peer_copy->device_private ) continue;
+        if( peer_copy->version != version ) continue;
+        if( parsec_gpu_data_copy_acquire_reader(peer_copy, original, version) ) {
+            parsec_atomic_fetch_inc_int32(&peer_copy->peer_readers);
+            return peer_copy;
+        }
+    }
+    return NULL;
+}
+
 /**
  * Try to find memory space to move all data on the GPU. We attach a device_elem to
  * a memory_elem as soon as a device_elem is available. If we fail to find enough
@@ -1309,7 +1369,17 @@ parsec_device_data_reserve_space( parsec_device_gpu_module_t* gpu_device,
          * data and it is invalid, so giving it memory again below is enough for
          * the stage in to refill it from the host mirror.
          */
+        /* A writer cannot take over a copy that kernels of other devices are
+         * reading where it lies: those reads answer to their own devices and
+         * nothing here orders them against this write. Leave that copy to them
+         * and write into one of this device's own instead, which the attach
+         * further down makes the current one while theirs lives on behind it
+         * until the last of its readers is done.
+         */
+        int peer_read_in_place = (0 != (PARSEC_FLOW_ACCESS_WRITE & flow->flow_flags)) &&
+                                 (0 < this_task->data[i].data_in->peer_readers);
         if( (gpu_device->super.device_index == this_task->data[i].data_in->device_index) &&
+            !peer_read_in_place &&
             !parsec_data_copy_is_placeholder(this_task->data[i].data_in) ) {
             parsec_data_copy_t *input_copy = this_task->data[i].data_in;
             PARSEC_DEBUG_VERBOSE(20, parsec_gpu_output_stream,
@@ -1336,6 +1406,15 @@ parsec_device_data_reserve_space( parsec_device_gpu_module_t* gpu_device,
         master   = this_task->data[i].data_in->original;
         parsec_atomic_lock(&master->lock);
         gpu_elem = PARSEC_DATA_GET_COPY(master, gpu_device->super.device_index);
+        if( (0 != (PARSEC_FLOW_ACCESS_WRITE & flow->flow_flags)) &&
+            (NULL != gpu_elem) && (0 < gpu_elem->peer_readers) ) {
+            PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
+                                 "GPU[%d:%s]:%s: Flow %s:%i writes, and copy %p is read in place by %d peer(s); "
+                                 "taking a copy of this device's own",
+                                 gpu_device->super.device_index, gpu_device->super.name, task_name,
+                                 flow->name, i, gpu_elem, gpu_elem->peer_readers);
+            gpu_elem = NULL;  /* reserve a new one below, leaving theirs alone */
+        }
         this_task->data[i].data_out = gpu_elem;
 
 #if !defined(PARSEC_GPU_ALLOC_PER_TILE)
@@ -1384,6 +1463,32 @@ parsec_device_data_reserve_space( parsec_device_gpu_module_t* gpu_device,
             }
             parsec_atomic_unlock(&master->lock);
             continue;
+        }
+
+        /* Nothing of this data is here, and the flow only reads it. If a peer
+         * this device reads directly already holds the version the flow was
+         * handed, the kernel reads it there instead of this device making room
+         * and copying it over, which is what leaves a single instance of the
+         * data for every accelerator that reaches it. A peer that has moved on
+         * since, or that is repurposing its copy, declines and the ordinary path
+         * below makes a local copy as before.
+         */
+        if( !(PARSEC_FLOW_ACCESS_WRITE & flow->flow_flags) ) {
+            parsec_data_copy_t *peer_copy =
+                parsec_device_borrow_peer_direct_copy(gpu_device, master,
+                                                      this_task->data[i].data_in->version);
+            if( NULL != peer_copy ) {
+                PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
+                                     "GPU[%d:%s]:%s: Flow %s:%i reads copy %p v%u directly on device %d",
+                                     gpu_device->super.device_index, gpu_device->super.name, task_name,
+                                     flow->name, i, peer_copy, peer_copy->version,
+                                     peer_copy->device_index);
+                this_task->data[i].data_out = peer_copy;
+                gpu_device->nb_peer_direct_reads++;
+                gpu_device->peer_direct_bytes += gpu_task->flow_info[i].flow_span;
+                parsec_atomic_unlock(&master->lock);
+                continue;
+            }
         }
 
 #if !defined(PARSEC_GPU_ALLOC_PER_TILE)
@@ -2200,6 +2305,30 @@ parsec_device_data_stage_in( parsec_device_gpu_module_t* gpu_device,
         PARSEC_DEBUG_VERBOSE(5, parsec_gpu_output_stream,
                              "GPU[%d:%s]: Prefetch task %p is staging in",
                              gpu_device->super.device_index, gpu_device->super.name, gpu_task);
+    }
+    /* The reservation chose to read this input where it lies, on a peer this
+     * device reaches directly, so there is nothing to transfer and nothing to
+     * wait for: the copy already held a value, and its reader has been held
+     * since the reservation. It stands as its own source, which is what tells
+     * the push completion that this flow closes out no transfer of its own.
+     */
+    if( parsec_device_copy_is_peer_direct(gpu_device, gpu_elem) ) {
+        gpu_task->flow_info[flow->flow_index].source = gpu_elem;
+        PARSEC_DEBUG_VERBOSE(20, parsec_gpu_output_stream,
+                             "GPU[%d:%s]:\t\tFlow %s reads copy %p v%u directly on device %d, no transfer",
+                             gpu_device->super.device_index, gpu_device->super.name,
+                             flow->name, gpu_elem, gpu_elem->version, gpu_elem->device_index);
+#if defined(PARSEC_DEBUG_NOISIER)
+        if( parsec_device_audit_stage_in ) {
+            parsec_device_gpu_copy_snapshot_t snapshot;
+            parsec_atomic_lock( &original->lock );
+            parsec_device_gpu_snapshot_copies(original, &snapshot);
+            parsec_atomic_unlock( &original->lock );
+            parsec_device_gpu_audit_source(gpu_device, flow, gpu_task, original, &snapshot,
+                                           task_data->data_in, gpu_elem, "PEERDIRECT");
+        }
+#endif  /* defined(PARSEC_DEBUG_NOISIER) */
+        return PARSEC_HOOK_RETURN_DONE;
     }
     if( gpu_elem == candidate ) {  /* data already located in the right place */
         if( candidate->device_index == gpu_device->super.device_index ) {
@@ -3233,7 +3362,11 @@ parsec_device_callback_complete_push(parsec_device_gpu_module_t   *gpu_device,
          * copy under transfer is one the eviction will never take back.
          */
         if( (gpu_device->super.device_index == task->data[i].data_in->device_index) &&
-            (gtask->flow_info[i].source == task->data[i].data_in) ) continue;
+           (gtask->flow_info[i].source == task->data[i].data_in) ) continue;
+        /* Neither has a flow that reads its input on a peer, where it lies: no
+         * transfer was issued for it, and the copy belongs to that peer. */
+        if( (gtask->flow_info[i].source == task->data[i].data_out) &&
+            (gpu_device->super.device_index != task->data[i].data_out->device_index) ) continue;
 
         flow = gtask->flow_info[i].flow;
         assert( flow );
@@ -3933,6 +4066,13 @@ parsec_device_kernel_pop( parsec_device_gpu_module_t   *gpu_device,
 
         parsec_atomic_lock(&original->lock);
         if( flow->flow_flags & PARSEC_FLOW_ACCESS_READ ) {
+            /* A copy this device read where it lies stops being out of reach of
+             * its owner's ordering here, which is what reopens it to a writer
+             * there. Give that up before the reader itself, so that the count
+             * never claims a peer this flow no longer has. */
+            if( gpu_copy->device_index != gpu_device->super.device_index ) {
+                parsec_atomic_fetch_add_int32(&gpu_copy->peer_readers, -1);
+            }
             int current_readers = parsec_gpu_data_copy_release_reader(gpu_device, gpu_copy,
                                                                       !(flow->flow_flags & PARSEC_FLOW_ACCESS_WRITE));
             if( current_readers < 0 ) {
