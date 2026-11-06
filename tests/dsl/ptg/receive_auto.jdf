@@ -1,0 +1,440 @@
+extern "C" %{
+/*
+ * Copyright (c) 2026
+ */
+
+/**
+ * Receive data whose size is only known at runtime with [type_remote = AUTO].
+ *
+ * SEND(k) sends three payloads whose size changes with k to RECV(k+1):
+ *  - A: nbytes(k) bytes, received as bytes ([type_remote = AUTO]);
+ *  - B: ndbl(k) doubles, received as doubles
+ *       ([type_remote = AUTO layout_remote = parsec_datatype_double_t]);
+ *  - C: nbytes(k) bytes, received as doubles when nbytes(k) is a whole number
+ *       of doubles, and as bytes otherwise;
+ *  - D: ndbl(k) doubles sent and received as DSTRIDED, a double resized to
+ *       twice its extent, so that the packed size of an element (8) differs
+ *       from its extent (16): the count comes from the packed size, the
+ *       buffer from the extent.
+ * RECV checks the content and, when the data came from another process, that
+ * the received copy spans exactly the payload and carries the datatype it was
+ * received with. SEND and RECV also have CUDA incarnations: the payloads are
+ * then produced on a GPU, and checked once the runtime staged them in GPU
+ * memory (the transfers are sized by the span); -g=N fails the test unless at
+ * least N RECV ran on a GPU.
+ */
+
+#include <assert.h>
+#include <inttypes.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "parsec.h"
+#include "parsec/data_internal.h"
+#include "parsec/mca/device/device.h"
+#include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include "tests/tests_runtime.h"
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
+#include <cuda_runtime.h>
+#endif
+
+static int32_t g_errors = 0;
+static int32_t g_remote = 0;
+static int32_t g_gpu = 0;       /* RECV run on a GPU */
+static int32_t g_gpu_send = 0;  /* SEND run on a GPU */
+static int32_t g_direct = 0;    /* data received straight into GPU memory */
+
+/* A copy the GPU task reads that arrived directly in GPU memory: the host copy
+ * made next to it was never filled, nothing was staged in. */
+static inline int received_on_gpu(const parsec_data_copy_t *copy)
+{
+    const parsec_data_copy_t *host = copy->original->device_copies[0];
+    return (0 != copy->device_index) &&
+           ((NULL == host) || (PARSEC_DATA_COHERENCY_INVALID == host->coherency_state));
+}
+
+/* Payload sizes spread over [1, max] */
+static inline int nbytes_of(int k, int max)
+{
+    uint64_t h = (uint64_t)(k + 1) * 2654435761ULL;
+    if( 0 == (k & 1) ) {  /* a whole number of doubles */
+        return 8 * (int)(1 + h % (uint64_t)(max / 8));
+    }
+    return (int)(1 + h % (uint64_t)max);
+}
+
+static inline int ndbl_of(int k, int max)
+{
+    uint64_t h = (uint64_t)(k + 1) * 40503ULL;
+    return (int)(1 + h % (uint64_t)(max / 16));
+}
+
+static inline uint8_t byte_of(int k, int i) { return (uint8_t)((7 * k + i) & 0xff); }
+static inline double  dbl_of(int k, int i)  { return (double)k + 0.5 * (double)i; }
+
+static inline int rank_of_k(parsec_matrix_block_cyclic_t *desc, int k)
+{
+    parsec_data_collection_t *dc = (parsec_data_collection_t*)desc;
+    return (int)dc->rank_of(dc, k, 0);
+}
+
+static int check_payload(int k, int prev, const uint8_t *a, const double *b, const uint8_t *c,
+                         const double *d, int nbytes, int ndbl)
+{
+    for(int i = 0; i < nbytes; i++) {
+        if( (a[i] != byte_of(prev, i)) || (c[i] != byte_of(prev, i)) ) {
+            fprintf(stderr, "receive_auto: RECV(%d) wrong byte %d of %d\n", k, i, nbytes);
+            return 1;
+        }
+    }
+    for(int i = 0; i < ndbl; i++) {
+        if( b[i] != dbl_of(prev, i) ) {
+            fprintf(stderr, "receive_auto: RECV(%d) wrong double %d of %d\n", k, i, ndbl);
+            return 1;
+        }
+        if( d[2 * i] != dbl_of(prev, i) ) {  /* the holes are not transferred */
+            fprintf(stderr, "receive_auto: RECV(%d) wrong strided double %d of %d\n", k, i, ndbl);
+            return 1;
+        }
+    }
+    return 0;
+}
+
+/* dtt is only checked when not PARSEC_DATATYPE_NULL */
+static int check_copy(const char *name, int k, const parsec_data_copy_t *copy,
+                      size_t bytes, parsec_datatype_t dtt)
+{
+    int err = 0;
+    if( copy->original->span != bytes ) {
+        fprintf(stderr, "receive_auto: RECV(%d) %s spans %zu bytes, expected %zu\n",
+                k, name, copy->original->span, bytes);
+        err++;
+    }
+    if( (PARSEC_DATATYPE_NULL != dtt) && (copy->dtt != dtt) ) {
+        fprintf(stderr, "receive_auto: RECV(%d) %s was not received with the expected datatype\n",
+                k, name);
+        err++;
+    }
+    return err;
+}
+
+static void account(int err, int remote)
+{
+    if( remote ) (void)parsec_atomic_fetch_inc_int32(&g_remote);
+    if( err ) (void)parsec_atomic_fetch_add_int32(&g_errors, err);
+}
+%}
+
+descA      [type = "parsec_matrix_block_cyclic_t*"]
+NT         [type = int]
+MAX_BYTES  [type = int]
+DSTRIDED   [type = "parsec_datatype_t"]
+
+SEND(k)
+k = 0 .. NT-2
+nbytes = %{ return nbytes_of(k, MAX_BYTES); %}
+ndbl   = %{ return ndbl_of(k, MAX_BYTES); %}
+
+: descA(k, 0)
+
+RW A <- descA(k, 0)
+     -> A RECV(k+1)  [ type_remote   = DEFAULT
+                       layout_remote = parsec_datatype_int8_t
+                       count_remote  = %{ return nbytes; %} ]
+WRITE B <- NEW          [ type = DEFAULT ]
+        -> B RECV(k+1)  [ type_remote   = DEFAULT
+                          layout_remote = parsec_datatype_double_t
+                          count_remote  = %{ return ndbl; %} ]
+WRITE C <- NEW          [ type = DEFAULT ]
+        -> C RECV(k+1)  [ type_remote   = DEFAULT
+                          layout_remote = parsec_datatype_int8_t
+                          count_remote  = %{ return nbytes; %} ]
+WRITE D <- NEW          [ type = DEFAULT ]
+        -> D RECV(k+1)  [ type_remote   = DEFAULT
+                          layout_remote = DSTRIDED
+                          count_remote  = %{ return ndbl; %} ]
+
+BODY [type=CUDA]
+{
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
+    /* Produce on the GPU: the payloads then leave for the receivers from a
+     * copy the device owns, B and C from a NEW data that only exists there. */
+    size_t dbytes = (size_t)ndbl * sizeof(double);
+    uint8_t *a = (uint8_t*)malloc((size_t)nbytes);
+    double *b = (double*)malloc(dbytes), *d = (double*)malloc(2 * dbytes);
+    for(int i = 0; i < nbytes; i++) a[i] = byte_of(k, i);
+    for(int i = 0; i < ndbl; i++) b[i] = dbl_of(k, i);
+    for(int i = 0; i < 2 * ndbl; i++) d[i] = (0 == (i & 1)) ? dbl_of(k, i / 2) : -1.0;
+    if( (cudaSuccess != cudaMemcpyAsync(A, a, (size_t)nbytes, cudaMemcpyHostToDevice, parsec_body.stream)) ||
+        (cudaSuccess != cudaMemcpyAsync(C, a, (size_t)nbytes, cudaMemcpyHostToDevice, parsec_body.stream)) ||
+        (cudaSuccess != cudaMemcpyAsync(B, b, dbytes, cudaMemcpyHostToDevice, parsec_body.stream)) ||
+        (cudaSuccess != cudaMemcpyAsync(D, d, 2 * dbytes, cudaMemcpyHostToDevice, parsec_body.stream)) ||
+        (cudaSuccess != cudaStreamSynchronize(parsec_body.stream)) ) {
+        fprintf(stderr, "receive_auto: SEND(%d) cannot write the data on the GPU\n", k);
+        (void)parsec_atomic_fetch_inc_int32(&g_errors);
+    }
+    free(a); free(b); free(d);
+    (void)parsec_atomic_fetch_inc_int32(&g_gpu_send);
+#endif  /* defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) */
+}
+END
+
+BODY
+{
+    uint8_t *a = (uint8_t*)A, *c = (uint8_t*)C;
+    double *b = (double*)B, *d = (double*)D;
+    for(int i = 0; i < nbytes; i++) {
+        a[i] = byte_of(k, i);
+        c[i] = byte_of(k, i);
+    }
+    for(int i = 0; i < ndbl; i++) {
+        b[i] = dbl_of(k, i);
+        d[2 * i] = dbl_of(k, i);      /* the element */
+        d[2 * i + 1] = -1.0;          /* the hole */
+    }
+}
+END
+
+RECV(k)
+k = 1 .. NT-1
+prev   = %{ return k - 1; %}
+nbytes = %{ return nbytes_of(prev, MAX_BYTES); %}
+ndbl   = %{ return ndbl_of(prev, MAX_BYTES); %}
+
+: descA(k, 0)
+
+READ A <- A SEND(prev)  [ type_remote = AUTO ]
+READ B <- B SEND(prev)  [ type_remote = AUTO  layout_remote = parsec_datatype_double_t ]
+READ C <- C SEND(prev)  [ type_remote = AUTO  layout_remote = parsec_datatype_double_t ]
+READ D <- D SEND(prev)  [ type_remote = AUTO  layout_remote = DSTRIDED ]
+
+BODY [type=CUDA]
+{
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
+    size_t dbytes = (size_t)ndbl * sizeof(double);
+    uint8_t *a = (uint8_t*)malloc((size_t)nbytes), *c = (uint8_t*)malloc((size_t)nbytes);
+    double *b = (double*)malloc(dbytes), *d = (double*)malloc(2 * dbytes);
+    int err = 0;
+
+    /* the runtime staged exactly the span of each data in GPU memory */
+    if( (cudaSuccess != cudaMemcpy(a, A, (size_t)nbytes, cudaMemcpyDeviceToHost)) ||
+        (cudaSuccess != cudaMemcpy(b, B, dbytes, cudaMemcpyDeviceToHost)) ||
+        (cudaSuccess != cudaMemcpy(c, C, (size_t)nbytes, cudaMemcpyDeviceToHost)) ||
+        (cudaSuccess != cudaMemcpy(d, D, 2 * dbytes, cudaMemcpyDeviceToHost)) ) {
+        fprintf(stderr, "receive_auto: RECV(%d) cannot read the data back from the GPU\n", k);
+        err++;
+    } else {
+        err += check_payload(k, prev, a, b, c, d, nbytes, ndbl);
+    }
+    int remote = (rank_of_k(descA, prev) != rank_of_k(descA, k));
+    if( remote ) {
+        err += check_copy("A", k, _f_A, (size_t)nbytes, PARSEC_DATATYPE_NULL);
+        err += check_copy("B", k, _f_B, dbytes, PARSEC_DATATYPE_NULL);
+        err += check_copy("C", k, _f_C, (size_t)nbytes, PARSEC_DATATYPE_NULL);
+        err += check_copy("D", k, _f_D, 2 * dbytes, PARSEC_DATATYPE_NULL);
+    }
+    free(a); free(b); free(c); free(d);
+    (void)parsec_atomic_fetch_inc_int32(&g_gpu);
+    if( remote ) {
+        (void)parsec_atomic_fetch_add_int32(&g_direct, received_on_gpu(_f_A) + received_on_gpu(_f_B) +
+                                                       received_on_gpu(_f_C) + received_on_gpu(_f_D));
+    }
+    account(err, remote);
+#endif  /* defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) */
+}
+END
+
+BODY
+{
+    int err = check_payload(k, prev, (const uint8_t*)A, (const double*)B, (const uint8_t*)C,
+                            (const double*)D, nbytes, ndbl);
+    int remote = (rank_of_k(descA, prev) != rank_of_k(descA, k));
+    if( remote ) {
+        err += check_copy("A", k, _f_A, (size_t)nbytes, parsec_datatype_int8_t);
+        err += check_copy("B", k, _f_B, (size_t)ndbl * sizeof(double), parsec_datatype_double_t);
+        err += check_copy("C", k, _f_C, (size_t)nbytes,
+                          (0 == (nbytes % 8)) ? parsec_datatype_double_t : parsec_datatype_int8_t);
+        /* ndbl elements of 8 packed bytes, each spanning 16 bytes */
+        err += check_copy("D", k, _f_D, (size_t)ndbl * 2 * sizeof(double), DSTRIDED);
+    }
+    account(err, remote);
+}
+END
+
+extern "C" %{
+int main(int argc, char **argv)
+{
+    parsec_context_t *parsec = NULL;
+    parsec_receive_auto_taskpool_t *tp;
+    parsec_matrix_block_cyclic_t descA;
+    parsec_arena_datatype_t *adt = PARSEC_OBJ_NEW(parsec_arena_datatype_t);
+    int rank = 0, world = 1, nt = 64, max_bytes = 256, min_gpu = 0, min_direct = 0, gpus_per_process = 0, rc;
+    int32_t local[5], global[5];
+    int pargc = 0;
+    char **pargv = NULL, **own_argv = NULL;
+    char mask_str[32];
+    parsec_datatype_t dstrided = PARSEC_DATATYPE_NULL;
+
+    for(int i = 1; i < argc; i++) {
+        if( 0 == strcmp(argv[i], "--") ) {
+            pargc = argc - i;
+            pargv = argv + i;
+            break;
+        }
+        if( 0 == strncmp(argv[i], "-n=", 3) ) {
+            nt = (int)strtol(argv[i] + 3, NULL, 10);
+            continue;
+        }
+        if( 0 == strncmp(argv[i], "-b=", 3) ) {
+            max_bytes = (int)strtol(argv[i] + 3, NULL, 10);
+            continue;
+        }
+        if( 0 == strncmp(argv[i], "-g=", 3) ) {
+            min_gpu = (int)strtol(argv[i] + 3, NULL, 10);
+            continue;
+        }
+        if( 0 == strncmp(argv[i], "-G=", 3) ) {
+            /* give each process of a node its own N GPUs (no GPU shared
+             * between processes), from the local rank the launcher exports */
+            gpus_per_process = (int)strtol(argv[i] + 3, NULL, 10);
+            continue;
+        }
+        if( 0 == strncmp(argv[i], "-d=", 3) ) {
+            /* prefer a GPU for every local tile, so that the data for its
+             * tasks is received straight into GPU memory when the
+             * communication engine allows it (mpi_gpu_aware); fail unless at
+             * least that many data were */
+            min_direct = (int)strtol(argv[i] + 3, NULL, 10);
+            continue;
+        }
+    }
+    if( nt < 2 ) nt = 2;
+    if( max_bytes < 16 ) max_bytes = 16;
+
+    if( gpus_per_process > 0 ) {
+        const char *envs[] = { "OMPI_COMM_WORLD_LOCAL_RANK", "SLURM_LOCALID", "PMI_LOCAL_RANK",
+                               "MV2_COMM_WORLD_LOCAL_RANK", "MPI_LOCALRANKID", NULL };
+        int local_rank = 0;
+        for(int e = 0; NULL != envs[e]; e++) {
+            if( NULL != getenv(envs[e]) ) { local_rank = atoi(getenv(envs[e])); break; }
+        }
+        snprintf(mask_str, sizeof(mask_str), "%d", ((1 << gpus_per_process) - 1) << (local_rank * gpus_per_process));
+        /* "--" "--mca" "device_cuda_mask" mask, then the user's own options */
+        own_argv = (char**)malloc((size_t)(pargc + 5) * sizeof(char*));
+        own_argv[0] = "--"; own_argv[1] = "--mca"; own_argv[2] = "device_cuda_mask"; own_argv[3] = mask_str;
+        for(int i = 1; i < pargc; i++) own_argv[3 + i] = pargv[i];
+        own_argv[(pargc > 0) ? pargc + 3 : 4] = NULL;
+        pargc = (pargc > 0) ? pargc + 3 : 4;
+        pargv = own_argv;
+    }
+
+    rc = parsec_tests_context_init(-1, PARSEC_TEST_THREAD_SERIALIZED, &pargc, &pargv,
+                                   &parsec, &rank, &world);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_init");
+
+    /* -g asks for RECV to run on a GPU: without one anywhere this is a skip,
+     * not a failure (SKIP_RETURN_CODE in tests/CMakeLists.txt). The decision
+     * is collective: a process without a GPU still takes part in the run. */
+    if( min_gpu > 0 ) {
+        int32_t ngpu = parsec_context_query(parsec, PARSEC_CONTEXT_QUERY_DEVICES, PARSEC_DEV_CUDA);
+        int32_t ngpu_all = 0;
+        if( ngpu < 0 ) ngpu = 0;
+        rc = parsec_tests_allreduce(parsec, &ngpu, &ngpu_all, 1, parsec_datatype_int32_t,
+                                    PARSEC_TESTS_REDUCE_SUM);
+        PARSEC_CHECK_ERROR(rc, "parsec_tests_allreduce");
+        if( ngpu_all <= 0 ) {
+            if( 0 == rank ) {
+                parsec_warning("receive_auto: -g=%d needs at least one CUDA device", min_gpu);
+            }
+            rc = parsec_tests_context_fini(&parsec);
+            PARSEC_CHECK_ERROR(rc, "parsec_tests_context_fini");
+            return -PARSEC_ERR_DEVICE;
+        }
+    }
+
+    /* One tile of max_bytes bytes per k, round robin over the processes: with
+     * more than one process every RECV(k) receives from another process. */
+    parsec_matrix_block_cyclic_init(&descA, PARSEC_MATRIX_BYTE, PARSEC_MATRIX_TILE,
+                                    rank, max_bytes, 1, nt * max_bytes, 1,
+                                    0, 0, nt * max_bytes, 1,
+                                    world, 1, 1, 1, 0, 0);
+    descA.mat = parsec_data_allocate((size_t)descA.super.nb_local_tiles *
+                                     (size_t)descA.super.bsiz *
+                                     parsec_datadist_getsizeoftype(PARSEC_MATRIX_BYTE));
+    rc = parsec_matrix_adt_define_rect(adt, parsec_datatype_int8_t, max_bytes, 1, max_bytes);
+    PARSEC_CHECK_ERROR(rc, "parsec_matrix_adt_define_rect");
+
+    if( min_direct > 0 ) {
+        parsec_data_collection_t *dc = (parsec_data_collection_t*)&descA;
+        int gpus[64], ngpus = 0;
+        for(uint32_t d = 0; (d < parsec_nb_devices) && (ngpus < 64); d++) {
+            parsec_device_module_t *dev = parsec_mca_device_get(d);
+            if( (NULL != dev) && PARSEC_DEV_IS_GPU(dev->type) ) gpus[ngpus++] = (int)dev->device_index;
+        }
+        for(int k = 0, g = 0; (ngpus > 0) && (k < nt); k++) {
+            if( (int)dc->rank_of(dc, k, 0) != rank ) continue;
+            parsec_advise_data_on_device(dc->data_of(dc, k, 0), gpus[g], PARSEC_DEV_DATA_ADVICE_PREFERRED_DEVICE);
+            g = (g + 1) % ngpus;
+        }
+    }
+
+    /* a double every 16 bytes: packed size 8, extent 16 */
+    rc = parsec_type_create_resized(parsec_datatype_double_t, 0, 2 * sizeof(double), &dstrided);
+    PARSEC_CHECK_ERROR(rc, "parsec_type_create_resized");
+
+    tp = parsec_receive_auto_new(&descA, nt, max_bytes, dstrided);
+    assert(NULL != tp);
+    tp->arenas_datatypes[PARSEC_receive_auto_DEFAULT_ADT_IDX] = *adt;
+
+    rc = parsec_context_add_taskpool(parsec, &tp->super);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
+    rc = parsec_context_start(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_start");
+    rc = parsec_context_wait(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
+    parsec_taskpool_free(&tp->super);
+
+    local[0] = g_errors;
+    local[1] = g_remote;
+    local[2] = g_gpu;
+    local[3] = g_gpu_send;
+    local[4] = g_direct;
+    rc = parsec_tests_allreduce(parsec, local, global, 5, parsec_datatype_int32_t,
+                                PARSEC_TESTS_REDUCE_SUM);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_allreduce");
+
+    parsec_matrix_adt_free(&adt);
+    parsec_type_free(&dstrided);
+    free(own_argv);
+    parsec_data_free(descA.mat);
+    parsec_tiled_matrix_destroy((parsec_tiled_matrix_t*)&descA);
+    rc = parsec_tests_context_fini(&parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_fini");
+
+    if( 0 != global[0] ) {
+        fprintf(stderr, "receive_auto: FAILED (%d errors)\n", global[0]);
+        return EXIT_FAILURE;
+    }
+    if( (world > 1) && (0 == global[1]) ) {
+        fprintf(stderr, "receive_auto: FAILED (no data received from another process)\n");
+        return EXIT_FAILURE;
+    }
+    if( global[2] < min_gpu ) {
+        fprintf(stderr, "receive_auto: FAILED (%d RECV ran on a GPU, at least %d expected)\n",
+                global[2], min_gpu);
+        return EXIT_FAILURE;
+    }
+    if( global[4] < min_direct ) {
+        fprintf(stderr, "receive_auto: FAILED (%d data received straight into GPU memory, at least %d expected)\n",
+                global[4], min_direct);
+        return EXIT_FAILURE;
+    }
+    if( 0 == rank ) {
+        printf("receive_auto: PASS (nt=%d, max_bytes=%d, processes=%d, remote receptions=%d, RECV on GPU=%d, SEND on GPU=%d, received on GPU=%d)\n",
+               nt, max_bytes, world, global[1], global[2], global[3], global[4]);
+    }
+    return EXIT_SUCCESS;
+}
+%}

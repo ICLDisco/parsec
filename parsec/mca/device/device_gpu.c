@@ -56,6 +56,7 @@ int parsec_gpu_verbosity;
 typedef struct parsec_gpu_host_mirror_lookup_s {
     const parsec_flow_t            *producer_flow;
     parsec_dep_data_description_t   datatype;
+    size_t                          span;  /* bytes held by the GPU copy */
     int                             found;
 } parsec_gpu_host_mirror_lookup_t;
 
@@ -90,6 +91,14 @@ parsec_device_gpu_retrieve_host_mirror_datatype(parsec_execution_stream_t *es,
                                               &flow_mask, &lookup->datatype);
     if( PARSEC_HOOK_RETURN_NEXT != rc ) {
         return PARSEC_ITERATE_CONTINUE;
+    }
+    if( PARSEC_ARENA_AUTO == lookup->datatype.remote.arena ) {
+        /* The successor sizes what it receives after the payload: mirror all
+         * the GPU copy holds. */
+        parsec_dep_type_auto_resolve(&lookup->datatype.remote, lookup->span);
+        if( 0 == lookup->datatype.remote.dst_count ) {
+            return PARSEC_ITERATE_CONTINUE;
+        }
     }
 
     lookup->found = 1;
@@ -129,6 +138,7 @@ parsec_device_gpu_ensure_host_mirror(parsec_execution_stream_t *es,
      */
     memset(&lookup, 0, sizeof(lookup));
     lookup.producer_flow = producer_flow;
+    lookup.span = original->span;
 
     if( PARSEC_TASKPOOL_TYPE_DTD == producer->taskpool->taskpool_type ) {
         action_mask = 1U << producer_flow->flow_index;

@@ -191,6 +191,91 @@ parsec_arena_release_chunk(parsec_arena_t* arena,
     arena->data_free(chunk);
 }
 
+/*
+ * Storage behind PARSEC_ARENA_AUTO. A request of up to parsec_arena_auto_max_bucket
+ * bytes is served as a single element of the smallest power-of-two bucket that
+ * holds it, so that the bucket arena can cache it for the next request of a
+ * similar size. Anything larger is served by a byte-granular arena, which never
+ * caches. Slot 0 is that byte-granular arena; slot i > 0 is the bucket of 2^i
+ * bytes. The arenas are created on first use.
+ */
+size_t parsec_arena_auto_max_bucket = 1024*1024;  /* 1MiB */
+
+#define PARSEC_ARENA_AUTO_MIN_SHIFT  6   /* 64 bytes */
+#define PARSEC_ARENA_AUTO_MAX_SHIFT 30   /* 1GiB, hard limit on the bucket sizes */
+
+static parsec_arena_t *parsec_arena_auto_arenas[PARSEC_ARENA_AUTO_MAX_SHIFT + 1];
+
+static parsec_arena_t *
+parsec_arena_auto_get(int slot, size_t elem_size, size_t max_cached)
+{
+    parsec_arena_t *arena = parsec_arena_auto_arenas[slot];
+
+    if( PARSEC_LIKELY(NULL != arena) ) {
+        return arena;
+    }
+    arena = PARSEC_OBJ_NEW(parsec_arena_t);
+    if( NULL == arena ) {
+        return NULL;
+    }
+    if( PARSEC_SUCCESS != parsec_arena_construct_ex(arena, elem_size, PARSEC_ARENA_ALIGNMENT_SSE,
+                                                    parsec_arena_max_allocated_memory, max_cached) ) {
+        PARSEC_OBJ_RELEASE(arena);
+        return NULL;
+    }
+    if( !parsec_atomic_cas_ptr(&parsec_arena_auto_arenas[slot], NULL, arena) ) {
+        PARSEC_OBJ_RELEASE(arena);  /* another thread installed this slot first */
+        arena = parsec_arena_auto_arenas[slot];
+    }
+    return arena;
+}
+
+/*
+ * Translate a PARSEC_ARENA_AUTO request for count elements of dtt into the
+ * arena that serves it and the number of elements of that arena to allocate.
+ * Returns the size of the request in bytes, or 0 if it cannot be served.
+ */
+static size_t
+parsec_arena_auto_select(size_t count, parsec_datatype_t dtt,
+                         parsec_arena_t **arena, size_t *arena_count)
+{
+    ptrdiff_t lb, extent;
+    size_t bytes;
+    int shift;
+
+    if( (PARSEC_SUCCESS != parsec_type_extent(dtt, &lb, &extent)) || (extent <= 0) ) {
+        return 0;
+    }
+    (void)lb;
+    bytes = count * (size_t)extent;
+    if( 0 == bytes ) {
+        return 0;
+    }
+    if( bytes <= parsec_arena_auto_max_bucket ) {
+        for( shift = PARSEC_ARENA_AUTO_MIN_SHIFT;
+             (shift < PARSEC_ARENA_AUTO_MAX_SHIFT) && ((((size_t)1) << shift) < bytes);
+             shift++ );
+        if( (((size_t)1) << shift) >= bytes ) {
+            *arena_count = 1;
+            *arena = parsec_arena_auto_get(shift, ((size_t)1) << shift, parsec_arena_max_cached_memory);
+            return (NULL == *arena) ? 0 : bytes;
+        }
+    }
+    *arena_count = bytes;
+    *arena = parsec_arena_auto_get(0, 1, 0);
+    return (NULL == *arena) ? 0 : bytes;
+}
+
+void parsec_arena_auto_fini(void)
+{
+    for( int slot = 0; slot <= PARSEC_ARENA_AUTO_MAX_SHIFT; slot++ ) {
+        parsec_arena_t *arena = parsec_arena_auto_arenas[slot];
+        if( NULL == arena ) continue;
+        parsec_arena_auto_arenas[slot] = NULL;
+        PARSEC_OBJ_RELEASE(arena);
+    }
+}
+
 int  parsec_arena_allocate_device_private(parsec_data_copy_t *copy,
                                           parsec_arena_t *arena,
                                           size_t count, int device,
@@ -198,11 +283,18 @@ int  parsec_arena_allocate_device_private(parsec_data_copy_t *copy,
 {
     parsec_arena_chunk_t *chunk;
     parsec_data_t *data = copy->original;
-    size_t size;
+    size_t size, auto_bytes = 0;
     const char *allocation_error = "out of resource"; (void)allocation_error;
 
     assert(device == copy->device_index);
     (void)device;
+
+    if( PARSEC_ARENA_AUTO == arena ) {
+        auto_bytes = parsec_arena_auto_select(count, dtt, &arena, &count);
+        if( 0 == auto_bytes ) {
+            return PARSEC_ERR_OUT_OF_RESOURCE;
+        }
+    }
 
     if( count == 1 ) {
         size = PARSEC_ALIGN(arena->elem_size + arena->alignment + sizeof(parsec_arena_chunk_t),
@@ -243,7 +335,8 @@ int  parsec_arena_allocate_device_private(parsec_data_copy_t *copy,
     assert(0 == (((ptrdiff_t)chunk->data) % arena->alignment));
     assert((arena->elem_size + (ptrdiff_t)chunk->data)  <= (size + (ptrdiff_t)chunk));
 
-    data->span = count * arena->elem_size;
+    /* An AUTO request may land in a larger bucket: the data spans the request */
+    data->span = (0 != auto_bytes) ? auto_bytes : count * arena->elem_size;
 
     copy->flags = PARSEC_DATA_FLAG_ARENA |
                   PARSEC_DATA_FLAG_PARSEC_OWNED |
@@ -378,6 +471,14 @@ parsec_arena_get_new_copy(parsec_arena_t *arena,
                           parsec_datatype_t dtt)
 {
     parsec_data_copy_t *dev0_copy, *copy;
+    size_t auto_bytes = 0;
+
+    if( PARSEC_ARENA_AUTO == arena ) {
+        auto_bytes = parsec_arena_auto_select(count, dtt, &arena, &count);
+        if( 0 == auto_bytes ) {
+            return NULL;
+        }
+    }
 
     dev0_copy = parsec_arena_internal_copy_new(arena, NULL, count, 0 /* first allocate the copy on the device 0 */, dtt);
     if( NULL == dev0_copy ) {
@@ -385,6 +486,10 @@ parsec_arena_get_new_copy(parsec_arena_t *arena,
     }
     dev0_copy->coherency_state = PARSEC_DATA_COHERENCY_INVALID;
     dev0_copy->version = 0;  /* start from somewhere */
+    if( 0 != auto_bytes ) {
+        /* the bucket may be larger than the request, the data is not */
+        dev0_copy->original->span = auto_bytes;
+    }
     if( 0 == device ) {
         /* Device 0 (CPU) copy is special: it belongs to the user in the current design,
          * so we must not release the original here.

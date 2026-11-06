@@ -541,6 +541,14 @@ int jdf_link_params_and_locals(jdf_function_entry_t* f);
 #define DEP_CUSTOM_DATATYPE 1
 int jdf_dep_undefined_type(jdf_datatransfer_type_t datatype );
 
+/* [type_remote = AUTO] on an input dependency from a task: the data is received
+ * in a buffer sized after the incoming payload, as elements of layout_remote
+ * (bytes by default) whose count is only known at runtime. AUTO names no arena
+ * datatype. */
+#define JDF_DATATYPE_AUTO_NAME "AUTO"
+int jdf_datatype_expr_is_auto(const jdf_expr_t *type);
+#define jdf_datatype_is_auto(DATATYPE) jdf_datatype_expr_is_auto((DATATYPE).type)
+
 #define PARSEC_RETURN_TYPE_INT32                0
 #define PARSEC_RETURN_TYPE_INT64                1
 #define PARSEC_RETURN_TYPE_FLOAT                2

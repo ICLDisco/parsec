@@ -700,6 +700,11 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     parsec_mca_param_reg_sizet_name("arena", "max_cached", "The maximum amount of memory each arena can"
                                    " cache in a freelist (0=no caching)",
                                    false, false, parsec_arena_max_cached_memory, &parsec_arena_max_cached_memory);
+    parsec_mca_param_reg_sizet_name("arena", "auto_max_bucket", "The largest size, in bytes, of the power-of-two"
+                                   " buckets caching the buffers sized at runtime (such as the PTG"
+                                   " type_remote = AUTO receives). Larger buffers are allocated on demand"
+                                   " (0=no caching)",
+                                   false, false, parsec_arena_auto_max_bucket, &parsec_arena_auto_max_bucket);
 
     parsec_mca_param_reg_sizet_name("task", "startup_iter", "The number of ready tasks to be generated during the startup "
                                    "before allowing the scheduler to distribute them across the entire execution context.",
@@ -1335,6 +1340,8 @@ int parsec_fini( parsec_context_t** pcontext )
     parsec_data_dist_fini();
 
     parsec_mca_device_fini();
+    /* after the devices, which may still hold copies allocated from them */
+    parsec_arena_auto_fini();
 
     for(p = 0; p < context->nb_vp; p++) {
         parsec_vp_fini(context->virtual_processes[p]);

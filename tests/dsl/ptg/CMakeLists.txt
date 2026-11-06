@@ -22,6 +22,14 @@ parsec_addtest_executable(C complex_deps)
 target_link_libraries(complex_deps PRIVATE tests_runtime_common)
 target_ptg_sources(complex_deps PRIVATE "complex_deps.jdf")
 
+parsec_addtest_executable(C receive_auto)
+target_link_libraries(receive_auto PRIVATE tests_runtime_common)
+target_ptg_sources(receive_auto PRIVATE "receive_auto.jdf")
+
+parsec_addtest_executable(C receive_auto_mixed)
+target_link_libraries(receive_auto_mixed PRIVATE tests_runtime_common)
+target_ptg_sources(receive_auto_mixed PRIVATE "receive_auto_mixed.jdf")
+
 if(PARSEC_HAVE_DEV_CAPABILITY_BATCH)
   parsec_addtest_executable(C batch_cpu)
   target_link_libraries(batch_cpu PRIVATE tests_runtime_common)

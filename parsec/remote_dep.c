@@ -28,6 +28,36 @@ int parsec_communication_engine_up = -1;
 int parsec_comm_output_stream = 0;
 int parsec_comm_verbose = 0;
 
+void parsec_dep_type_auto_resolve(parsec_dep_type_description_t *remote, size_t bytes)
+{
+    int esize = 0;
+
+    assert(PARSEC_ARENA_AUTO == remote->arena);
+    remote->src_displ = remote->dst_displ = 0;
+    if( 0 == bytes ) {
+        remote->src_datatype = remote->dst_datatype = PARSEC_DATATYPE_NULL;
+        remote->src_count = remote->dst_count = 0;
+        return;
+    }
+    /* Measure the type the way the sender measured the payload: through the
+     * communication engine when one is up, by its raw size otherwise. */
+    if( (NULL == parsec_ce.pack_size) ||
+        (PARSEC_SUCCESS != parsec_ce.pack_size(&parsec_ce, 1, remote->dst_datatype, &esize)) ) {
+        if( PARSEC_SUCCESS != parsec_type_size(remote->dst_datatype, &esize) ) {
+            esize = 0;
+        }
+    }
+    if( (esize <= 0) || (0 != (bytes % (size_t)esize)) ) {
+        PARSEC_DEBUG_VERBOSE(10, parsec_comm_output_stream,
+                             "RDEP:\tAUTO receive of %zu bytes is not a whole number of %d byte elements, receive it as bytes",
+                             bytes, esize);
+        remote->dst_datatype = parsec_datatype_int8_t;
+        esize = 1;
+    }
+    remote->src_datatype = remote->dst_datatype;
+    remote->src_count = remote->dst_count = bytes / (size_t)esize;
+}
+
 #ifdef DISTRIBUTED
 
 /* comm_yield mode: see valid values in the corresponding mca_register */
@@ -200,6 +230,7 @@ inline void remote_deps_free(parsec_remote_deps_t* deps)
         for(a = 0; a < (parsec_remote_dep_context.max_nodes_number + 31)/32; a++)
             deps->output[k].rank_bits[a] = 0;
         deps->output[k].count_bits = 0;
+        deps->output[k].remote_size = 0;
         deps->output[k].data.preferred_device = 0;
 #if defined(PARSEC_DEBUG_PARANOID)
         deps->output[k].data.data   = NULL;

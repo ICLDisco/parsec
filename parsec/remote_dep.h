@@ -133,6 +133,8 @@ struct remote_dep_output_param_s {
                                                        dependencies indexes not flow indexes. */
     int32_t                              priority;    /**< the priority of the message */
     uint32_t                             count_bits;  /**< The number of participants */
+    uint32_t                             remote_size; /**< Receiver side: the size, in bytes, of the payload
+                                                       as packed by the sender (0 when none is expected). */
     uint32_t*                            rank_bits;   /**< The array of bits representing the propagation path */
 };
 
@@ -169,6 +171,20 @@ extern int parsec_comm_output_stream;
 extern int parsec_comm_verbose;
 extern parsec_execution_stream_t parsec_comm_es;
 extern int parsec_param_comm_thread_multiple;
+
+/**
+ * Complete a receive description returned by the get_datatype() of a task
+ * class for an input dependency declared with [type_remote = AUTO], whose
+ * arena is PARSEC_ARENA_AUTO: the receive count is derived from the size of
+ * the incoming payload instead of being declared. The datatype set by
+ * get_datatype() (layout_remote, or bytes by default) is kept when the payload
+ * is made of a whole number of them; otherwise the payload is received as
+ * bytes. A payload of 0 bytes turns the dependency into a control.
+ *
+ * @param[inout] remote the receive description to complete.
+ * @param[in] bytes the size of the incoming payload, as packed by the sender.
+ */
+void parsec_dep_type_auto_resolve(parsec_dep_type_description_t *remote, size_t bytes);
 
 #ifdef DISTRIBUTED
 
