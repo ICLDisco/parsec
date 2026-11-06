@@ -31,10 +31,31 @@ BEGIN_C_DECLS
  *  PARSEC_INPUT:        Data is used in read-only mode, no modification is done.
  *  PARSEC_OUTPUT:       Data is used in write-only, written only, not read.
  *  PARSEC_INOUT:        Data is read and written both.
- *  PARSEC_ATOMIC_WRITE: Data is used like OUTPUT but the ordering of the tasks having this flag is not maintained
- *                       by the scheduler, so they run concurrently with each other the way readers do.
- *                       It is the responsibility of the user to make sure data is written atomically.
- *                       The next access of any other type still waits for all of them.
+ *  PARSEC_ATOMIC_WRITE: Data is written like with PARSEC_OUTPUT, except that consecutive tasks using this access
+ *                       type on the same data are not ordered with respect to each other: they run concurrently,
+ *                       the way a chain of PARSEC_INPUT tasks does. Towards every other access type it behaves
+ *                       exactly like PARSEC_OUTPUT: it waits for all the earlier users of the data (readers
+ *                       included), and every later access of another type waits for all of the ATOMIC_WRITE tasks.
+ *                       Typical uses are a counter updated with atomic operations, or tasks that each write a
+ *                       different part of the same data.
+ *                       The user is responsible for the coherency of the data written by the concurrent tasks.
+ *                       Because the runtime cannot reconcile concurrent writes, all of them must land on a single
+ *                       copy of the data:
+ *                         - the task must run on the rank that owns the data (use PARSEC_AFFINITY on that
+ *                           flow), and cannot be placed anywhere else;
+ *                         - all the tasks of a run of ATOMIC_WRITE accesses on the same data execute on the same
+ *                           device. The first of them to be scheduled picks it (the device that currently owns the
+ *                           data when it can run the task, the CPU otherwise), and the others follow. It
+ *                           is an error for one of them not to have a chore for that device;
+ *                         - a task has at most one ATOMIC_WRITE flow, and does not use that data in any other flow.
+ *                       Like PARSEC_OUTPUT, it is a write-only access: the runtime does not guarantee that the
+ *                       previous content of the data is made available to a device other than the one holding it.
+ *                       Reading the previous value (e.g. a counter) is therefore only safe on the CPU, or on the
+ *                       device that already owns the data.
+ *                       To keep the ordering above, the runtime may insert an empty task on the data, before the
+ *                       first ATOMIC_WRITE task that follows PARSEC_INPUT tasks, and before the first
+ *                       PARSEC_INPUT task (or the first task placed on another rank) that follows
+ *                       ATOMIC_WRITE tasks.
  *  PARSEC_SCRATCH:      Will be used by the task as scratch pad, does not effect the DAG, tells the runtime
  *                       to allocate memory specified by the user.
  *                       This flag can also be used to pass pointer of any variable. Please look at the usage below.
@@ -42,7 +63,8 @@ BEGIN_C_DECLS
  *  PARSEC_REF:          Tells the runtime to reference the user pointer (i.e., not a PaRSEC data)
  *
  *  The access types above all live in a single field (PARSEC_GET_OP_TYPE) and exactly one of them must be
- *  given per parameter. PARSEC_INOUT is the only combination that is meaningful, and it already has a name.
+ *  given per parameter: they are values of that field, not bits to combine, and any other value (for example
+ *  PARSEC_INPUT | PARSEC_ATOMIC_WRITE) is rejected. PARSEC_INOUT already names the read-write access.
  *  The flags below are separate bits and are the ones meant to be OR-ed with an access type.
  *
  *  PARSEC_AFFINITY:     Indicates where to place a task. This flag should be provided with a data and the

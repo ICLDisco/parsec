@@ -16,7 +16,16 @@ parsec_addtest_cmd(dsl/dtd/global_id_for_dc_assumed ${SHM_TEST_CMD_LIST} dsl/dtd
 parsec_addtest_cmd(dsl/dtd/hierarchy ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_test_hierarchy)
 parsec_addtest_cmd(dsl/dtd/insert_task_interface ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_test_insert_task_interface)
 parsec_addtest_cmd(dsl/dtd/flag_dont_track ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_test_flag_dont_track)
-parsec_addtest_cmd(dsl/dtd/dont_track_with_successor ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_test_dont_track_with_successor)
+parsec_addtest_cmd(dsl/dtd/atomic_write ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_test_atomic_write)
+
+# Misuses of ATOMIC_WRITE must be rejected with an explicit message
+parsec_addtest_cmd(dsl/dtd/atomic_write_misuse_combined_access ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_test_atomic_write --misuse combined_access)
+set_tests_properties(dsl/dtd/atomic_write_misuse_combined_access PROPERTIES PASS_REGULAR_EXPRESSION "which is not valid")
+parsec_addtest_cmd(dsl/dtd/atomic_write_misuse_two_atomic_flows ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_test_atomic_write --misuse two_atomic_flows)
+set_tests_properties(dsl/dtd/atomic_write_misuse_two_atomic_flows PROPERTIES PASS_REGULAR_EXPRESSION "a task can have only one")
+parsec_addtest_cmd(dsl/dtd/atomic_write_misuse_atomic_and_other_flow ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_test_atomic_write --misuse atomic_and_other_flow)
+set_tests_properties(dsl/dtd/atomic_write_misuse_atomic_and_other_flow PROPERTIES PASS_REGULAR_EXPRESSION "cannot be used by another flow")
+
 parsec_addtest_cmd(dsl/dtd/multiple_handle_wait ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_test_multiple_handle_wait)
 parsec_addtest_cmd(dsl/dtd/null_as_tile ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_test_null_as_tile)
 parsec_addtest_cmd(dsl/dtd/reduce ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_test_reduce)

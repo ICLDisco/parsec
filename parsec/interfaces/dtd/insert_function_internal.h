@@ -44,6 +44,37 @@ extern int parsec_dtd_dump_traversal_info; /**< For printing traversal info */
 
 #define PARSEC_DTD_FLUSH_TC_ID    ((uint8_t)0x00)
 
+/**
+ * The access types are values of the PARSEC_GET_OP_TYPE field, not bits to be
+ * combined. These predicates are the single place that says which values name a
+ * data flow, so the places that count flows, create the flows or walk them
+ * cannot disagree.
+ */
+static inline int
+parsec_dtd_access_is_flow(int op_type)
+{
+    int access = op_type & PARSEC_GET_OP_TYPE;
+    return PARSEC_INPUT == access || PARSEC_OUTPUT == access ||
+           PARSEC_INOUT == access || PARSEC_ATOMIC_WRITE == access;
+}
+
+/** Any value that is meaningful for a parameter: a data flow, or one of the by-value kinds */
+static inline int
+parsec_dtd_access_is_valid(int op_type)
+{
+    int access = op_type & PARSEC_GET_OP_TYPE;
+    return parsec_dtd_access_is_flow(op_type) ||
+           PARSEC_SCRATCH == access || PARSEC_VALUE == access || PARSEC_REF == access;
+}
+
+/** Accesses that are chained as a group of concurrent users, that is that do not own the data exclusively */
+static inline int
+parsec_dtd_access_is_unordered(int op_type)
+{
+    int access = op_type & PARSEC_GET_OP_TYPE;
+    return PARSEC_INPUT == access || PARSEC_ATOMIC_WRITE == access;
+}
+
 /* To flag the task we are trying to complete as a local one */
 #define PARSEC_ACTION_COMPLETE_LOCAL_TASK 0x08000000
 
@@ -157,12 +188,28 @@ typedef struct parsec_dtd_task_flow_s {
 
 #define FLOW_OF(TASK, INDEX) (&(TASK_FLOW_OF((TASK), (INDEX))->flow))
 
+/**
+ * State shared by a run of consecutive PARSEC_ATOMIC_WRITE accesses on the same
+ * tile. The tasks of the run are not ordered with respect to each other, but
+ * they must all write the same copy of the data, which means they must all
+ * execute on the same device. The first of them to be scheduled picks it.
+ *
+ * The tile owns one reference until the run ends, and every local task of the
+ * run owns one until it is released.
+ */
+typedef struct parsec_dtd_atomic_group_s {
+    int32_t refs;
+    int32_t device;     /**< index of the device all the tasks of the run use, -1 until picked */
+} parsec_dtd_atomic_group_t;
+
 struct parsec_dtd_task_s {
     parsec_task_t                super;
     parsec_hash_table_item_t     ht_item;
     parsec_thread_mempool_t     *mempool_owner;
     int32_t                      rank;
     int32_t                      flow_count;
+    /* Run of PARSEC_ATOMIC_WRITE accesses this local task belongs to, or NULL */
+    parsec_dtd_atomic_group_t   *atomic_group;
     /* for testing PTG inserting task in DTD */
     parsec_task_t  *orig_task;
 };
@@ -191,6 +238,12 @@ struct parsec_dtd_tile_s {
     parsec_data_collection_t *dc;
     parsec_dtd_tile_user_t    last_user;
     parsec_dtd_tile_user_t    last_writer;
+    /* Both fields below are only touched while tasks are inserted, which every
+     * rank does in the same order: they describe the sequence of accesses that
+     * were inserted, and not how far the execution went. This is what keeps the
+     * decisions taken from them identical on all the ranks. */
+    int32_t                   last_access;   /**< access type (PARSEC_GET_OP_TYPE) of the last tracked access inserted */
+    parsec_dtd_atomic_group_t *atomic_group; /**< run of PARSEC_ATOMIC_WRITE accesses currently open on this tile */
 };
 /* For creating objects of class parsec_dtd_tile_t */
 PARSEC_DECLSPEC PARSEC_OBJ_CLASS_DECLARATION(parsec_dtd_tile_t);
@@ -392,6 +445,19 @@ set_deps_for_flush_task(const parsec_task_class_t *tc);
 
 void
 parsec_dtd_fini();
+
+/* Body of the empty task inserted to order runs of PARSEC_ATOMIC_WRITE accesses against other accesses */
+int
+parsec_dtd_atomic_write_barrier_body(parsec_execution_stream_t *es, parsec_task_t *this_task);
+
+parsec_dtd_atomic_group_t *
+parsec_dtd_atomic_group_new(void);
+
+void
+parsec_dtd_atomic_group_retain(parsec_dtd_atomic_group_t *group);
+
+void
+parsec_dtd_atomic_group_release(parsec_dtd_atomic_group_t *group);
 
 static inline void
 parsec_dtd_retain_data_copy( parsec_data_copy_t *copy )
