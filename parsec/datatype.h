@@ -132,6 +132,20 @@ int parsec_type_match(parsec_datatype_t dtt1,
  *         PARSEC_ERROR otherwise.
  */
 int parsec_type_contiguous(parsec_datatype_t dtt);
+
+/**
+ * Routine to check if one element of a datatype is dense: its data is a
+ * single run of size bytes at offsets [0, size) of the element, visited in
+ * typemap order, so that the first N bytes received into it are its first N
+ * bytes in memory. lb, extent and size alone cannot tell, as a transposed or
+ * reordered type can have lb == 0 and extent == size. The extent is not
+ * considered: count elements are count * size consecutive bytes only if, in
+ * addition, the extent is the size.
+ * @param[in] parsec_datatype_t datatype
+ * @return PARSEC_SUCCESS if the selected backend can prove the datatype dense,
+ *         PARSEC_ERROR otherwise.
+ */
+int parsec_type_dense(parsec_datatype_t dtt);
 END_C_DECLS
 
 /** @} */

@@ -159,6 +159,14 @@ parsec_datatype_basic_contiguous(parsec_datatype_t dtt)
     return PARSEC_SUCCESS;
 }
 
+static int
+parsec_datatype_basic_dense(parsec_datatype_t dtt)
+{
+    int size;
+    /* Only the predefined scalar types exist here; derived types are NULL. */
+    return (PARSEC_SUCCESS == parsec_datatype_basic_size(dtt, &size)) ? PARSEC_SUCCESS : PARSEC_ERROR;
+}
+
 const parsec_datatype_module_t parsec_datatype_basic_module = {
     .size                 = parsec_datatype_basic_size,
     .extent               = parsec_datatype_basic_extent,
@@ -171,4 +179,5 @@ const parsec_datatype_module_t parsec_datatype_basic_module = {
     .create_struct        = parsec_datatype_basic_create_struct,
     .create_resized       = parsec_datatype_basic_create_resized,
     .contiguous           = parsec_datatype_basic_contiguous,
+    .dense                = parsec_datatype_basic_dense,
 };

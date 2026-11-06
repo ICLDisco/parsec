@@ -683,47 +683,90 @@ void parsec_remote_dep_memcpy(parsec_execution_stream_t* es,
 }
 
 /**
+ * Whether count elements of dtt are count * size consecutive bytes from the
+ * start of the buffer, so that the first N bytes received are the first N
+ * bytes in memory: each element is dense (see parsec_type_dense()) and, when
+ * there are several, the next one starts where the previous one ends.
+ */
+static int
+remote_dep_type_is_dense(parsec_datatype_t dtt, uint64_t count)
+{
+    int size;
+    ptrdiff_t lb, extent;
+
+    if( PARSEC_SUCCESS != parsec_type_dense(dtt) ) return 0;
+    if( count <= 1 ) return 1;
+    return (PARSEC_SUCCESS == parsec_type_size(dtt, &size)) &&
+           (PARSEC_SUCCESS == parsec_type_extent(dtt, &lb, &extent)) &&
+           ((ptrdiff_t)size == extent);
+}
+
+/**
  * Number of arena elements needed to receive (dst_count, dst_datatype).
  *
  * A typed receive counts arena elements. A byte-stream receive does not: the
- * eager path turns a short, variable-size payload into dst_count bytes of
- * int8, and the mixed-datatype fallback receives dst_count bytes of
- * PARSEC_DATATYPE_PACKED. Allocating dst_count arena elements for those would
- * cost elem_size times the payload (terabytes for a single tile), so convert
- * the byte count into arena elements instead.
+ * mixed-datatype fallback receives dst_count bytes of PARSEC_DATATYPE_PACKED,
+ * and the eager path unpacks a short, variable-size payload as int8.
+ * Allocating dst_count arena elements for those would cost elem_size times
+ * the payload (terabytes for a single tile), so convert the byte count into
+ * arena elements instead. Only a dense 1-byte type is a byte stream: a 1-byte
+ * type with a larger extent (a resized or strided byte) still spans extent
+ * bytes per element, and keeps its typed count.
  */
 static inline uint64_t
 remote_dep_arena_count(const parsec_dep_type_description_t* data)
 {
     int tsize = 0;
-    uint64_t bytes, count;
+    uint64_t bytes;
 
-    if( NULL == data->arena || 0 == data->arena->elem_size || 0 == data->dst_count ) {
+    assert(NULL != data->arena);
+    if( 0 == data->arena->elem_size || 0 == data->dst_count ) {
         return data->dst_count;
     }
-    if( PARSEC_SUCCESS != parsec_type_size(data->dst_datatype, &tsize) || 1 != tsize ) {
+    if( PARSEC_SUCCESS != parsec_type_size(data->dst_datatype, &tsize) || 1 != tsize ||
+        !remote_dep_type_is_dense(data->dst_datatype, data->dst_count) ) {
         return data->dst_count;
     }
     bytes = data->dst_count + (uint64_t)(data->dst_displ > 0 ? data->dst_displ : 0);
-    count = (bytes + data->arena->elem_size - 1) / data->arena->elem_size;
-    return count > 0 ? count : 1;
+    return (bytes + data->arena->elem_size - 1) / data->arena->elem_size;
 }
 
+/**
+ * Allocate the buffer a remote dependency is received into.
+ *
+ * @param[in] data the declared receive. It sizes the buffer: local
+ *            successors read the copy as this type, and the packed fallback
+ *            is unpacked from it at its full packed size, however little the
+ *            sender put on the wire.
+ * @param[in] wire the receive actually unpacked into the buffer when it
+ *            differs from data (the eager path takes a short or odd-sized
+ *            payload as fewer elements, or as bytes), or NULL. The buffer
+ *            holds it too, and the copy takes its datatype.
+ * @param[in] preferred_device where to allocate, if possible.
+ */
 static inline parsec_data_copy_t*
-remote_dep_copy_allocate(parsec_dep_type_description_t* data, int preferred_device)
+remote_dep_copy_allocate(parsec_dep_type_description_t* data,
+                         const parsec_dep_type_description_t* wire,
+                         int preferred_device)
 {
     parsec_data_copy_t* dc;
-    uint64_t arena_count;
+    parsec_datatype_t dtt = data->dst_datatype;
+    uint64_t arena_count, wire_count;
     if( NULL == data->arena ) {
         assert(0 == data->dst_count);
         return NULL;
     }
     arena_count = remote_dep_arena_count(data);
+    if( NULL != wire ) {
+        wire_count = remote_dep_arena_count(wire);
+        if( wire_count > arena_count ) arena_count = wire_count;
+        dtt = wire->dst_datatype;
+    }
     /* Go and allocate on the preferred device. If that fails, fall back and allocate a
      * copy on the main memory (device 0), and parsec will transfer the data as needed
      * for all tasks executing on acclerators.
      */
-    dc = parsec_arena_get_new_copy(data->arena, arena_count, preferred_device, data->dst_datatype);
+    dc = parsec_arena_get_new_copy(data->arena, arena_count, preferred_device, dtt);
     if( NULL == dc ) {
         return NULL;
     }
@@ -759,7 +802,7 @@ static inline parsec_data_copy_t*
 reshape_copy_allocate(parsec_dep_type_description_t* data)
 {
     parsec_data_copy_t* dc;
-    dc = remote_dep_copy_allocate(data, 0  /* default device */);
+    dc = remote_dep_copy_allocate(data, NULL, 0  /* default device */);
 
     parsec_data_start_transfer_ownership_to_copy(dc->original,
                                                  0,
@@ -1014,23 +1057,25 @@ remote_dep_comm_retrieve_datatype(parsec_execution_stream_t *eu,
  * remote_dep_comm_retrieve_datatype() takes from the local receiver's type.
  * When the root sent less than that type (e.g. a variable-size payload sent
  * as raw bytes into a full-size receive type), every forwarded hop would carry
- * the full receive type. For a contiguous receive type the payload occupies
- * the first received bytes, so forward exactly those. Packed, control and
- * non-contiguous layouts are left unchanged.
+ * the full receive type. For a dense receive type (see
+ * remote_dep_type_is_dense) the payload occupies the first received bytes, so
+ * forward exactly those. Packed, control and other layouts, where a partial
+ * receive is scattered by the typemap, are left unchanged.
+ *
+ * This is the forward for data received with the declared type, i.e. by
+ * rendezvous. Data the eager path unpacks from the activate message is
+ * forwarded as remote_dep_comm_recv_activate() unpacked it instead.
  */
 static inline void
 remote_dep_forward_received_size(parsec_dep_type_description_t* data, uint64_t received_bytes)
 {
-    int dsize = 0, tsize = 0;
-    ptrdiff_t lb = 0, extent = 0;
+    int dsize = 0;
 
     if( 0 == received_bytes || 0 == data->dst_count ) return;  /* control flow */
     if( PARSEC_DATATYPE_NULL == data->dst_datatype || PARSEC_DATATYPE_PACKED == data->dst_datatype ) return;
     parsec_ce.pack_size(&parsec_ce, data->dst_count, data->dst_datatype, &dsize);
     if( received_bytes >= (uint64_t)dsize ) return;
-    if( PARSEC_SUCCESS != parsec_type_size(data->dst_datatype, &tsize) ||
-        PARSEC_SUCCESS != parsec_type_extent(data->dst_datatype, &lb, &extent) ) return;
-    if( 0 != lb || extent != (ptrdiff_t)tsize ) return;  /* non-contiguous layout */
+    if( !remote_dep_type_is_dense(data->dst_datatype, data->dst_count) ) return;
     data->src_datatype = parsec_datatype_int8_t;
     data->src_count    = received_bytes;
 }
@@ -2103,23 +2148,28 @@ static void remote_dep_comm_recv_activate(parsec_execution_stream_t* es,
         ds_idx++;
 
         if( parsec_param_short_limit && (length > *position) ) {
-            parsec_ce.pack_size( &parsec_ce, 1, type_desc->dst_datatype, &dsize);  /* for a single type */
-            if( (type_desc->dst_count * dsize) != data_sizes[ds_idx] ) {
+            /* The receive actually unpacked from the activate message. It
+             * stays local: type_desc keeps describing the declared receive,
+             * which sizes the buffer (local successors read it as that type)
+             * and is what a rendezvous posts if the data is not embedded. */
+            parsec_dep_type_description_t wire = *type_desc;
+            parsec_ce.pack_size( &parsec_ce, 1, wire.dst_datatype, &dsize);  /* for a single type */
+            if( (wire.dst_count * dsize) != data_sizes[ds_idx] ) {
                 /* We only receive the minimum between expected and sent, potentially converting to byte */
                 int count_in_msg = data_sizes[ds_idx] / dsize;
-                if( (dsize * type_desc->dst_count) > data_sizes[ds_idx] ) {
+                if( (dsize * wire.dst_count) > data_sizes[ds_idx] ) {
                     if( data_sizes[ds_idx] % dsize ) {
-                        type_desc->dst_datatype = parsec_datatype_int8_t;
+                        wire.dst_datatype = parsec_datatype_int8_t;
                         count_in_msg = data_sizes[ds_idx];
                     }
                 } else {
-                    count_in_msg = type_desc->dst_count;
+                    count_in_msg = wire.dst_count;
                     if( data_sizes[ds_idx] % dsize ) {
-                        type_desc->dst_datatype = parsec_datatype_int8_t;
-                        count_in_msg = dsize * type_desc->dst_count;
+                        wire.dst_datatype = parsec_datatype_int8_t;
+                        count_in_msg = dsize * wire.dst_count;
                     }
                 }
-                type_desc->dst_count = count_in_msg;  /* update the count */
+                wire.dst_count = count_in_msg;  /* update the count */
                 PARSEC_DEBUG_VERBOSE(0, parsec_comm_output_stream,
                                      " EGR\t%s\tparam %d\treceive does not match the expected type and count (leftover %d)."
                                      " Convert to byte and receive as much as possible.\n",
@@ -2131,7 +2181,7 @@ static void remote_dep_comm_recv_activate(parsec_execution_stream_t* es,
                 assert(NULL == data_desc->data); /* we do not support in-place tiles now, make sure it doesn't happen yet */
                 if(NULL == data_desc->data) {
                     /* if we have to unpack the data onto this new copy we might want to allocated it on the CPU */
-                    data_desc->data = remote_dep_copy_allocate(type_desc, 0);
+                    data_desc->data = remote_dep_copy_allocate(type_desc, &wire, 0);
                 }
 #ifndef PARSEC_PROF_DRY_DEP
                 PARSEC_DEBUG_VERBOSE(10, parsec_comm_output_stream,
@@ -2139,10 +2189,18 @@ static void remote_dep_comm_recv_activate(parsec_execution_stream_t* es,
                                      tmp, k, type_desc->dst_count * dsize, data_sizes[ds_idx], length - *position);
                 int save_position = *position;  /* save the position */
                 parsec_ce.unpack(&parsec_ce, packed_buffer, *position + data_sizes[ds_idx], position,
-                                 (char*)PARSEC_DATA_COPY_GET_PTR(data_desc->data) + type_desc->dst_displ,
-                                 type_desc->dst_count, type_desc->dst_datatype);
+                                 (char*)PARSEC_DATA_COPY_GET_PTR(data_desc->data) + wire.dst_displ,
+                                 wire.dst_count, wire.dst_datatype);
                 *position = save_position + data_sizes[ds_idx];  /* jump the entire short data */
 #endif  /* PARSEC_PROF_DRY_DEP */
+                /* Forward exactly what was unpacked, in the layout it was
+                 * unpacked with. remote_dep_forward_received_size() chose the
+                 * forward for the declared receive, but a payload converted to
+                 * bytes lands contiguously whatever that layout is, so the
+                 * declared layout would scatter it on the way out. */
+                type_desc->src_datatype = wire.dst_datatype;
+                type_desc->src_count    = wire.dst_count;
+                type_desc->src_displ    = wire.dst_displ;
                 complete_mask |= (1U<<k);
                 continue;
             }
@@ -2369,7 +2427,7 @@ static void remote_dep_comm_get_start(parsec_execution_stream_t* es,
                                !parsec_device_peer_mesh_incomplete &&
                                (0 < deps->output[k].data.preferred_device)) ?
                               deps->output[k].data.preferred_device : 0;
-            deps->output[k].data.data = remote_dep_copy_allocate(&deps->output[k].data.remote, best_device);
+            deps->output[k].data.data = remote_dep_copy_allocate(&deps->output[k].data.remote, NULL, best_device);
         }
         /* Mark the data under transfer */
         deps->output[k].data.data->data_transfer_status = PARSEC_DATA_STATUS_UNDER_TRANSFER;
