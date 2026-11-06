@@ -114,6 +114,19 @@ typedef void (*parsec_destruct_fn_t)(parsec_taskpool_t* tp);
  * @brief a PaRSEC taskpool represents an a collection of tasks (with or without their dependencies).
  *        as provided by the Domain Specific Language.
  */
+/**
+ * The topology of the broadcasts the runtime does on behalf of a taskpool, when
+ * a task output goes to more than one remote rank. Every rank must make the
+ * same choice for the same taskpool, as ranks forwarding a broadcast have to
+ * agree with its root on the shape of the tree.
+ */
+typedef enum parsec_bcast_topology_e {
+    PARSEC_BCAST_TOPOLOGY_DEFAULT = 0,  /**< what the MCA parameter runtime_comm_coll_bcast selects (the chain, unless told otherwise) */
+    PARSEC_BCAST_TOPOLOGY_STAR,         /**< the root sends to every destination */
+    PARSEC_BCAST_TOPOLOGY_CHAIN,        /**< every destination forwards to the next one */
+    PARSEC_BCAST_TOPOLOGY_BINOMIAL      /**< a binomial tree: log2(destinations) steps */
+} parsec_bcast_topology_t;
+
 struct parsec_taskpool_s {
     parsec_list_item_t         super;     /**< A PaRSEC taskpool is also a list_item, so it can be chained into different lists */
     uint32_t                   taskpool_id; /**< Taskpool are uniquely globally consistently named */
@@ -130,6 +143,7 @@ struct parsec_taskpool_s {
                                           *   detection module API (tdm below). */
     int16_t                    taskpool_type;
     uint16_t                   devices_index_mask; /**< A bitmask of devices indexes this taskpool has been registered with */
+    int16_t                    bcast_topology;     /**< The parsec_bcast_topology_t of the broadcasts of this taskpool */
     uint32_t                   nb_task_classes;    /**< Number of task classes in the taskpool */
     int32_t                    priority;           /**< A constant used to bump the priority of tasks related to this taskpool */
     volatile int32_t           nb_pending_actions; /**< Internal counter of pending actions tracking all runtime

@@ -181,6 +181,7 @@ static void __parsec_taskpool_constructor(parsec_taskpool_t* tp)
     tp->nb_tasks = 0;
     tp->taskpool_type = 0;
     tp->devices_index_mask = 0;  /* no support for any device. Requires initialization */
+    tp->bcast_topology = PARSEC_BCAST_TOPOLOGY_DEFAULT;
     tp->nb_task_classes = 0;
     tp->priority = 0;
     tp->nb_pending_actions = 0;
