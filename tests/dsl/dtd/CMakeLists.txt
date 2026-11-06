@@ -34,6 +34,8 @@ parsec_addtest_executable(C dtd_test_new_tile SOURCES dtd_test_new_tile.c)
 if( PARSEC_HAVE_CUDA )
   target_sources(dtd_test_new_tile PRIVATE dtd_test_new_tile_cuda_kernels.cu)
 
+  parsec_addtest_executable(C dtd_test_atomic_write_cuda SOURCES dtd_test_atomic_write_cuda.c)
+  target_sources(dtd_test_atomic_write_cuda PRIVATE dtd_test_atomic_write_cuda_kernels.cu)
   parsec_addtest_executable(C dtd_test_cuda_task_insert SOURCES dtd_test_cuda_task_insert.c)
   parsec_addtest_executable(C dtd_test_cuda_again_async SOURCES dtd_test_cuda_again_async.c)
   if( TARGET CUDA::cublas )

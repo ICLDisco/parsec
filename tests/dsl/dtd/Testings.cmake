@@ -23,6 +23,8 @@ parsec_addtest_cmd(dsl/dtd/atomic_write_misuse_combined_access ${SHM_TEST_CMD_LI
 set_tests_properties(dsl/dtd/atomic_write_misuse_combined_access PROPERTIES PASS_REGULAR_EXPRESSION "which is not valid")
 parsec_addtest_cmd(dsl/dtd/atomic_write_misuse_two_atomic_flows ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_test_atomic_write --misuse two_atomic_flows)
 set_tests_properties(dsl/dtd/atomic_write_misuse_two_atomic_flows PROPERTIES PASS_REGULAR_EXPRESSION "a task can have only one")
+parsec_addtest_cmd(dsl/dtd/atomic_write_misuse_atomic_pushout ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_test_atomic_write --misuse atomic_pushout)
+set_tests_properties(dsl/dtd/atomic_write_misuse_atomic_pushout PROPERTIES PASS_REGULAR_EXPRESSION "PARSEC_PUSHOUT on its PARSEC_ATOMIC_WRITE flow")
 parsec_addtest_cmd(dsl/dtd/atomic_write_misuse_atomic_and_other_flow ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_test_atomic_write --misuse atomic_and_other_flow)
 set_tests_properties(dsl/dtd/atomic_write_misuse_atomic_and_other_flow PROPERTIES PASS_REGULAR_EXPRESSION "cannot be used by another flow")
 
@@ -36,6 +38,8 @@ parsec_addtest_cmd(dsl/dtd/new_tile:cpu ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_test_ne
 if(PARSEC_HAVE_CUDA AND CMAKE_CUDA_COMPILER)
   parsec_addtest_cmd(dsl/dtd/new_tile:gpu ${SHM_TEST_CMD_LIST} ${CTEST_CUDA_LAUNCHER_OPTIONS} dsl/dtd/dtd_test_new_tile --require-gpu --mca device_cuda_enabled 1 --mca device cuda)
   set_tests_properties(dsl/dtd/new_tile:gpu PROPERTIES FIXTURES_REQUIRED parsec_cuda_kernels_run)
+  parsec_addtest_cmd(dsl/dtd/atomic_write:gpu ${SHM_TEST_CMD_LIST} ${CTEST_CUDA_LAUNCHER_OPTIONS} dsl/dtd/dtd_test_atomic_write_cuda --require-gpu --mca device_cuda_enabled 1 --mca device cuda)
+  set_tests_properties(dsl/dtd/atomic_write:gpu PROPERTIES FIXTURES_REQUIRED parsec_cuda_kernels_run)
   parsec_addtest_cmd(dsl/dtd/cuda_batch_status:gpu ${SHM_TEST_CMD_LIST}
                     ${CTEST_CUDA_LAUNCHER_OPTIONS}
                     dsl/dtd/dtd_test_cuda_again_async

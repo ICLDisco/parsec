@@ -49,6 +49,9 @@ BEGIN_C_DECLS
  *                           or else the CPU (or the lowest device index that has a chore for the task). The others
  *                           follow. It is an error for one of them not to have a chore for that device;
  *                         - a task has at most one ATOMIC_WRITE flow, and does not use that data in any other flow.
+ *                         - PARSEC_PUSHOUT is not accepted on it: the tasks of a run write the same copy, so
+ *                           none of them can push it out. On a GPU, the host gets the result of the run like for
+ *                           any other GPU write: put PARSEC_PUSHOUT on the exclusive access that follows it.
  *                       Like PARSEC_OUTPUT, it is a write-only access: the runtime does not guarantee that the
  *                       previous content of the data is made available to a device other than the one holding it.
  *                       Reading the previous value (e.g. a counter) is therefore only safe on the CPU, or on the

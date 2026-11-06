@@ -3262,6 +3262,12 @@ parsec_insert_dtd_task(parsec_task_t *__this_task)
                 continue;
             }
             nb_atomic_flows++;
+            if( flow->op_type & PARSEC_PUSHOUT ) {
+                parsec_fatal("DTD task '%s' has PARSEC_PUSHOUT on its PARSEC_ATOMIC_WRITE flow %d. The tasks of a run write "
+                             "the same copy of the data concurrently, so none of them can push it out: use PARSEC_PUSHOUT "
+                             "on the exclusive access that follows the run.\n",
+                             tc->name, flow_index);
+            }
             for( int other = 0; other < tc->nb_flows; other++ ) {
                 if( other != flow_index && FLOW_OF(this_task, other)->tile == flow->tile ) {
                     parsec_fatal("DTD task '%s' uses the same data in flow %d, which is PARSEC_ATOMIC_WRITE, and in flow %d. "

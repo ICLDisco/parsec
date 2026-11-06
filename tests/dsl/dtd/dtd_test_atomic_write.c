@@ -336,6 +336,10 @@ int main(int argc, char ** argv)
                                    PASSED_BY_REF, PARSEC_DTD_TILE_OF_KEY(A, 0), PARSEC_ATOMIC_WRITE | PARSEC_AFFINITY,
                                    PASSED_BY_REF, PARSEC_DTD_TILE_OF_KEY(A, 0), PARSEC_INPUT,
                                    PARSEC_DTD_ARG_END);
+        } else if( 0 == strcmp(misuse, "atomic_pushout") ) {
+            parsec_dtd_insert_task(dtd_tp, task_misuse, 0, PARSEC_DEV_CPU, "misuse",
+                                   PASSED_BY_REF, PARSEC_DTD_TILE_OF_KEY(A, 0), PARSEC_ATOMIC_WRITE | PARSEC_PUSHOUT | PARSEC_AFFINITY,
+                                   PARSEC_DTD_ARG_END);
         } else if( 0 == strcmp(misuse, "atomic_on_other_rank") ) {
             /* The tile 0 is owned by rank 0, the task is placed on the owner of the tile 1 */
             parsec_dtd_insert_task(dtd_tp, task_misuse, 0, PARSEC_DEV_CPU, "misuse",
