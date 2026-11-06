@@ -1206,8 +1206,14 @@ remote_dep_release_incoming(parsec_execution_stream_t* es,
     }
 
 #ifdef PARSEC_DIST_COLLECTIVES
+    /* A PTG activation rebuilds the propagation tree out of the task's
+     * successors; a DTD one cannot, and instead forwards the destination set it
+     * was handed. Either way we owe the peers below us an activation. */
+    int propagates = (PARSEC_TASKPOOL_TYPE_PTG == origin->taskpool->taskpool_type)
+                  || (0 != origin->msg.bcast_mask);
+
     /* Corresponding comment below on the propagation part */
-    if(0 == origin->incoming_mask && PARSEC_TASKPOOL_TYPE_PTG == origin->taskpool->taskpool_type) {
+    if(0 == origin->incoming_mask && propagates) {
         remote_dep_inc_flying_messages(task.taskpool);
         (void)parsec_atomic_fetch_inc_int32(&origin->pending_ack);
     }
@@ -1250,8 +1256,21 @@ remote_dep_release_incoming(parsec_execution_stream_t* es,
     origin->outgoing_mask = 0;
 
 #if defined(PARSEC_DIST_COLLECTIVES)
-    if( PARSEC_TASKPOOL_TYPE_PTG == origin->taskpool->taskpool_type ) /* indicates it is a PTG taskpool */
+    if( PARSEC_TASKPOOL_TYPE_PTG == origin->taskpool->taskpool_type ) { /* indicates it is a PTG taskpool */
         parsec_remote_dep_propagate(es, &task, origin);
+    } else if( 0 != origin->msg.bcast_mask ) {
+        /* The destination set is already in place, so there is nothing to
+         * rebuild: go straight to picking our peers out of it. Forwarding makes
+         * us a reader of the copy for as long as the sends last, which is the
+         * reference the completion below hands back. */
+        origin->outgoing_mask = origin->msg.bcast_mask;
+        for(i = 0; origin->outgoing_mask >> i; i++) {
+            if( !((1U << i) & origin->outgoing_mask) ) continue;
+            if( NULL != origin->output[i].data.data )
+                parsec_dtd_data_copy_reader_retain(origin->output[i].data.data);
+        }
+        parsec_remote_dep_activate(es, &task, origin, origin->msg.output_mask);
+    }
 #endif  /* PARSEC_DIST_COLLECTIVES */
     /**
      * Release the dependency owned by the communication engine for all data
@@ -1264,7 +1283,7 @@ remote_dep_release_incoming(parsec_execution_stream_t* es,
             PARSEC_DATA_COPY_RELEASE(origin->output[i].data.data);
     }
 #if defined(PARSEC_DIST_COLLECTIVES)
-    if(PARSEC_TASKPOOL_TYPE_PTG == origin->taskpool->taskpool_type) {
+    if( propagates ) {
         remote_dep_complete_and_cleanup(&origin, 1);
     } else {
         remote_deps_free(origin);
@@ -1490,6 +1509,7 @@ static int remote_dep_comm_pack_dep(int peer,
     remote_dep_wire_activate_t* msg = &deps->msg;
     int k, dsize, data_idx, saved_position = *position;
     uint32_t peer_bank, peer_bit, peer_mask, expected = 0, *data_sizes;
+    uint32_t bcast_count = 0, bcast_bits = remote_dep_rank_bits_length(), bcast_size;
 #if defined(PARSEC_DEBUG) || defined(PARSEC_DEBUG_NOISIER)
     char tmp[MAX_TASK_STRLEN];
     tmp[0] = '\0';
@@ -1510,9 +1530,27 @@ static int remote_dep_comm_pack_dep(int peer,
         if( !(deps->output[k].rank_bits[peer_bank] & peer_mask) ) continue;
         data_idx++;
     }
-    if( (length - (*position)) < (dsize + (data_idx + 1) * (int)sizeof(uint32_t)) ) {  /* no room. bail out */
+    /* A PTG peer replays the task's successors to rebuild the propagation tree,
+     * but a DTD peer only ever inserted the tasks touching its own data, so it
+     * cannot know who else is waiting for this output. Append the destination
+     * set to the message to let it forward the activation down the tree.
+     */
+    msg->bcast_mask = 0;
+#if defined(PARSEC_DIST_COLLECTIVES)
+    if( PARSEC_TASKPOOL_TYPE_DTD == deps->taskpool->taskpool_type ) {
+        for(k = 0; deps->outgoing_mask >> k; k++) {
+            if( !((1U << k) & deps->outgoing_mask )) continue;
+            if( !(deps->output[k].rank_bits[peer_bank] & peer_mask) ) continue;
+            if( deps->output[k].count_bits < 2 ) continue;  /* nothing left to forward */
+            msg->bcast_mask |= (1U << k);
+            bcast_count++;
+        }
+    }
+#endif  /* PARSEC_DIST_COLLECTIVES */
+    bcast_size = bcast_count * (1 + bcast_bits) * (uint32_t)sizeof(uint32_t);
+    if( (length - (*position)) < (dsize + (int)bcast_size + (data_idx + 1) * (int)sizeof(uint32_t)) ) {  /* no room. bail out */
         PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "Can't pack at %d/%d. Bail out!", *position, length);
-        if( length < (dsize + (data_idx + 1) * (int)sizeof(uint32_t)) ) {
+        if( length < (dsize + (int)bcast_size + (data_idx + 1) * (int)sizeof(uint32_t)) ) {
             parsec_fatal("The header plus data cannot be sent on a single message "
                          "(need %zd but have %zd)\n",
                          length, dsize + data_idx * sizeof(uint32_t));
@@ -1526,9 +1564,22 @@ static int remote_dep_comm_pack_dep(int peer,
     data_sizes[0] = data_idx;  /* save the total number of data */
     assert((0 != msg->output_mask) &&   /* this should be preset */
            (msg->output_mask & deps->outgoing_mask) == deps->outgoing_mask);
+    /* The destination sets follow the data sizes, each prefixed by its
+     * population count. They are root-relative, and the peer agrees with us on
+     * the root, so they travel verbatim. */
+    if( 0 != msg->bcast_mask ) {
+        uint32_t *bcast = data_sizes + data_idx + 1;
+
+        for(k = 0; msg->bcast_mask >> k; k++) {
+            if( !((1U << k) & msg->bcast_mask) ) continue;
+            *bcast++ = deps->output[k].count_bits;
+            memcpy(bcast, deps->output[k].rank_bits, bcast_bits * sizeof(uint32_t));
+            bcast += bcast_bits;
+        }
+    }
     /* update the length of the message */
     msg->length  = deps->taskpool->tdm.module->outgoing_message_piggyback_size;
-    msg->length += (data_idx + 1) * (uint32_t)sizeof(uint32_t);
+    msg->length += (data_idx + 1) * (uint32_t)sizeof(uint32_t) + bcast_size;
     *position += msg->length;
     item->cmd.activate.task.output_mask = 0;  /* clean start */
     /* Treat for special cases: CTL, Short, etc... */
@@ -2027,6 +2078,21 @@ static void remote_dep_comm_recv_activate(parsec_execution_stream_t* es,
 
     /* move the position after the data sizes */
     *position += (data_sizes[0] + 1) * (uint32_t)sizeof(uint32_t);
+    /* Adopt the destination sets the sender appended, see the matching pack.
+     * They put us in the same position as the root, so that the topology can
+     * tell us which peers are ours to activate. */
+    if( 0 != deps->msg.bcast_mask ) {
+        uint32_t bcast_bits = remote_dep_rank_bits_length();
+        uint32_t *bcast = data_sizes + data_sizes[0] + 1;
+
+        for(k = 0; deps->msg.bcast_mask >> k; k++) {
+            if( !(deps->msg.bcast_mask & (1U << k)) ) continue;
+            deps->output[k].count_bits = *bcast++;
+            memcpy(deps->output[k].rank_bits, bcast, bcast_bits * sizeof(uint32_t));
+            bcast += bcast_bits;
+        }
+        *position += (int)((bcast - (data_sizes + data_sizes[0] + 1)) * sizeof(uint32_t));
+    }
     ds_idx = 0;
 
     for(k = 0; deps->incoming_mask>>k; k++) {

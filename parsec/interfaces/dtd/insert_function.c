@@ -2771,7 +2771,9 @@ parsec_dtd_set_descendant(parsec_dtd_task_t *parent_task, uint8_t parent_flow_in
             }
         } else {
             if( !(flow->flags & TASK_INSERTED)) {
-                assert(dep->from == real_parent_task->rank);
+                /* dep->from is whoever handed us the data, which is the parent's
+                 * rank only when it reached us directly: in a collective it is
+                 * the peer that forwarded it to us. */
                 flow->flags |= TASK_INSERTED;
                 parsec_dtd_untrack_remote_dep(tp, key);
 #if defined(PARSEC_PROF_TRACE)

@@ -528,17 +528,11 @@ int parsec_remote_dep_activate(parsec_execution_stream_t* es,
                 PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, " TOPO\t%s\troot=%d\t%d (d%d) -? %d (dna)",
                         tmp, remote_deps->root, es->virtual_process->parsec_context->my_rank, my_idx, rank);
 
-                int remote_dep_bcast_child_permits = 0;
-                /* Right now DTD only supports a star broadcast topology */
-                if( PARSEC_TASKPOOL_TYPE_DTD == task->taskpool->taskpool_type ) {
-                    remote_dep_bcast_child_permits = remote_dep_bcast_star_child(my_idx, idx);
-                } else {
 #ifdef PARSEC_DIST_COLLECTIVES
-                    remote_dep_bcast_child_permits = remote_dep_bcast_child(my_idx, idx);
+                int remote_dep_bcast_child_permits = remote_dep_bcast_child(my_idx, idx);
 #else
-                    remote_dep_bcast_child_permits = remote_dep_bcast_star_child(my_idx, idx);
+                int remote_dep_bcast_child_permits = remote_dep_bcast_star_child(my_idx, idx);
 #endif  /* PARSEC_DIST_COLLECTIVES */
-                }
 
                 if(remote_dep_bcast_child_permits) {
                     PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "[%d:%d] task %s my_idx %d idx %d rank %d -- send (%x)",

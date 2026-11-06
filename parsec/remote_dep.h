@@ -46,6 +46,8 @@ typedef struct remote_dep_wire_activate_s {
     uint16_t             task_class_id;
     uint16_t             length;
     uint32_t             root;
+    uint32_t             bcast_mask;   /**< outputs whose destination set is appended to this
+                                        *   message, so that the receiver can forward it */
     parsec_assignment_t  locals[MAX_LOCAL_COUNT];
 } remote_dep_wire_activate_t;
 
@@ -429,6 +431,16 @@ extern int parsec_comm_gets_max;
 extern int parsec_comm_gets;
 extern int parsec_comm_puts_max;
 extern int parsec_comm_puts;
+
+/* Length, in uint32_t, of one root-relative rank set (output[].rank_bits). */
+static inline uint32_t remote_dep_rank_bits_length(void)
+{
+#if defined(DISTRIBUTED)
+    return (parsec_remote_dep_context.max_nodes_number + 31) / 32;
+#else
+    return 1;
+#endif
+}
 
 static inline void
 remote_dep_rank_to_bit(int rank, uint32_t *bank, uint32_t *bit, int root)
