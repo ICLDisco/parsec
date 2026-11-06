@@ -134,6 +134,16 @@ int parsec_data_init(parsec_context_t* context)
         return PARSEC_ERROR;
     }
     parsec_data_t_class.cls_sizeof += sizeof(parsec_data_copy_t*) * parsec_nb_devices;
+
+    /*
+     * Data handles are first created by worker threads when a taskpool starts.
+     * Initialize these classes here, while initialization is still serial, to
+     * prevent workers from racing through the lazy class-initialization path.
+     * In particular, a worker must not observe cls_initialized before the
+     * corresponding constructor array has been published.
+     */
+    parsec_class_initialize(&parsec_data_copy_t_class);
+    parsec_class_initialize(&parsec_data_t_class);
     return PARSEC_SUCCESS;
 }
 
