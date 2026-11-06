@@ -3,12 +3,14 @@ extern "C" %{
  * Copyright (c) 2015-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  *
  */
 
 #include <time.h>
 #include "strange.h"
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include "tests/tests_runtime.h"
 
 struct prev_next_s {
   int prev;
@@ -148,15 +150,9 @@ int main(int argc, char* argv[] )
         print_prev_next("Random array", neworder, n);
     }
 
-#ifdef PARSEC_HAVE_MPI
-    {
-        int provided;
-        MPI_Init_thread(NULL, NULL, MPI_THREAD_SERIALIZED, &provided);
-    }
-#endif
-
-    parsec = parsec_init(-1, &pargc, &pargv);
-    assert( NULL != parsec );
+    rc = parsec_tests_context_init(-1, PARSEC_TEST_THREAD_SERIALIZED,
+                                   &pargc, &pargv, &parsec, NULL, NULL);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_init");
 
     parsec_matrix_block_cyclic_init( &descA, TYPE, PARSEC_MATRIX_TILE,
                                0 /*rank*/,
@@ -191,11 +187,8 @@ int main(int argc, char* argv[] )
     parsec_taskpool_free(&tp->super);
 
     free(descA.mat);
-    parsec_fini( &parsec);
-
-#ifdef PARSEC_HAVE_MPI
-    MPI_Finalize();
-#endif
+    rc = parsec_tests_context_fini(&parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_fini");
 
     if( val != n ) {
         printf("Failed execution (%d != %d)\n", val, n);

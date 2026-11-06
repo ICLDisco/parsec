@@ -2,6 +2,7 @@
  * Copyright (c) 2017-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA CORPORATION. All rights reserved.
  */
 
 /* parsec things */
@@ -18,10 +19,6 @@
 #if defined(PARSEC_HAVE_STRING_H)
 #include <string.h>
 #endif  /* defined(PARSEC_HAVE_STRING_H) */
-
-#if defined(PARSEC_HAVE_MPI)
-#include <mpi.h>
-#endif  /* defined(PARSEC_HAVE_MPI) */
 
 double time_elapsed;
 double sync_time_elapsed;
@@ -42,28 +39,18 @@ call_to_kernel_type( parsec_execution_stream_t *es,
 int main(int argc, char ** argv)
 {
     parsec_context_t* parsec;
-    int rank, world, cores = -1, rc;
+    int rank, cores = -1, rc;
 
     if(argv[1] != NULL){
         cores = atoi(argv[1]);
     }
 
-#if defined(PARSEC_HAVE_MPI)
-    {
-        int provided;
-        MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
-    }
-    MPI_Comm_size(MPI_COMM_WORLD, &world);
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-#else
-    world = 1;
-    rank = 0;
-#endif
+    rc = parsec_tests_context_init(cores, PARSEC_TEST_THREAD_SERIALIZED,
+                                   &argc, &argv, &parsec, &rank, NULL);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_init");
 
     int m;
     int no_of_tasks = 1;
-
-    parsec = parsec_init( cores, &argc, &argv );
 
     parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new(  );
 
@@ -71,7 +58,7 @@ int main(int argc, char ** argv)
     rc = parsec_context_add_taskpool( parsec, dtd_tp );
     PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
 
-    SYNC_TIME_START();
+    SYNC_TIME_START(parsec);
     rc = parsec_context_start( parsec );
     PARSEC_CHECK_ERROR(rc, "parsec_context_start");
 
@@ -89,15 +76,12 @@ int main(int argc, char ** argv)
     rc = parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
-    SYNC_TIME_PRINT(rank, ("\n"));
+    SYNC_TIME_PRINT(parsec, rank, ("\n"));
 
     parsec_taskpool_free( dtd_tp );
 
-    parsec_fini(&parsec);
-
-#ifdef PARSEC_HAVE_MPI
-    MPI_Finalize();
-#endif
+    rc = parsec_tests_context_fini(&parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_fini");
 
     return 0;
 }

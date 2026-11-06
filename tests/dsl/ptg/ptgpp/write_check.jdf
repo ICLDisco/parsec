@@ -3,8 +3,10 @@ extern "C" %{
  * Copyright (c) 2014-2022 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include "tests/tests_runtime.h"
 
 static int verbose = 0;
 
@@ -80,15 +82,6 @@ int main(int argc, char* argv[])
     int i = 0, block = 10, n = 1000, rc;
     int rank = 0, np = 1;
 
-#ifdef PARSEC_HAVE_MPI
-    {
-        int provided;
-        MPI_Init_thread(NULL, NULL, MPI_THREAD_SERIALIZED, &provided);
-        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-        MPI_Comm_size(MPI_COMM_WORLD, &np);
-    }
-#endif
-
     int pargc = 0; char **pargv = NULL;
     for( i = 1; i < argc; i++) {
         if( 0 == strncmp(argv[i], "--", 3) ) {
@@ -112,10 +105,10 @@ int main(int argc, char* argv[])
         }
     }
 
-    parsec = parsec_init(-1, &pargc, &pargv);
-    if( NULL == parsec ) {
-        exit(-1);
-    }
+    rc = parsec_tests_context_init(-1, PARSEC_TEST_THREAD_SERIALIZED,
+                                   &pargc, &pargv,
+                                   &parsec, &rank, &np);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_init");
 
     parsec_matrix_block_cyclic_init( &descA, TYPE, PARSEC_MATRIX_TILE,
                                rank,
@@ -158,14 +151,16 @@ int main(int argc, char* argv[])
 
     PARSEC_OBJ_DESTRUCT(&tp->arenas_datatypes[PARSEC_write_check_DEFAULT_ADT_IDX]);
     parsec_taskpool_free((parsec_taskpool_t*)tp);
-    parsec_fini(&parsec);
     free(descA.mat);
 
     int maxloc[2] = {error_found, rank};
-#ifdef PARSEC_HAVE_MPI
-    MPI_Reduce(0 == rank? MPI_IN_PLACE: &maxloc, &maxloc, 1, MPI_2INT, MPI_MAXLOC, 0, MPI_COMM_WORLD);
-    MPI_Finalize();
-#endif
+    rc = parsec_tests_allreduce(parsec, NULL, maxloc, 1,
+                                parsec_datatype_int_t,
+                                PARSEC_TESTS_REDUCE_MAXLOC_INT);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_allreduce");
+
+    rc = parsec_tests_context_fini(&parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_fini");
 
     if( 0 == rank) {
         if( maxloc[0] > 0 ) {

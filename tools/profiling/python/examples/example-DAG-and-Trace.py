@@ -1,3 +1,7 @@
+#
+# Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
+#
+
 import pandas as pd
 import parsec_dag as pdag
 import argparse
@@ -36,8 +40,8 @@ trace = pd.HDFStore(args.h5)
 
 # This is the list of pre-defined task types, that do not correspond to user tasks
 predefined_tasks = ['N/A', 'TASK_MEMORY', 'Device delegate', 'RELEASE_DEPS', 'ACTIVATE_CB',
-                    'DATA_FLUSH', 'MPI_ACTIVATE', 'MPI_DATA_CTL', 'MPI_DATA_PLD_SND',
-                    'MPI_DATA_PLD_RCV', 'PUT_CB']
+                    'DATA_FLUSH', 'RDEP_ACTIVATE', 'RDEP_DATA_CTL', 'RDEP_DATA_PLD_SND',
+                    'RDEP_DATA_PLD_RCV', 'PUT_CB']
 not_predefined_types = list(trace.event_types)
 for t in predefined_tasks:
     try:
@@ -57,7 +61,7 @@ tasks.set_index(['taskpool_id', 'tcid', 'id'], inplace=True)
 
 # For the example, we select a single network event: the first
 # payload receive.
-network_event = trace.events[trace.events.type == trace.event_types['MPI_DATA_PLD_RCV']].iloc[0]
+network_event = trace.events[trace.events.type == trace.event_types['RDEP_DATA_PLD_RCV']].iloc[0]
 
 # Now, we can find the corresponding task in the events trace by
 # just providing the index

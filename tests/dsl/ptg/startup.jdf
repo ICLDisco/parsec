@@ -3,6 +3,7 @@ extern "C" %{
  * Copyright (c) 2019-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation. All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
 
 #include <sys/time.h>
@@ -10,6 +11,7 @@ extern "C" %{
 #include <string.h>
 #include <stdlib.h>
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include "tests/tests_runtime.h"
 
 /**
  * This test stress the startup mechanism by generating NI*NJ*NK independent
@@ -96,13 +98,6 @@ int main( int argc, char** argv )
     int ni = NN, nj = NN, nk = NN, verbose = 0, i = 1, rc;
     long time_elapsed;
 
-#ifdef PARSEC_HAVE_MPI
-    {
-        int provided;
-        MPI_Init_thread(NULL, NULL, MPI_THREAD_SERIALIZED, &provided);
-    }
-#endif
-
     int pargc = 0; char **pargv = NULL;
     for( i = 1; i < argc; i++) {
         if( 0 == strncmp(argv[i], "--", 3) ) {
@@ -128,10 +123,9 @@ int main( int argc, char** argv )
         }
     }
 
-    parsec = parsec_init(-1, &pargc, &pargv);
-    if( NULL == parsec ) {
-       exit(-1);
-    }
+    rc = parsec_tests_context_init(-1, PARSEC_TEST_THREAD_SERIALIZED,
+                                   &pargc, &pargv, &parsec, NULL, NULL);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_init");
 
     /**
      * Build the data and the arena to hold it up.
@@ -204,11 +198,8 @@ int main( int argc, char** argv )
     parsec_tiled_matrix_destroy((parsec_tiled_matrix_t*)&descA);
     parsec_matrix_adt_free(&adt);
 
-    parsec_fini( &parsec);
-
-#ifdef PARSEC_HAVE_MPI
-    MPI_Finalize();
-#endif
+    rc = parsec_tests_context_fini(&parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_fini");
 
     return 0;
 }

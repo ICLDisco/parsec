@@ -2,6 +2,7 @@
  * Copyright (c) 2018-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
 
 /* parsec things */
@@ -13,16 +14,13 @@
 
 #include "tests/tests_data.h"
 #include "tests/tests_timing.h"
+#include "tests/tests_runtime.h"
 #include "parsec/interfaces/dtd/insert_function_internal.h"
 #include "parsec/utils/debug.h"
 
 #if defined(PARSEC_HAVE_STRING_H)
 #include <string.h>
 #endif  /* defined(PARSEC_HAVE_STRING_H) */
-
-#if defined(PARSEC_HAVE_MPI)
-#include <mpi.h>
-#endif  /* defined(PARSEC_HAVE_MPI) */
 
 /* IDs for the Arena Datatypes */
 static int TILE_FULL;
@@ -94,18 +92,6 @@ int main(int argc, char ** argv)
     int nb, nt, rc;
     parsec_tiled_matrix_t *dcA;
 
-#if defined(PARSEC_HAVE_MPI)
-    {
-        int provided;
-        MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
-    }
-    MPI_Comm_size(MPI_COMM_WORLD, &world);
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-#else
-    world = 1;
-    rank = 0;
-#endif
-
     if(argv[1] != NULL){
         cores = atoi(argv[1]);
     }
@@ -113,7 +99,10 @@ int main(int argc, char ** argv)
     int i, j, total_tasks = 10000;
 
     /* Creating parsec context and initializing dtd environment */
-    parsec = parsec_init(cores, &argc, &argv);
+    rc = parsec_tests_context_init(cores, PARSEC_TEST_THREAD_SERIALIZED,
+                                   &argc, &argv,
+                                   &parsec, &rank, &world);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_init");
     parsec_taskpool_t *dtd_tp;
 
     /*
@@ -420,11 +409,8 @@ int main(int argc, char ** argv)
         parsec_dtd_free_arena_datatype(parsec, TILE_FULL);
     }
 
-    parsec_fini(&parsec);
-
-#ifdef PARSEC_HAVE_MPI
-    MPI_Finalize();
-#endif
+    rc = parsec_tests_context_fini(&parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_fini");
 
     return 0;
 }

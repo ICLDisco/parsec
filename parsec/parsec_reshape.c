@@ -458,14 +458,16 @@ parsec_set_up_reshape_promise(parsec_execution_stream_t *es,
             }
             data->local = aux_data.remote;
             data->local.src_datatype = PARSEC_DATATYPE_PACKED;
-#if defined(PARSEC_HAVE_MPI)
-            MPI_Pack_size(aux_data.remote.dst_count, aux_data.remote.dst_datatype , MPI_COMM_WORLD, &dsize);
-#else
-            if( PARSEC_SUCCESS != parsec_type_size(aux_data.remote.dst_datatype, &dsize) ) {
-                dsize = 0;
+            /* The packed size is a property of the transport. Fall back on the
+             * raw type size when no backend is up to answer. */
+            if( (NULL == parsec_ce.pack_size) ||
+                (PARSEC_SUCCESS != parsec_ce.pack_size(&parsec_ce, aux_data.remote.dst_count,
+                                                       aux_data.remote.dst_datatype, &dsize)) ) {
+                if( PARSEC_SUCCESS != parsec_type_size(aux_data.remote.dst_datatype, &dsize) ) {
+                    dsize = 0;
+                }
+                dsize *= aux_data.remote.dst_count;
             }
-            dsize *= aux_data.remote.dst_count;
-#endif
             data->local.src_count = dsize;
 
             /* Check if the previous future set up on iterate successor is tracking the same

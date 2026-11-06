@@ -2,6 +2,7 @@
  * Copyright (c) 2017-2022 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
 
 #ifndef _reshape_h
@@ -14,10 +15,8 @@
 #include "parsec/profiling.h"
 #include "parsec/execution_stream.h"
 #include "parsec/utils/mca_param.h"
-
-#if defined(PARSEC_HAVE_MPI)
-#include <mpi.h>
-#endif
+#include "parsec/utils/debug.h"
+#include "tests/tests_runtime.h"
 
 int reshape_set_matrix_value(parsec_execution_stream_t *es,
                         const parsec_tiled_matrix_t *descA,
@@ -50,35 +49,22 @@ int reshape_set_matrix_value_position_swap(parsec_execution_stream_t *es,
                                       void *_A, parsec_matrix_uplo_t uplo,
                                       int m, int n, void *args);
 
-int check_matrix_equal(parsec_matrix_block_cyclic_t dcA, parsec_matrix_block_cyclic_t dcA_check);
+int check_matrix_equal(parsec_context_t *parsec,
+                       parsec_matrix_block_cyclic_t dcA,
+                       parsec_matrix_block_cyclic_t dcA_check);
 
 int reshape_print(parsec_execution_stream_t *es,
                   const parsec_tiled_matrix_t *descA,
                   void *_A, parsec_matrix_uplo_t uplo,
                   int m, int n, void *args);
 
-#if defined(PARSEC_HAVE_MPI)
-#define BARRIER MPI_Barrier(MPI_COMM_WORLD);
-#else
-#define BARRIER
-#endif
-
-#if defined(PARSEC_HAVE_MPI)
-  #define DO_INIT_MPI()                                                \
-      int provided;                                                    \
-      int requested = m ? MPI_THREAD_MULTIPLE : MPI_THREAD_SERIALIZED; \
-      MPI_Init_thread(&argc, &argv, requested, &provided);             \
-      MPI_Comm_size(MPI_COMM_WORLD, &nodes);                           \
-      MPI_Comm_rank(MPI_COMM_WORLD, &rank);                            \
-      if( requested > provided ) {                                     \
-          fprintf(stderr, "#XXXXX User requested %s but the implementation returned a lower thread\n", requested==MPI_THREAD_MULTIPLE? "MPI_THREAD_MULTIPLE": "MPI_THREAD_SERIALIZED");\
-          exit(2);                                                     \
-      }
-#else
-  #define DO_INIT_MPI()                                                \
-      nodes = 1;                                                       \
-      rank = 0;
-#endif
+#define BARRIER do {                                                                    \
+    int _barrier_rc = parsec_tests_barrier(parsec);                                     \
+    if( (PARSEC_SUCCESS != _barrier_rc) &&                                             \
+        (PARSEC_ERR_NOT_IMPLEMENTED != _barrier_rc) ) {                                \
+        PARSEC_CHECK_ERROR(_barrier_rc, "parsec_tests_barrier");                       \
+    }                                                                                  \
+} while(0)
 
 #define DO_INIT()                                                                        \
     char *name;                                                                          \
@@ -96,7 +82,7 @@ int reshape_print(parsec_execution_stream_t *es,
             case 'w': do_sleep = 1; break;                                               \
             case '?': case 'h': default:                                                 \
                 fprintf(stderr,                                                          \
-                        "-m : initialize MPI_THREAD_MULTIPLE (default: 0/no)\n"          \
+                        "-m : request multiple-thread support from the test runtime (default: 0/no)\n"\
                         "-N : rowxcolumn dimension (N, M) of the matrices (default: 8)\n"\
                         "-t : row dimension (MB) of the tiles (default: 4)\n"            \
                         "-T : column dimension (NB) of the tiles (default: 4)\n"         \
@@ -107,9 +93,6 @@ int reshape_print(parsec_execution_stream_t *es,
                  exit(1);                                                                \
         }                                                                                \
     }                                                                                    \
-    DO_INIT_MPI();                                                                       \
-    if(do_sleep) sleep(10);                                                              \
-    /* Initialize PaRSEC */                                                              \
     pargc = 0; pargv = NULL;                                                             \
     for(int i = 1; i < argc; i++) {                                                      \
         if( strcmp(argv[i], "--") == 0 ) {                                               \
@@ -118,12 +101,12 @@ int reshape_print(parsec_execution_stream_t *es,
             break;                                                                       \
         }                                                                                \
     }                                                                                    \
-    parsec = parsec_init(cores, &pargc, &pargv);                                         \
-    if( NULL == parsec ) {                                                               \
-        /* Failed to correctly initialize. In a correct scenario report*/                \
-         /* upstream, but in this particular case bail out.*/                            \
-        exit(-1);                                                                        \
-    }                                                                                    \
+    int _init_rc = parsec_tests_context_init(cores,                                      \
+                                             m ? PARSEC_TEST_THREAD_MULTIPLE :           \
+                                                 PARSEC_TEST_THREAD_SERIALIZED,          \
+                                             &pargc, &pargv, &parsec, &rank, &nodes);   \
+    PARSEC_CHECK_ERROR(_init_rc, "parsec_tests_context_init");                           \
+    if(do_sleep) sleep(10);                                                              \
     (void)name;
 
 
@@ -158,7 +141,7 @@ int reshape_print(parsec_execution_stream_t *es,
 
 
 #define DO_CHECK(NAME, dc, dc_check) do {                                \
-    cret = check_matrix_equal(dc, dc_check );                            \
+    cret = check_matrix_equal(parsec, dc, dc_check );                    \
     if(rank==0)                                                          \
         printf("Test " #NAME " %s\n", (cret > 0)? "FAILED" : "PASSED");  \
     ret |= cret;                                                         \
@@ -173,7 +156,7 @@ int reshape_print(parsec_execution_stream_t *es,
     parsec_context_wait(parsec);                                         \
     parsec_taskpool_free((parsec_taskpool_t*)tp);                        \
                                                                          \
-    cret = check_matrix_equal(dcA, dcA_check );                          \
+    cret = check_matrix_equal(parsec, dcA, dcA_check );                  \
     if(rank==0)                                                          \
         printf("Test " #NAME " %s\n", (cret > 0)? "FAILED" : "PASSED");  \
     ret |= cret;                                                         \

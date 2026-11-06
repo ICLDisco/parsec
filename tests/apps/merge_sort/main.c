@@ -2,12 +2,14 @@
  * Copyright (c) 2009-2022 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
 
 #include <stdlib.h>
 
 #include "parsec/runtime.h"
 #include "parsec/utils/debug.h"
+#include "tests/tests_runtime.h"
 #include "merge_sort_wrapper.h"
 #if defined(PARSEC_HAVE_STRING_H)
 #include <string.h>
@@ -22,14 +24,6 @@ int main(int argc, char *argv[])
     parsec_tiled_matrix_t *dcA;
     parsec_taskpool_t *msort;
 
-#if defined(PARSEC_HAVE_MPI)
-    {
-        int provided;
-        MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
-    }
-    MPI_Comm_size(MPI_COMM_WORLD, &world);
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-#endif
     if( argc > 1 ) {
         char* endptr;
         long val = strtol(argv[1], &endptr, 0);
@@ -44,10 +38,10 @@ int main(int argc, char *argv[])
         }
     }
 
-    parsec = parsec_init(cores, &argc, &argv);
-    if( NULL == parsec ) {
-        exit(1);
-    }
+    rc = parsec_tests_context_init(cores, PARSEC_TEST_THREAD_SERIALIZED,
+                                   &argc, &argv,
+                                   &parsec, &rank, &world);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_init");
 
     dcA = create_and_distribute_data(rank, world, nb, nt, sizeof(int));
     parsec_data_collection_set_key((parsec_data_collection_t *)dcA, "A");
@@ -64,11 +58,8 @@ int main(int argc, char *argv[])
     merge_sort_free((parsec_taskpool_t*)msort);
     free_data(dcA);
 
-    parsec_fini(&parsec);
-
-#ifdef PARSEC_HAVE_MPI
-    MPI_Finalize();
-#endif
+    rc = parsec_tests_context_fini(&parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_fini");
 
     return 0;
 }

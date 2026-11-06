@@ -1,9 +1,14 @@
+#
+# Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
+#
+
 if(TARGET parsec-ptgpp)
   add_subdirectory(pingpong)
   add_subdirectory(all2all)
   add_subdirectory(generalized_reduction)
   add_subdirectory(stencil)
   add_subdirectory(merge_sort)
-  add_subdirectory(haar_tree)
+  if(MPI_C_FOUND)
+    add_subdirectory(haar_tree)
+  endif(MPI_C_FOUND)
 endif(TARGET parsec-ptgpp)
-

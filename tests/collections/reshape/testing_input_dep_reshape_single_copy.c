@@ -7,10 +7,6 @@
 
 #include <string.h>
 
-#if defined(PARSEC_HAVE_MPI)
-#include <mpi.h>
-#endif
-
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "common.h"
 
@@ -53,12 +49,15 @@ int main(int argc, char *argv[])
      * gave us rather than trusting what we requested: anything that caps the
      * thread count turns this test into a deadlock instead of a failure. */
     int available = parsec_context_query(parsec, PARSEC_CONTEXT_QUERY_CORES);
+    PARSEC_CHECK_ERROR(available, "parsec_context_query(PARSEC_CONTEXT_QUERY_CORES)");
     if( cores < NBTHREADS_NEEDED || available < NBTHREADS_NEEDED ) {
         fprintf(stderr,
                 "%s needs %d worker threads, was configured for %d and "
                 "PaRSEC provided %d. Check the -c flag and the "
                 "`runtime_num_cores` parameter.\n",
                 argv[0], NBTHREADS_NEEDED, cores, available);
+        int fini_rc = parsec_tests_context_fini(&parsec);
+        PARSEC_CHECK_ERROR(fini_rc, "parsec_tests_context_fini");
         return 77;  /* ctest: skipped, rather than a deadlock */
     }
 
@@ -108,11 +107,8 @@ int main(int argc, char *argv[])
     parsec_data_free(dcA_check.mat);
     parsec_tiled_matrix_destroy((parsec_tiled_matrix_t*)&dcA_check);
 
-    parsec_fini(&parsec);
-
-#ifdef PARSEC_HAVE_MPI
-    MPI_Finalize();
-#endif
+    int fini_rc = parsec_tests_context_fini(&parsec);
+    PARSEC_CHECK_ERROR(fini_rc, "parsec_tests_context_fini");
 
     return ret;
 }

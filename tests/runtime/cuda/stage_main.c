@@ -2,48 +2,35 @@
  * Copyright (c) 2020-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
 #include "parsec.h"
 #include "parsec/data_distribution.h"
 #include "parsec/data_dist/matrix/matrix.h"
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include "parsec/utils/debug.h"
+#include "tests/tests_runtime.h"
 
 #include "stage_custom.h"
 parsec_taskpool_t* testing_stage_custom_New( parsec_context_t *ctx, int M, int N, int MB, int NB, int P, int *ret);
-
-#if defined(DISTRIBUTED)
-#include <mpi.h>
-#endif
 
 int main(int argc, char *argv[])
 {
     parsec_context_t *parsec = NULL;
     parsec_taskpool_t *tp;
     int size = 1;
-    int rank = 0;
     int M;
     int N;
     int MB;
     int NB;
     int P = 1;
     int ret = 0;
-
-#if defined(DISTRIBUTED)
-    {
-        int provided;
-        MPI_Init_thread(NULL, NULL, MPI_THREAD_SERIALIZED, &provided);
-    }
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-#endif /* DISTRIBUTED */
+    int rc;
 
     /* Initialize PaRSEC */
-    parsec = parsec_init(-1, &argc, &argv);
-    if( NULL == parsec ) {
-        /* Failed to correctly initialize. In a correct scenario report*/
-         /* upstream, but in this particular case bail out.*/
-        exit(-1);
-    }
+    rc = parsec_tests_context_init(-1, PARSEC_TEST_THREAD_SERIALIZED,
+                                   &argc, &argv, &parsec, NULL, &size);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_init");
 
     /* can the test run? */
     assert(size == 1);
@@ -52,7 +39,9 @@ int main(int argc, char *argv[])
     if(nb_gpus == 0) {
         parsec_warning("This test can only run if at least one GPU device is present");
         printf("TEST SKIPPED\n");
-        exit(-PARSEC_ERR_DEVICE);
+        rc = parsec_tests_context_fini(&parsec);
+        PARSEC_CHECK_ERROR(rc, "parsec_tests_context_fini");
+        return -PARSEC_ERR_DEVICE;
     }
 
     /* Test: comparing results when:
@@ -105,10 +94,8 @@ int main(int argc, char *argv[])
         printf("TEST PASSED\n");
     }
 
-    parsec_fini(&parsec);
-#if defined(DISTRIBUTED)
-    MPI_Finalize();
-#endif /* DISTRIBUTED */
+    rc = parsec_tests_context_fini(&parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_fini");
 
     return (0 == ret)? EXIT_SUCCESS: EXIT_FAILURE;
 }

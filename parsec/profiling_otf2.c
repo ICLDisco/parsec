@@ -2,6 +2,7 @@
  * Copyright (c) 2018-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/parsec_config.h"
@@ -29,7 +30,7 @@
 #include <otf2/OTF2_Pthread_Locks.h>
 
 #include <mpi.h>
-static MPI_Comm parsec_otf2_profiling_comm;
+static MPI_Comm parsec_otf2_profiling_comm = MPI_COMM_NULL;
 static int parsec_profiling_mpi_on = 0;
 static int process_id = 0;
 
@@ -298,15 +299,15 @@ int parsec_profiling_init( int process_id )
     /* start regions with 2 to allow for positive and negative values, -1 is an invalid region */
     next_region = REGION_ID_OFFSET;
 
-    if( !parsec_profiling_mpi_on ) {
-        /* Nobody has called parsec_profiling_otf2_set_comm yet,
-         * so we use MPI_COMM_WORLD by default */
-        MPI_Comm comm = MPI_COMM_WORLD;
-        parsec_profiling_otf2_set_comm( &comm );
-    }
-
     __profile_initialized = 1; //* confirmed */
     return 0;
+}
+
+void parsec_profiling_set_process_id( int process_id_arg )
+{
+    /* OTF2 names the processes after their rank in the profiling communicator,
+     * which parsec_profiling_otf2_set_comm() already discovered. */
+    (void)process_id_arg;
 }
 
 parsec_profiling_stream_t* parsec_profiling_stream_init( size_t length, const char *format, ...)
@@ -368,6 +369,14 @@ int parsec_profiling_dbp_start( const char *_basefile, const char *hr_info )
     int buflen;
 
     if( !__profile_initialized ) return -1;
+
+    if( !parsec_profiling_mpi_on ) {
+        /* Default to MPI_COMM_WORLD. Done here and not in
+         * parsec_profiling_init(), because MPI may be brought up by the
+         * communication engine, which is only selected in between. */
+        MPI_Comm comm = MPI_COMM_WORLD;
+        parsec_profiling_otf2_set_comm( &comm );
+    }
 
     basefile = strdup(_basefile);
     archive_name = NULL;
@@ -432,9 +441,14 @@ int parsec_profiling_dbp_start( const char *_basefile, const char *hr_info )
         otf2_archive = NULL;
         return PARSEC_ERROR;
     }
-    rc = OTF2_MPI_Archive_SetCollectiveCallbacks( otf2_archive,
-                                                  parsec_otf2_profiling_comm,
-                                                  MPI_COMM_NULL );
+    if( parsec_profiling_mpi_on ) {
+        rc = OTF2_MPI_Archive_SetCollectiveCallbacks( otf2_archive,
+                                                      parsec_otf2_profiling_comm,
+                                                      MPI_COMM_NULL );
+    } else {
+        /* Alone in the archive: OTF2 must not be handed MPI collectives. */
+        rc = OTF2_Archive_SetSerialCollectiveCallbacks( otf2_archive );
+    }
     if( OTF2_SUCCESS != rc ) {
         set_last_error("PaRSEC Profiling System: OTF2 error -- %s (%s)", OTF2_Error_GetName(rc), OTF2_Error_GetDescription(rc));
         /* OTF2 seg faults if closing the archive at this time */
@@ -1182,7 +1196,9 @@ int parsec_profiling_dbp_dump( void )
     free(perlocation);
     free(stream_data);
 
-    MPI_Barrier(parsec_otf2_profiling_comm); /* All the ranks must wait here that the rank 0 has written everything */
+    if( parsec_profiling_mpi_on ) {
+        MPI_Barrier(parsec_otf2_profiling_comm); /* All the ranks must wait here that the rank 0 has written everything */
+    }
 
     rc = OTF2_Archive_Close( otf2_archive );
     if(rc != OTF2_SUCCESS) {

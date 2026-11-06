@@ -2,6 +2,7 @@
  * Copyright (c) 2019-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
 #include "stencil_internal.h"
 #include "tests/tests_timing.h"
@@ -15,7 +16,7 @@ DTYPE * weight_1D;
 int main(int argc, char *argv[])
 {
     parsec_context_t* parsec;
-    int rank, nodes, ch;
+    int rank, nodes, ch, rc;
     int pargc = 0;
     char **pargv;
     double gflops, flops;
@@ -49,7 +50,7 @@ int main(int argc, char *argv[])
             case 'R': R = atoi(optarg); break;
             case '?': case 'h': default:
                 fprintf(stderr,
-                        "-m : initialize MPI_THREAD_MULTIPLE (default: 0/no)\n"
+                        "-m : request multiple-thread support from the test runtime (default: 0/no)\n"
                         "-M : row dimension (M) of the matrices (default: 8)\n"
                         "-N : column dimension (N) of the matrices (default: 8)\n"
                         "-t : row dimension (MB) of the tiles (default: 4)\n"
@@ -65,19 +66,6 @@ int main(int argc, char *argv[])
         }
     }
 
-#if defined(PARSEC_HAVE_MPI)
-    {
-        int provided;
-        int requested = m? MPI_THREAD_MULTIPLE: MPI_THREAD_SERIALIZED;
-        MPI_Init_thread(&argc, &argv, requested, &provided);
-    }
-    MPI_Comm_size(MPI_COMM_WORLD, &nodes);
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-#else
-    nodes = 1;
-    rank = 0;
-#endif
-
     pargc = 0; pargv = NULL;
     for(i = 1; i < argc; i++) {
         if( strcmp(argv[i], "--") == 0 ) {
@@ -87,21 +75,16 @@ int main(int argc, char *argv[])
         }
     }
 
+    rc = parsec_tests_context_init(cores,
+                                   m ? PARSEC_TEST_THREAD_MULTIPLE : PARSEC_TEST_THREAD_SERIALIZED,
+                                   &pargc, &pargv, &parsec, &rank, &nodes);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_init");
+
     if(0) {
         volatile int loop = 1;
         fprintf(stderr, "gdb -p %d\n", getpid());
         while(loop)
             sleep(1);
-    }
-
-    /* Initialize PaRSEC */
-    parsec = parsec_init(cores, &pargc, &pargv);
-
-    if( NULL == parsec ) {
-        /* Failed to correctly initialize. In a correct scenario report
-         * upstream, but in this particular case bail out.
-         */
-        exit(-1);
     }
 
     /* If the number of cores has not been defined as a parameter earlier
@@ -183,13 +166,16 @@ int main(int argc, char *argv[])
         }
     }
 
-    MPI_Barrier(MPI_COMM_WORLD);
+    rc = parsec_tests_barrier(parsec);
+    if( (PARSEC_SUCCESS != rc) && (PARSEC_ERR_NOT_IMPLEMENTED != rc) ) {
+        PARSEC_CHECK_ERROR(rc, "parsec_tests_barrier");
+    }
 #endif
 
     /* Stencil_1D */
-    SYNC_TIME_START();
+    SYNC_TIME_START(parsec);
     parsec_stencil_1D(parsec, (parsec_tiled_matrix_t *)&dcA, iter, R);
-    SYNC_TIME_PRINT(rank, ("Stencil" "\tN= %d NB= %d M= %d MB= %d "
+    SYNC_TIME_PRINT(parsec, rank, ("Stencil" "\tN= %d NB= %d M= %d MB= %d "
                            "PxQ= %d %d KPxKQ= %d %d "
                            "Iteration= %d Radius= %d Kernel_type= %d "
                            "Number_of_buffers= %d cores= %d : %lf gflops\n",
@@ -200,12 +186,8 @@ int main(int argc, char *argv[])
     parsec_tiled_matrix_destroy((parsec_tiled_matrix_t*)&dcA);
 
     /* Clean up parsec*/
-    parsec_fini(&parsec);
-
-#ifdef PARSEC_HAVE_MPI
-    MPI_Finalize();
-#endif
-
+    rc = parsec_tests_context_fini(&parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_fini");
 
     return 0;
 }

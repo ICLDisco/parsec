@@ -2,8 +2,8 @@
  * Copyright (c) 2022-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
  */
-#include <mpi.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -12,12 +12,18 @@
 #include "parsec/parsec_comm_engine.h"
 
 #include "parsec/runtime.h"
+#include "tests/tests_runtime.h"
 
-#define ACTIVE_MESSAGE_FROM_0_TAG 2
-#define ACTIVE_MESSAGE_FROM_1_TAG 3
-#define NOTIFY_ABOUT_GET_FROM_0_TAG 4
-#define NOTIFY_ABOUT_PUT_FROM_0_TAG 5
-#define NOTIFY_ABOUT_MEM_HANDLE_FROM_1_TAG 6
+/*
+ * parsec_init() registers the runtime's own communication-engine control tags.
+ * Keep this direct CE test on separate tags so the test callbacks do not
+ * collide with remote-dependency callbacks installed by the runtime.
+ */
+#define ACTIVE_MESSAGE_FROM_0_TAG 7
+#define ACTIVE_MESSAGE_FROM_1_TAG 8
+#define NOTIFY_ABOUT_GET_FROM_0_TAG 9
+#define NOTIFY_ABOUT_PUT_FROM_0_TAG 10
+#define NOTIFY_ABOUT_MEM_HANDLE_FROM_1_TAG 11
 
 int
 get_end(parsec_comm_engine_t *ce,
@@ -434,29 +440,26 @@ put_end_ack(parsec_comm_engine_t *ce,
 
 int main(int argc, char **argv)
 {
+    parsec_context_t *parsec = NULL;
     int rank, world;
     int i;
+    int rc;
     int test_GET = 1;
     int test_PUT = 1;
 
-#if defined(PARSEC_HAVE_MPI)
-    {
-        int provided;
-        MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
-    }
-    MPI_Comm_size(MPI_COMM_WORLD, &world);
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-#else
-    world = 1;
-    rank = 0;
-#endif
+    rc = parsec_tests_context_init(1, PARSEC_TEST_THREAD_MULTIPLE,
+                                   &argc, &argv,
+                                   &parsec, &rank, &world);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_init");
 
     my_rank = rank;
 
-    parsec_comm_engine_t *ce = parsec_comm_engine_init(NULL);
+    parsec_comm_engine_t *ce = &parsec_ce;
 
     if( world != 2 ) {
         printf("World is too small, too bad! Buh-bye");
+        rc = parsec_tests_context_fini(&parsec);
+        PARSEC_CHECK_ERROR(rc, "parsec_tests_context_fini");
         return 0;
     }
 
@@ -480,7 +483,8 @@ int main(int argc, char **argv)
     ce->enable(ce);
     
     /* To make sure all the ranks have the tags registered */
-    MPI_Barrier(MPI_COMM_WORLD);
+    rc = parsec_tests_barrier(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_barrier");
 
     /* Testing active message */
     if(rank == 0) {
@@ -504,7 +508,8 @@ int main(int argc, char **argv)
         }
     }
 
-    MPI_Barrier(MPI_COMM_WORLD);
+    rc = parsec_tests_barrier(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_barrier");
     counter = 0;
     printf("-------------------------------------\n");
 
@@ -528,7 +533,8 @@ int main(int argc, char **argv)
         }
     }
 
-    MPI_Barrier(MPI_COMM_WORLD);
+    rc = parsec_tests_barrier(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_barrier");
     counter = 0;
     printf("-------------------------------------\n");
 
@@ -603,7 +609,8 @@ int main(int argc, char **argv)
 
     }
 
-    MPI_Barrier(MPI_COMM_WORLD);
+    rc = parsec_tests_barrier(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_barrier");
     counter = 0;
 
     if(test_PUT) {
@@ -673,7 +680,8 @@ int main(int argc, char **argv)
         }
     }
 
-    MPI_Barrier(MPI_COMM_WORLD);
+    rc = parsec_tests_barrier(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_barrier");
 
     ce->tag_unregister(ACTIVE_MESSAGE_FROM_0_TAG);
     ce->tag_unregister(ACTIVE_MESSAGE_FROM_1_TAG);
@@ -681,11 +689,8 @@ int main(int argc, char **argv)
     ce->tag_unregister(NOTIFY_ABOUT_PUT_FROM_0_TAG);
     ce->tag_unregister(NOTIFY_ABOUT_MEM_HANDLE_FROM_1_TAG);
 
-    parsec_comm_engine_fini(ce);
-
-#ifdef PARSEC_HAVE_MPI
-    MPI_Finalize();
-#endif
+    rc = parsec_tests_context_fini(&parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_fini");
 
     return 0;
 }
