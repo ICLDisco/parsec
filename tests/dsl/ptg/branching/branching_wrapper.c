@@ -43,12 +43,12 @@ parsec_taskpool_t *branching_new(parsec_data_collection_t *A, int size, int nb)
 
     tp = parsec_branching_new(A, nb);
 
-    ptrdiff_t lb, extent;
+    /* Size the arena from the element count rather than from the extent of
+     * the derived type: without a communication backend parsec_type_extent()
+     * only knows predefined types and reports 0 for this one. */
     parsec_type_create_contiguous(size, parsec_datatype_int_t, &block);
-    parsec_type_extent(block, &lb, &extent);
-
     parsec_arena_datatype_set_type( &tp->arenas_datatypes[PARSEC_branching_DEFAULT_ADT_IDX],
-                                     extent, PARSEC_ARENA_ALIGNMENT_SSE,
+                                     size * sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
                                      block );
 
     return (parsec_taskpool_t*)tp;
