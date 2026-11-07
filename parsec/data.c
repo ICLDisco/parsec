@@ -619,11 +619,14 @@ int parsec_arena_datatype_set_type(parsec_arena_datatype_t *adt,
                                    size_t elem_size,
                                    size_t alignment,
                                    parsec_datatype_t opaque_dtt) {
+    int rc;
     adt->arena = PARSEC_OBJ_NEW(parsec_arena_t);
-    parsec_arena_construct(adt->arena, elem_size,
-                           alignment);
+    /* On failure (e.g. elem_size == 0) the arena stays attached but marked
+     * as not constructed, so the adt destructor can still release it. */
+    rc = parsec_arena_construct(adt->arena, elem_size,
+                                alignment);
     adt->opaque_dtt = opaque_dtt;
-    return PARSEC_SUCCESS;
+    return rc;
 }
 
 /* This constructor must only initialize fields with static values.

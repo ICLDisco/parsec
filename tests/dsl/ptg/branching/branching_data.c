@@ -61,7 +61,7 @@ static parsec_data_t* data_of(parsec_data_collection_t *desc, ...)
     (void)k;
     assert(k >= 0);
     assert(k < dat->nt);
-    return parsec_data_create(&dat->data[k], desc, k, &dat->ptr[k*dat->size*sizeof(int32_t)], dat->size * sizeof(int32_t), 0);
+    return parsec_data_create(&dat->data[k], desc, k, &dat->ptr[k*dat->size], dat->size * sizeof(int32_t), 0);
 }
 
 #if defined(PARSEC_PROF_TRACE)
