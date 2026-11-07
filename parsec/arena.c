@@ -101,14 +101,16 @@ static void parsec_arena_destructor(parsec_arena_t* arena)
 {
     parsec_list_item_t* item;
 
-    assert( arena->used == arena->released
-         || arena->max_released == 0
-         || arena->max_released == INT32_MAX
-         || arena->max_used == 0
-         || arena->max_used == INT32_MAX );
-
-    /* If elem_size == 0, the arena has not been initialized */
+    /* If elem_size == 0, the arena has not been initialized. A failed
+     * parsec_arena_construct_ex() returns before setting the counters, so
+     * only check them on an arena that was actually constructed. */
     if ( 0 != arena->elem_size ) {
+        assert( arena->used == arena->released
+             || arena->max_released == 0
+             || arena->max_released == INT32_MAX
+             || arena->max_used == 0
+             || arena->max_used == INT32_MAX );
+
         while(NULL != (item = parsec_lifo_pop(&arena->area_lifo))) {
             PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "Arena:\tfree element base ptr %p, data ptr %p (from arena %p)",
                                 item, ((parsec_arena_chunk_t*)item)->data, arena);
