@@ -588,6 +588,8 @@ PARSEC_DECLSPEC extern int parsec_mpi_allow_gpu_memory_communications;
     uint8_t                        status;           \
     uint8_t                        chore_mask;       \
     int16_t                        selected_chore;   \
+    uint32_t                       pinned_input_mask; /* Flows whose data_in the body is counted as
+                                                       * reading; outlives a hook returning ASYNC. */ \
     parsec_device_module_t        *selected_device;  \
     uint64_t                       load;             \
     struct data_repo_entry_s      *repo_entry; /* The task contains its own data repo entry;
