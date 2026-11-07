@@ -117,10 +117,9 @@ parsec_data_collection_init(parsec_data_collection_t *d,
 void
 parsec_data_collection_destroy(parsec_data_collection_t *d)
 {
-#if defined(PARSEC_PROF_TRACE)
+    /* The collections set key_dim whether or not profiling is compiled in. */
     if( NULL != d->key_dim ) free(d->key_dim);
     d->key_dim = NULL;
-#endif
     if( NULL != d->key_base ) free(d->key_base);
     d->key_base = NULL;
 
