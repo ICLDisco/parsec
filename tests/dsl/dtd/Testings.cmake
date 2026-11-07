@@ -20,6 +20,7 @@ parsec_addtest_cmd(dsl/dtd/multiple_handle_wait ${SHM_TEST_CMD_LIST} dsl/dtd/dtd
 parsec_addtest_cmd(dsl/dtd/null_as_tile ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_test_null_as_tile)
 parsec_addtest_cmd(dsl/dtd/reduce ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_test_reduce)
 parsec_addtest_cmd(dsl/dtd/explicit_task_creation ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_test_explicit_task_creation)
+parsec_addtest_cmd(dsl/dtd/task_class_release ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_test_task_class_release)
 parsec_addtest_cmd(dsl/dtd/template_counter ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_test_template_counter)
 parsec_addtest_cmd(dsl/dtd/untie ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_test_untie)
 parsec_addtest_cmd(dsl/dtd/new_tile:cpu ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_test_new_tile --mca device_cuda_enabled 0)

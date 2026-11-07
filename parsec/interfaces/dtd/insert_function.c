@@ -2615,8 +2615,16 @@ parsec_dtd_destroy_task_class(parsec_dtd_taskpool_t *dtd_tp, parsec_task_class_t
         parsec_mempool_destruct(&dtd_tc->local_task_mempool);
         parsec_mempool_destruct(&dtd_tc->remote_task_mempool);
     }
-    assert( &dtd_tc->super == dtd_tp->super.task_classes_array[dtd_tc->super.task_class_id] );
-    dtd_tp->super.task_classes_array[dtd_tc->super.task_class_id] = NULL;
+    /*
+     * A task class is inserted in the taskpool, and gets a task_class_id, only
+     * when its first chore is added. A class released before that (no chore
+     * added, or the first add_chore failed) still has UINT8_MAX as its id and
+     * no slot in task_classes_array to clear.
+     */
+    if( UINT8_MAX != dtd_tc->super.task_class_id ) {
+        assert( &dtd_tc->super == dtd_tp->super.task_classes_array[dtd_tc->super.task_class_id] );
+        dtd_tp->super.task_classes_array[dtd_tc->super.task_class_id] = NULL;
+    }
     free((void *)tc);
 }
 
