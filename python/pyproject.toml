@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=64", "Cython>=3.0", "numpy>=1.22"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "py-parsec"
+version = "0.1.0"
+description = "Python bindings for the PaRSEC task-based runtime"
+readme = "README.md"
+license = {text = "BSD-3-Clause"}
+requires-python = ">=3.9"
+dependencies = ["numpy>=1.22"]
+
+[project.optional-dependencies]
+test = ["pytest", "mpi4py"]
+
+[project.urls]
+Homepage = "https://github.com/ICLDisco/parsec"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+packages = ["py_parsec"]
+
+[tool.setuptools.package-data]
+py_parsec = ["*.pxd", "*.h"]
+
+[tool.setuptools.exclude-package-data]
+py_parsec = ["*.c"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
