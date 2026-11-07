@@ -4860,10 +4860,6 @@ static void jdf_generate_new_function( const jdf_t* jdf )
                 jdf_basename, f->fname);
     }
 
-    coutput("  __parsec_tp->super.super.startup_hook = (parsec_startup_fn_t)%s_startup;\n"
-            "  (void)parsec_taskpool_reserve_id((parsec_taskpool_t*)__parsec_tp);\n",
-            jdf_basename);
-
     if( jdf_uses_dynamic_termdet(jdf) ) {
         coutput("  __parsec_tp->initial_number_tasks = 0;\n");
     }
