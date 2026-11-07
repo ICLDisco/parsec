@@ -5,14 +5,18 @@
  */
 
 /*
- * A taskpool handed out by a library _New() call can be dropped before it
- * is ever added to a context: an application error path, a binding whose
- * garbage collector runs first. Freeing it must neither abort nor leak,
- * and the runtime must still run taskpools afterwards.
+ * A taskpool handed out by a library _New() call, or by
+ * parsec_dtd_taskpool_new(), can be dropped before it is ever added to a
+ * context: an application error path, a binding whose garbage collector
+ * runs first. Freeing it must neither abort nor leak, it must leave no
+ * trace in the taskpool registry, and the runtime must still run
+ * taskpools afterwards.
  */
 #include "parsec.h"
+#include "parsec/parsec_internal.h"
 #include "parsec/data_dist/matrix/matrix.h"
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include "parsec/interfaces/dtd/insert_function.h"
 #include "tests/tests_runtime.h"
 
 #include <stdio.h>
@@ -32,6 +36,7 @@ static void init_matrix(parsec_matrix_block_cyclic_t *dc, const char *key,
                                    (size_t)dc->super.bsiz *
                                    (size_t)parsec_datadist_getsizeoftype(dc->super.mtype));
     parsec_data_collection_set_key(&dc->super.super, key);
+    (void)key;  /* a no-op without PARSEC_PROF_TRACE */
 }
 
 static void fini_matrix(parsec_matrix_block_cyclic_t *dc)
@@ -50,6 +55,23 @@ static size_t local_elements(const parsec_matrix_block_cyclic_t *dc, int rank, i
         cols += (n == dc->super.nt - 1) ? (size_t)(N - n * dc->super.nb) : (size_t)dc->super.nb;
     }
     return cols * M;
+}
+
+/* Free a taskpool that was never added to a context and check that its id
+ * no longer resolves to anything. */
+static int free_unenqueued(parsec_taskpool_t *tp, const char *what)
+{
+    uint32_t id = tp->taskpool_id;
+    parsec_taskpool_t *found;
+
+    parsec_taskpool_free(tp);
+    found = parsec_taskpool_lookup(id);
+    if( NULL != found ) {
+        fprintf(stderr, "%s: taskpool id %u still registered after free (%p)\n",
+                what, id, (void*)found);
+        return 1;
+    }
+    return 0;
 }
 
 int main(int argc, char *argv[])
@@ -86,7 +108,7 @@ int main(int argc, char *argv[])
         fprintf(stderr, "parsec_redistribute_New (reshuffle) returned NULL\n");
         err++;
     } else {
-        parsec_taskpool_free(tp);
+        err += free_unenqueued(tp, "redistribute_reshuffle");
     }
 
     printf("PTG taskpool (redistribute) freed without being added to a context\n");
@@ -95,8 +117,12 @@ int main(int argc, char *argv[])
         fprintf(stderr, "parsec_redistribute_New (general) returned NULL\n");
         err++;
     } else {
-        parsec_taskpool_free(tp);
+        err += free_unenqueued(tp, "redistribute");
     }
+
+    printf("DTD taskpool freed without being added to a context\n");
+    tp = parsec_dtd_taskpool_new();
+    err += free_unenqueued(tp, "dtd");
 
     printf("The runtime still runs a taskpool after that\n");
     tp = parsec_redistribute_New(&src.super, &dst.super, M, N, 0, 0, 0, 0);
