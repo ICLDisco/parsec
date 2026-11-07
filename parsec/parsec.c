@@ -1236,6 +1236,29 @@ static void parsec_clean_and_warn_dtd_arena_datatypes(void *elt, void *dta)
     parsec_hash_table_remove(ht, adt->ht_item.key);
 }
 
+/* A taskpool stays on its context's list until the application frees it, so
+ * anything still there at parsec_fini() was never passed to
+ * parsec_taskpool_free(). Name each one and take it off, so the list can be
+ * released, instead of failing in the list destructor with nothing to say
+ * which taskpool was left behind or why.
+ */
+static void parsec_warn_unfreed_taskpools(parsec_context_t *context)
+{
+    parsec_list_item_t *item;
+
+    while( NULL != (item = parsec_list_pop_front(context->taskpool_list)) ) {
+        parsec_taskpool_t *tp = (parsec_taskpool_t*)item;
+        int completed = (NULL == tp->tdm.module) ||
+                        (PARSEC_TERM_TP_TERMINATED == tp->tdm.module->taskpool_state(tp));
+
+        parsec_warning("/!\\ Warning: taskpool %s (id %u) is still attached to this parsec context at release time: "
+                       "%s call parsec_taskpool_free() on every taskpool before parsec_fini()\n",
+                       (NULL != tp->taskpool_name) ? tp->taskpool_name : "(unnamed)", tp->taskpool_id,
+                       completed ? "it was never freed;"
+                                 : "it has not completed; wait for it (parsec_context_wait() or parsec_taskpool_wait()) and");
+    }
+}
+
 int parsec_fini( parsec_context_t** pcontext )
 {
     parsec_context_t* context = *pcontext;
@@ -1246,6 +1269,7 @@ int parsec_fini( parsec_context_t** pcontext )
     if( __parsec_dtd_is_initialized ) {
         parsec_dtd_fini();
     }
+    parsec_warn_unfreed_taskpools(context);
     PARSEC_OBJ_RELEASE(context->taskpool_list);
     context->taskpool_list = NULL;
     nb_items = 0;
