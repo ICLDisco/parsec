@@ -1088,7 +1088,9 @@ remote_dep_comm_retrieve_datatype(parsec_execution_stream_t *eu,
  * - If the declared receive is contiguous in order, the payload is the first
  *   received_bytes of the buffer, and the message is int8 of that length.
  *   remote_dep_comm_get_start() posts the matching int8 receive over the
- *   whole declared span.
+ *   whole declared span when the parent is a forwarder; a receive straight
+ *   from the root keeps the declared type, since the root's type is not
+ *   known here.
  * - Otherwise the typemap scattered the payload over the buffer, no
  *   (datatype, count) pair describes just those bytes, and src is left as
  *   the full declared receive.
@@ -2548,15 +2550,18 @@ static void remote_dep_comm_get_start(parsec_execution_stream_t* es,
         deps->output[k].data.data->flags |= PARSEC_DATA_FLAG_TRANSIT;
         dtt = deps->output[k].data.remote.dst_datatype;
         nbdtt = deps->output[k].data.remote.dst_count;
-        /* The parent forwards either a shorter count of the declared datatype,
-         * which the declared receive already matches, or int8 when the payload
-         * ends inside an element of a type that is contiguous in order (see
-         * remote_dep_adapt_to_received()). For int8, post int8 over the whole
-         * declared span. This assumes the parent declared the same receive. A
-         * root that sent typed data short of a whole element is received as
-         * bytes too: the bytes are right, the type signature is not. A span
-         * that does not fit an int count keeps the declared receive. */
-        if( (deps->output[k].data.remote.src_datatype == parsec_datatype_int8_t) &&
+        /* A forwarding parent (deps->from is not the root) sends what
+         * remote_dep_adapt_to_received() described: a shorter count of the
+         * declared datatype, which the declared receive already matches, or
+         * int8 when the payload ends inside an element of a type that is
+         * contiguous in order. For int8, post int8 over the whole declared
+         * span so both sides of the hop use int8; this assumes the parent
+         * declared the same receive. The root sends its own type, which this
+         * rank cannot know, so a receive straight from the root keeps the
+         * declared type as it always did. A span that does not fit an int
+         * count also keeps the declared receive. */
+        if( (deps->from != deps->root) &&
+            (deps->output[k].data.remote.src_datatype == parsec_datatype_int8_t) &&
             (dtt != parsec_datatype_int8_t) ) {
             int elem_pack = 0;
             if( (PARSEC_SUCCESS == parsec_ce.pack_size(&parsec_ce, 1, dtt, &elem_pack)) &&
