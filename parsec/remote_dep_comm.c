@@ -472,7 +472,19 @@ remote_dep_dequeue_on(parsec_context_t* context)
      * local data copies, which require the selected communication backend.
      */
     if( 0 >= parsec_communication_engine_up ) return -1;
-    if( context->nb_nodes == 1 ) return 1;
+    if( context->nb_nodes == 1 ) {
+        /* There is no communication thread to wake up: whichever wait or test
+         * call comes next drives the command queue from the main thread. Get
+         * the engine ready here, the same way the communication thread does
+         * when it is turned on, so that a parsec_taskpool_wait() or
+         * parsec_taskpool_test() issued before any parsec_context_wait() finds
+         * it ready too.
+         */
+        parsec_ce.enable(&parsec_ce);
+        remote_dep_ce_reconfigure(context);
+        parsec_remote_dep_reconfigure(context);
+        return 1;
+    }
 
     PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "RDEP: comm engine signalled ON on process %d/%d",
                          context->my_rank, context->nb_nodes);
@@ -2464,10 +2476,8 @@ remote_dep_comm_get_end_cb(parsec_comm_engine_t *ce,
  */
 int remote_dep_ce_reconfigure(parsec_context_t* context)
 {
-    if( NULL != remote_dep_same_pos_items ) {
-        free(remote_dep_same_pos_items); remote_dep_same_pos_items = NULL;
-        remote_dep_same_pos_items_size = 0;
-    }
+    int same_pos_items_size = context->nb_nodes + (int)DEP_LAST;
+
     /**
      * Finalize the initialization of the upper level structures
      * Worst case: one of the DAGs is going to use up to
@@ -2475,10 +2485,16 @@ int remote_dep_ce_reconfigure(parsec_context_t* context)
      */
     remote_deps_allocation_init(context->nb_nodes, MAX_PARAM_COUNT);
 
-    remote_dep_same_pos_items_size = context->nb_nodes + (int)DEP_LAST;
-    assert( NULL == remote_dep_same_pos_items );
-    remote_dep_same_pos_items = (dep_cmd_item_t**)calloc(remote_dep_same_pos_items_size,
-                                                        sizeof(dep_cmd_item_t*));
+    /* Each slot points at the first pending command of one peer or one action
+     * while it waits in the ordered fifo. Replace the array only when its size
+     * has to change, so that turning the engine on again (once per context
+     * start) never drops the slot of a command that is still queued. */
+    if( same_pos_items_size != remote_dep_same_pos_items_size ) {
+        free(remote_dep_same_pos_items);
+        remote_dep_same_pos_items = (dep_cmd_item_t**)calloc(same_pos_items_size,
+                                                            sizeof(dep_cmd_item_t*));
+        remote_dep_same_pos_items_size = same_pos_items_size;
+    }
 
     if(1 < context->nb_nodes) {
         /* if nb_nodes==1, the parsec comm engine does not run with its own thread, so don't change the thread
