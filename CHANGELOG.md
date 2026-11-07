@@ -5,6 +5,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+Unreleased
+----------
+
+### Added
+
+ - DTD: `PARSEC_ATOMIC_WRITE`, an access type with OUTPUT semantics towards the
+   accesses before and after it, but that does not order consecutive
+   `PARSEC_ATOMIC_WRITE` tasks on the same data: they can run concurrently,
+   and the user is responsible for the coherency of the data they write
+   (e.g. atomic updates, or each task writing a different part). The data
+   must be on the owner rank, and all the tasks of a run execute on the same
+   device. See `insert_function.h` for the full list of constraints.
+
+### Changed
+
+ - DTD: the access type of a parameter is now validated strictly, and
+   exactly one access type must be given (`PARSEC_INPUT | PARSEC_ATOMIC_WRITE`
+   is rejected).
+ - DTD (ABI): the values of `PARSEC_SCRATCH`, `PARSEC_VALUE` and `PARSEC_REF`
+   changed to make room for `PARSEC_ATOMIC_WRITE`. Applications must be
+   recompiled.
+
 v4.0.2411
 ---------
 

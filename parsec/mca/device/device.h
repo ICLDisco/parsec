@@ -246,6 +246,15 @@ extern int parsec_device_audit_stage_in;
 PARSEC_DECLSPEC extern int parsec_select_best_device( parsec_task_t* this_task);
 
 /**
+ * The device the data written by a task says the task should use: the preferred
+ * device of the data, or the GPU that owns it. @p valid_types are the device types
+ * that have a chore for the task. Returns NULL if the data has no opinion.
+ */
+PARSEC_DECLSPEC extern parsec_device_module_t *
+parsec_select_device_for_write_data(const parsec_taskpool_t *tp, const parsec_data_t *original,
+                                    unsigned int valid_types);
+
+/**
  * Return true if batching is enabled globally and the provided non-empty
  * mask contains only batching-capable device types.
  */
