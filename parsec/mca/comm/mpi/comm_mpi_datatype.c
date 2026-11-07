@@ -161,6 +161,74 @@ comm_mpi_datatype_contiguous(parsec_datatype_t dtt)
     return PARSEC_ERROR;
 }
 
+/**
+ * Whether one element of dtt is contiguous in order: its data is the bytes
+ * [0, size), with no gaps, visited in increasing address order (see
+ * parsec_type_contiguous_in_order()).
+ *
+ * MPI has no query for this, so decode how the type was built. Accept
+ * predefined types without holes, and types built from such a type by dup,
+ * contiguous, vector or hvector whose blocks touch, or resized. Reject
+ * anything else, indexed and struct types included, even when their blocks
+ * happen to be in order: a false "no" only costs a larger forward, a false
+ * "yes" sends the wrong bytes.
+ */
+static int
+comm_mpi_datatype_element_in_order(MPI_Datatype dtt, int depth)
+{
+    int ni, na, nd, combiner, size, ints[3], in_order = 0;
+    MPI_Aint lb, extent, addrs[2];
+    MPI_Datatype old;
+
+    if( MPI_DATATYPE_NULL == dtt || depth > 16 ) return 0;
+    if( MPI_SUCCESS != MPI_Type_get_envelope(dtt, &ni, &na, &nd, &combiner) ) return 0;
+    if( MPI_COMBINER_NAMED == combiner ) {
+        /* Some predefined pair types (MPI_SHORT_INT) have holes. */
+        return (MPI_SUCCESS == MPI_Type_size(dtt, &size)) &&
+               (MPI_SUCCESS == MPI_Type_get_true_extent(dtt, &lb, &extent)) &&
+               (0 < size) && (0 == lb) && ((MPI_Aint)size == extent);
+    }
+    if( (MPI_COMBINER_DUP != combiner) && (MPI_COMBINER_CONTIGUOUS != combiner) &&
+        (MPI_COMBINER_VECTOR != combiner) && (MPI_COMBINER_HVECTOR != combiner) &&
+        (MPI_COMBINER_RESIZED != combiner) ) return 0;
+    if( (ni > 3) || (na > 2) || (1 != nd) ) return 0;
+    if( MPI_SUCCESS != MPI_Type_get_contents(dtt, ni, na, nd, ints, addrs, &old) ) return 0;
+
+    if( comm_mpi_datatype_element_in_order(old, depth + 1) &&
+        (MPI_SUCCESS == MPI_Type_size(old, &size)) &&
+        (MPI_SUCCESS == MPI_Type_get_extent(old, &lb, &extent)) ) {
+        /* Consecutive elements of old touch only if its extent is its size. */
+        int touch = ((MPI_Aint)size == extent);
+        switch( combiner ) {
+        case MPI_COMBINER_CONTIGUOUS:  /* ints: count */
+            in_order = (ints[0] <= 1) || touch;
+            break;
+        case MPI_COMBINER_VECTOR:      /* ints: count, blocklength, stride in elements */
+            in_order = ((ints[0] <= 1) || (ints[2] == ints[1])) &&
+                    (((int64_t)ints[0] * ints[1] <= 1) || touch);
+            break;
+        case MPI_COMBINER_HVECTOR:     /* ints: count, blocklength; addrs: stride in bytes */
+            in_order = ((ints[0] <= 1) || (addrs[0] == (MPI_Aint)ints[1] * extent)) &&
+                    (((int64_t)ints[0] * ints[1] <= 1) || touch);
+            break;
+        default:  /* dup and resized keep the data of old where it was */
+            in_order = 1;
+        }
+    }
+    /* get_contents hands back new handles for derived types; free those. */
+    if( (MPI_SUCCESS == MPI_Type_get_envelope(old, &ni, &na, &nd, &combiner)) &&
+        (MPI_COMBINER_NAMED != combiner) ) {
+        MPI_Type_free(&old);
+    }
+    return in_order;
+}
+
+static int
+comm_mpi_datatype_contiguous_in_order(parsec_datatype_t dtt)
+{
+    return comm_mpi_datatype_element_in_order(dtt, 0) ? PARSEC_SUCCESS : PARSEC_ERROR;
+}
+
 const parsec_datatype_module_t parsec_comm_mpi_datatype_module = {
     .size                 = comm_mpi_datatype_size,
     .extent               = comm_mpi_datatype_extent,
@@ -173,4 +241,5 @@ const parsec_datatype_module_t parsec_comm_mpi_datatype_module = {
     .create_struct        = comm_mpi_datatype_create_struct,
     .create_resized       = comm_mpi_datatype_create_resized,
     .contiguous           = comm_mpi_datatype_contiguous,
+    .contiguous_in_order  = comm_mpi_datatype_contiguous_in_order,
 };
