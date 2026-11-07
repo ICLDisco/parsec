@@ -685,18 +685,19 @@ void parsec_remote_dep_memcpy(parsec_execution_stream_t* es,
 }
 
 /**
- * Whether count elements of dtt are count * size consecutive bytes from the
- * start of the buffer, so that the first N bytes received are the first N
- * bytes in memory: each element is dense (see parsec_type_dense()) and, when
- * there are several, the next one starts where the previous one ends.
+ * Whether count elements of dtt are contiguous in order: each element is (see
+ * parsec_type_contiguous_in_order()) and, when there are several, the next
+ * one starts where the previous one ends (extent == size). The first N bytes
+ * of a message received as (count, dtt) are then the first N bytes of the
+ * buffer, and int8 x N describes them.
  */
 static int
-remote_dep_type_is_dense(parsec_datatype_t dtt, uint64_t count)
+remote_dep_type_contiguous_in_order(parsec_datatype_t dtt, uint64_t count)
 {
     int size;
     ptrdiff_t lb, extent;
 
-    if( PARSEC_SUCCESS != parsec_type_dense(dtt) ) return 0;
+    if( PARSEC_SUCCESS != parsec_type_contiguous_in_order(dtt) ) return 0;
     if( count <= 1 ) return 1;
     return (PARSEC_SUCCESS == parsec_type_size(dtt, &size)) &&
            (PARSEC_SUCCESS == parsec_type_extent(dtt, &lb, &extent)) &&
@@ -711,9 +712,9 @@ remote_dep_type_is_dense(parsec_datatype_t dtt, uint64_t count)
  * and the eager path unpacks a short, variable-size payload as int8.
  * Allocating dst_count arena elements for those would cost elem_size times
  * the payload (terabytes for a single tile), so convert the byte count into
- * arena elements instead. Only a dense 1-byte type is a byte stream: a 1-byte
- * type with a larger extent (a resized or strided byte) still spans extent
- * bytes per element, and keeps its typed count.
+ * arena elements instead. Only a 1-byte type that is contiguous in order is a
+ * byte stream: a 1-byte type with a larger extent (a resized or strided byte)
+ * still spans extent bytes per element, and keeps its typed count.
  */
 static inline uint64_t
 remote_dep_arena_count(const parsec_dep_type_description_t* data)
@@ -726,7 +727,7 @@ remote_dep_arena_count(const parsec_dep_type_description_t* data)
         return data->dst_count;
     }
     if( PARSEC_SUCCESS != parsec_type_size(data->dst_datatype, &tsize) || 1 != tsize ||
-        !remote_dep_type_is_dense(data->dst_datatype, data->dst_count) ) {
+        !remote_dep_type_contiguous_in_order(data->dst_datatype, data->dst_count) ) {
         return data->dst_count;
     }
     bytes = data->dst_count + (uint64_t)(data->dst_displ > 0 ? data->dst_displ : 0);
@@ -1067,11 +1068,14 @@ remote_dep_comm_retrieve_datatype(parsec_execution_stream_t *eu,
  *
  * When the received length is a whole number of elements, the message is that
  * many elements of the declared datatype (a shorter count, not a new type).
- * Otherwise only a dense type holds the payload as a prefix of memory, and the
- * message is int8 of that length. The matching receive is posted by
- * remote_dep_comm_get_start() as int8 over the whole declared span. A non-dense
- * payload that is not a whole number of elements is not a prefix of the
- * children's receive, so src is left alone.
+ * Otherwise the payload ends inside an element:
+ * - If the declared receive is contiguous in order, the payload is the first
+ *   received_bytes of the buffer, and the message is int8 of that length.
+ *   remote_dep_comm_get_start() posts the matching int8 receive over the
+ *   whole declared span.
+ * - Otherwise the typemap scattered the payload over the buffer, no
+ *   (datatype, count) pair describes just those bytes, and src is left as
+ *   the full declared receive.
  */
 static inline void
 remote_dep_adapt_to_received(parsec_dep_type_description_t* data, uint64_t received_bytes)
@@ -1094,7 +1098,7 @@ remote_dep_adapt_to_received(parsec_dep_type_description_t* data, uint64_t recei
         data->src_count    = received_bytes / (uint64_t)elem_pack;
         return;
     }
-    if( !remote_dep_type_is_dense(data->dst_datatype, data->dst_count) ) return;
+    if( !remote_dep_type_contiguous_in_order(data->dst_datatype, data->dst_count) ) return;
     data->src_datatype = parsec_datatype_int8_t;
     data->src_count    = received_bytes;
 }
@@ -2185,11 +2189,11 @@ static void remote_dep_comm_recv_activate(parsec_execution_stream_t* es,
                     /* Unpack the description remote_dep_adapt_to_received()
                      * forwards, not the declared receive. Starting from the
                      * declared receive, the helper rewrites src only when the
-                     * payload is a prefix of it. A non-dense payload that is
-                     * not a whole number of elements is still a contiguous
-                     * byte string in the activate message, so unpack it as
-                     * int8 even though it is not a prefix of the declared
-                     * typemap. */
+                     * payload is a prefix of it. When it does not (the payload
+                     * ends inside an element of a type that is not contiguous
+                     * in order), the payload is still a plain byte string in
+                     * the activate message, so unpack it as int8 even though
+                     * it is not a prefix of the declared typemap. */
                     wire.src_datatype = wire.dst_datatype;
                     wire.src_count    = wire.dst_count;
                     remote_dep_adapt_to_received(&wire, received_bytes);
@@ -2473,7 +2477,7 @@ static void remote_dep_comm_get_start(parsec_execution_stream_t* es,
         nbdtt = deps->output[k].data.remote.dst_count;
         /* The parent forwards either a shorter count of the declared datatype,
          * which the declared receive already matches, or int8 when the payload
-         * is not a whole number of elements of a dense type (see
+         * ends inside an element of a type that is contiguous in order (see
          * remote_dep_adapt_to_received()). For int8, post int8 over the whole
          * declared span. This assumes the parent declared the same receive. A
          * root that sent typed data short of a whole element is received as
