@@ -1,0 +1,324 @@
+extern "C" %{
+/*
+ * Copyright (c) 2026      The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+/*
+ * Broadcast payloads that are smaller than the receive type and check, on
+ * every consumer, that the bytes landed where the receive type puts them and
+ * that the buffer they landed in is large enough for that type.
+ *
+ * Rank 0 owns tile (0, 0), filled with a byte pattern. Each root task sends a
+ * prefix of that tile, as raw bytes or as doubles, to one consumer on every
+ * other rank, and the consumer declares a receive that the payload does not
+ * fill. Under the chain and binomial broadcasts the ranks in the middle
+ * forward what they received, so a forward that sends the wrong bytes or the
+ * wrong number of them, or a buffer sized from the wrong count, fails here.
+ *
+ * Payloads of NODD bytes are below the short limit and travel inside the
+ * activation message; payloads of NBIG bytes go by rendezvous. MASK holds one
+ * PB_CASE_* bit per case.
+ */
+#include "parsec/data_internal.h"
+#include "partial_bcast_wrapper.h"
+#include <stdio.h>
+
+/* Offset in the buffer of payload byte b received through a layout. */
+static inline size_t pb_offset(size_t b, int nb, int layout)
+{
+    size_t e, i, j;
+    switch( layout ) {
+    case PB_LAYOUT_TRANS:  /* element e = i*nb + j of the payload lands at i + nb*j */
+        e = b / sizeof(double); i = e / nb; j = e % nb;
+        return (i + (size_t)nb * j) * sizeof(double) + b % sizeof(double);
+    case PB_LAYOUT_RBYTE:  /* one byte of data per 8-byte element */
+        return b * 8;
+    case PB_LAYOUT_LOWER:  /* column-major, column j holds rows j .. nb-1 */
+        e = b / sizeof(double);
+        for( j = 0; e >= (size_t)nb - j; j++ ) e -= (size_t)nb - j;
+        return ((j + e) + (size_t)nb * j) * sizeof(double) + b % sizeof(double);
+    default:
+        return b;
+    }
+}
+
+static size_t pb_count_bad(const unsigned char *p, size_t n, int nb, int layout, size_t *first)
+{
+    size_t bad = 0, b;
+    for( b = 0; b < n; b++ ) {
+        if( p[pb_offset(b, nb, layout)] != partial_bcast_pattern(b) ) {
+            if( 0 == bad ) *first = b;
+            bad++;
+        }
+    }
+    return bad;
+}
+
+/**
+ * The copy must span at least need bytes, and its first n payload bytes must
+ * hold the pattern through layout. A payload that ends inside an element of
+ * a type that is not contiguous in order lands contiguously when it comes
+ * inside the activation message and through the typemap when it comes by
+ * rendezvous: alt_layout is the other acceptable layout for such a case,
+ * or -1.
+ */
+static void pb_check(const char *what, int c, const void *ptr, size_t n, int nb,
+                     int layout, int alt_layout,
+                     const parsec_data_copy_t *copy, size_t need)
+{
+    const unsigned char *p = (const unsigned char*)ptr;
+    size_t bad, first = 0, span = copy->original->span;
+
+    if( span < need ) {
+        partial_bcast_failures++;
+        fprintf(stderr, "FAIL %s(%d): buffer is %zu bytes, the receive type needs %zu\n",
+                what, c, span, need);
+        return;  /* reading it would overrun */
+    }
+    bad = pb_count_bad(p, n, nb, layout, &first);
+    if( bad && alt_layout >= 0 ) bad = pb_count_bad(p, n, nb, alt_layout, &first);
+    if( bad ) {
+        partial_bcast_failures++;
+        fprintf(stderr, "FAIL %s(%d): %zu of %zu payload bytes wrong, first at %zu\n",
+                what, c, bad, n, first);
+    } else {
+        printf("ok   %s(%d): %zu bytes, buffer %zu\n", what, c, n, span);
+    }
+}
+%}
+
+%option no_taskpool_instance = true
+
+descA   [type = "parsec_matrix_block_cyclic_t*"]
+NB      [type = int]   /* the tile is NB x NB doubles */
+NC      [type = int]   /* consumers per case: one on every rank but the root */
+NODD    [type = int]   /* bytes of a short payload: below the short limit, not a multiple of 8 */
+NBIG    [type = int]   /* bytes of a rendezvous payload: above the short limit, not a multiple of 8 */
+NRB     [type = int]   /* elements of the resized-byte receive */
+MASK    [type = int]   /* PB_CASE_* bits of the cases to run */
+
+/*
+ * The JDF lexer reads both & and && as a logical and, so a case is selected
+ * with (MASK / bit) % 2; a case that is off has an empty execution space.
+ */
+
+/* 1: a short int8 payload into a lower-triangular tile. The payload ends
+ * inside the only element and the type is not contiguous in order, so it is
+ * unpacked contiguously from the activation message and forwarded as such. */
+root_lower(r)
+r = 0 .. (((MASK / 1) % 2) ? 0 : -1)
+: descA(0, 0)
+READ T <- descA(0, 0)
+       -> T lower(0 .. NC-1) [type_remote = DEFAULT layout_remote = parsec_datatype_int8_t count_remote = NODD]
+BODY
+END
+
+lower(c)
+c = 0 .. (((MASK / 1) % 2) ? NC-1 : -1)
+: descA(0, c+1)
+READ T <- T root_lower(0) [type_remote = LOWER]
+BODY
+    pb_check("lower", c, T, NODD, NB, PB_LAYOUT_CONTIG, PB_LAYOUT_LOWER,
+             this_task->data._f_T.data_in, (size_t)NB * NB * sizeof(double));
+END
+
+/* 2: a rendezvous int8 payload into a transposed tile (lb 0, extent == size,
+ * visited out of order). The typemap scatters it, and a forwarder sends the
+ * whole element so its children scatter it the same way. */
+root_trans(r)
+r = 0 .. (((MASK / 2) % 2) ? 0 : -1)
+: descA(0, 0)
+READ T <- descA(0, 0)
+       -> T trans(0 .. NC-1) [type_remote = DEFAULT layout_remote = parsec_datatype_int8_t count_remote = NBIG]
+BODY
+END
+
+trans(c)
+c = 0 .. (((MASK / 2) % 2) ? NC-1 : -1)
+: descA(0, c+1)
+READ T <- T root_trans(0) [type_remote = TRANS]
+BODY
+    pb_check("trans", c, T, NBIG, NB, PB_LAYOUT_TRANS, PB_LAYOUT_CONTIG,
+             this_task->data._f_T.data_in, (size_t)NB * NB * sizeof(double));
+END
+
+/* 4: a short int8 payload into NB*NB doubles of an 8-byte arena. The buffer
+ * must hold the declared receive, not just the payload. */
+root_dbl(r)
+r = 0 .. (((MASK / 4) % 2) ? 0 : -1)
+: descA(0, 0)
+READ T <- descA(0, 0)
+       -> T dbl(0 .. NC-1) [type_remote = DEFAULT layout_remote = parsec_datatype_int8_t count_remote = NODD]
+BODY
+END
+
+dbl(c)
+c = 0 .. (((MASK / 4) % 2) ? NC-1 : -1)
+: descA(0, c+1)
+READ T <- T root_dbl(0) [type_remote = DBL count_remote = NB*NB]
+BODY
+    pb_check("dbl", c, T, NODD, NB, PB_LAYOUT_CONTIG, -1,
+             this_task->data._f_T.data_in, (size_t)NB * NB * sizeof(double));
+END
+
+/* 8: NRB bytes into NRB elements of a byte resized to an 8-byte extent. A
+ * 1-byte type is not a byte stream when its extent is larger. */
+root_rb(r)
+r = 0 .. (((MASK / 8) % 2) ? 0 : -1)
+: descA(0, 0)
+READ T <- descA(0, 0)
+       -> T rb(0 .. NC-1) [type_remote = DEFAULT layout_remote = parsec_datatype_int8_t count_remote = NRB]
+BODY
+END
+
+rb(c)
+c = 0 .. (((MASK / 8) % 2) ? NC-1 : -1)
+: descA(0, c+1)
+READ T <- T root_rb(0) [type_remote = RB count_remote = NRB]
+BODY
+    pb_check("rb", c, T, NRB, NB, PB_LAYOUT_RBYTE, -1,
+             this_task->data._f_T.data_in, (size_t)NRB * 8);
+END
+
+/* 16: a short int8 payload into the tile. */
+root_tile(r)
+r = 0 .. (((MASK / 16) % 2) ? 0 : -1)
+: descA(0, 0)
+READ T <- descA(0, 0)
+       -> T tile(0 .. NC-1) [type_remote = DEFAULT layout_remote = parsec_datatype_int8_t count_remote = NODD]
+BODY
+END
+
+tile(c)
+c = 0 .. (((MASK / 16) % 2) ? NC-1 : -1)
+: descA(0, c+1)
+READ T <- T root_tile(0)
+BODY
+    pb_check("tile", c, T, NODD, NB, PB_LAYOUT_CONTIG, -1,
+             this_task->data._f_T.data_in, (size_t)NB * NB * sizeof(double));
+END
+
+/* 32: a rendezvous int8 payload into the tile: forwarded as int8, and the
+ * children of a forwarder post an int8 receive. */
+root_bigtile(r)
+r = 0 .. (((MASK / 32) % 2) ? 0 : -1)
+: descA(0, 0)
+READ T <- descA(0, 0)
+       -> T bigtile(0 .. NC-1) [type_remote = DEFAULT layout_remote = parsec_datatype_int8_t count_remote = NBIG]
+BODY
+END
+
+bigtile(c)
+c = 0 .. (((MASK / 32) % 2) ? NC-1 : -1)
+: descA(0, c+1)
+READ T <- T root_bigtile(0)
+BODY
+    pb_check("bigtile", c, T, NBIG, NB, PB_LAYOUT_CONTIG, -1,
+             this_task->data._f_T.data_in, (size_t)NB * NB * sizeof(double));
+END
+
+/* 64: a rendezvous payload of whole doubles into NB*NB doubles: forwarded as
+ * a shorter count of double. */
+root_bigdbl(r)
+r = 0 .. (((MASK / 64) % 2) ? 0 : -1)
+: descA(0, 0)
+READ T <- descA(0, 0)
+       -> T bigdbl(0 .. NC-1) [type_remote = DEFAULT layout_remote = parsec_datatype_double_t count_remote = NBIG/8]
+BODY
+END
+
+bigdbl(c)
+c = 0 .. (((MASK / 64) % 2) ? NC-1 : -1)
+: descA(0, c+1)
+READ T <- T root_bigdbl(0) [type_remote = DBL count_remote = NB*NB]
+BODY
+    pb_check("bigdbl", c, T, (size_t)(NBIG / 8) * 8, NB, PB_LAYOUT_CONTIG, -1,
+             this_task->data._f_T.data_in, (size_t)NB * NB * sizeof(double));
+END
+
+/* 128: a rendezvous payload of doubles into one tile, not a whole element:
+ * the root sends doubles, a forwarder sends int8. */
+root_bigtyped(r)
+r = 0 .. (((MASK / 128) % 2) ? 0 : -1)
+: descA(0, 0)
+READ T <- descA(0, 0)
+       -> T bigtyped(0 .. NC-1) [type_remote = DEFAULT layout_remote = parsec_datatype_double_t count_remote = NBIG/8]
+BODY
+END
+
+bigtyped(c)
+c = 0 .. (((MASK / 128) % 2) ? NC-1 : -1)
+: descA(0, c+1)
+READ T <- T root_bigtyped(0)
+BODY
+    pb_check("bigtyped", c, T, (size_t)(NBIG / 8) * 8, NB, PB_LAYOUT_CONTIG, -1,
+             this_task->data._f_T.data_in, (size_t)NB * NB * sizeof(double));
+END
+
+/* 256: exactly one element into a receive of two transposed tiles: forwarded
+ * as one element of the declared type. */
+root_trans2(r)
+r = 0 .. (((MASK / 256) % 2) ? 0 : -1)
+: descA(0, 0)
+READ T <- descA(0, 0)
+       -> T trans2(0 .. NC-1) [type_remote = DEFAULT layout_remote = parsec_datatype_int8_t count_remote = NB*NB*8]
+BODY
+END
+
+trans2(c)
+c = 0 .. (((MASK / 256) % 2) ? NC-1 : -1)
+: descA(0, c+1)
+READ T <- T root_trans2(0) [type_remote = TRANS count_remote = 2]
+BODY
+    pb_check("trans2", c, T, (size_t)NB * NB * 8, NB, PB_LAYOUT_TRANS, -1,
+             this_task->data._f_T.data_in, (size_t)2 * NB * NB * sizeof(double));
+END
+
+/* 512: two consumers per rank with different receive types take the packed
+ * fallback; the forwarder sends the received bytes, not the full packed size. */
+root_pk(r)
+r = 0 .. (((MASK / 512) % 2) ? 0 : -1)
+: descA(0, 0)
+READ T <- descA(0, 0)
+       -> T pka(0 .. NC-1) [type_remote = DEFAULT layout_remote = parsec_datatype_int8_t count_remote = NBIG]
+       -> T pkb(0 .. NC-1) [type_remote = DEFAULT layout_remote = parsec_datatype_int8_t count_remote = NBIG]
+BODY
+END
+
+pka(c)
+c = 0 .. (((MASK / 512) % 2) ? NC-1 : -1)
+: descA(0, c+1)
+READ T <- T root_pk(0)
+BODY
+    pb_check("pka", c, T, NBIG, NB, PB_LAYOUT_CONTIG, -1,
+             this_task->data._f_T.data_in, (size_t)NB * NB * sizeof(double));
+END
+
+pkb(c)
+c = 0 .. (((MASK / 512) % 2) ? NC-1 : -1)
+: descA(0, c+1)
+READ T <- T root_pk(0) [type_remote = DBL count_remote = NB*NB]
+BODY
+    pb_check("pkb", c, T, NBIG, NB, PB_LAYOUT_CONTIG, -1,
+             this_task->data._f_T.data_in, (size_t)NB * NB * sizeof(double));
+END
+
+/* 1024: a short payload longer than the declared receive (NODD bytes into 50
+ * doubles) is truncated to the receive, here and on every forwarded hop. */
+root_over(r)
+r = 0 .. (((MASK / 1024) % 2) ? 0 : -1)
+: descA(0, 0)
+READ T <- descA(0, 0)
+       -> T over(0 .. NC-1) [type_remote = DEFAULT layout_remote = parsec_datatype_int8_t count_remote = NODD]
+BODY
+END
+
+over(c)
+c = 0 .. (((MASK / 1024) % 2) ? NC-1 : -1)
+: descA(0, c+1)
+READ T <- T root_over(0) [type_remote = DBL count_remote = 50]
+BODY
+    pb_check("over", c, T, 400, NB, PB_LAYOUT_CONTIG, -1,
+             this_task->data._f_T.data_in, (size_t)400);
+END
