@@ -1268,6 +1268,13 @@ jdf_datatype_remove_redundancy(const jdf_datatransfer_type_t* src,
     (DST)->dep_datatype_index = (SRC)->dep_datatype_index
 
 
+int jdf_datatype_expr_is_auto(const jdf_expr_t *type)
+{
+    return (NULL != type) &&
+           ((JDF_VAR == type->op) || (JDF_STRING == type->op)) &&
+           (0 == strcmp(type->jdf_var, JDF_DATATYPE_AUTO_NAME));
+}
+
 /* Function to check the datatype specified on the dependency.
  * Returns:
  * - DEP_UNDEFINED_DATATYPE if no datatype has been set up by the user.

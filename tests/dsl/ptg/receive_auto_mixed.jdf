@@ -1,0 +1,272 @@
+extern "C" %{
+/*
+ * Copyright (c) 2026
+ */
+
+/**
+ * Mix [type_remote = AUTO] and fixed receive types on the same payload.
+ *
+ * SEND(k) sends a single payload of nbytes(k) bytes (a whole number of
+ * doubles) to four tasks running on the same process:
+ *  - RECV_AUTO:     [type_remote = AUTO], received as bytes;
+ *  - RECV_FIXED:    a fixed count of bytes;
+ *  - RECV_AUTO_DBL: [type_remote = AUTO layout_remote = parsec_datatype_double_t];
+ *  - RECV_DBL:      a fixed count of doubles.
+ * As the successors do not agree on the datatype, the payload is received
+ * packed and unpacked for each of them. The AUTO receivers must recover the
+ * size of the payload from the packed copy.
+ */
+
+#include <assert.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "parsec.h"
+#include "parsec/data_internal.h"
+#include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include "tests/tests_runtime.h"
+
+static int32_t g_errors = 0;
+static int32_t g_remote = 0;
+
+/* A whole number of doubles, spread over [8, max] */
+static inline int nbytes_of(int k, int max)
+{
+    uint64_t h = (uint64_t)(k + 1) * 2654435761ULL;
+    return 8 * (int)(1 + h % (uint64_t)(max / 8));
+}
+
+static inline uint8_t byte_of(int k, int i) { return (uint8_t)((5 * k + i) & 0xff); }
+
+static inline int rank_of_k(parsec_matrix_block_cyclic_t *desc, int k)
+{
+    parsec_data_collection_t *dc = (parsec_data_collection_t*)desc;
+    return (int)dc->rank_of(dc, k, 0);
+}
+
+static int check_payload(const char *name, int k, int prev, const uint8_t *p, int nbytes)
+{
+    for(int i = 0; i < nbytes; i++) {
+        if( p[i] != byte_of(prev, i) ) {
+            fprintf(stderr, "receive_auto_mixed: %s(%d) wrong byte %d of %d\n", name, k, i, nbytes);
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static int check_auto_copy(const char *name, int k, const parsec_data_copy_t *copy,
+                           size_t bytes, parsec_datatype_t dtt)
+{
+    int err = 0;
+    if( copy->original->span != bytes ) {
+        fprintf(stderr, "receive_auto_mixed: %s(%d) spans %zu bytes, expected %zu\n",
+                name, k, copy->original->span, bytes);
+        err++;
+    }
+    if( copy->dtt != dtt ) {
+        fprintf(stderr, "receive_auto_mixed: %s(%d) does not carry the expected datatype\n", name, k);
+        err++;
+    }
+    return err;
+}
+
+static void account(int err, int remote)
+{
+    if( remote ) (void)parsec_atomic_fetch_inc_int32(&g_remote);
+    if( err ) (void)parsec_atomic_fetch_add_int32(&g_errors, err);
+}
+%}
+
+descA      [type = "parsec_matrix_block_cyclic_t*"]
+NT         [type = int]
+MAX_BYTES  [type = int]
+
+SEND(k)
+k = 0 .. NT-2
+nbytes = %{ return nbytes_of(k, MAX_BYTES); %}
+
+: descA(k, 0)
+
+RW A <- descA(k, 0)
+     -> A RECV_AUTO(k+1)      [ type_remote   = DEFAULT
+                                layout_remote = parsec_datatype_int8_t
+                                count_remote  = %{ return nbytes; %} ]
+     -> A RECV_FIXED(k+1)     [ type_remote   = DEFAULT
+                                layout_remote = parsec_datatype_int8_t
+                                count_remote  = %{ return nbytes; %} ]
+     -> A RECV_AUTO_DBL(k+1)  [ type_remote   = DEFAULT
+                                layout_remote = parsec_datatype_int8_t
+                                count_remote  = %{ return nbytes; %} ]
+     -> A RECV_DBL(k+1)       [ type_remote   = DEFAULT
+                                layout_remote = parsec_datatype_int8_t
+                                count_remote  = %{ return nbytes; %} ]
+
+BODY
+{
+    uint8_t *p = (uint8_t*)A;
+    for(int i = 0; i < nbytes; i++) {
+        p[i] = byte_of(k, i);
+    }
+}
+END
+
+RECV_AUTO(k)
+k = 1 .. NT-1
+prev   = %{ return k - 1; %}
+nbytes = %{ return nbytes_of(prev, MAX_BYTES); %}
+remote = %{ return rank_of_k(descA, prev) != rank_of_k(descA, k); %}
+
+: descA(k, 0)
+
+READ A <- A SEND(prev)  [ type_remote = AUTO ]
+
+BODY
+{
+    int err = check_payload("RECV_AUTO", k, prev, (const uint8_t*)A, nbytes);
+    if( remote ) {
+        err += check_auto_copy("RECV_AUTO", k, _f_A, (size_t)nbytes, parsec_datatype_int8_t);
+    }
+    account(err, remote);
+}
+END
+
+RECV_FIXED(k)
+k = 1 .. NT-1
+prev   = %{ return k - 1; %}
+nbytes = %{ return nbytes_of(prev, MAX_BYTES); %}
+
+: descA(k, 0)
+
+READ A <- A SEND(prev)  [ type_remote   = DEFAULT
+                          layout_remote = parsec_datatype_int8_t
+                          count_remote  = %{ return nbytes; %} ]
+
+BODY
+{
+    account(check_payload("RECV_FIXED", k, prev, (const uint8_t*)A, nbytes), 0);
+}
+END
+
+RECV_AUTO_DBL(k)
+k = 1 .. NT-1
+prev   = %{ return k - 1; %}
+nbytes = %{ return nbytes_of(prev, MAX_BYTES); %}
+remote = %{ return rank_of_k(descA, prev) != rank_of_k(descA, k); %}
+
+: descA(k, 0)
+
+READ A <- A SEND(prev)  [ type_remote = AUTO  layout_remote = parsec_datatype_double_t ]
+
+BODY
+{
+    int err = check_payload("RECV_AUTO_DBL", k, prev, (const uint8_t*)A, nbytes);
+    if( remote ) {
+        err += check_auto_copy("RECV_AUTO_DBL", k, _f_A, (size_t)nbytes, parsec_datatype_double_t);
+    }
+    account(err, remote);
+}
+END
+
+RECV_DBL(k)
+k = 1 .. NT-1
+prev   = %{ return k - 1; %}
+nbytes = %{ return nbytes_of(prev, MAX_BYTES); %}
+
+: descA(k, 0)
+
+READ A <- A SEND(prev)  [ type_remote   = DEFAULT
+                          layout_remote = parsec_datatype_double_t
+                          count_remote  = %{ return nbytes / 8; %} ]
+
+BODY
+{
+    account(check_payload("RECV_DBL", k, prev, (const uint8_t*)A, nbytes), 0);
+}
+END
+
+extern "C" %{
+int main(int argc, char **argv)
+{
+    parsec_context_t *parsec = NULL;
+    parsec_receive_auto_mixed_taskpool_t *tp;
+    parsec_matrix_block_cyclic_t descA;
+    parsec_arena_datatype_t *adt = PARSEC_OBJ_NEW(parsec_arena_datatype_t);
+    int rank = 0, world = 1, nt = 64, max_bytes = 256, rc;
+    int32_t local[2], global[2];
+    int pargc = 0;
+    char **pargv = NULL;
+
+    for(int i = 1; i < argc; i++) {
+        if( 0 == strcmp(argv[i], "--") ) {
+            pargc = argc - i;
+            pargv = argv + i;
+            break;
+        }
+        if( 0 == strncmp(argv[i], "-n=", 3) ) {
+            nt = (int)strtol(argv[i] + 3, NULL, 10);
+            continue;
+        }
+        if( 0 == strncmp(argv[i], "-b=", 3) ) {
+            max_bytes = (int)strtol(argv[i] + 3, NULL, 10);
+            continue;
+        }
+    }
+    if( nt < 2 ) nt = 2;
+    if( max_bytes < 16 ) max_bytes = 16;
+
+    rc = parsec_tests_context_init(-1, PARSEC_TEST_THREAD_SERIALIZED, &pargc, &pargv,
+                                   &parsec, &rank, &world);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_init");
+
+    parsec_matrix_block_cyclic_init(&descA, PARSEC_MATRIX_BYTE, PARSEC_MATRIX_TILE,
+                                    rank, max_bytes, 1, nt * max_bytes, 1,
+                                    0, 0, nt * max_bytes, 1,
+                                    world, 1, 1, 1, 0, 0);
+    descA.mat = parsec_data_allocate((size_t)descA.super.nb_local_tiles *
+                                     (size_t)descA.super.bsiz *
+                                     parsec_datadist_getsizeoftype(PARSEC_MATRIX_BYTE));
+    rc = parsec_matrix_adt_define_rect(adt, parsec_datatype_int8_t, max_bytes, 1, max_bytes);
+    PARSEC_CHECK_ERROR(rc, "parsec_matrix_adt_define_rect");
+
+    tp = parsec_receive_auto_mixed_new(&descA, nt, max_bytes);
+    assert(NULL != tp);
+    tp->arenas_datatypes[PARSEC_receive_auto_mixed_DEFAULT_ADT_IDX] = *adt;
+
+    rc = parsec_context_add_taskpool(parsec, &tp->super);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
+    rc = parsec_context_start(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_start");
+    rc = parsec_context_wait(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
+    parsec_taskpool_free(&tp->super);
+
+    local[0] = g_errors;
+    local[1] = g_remote;
+    rc = parsec_tests_allreduce(parsec, local, global, 2, parsec_datatype_int32_t,
+                                PARSEC_TESTS_REDUCE_SUM);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_allreduce");
+
+    parsec_matrix_adt_free(&adt);
+    parsec_data_free(descA.mat);
+    parsec_tiled_matrix_destroy((parsec_tiled_matrix_t*)&descA);
+    rc = parsec_tests_context_fini(&parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_fini");
+
+    if( 0 != global[0] ) {
+        fprintf(stderr, "receive_auto_mixed: FAILED (%d errors)\n", global[0]);
+        return EXIT_FAILURE;
+    }
+    if( (world > 1) && (0 == global[1]) ) {
+        fprintf(stderr, "receive_auto_mixed: FAILED (no data received from another process)\n");
+        return EXIT_FAILURE;
+    }
+    if( 0 == rank ) {
+        printf("receive_auto_mixed: PASS (nt=%d, max_bytes=%d, processes=%d, remote receptions=%d)\n",
+               nt, max_bytes, world, global[1]);
+    }
+    return EXIT_SUCCESS;
+}
+%}

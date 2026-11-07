@@ -59,6 +59,7 @@ int32_t parsec_gpu_again_disable_threshold = 100000;
 typedef struct parsec_gpu_host_mirror_lookup_s {
     const parsec_flow_t            *producer_flow;
     parsec_dep_data_description_t   datatype;
+    size_t                          span;  /* bytes held by the GPU copy */
     int                             found;
 } parsec_gpu_host_mirror_lookup_t;
 
@@ -93,6 +94,15 @@ parsec_device_gpu_retrieve_host_mirror_datatype(parsec_execution_stream_t *es,
                                               &flow_mask, &lookup->datatype);
     if( PARSEC_HOOK_RETURN_NEXT != rc ) {
         return PARSEC_ITERATE_CONTINUE;
+    }
+    if( PARSEC_ARENA_AUTO == lookup->datatype.remote.arena ) {
+        /* The successor sizes what it receives after the payload: mirror all
+         * the GPU copy holds. That is a span of memory, in which an element
+         * takes its extent, not the packed size a payload is measured by. */
+        parsec_dep_type_auto_resolve_span(&lookup->datatype.remote, lookup->span);
+        if( 0 == lookup->datatype.remote.dst_count ) {
+            return PARSEC_ITERATE_CONTINUE;
+        }
     }
 
     lookup->found = 1;
@@ -132,6 +142,7 @@ parsec_device_gpu_ensure_host_mirror(parsec_execution_stream_t *es,
      */
     memset(&lookup, 0, sizeof(lookup));
     lookup.producer_flow = producer_flow;
+    lookup.span = original->span;
 
     if( PARSEC_TASKPOOL_TYPE_DTD == producer->taskpool->taskpool_type ) {
         action_mask = 1U << producer_flow->flow_index;
@@ -162,6 +173,10 @@ parsec_device_gpu_ensure_host_mirror(parsec_execution_stream_t *es,
         PARSEC_DATA_COPY_RELEASE(cpu_copy);
         return NULL;
     }
+    /* The allocation has just reset the span of the data, which sizes the
+     * stage out: a mirror sized after the GPU copy has to span exactly what
+     * that copy holds, or the transfer reads past it. */
+    assert((PARSEC_ARENA_AUTO != lookup.datatype.remote.arena) || (original->span == lookup.span));
     /* The buffer is empty until the stage out the caller is about to enqueue
      * completes, so it is left announcing no version at all. Invalid is what
      * says it holds nothing, and it is what every reader of a copy has to

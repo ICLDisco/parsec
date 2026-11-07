@@ -1,0 +1,21 @@
+/*
+ * Copyright (c) 2026
+ */
+/**
+ * This test checks that the compiler rejects [type_remote = AUTO] on an
+ * input dependency from a data collection: there is no incoming message to
+ * size the reception after.
+ */
+TASK(k)
+
+k = 0 .. 10
+
+: A( k )
+
+  RW A <- A(k)            [ type_remote = AUTO ]
+       -> A(k)
+BODY
+{
+    /* Nothing */
+}
+END
