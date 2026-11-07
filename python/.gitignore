@@ -1,0 +1,5 @@
+# Files left by an in-tree "pip install ./python"
+build/
+*.egg-info/
+src/py_parsec/*.c
+src/py_parsec/*.so
