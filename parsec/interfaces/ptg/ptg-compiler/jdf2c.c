@@ -4550,8 +4550,18 @@ static void jdf_generate_destructor( const jdf_t *jdf )
     if( JDF_COMPILER_GLOBAL_ARGS.dep_management == DEP_MANAGEMENT_INDEX_ARRAY ) {
         coutput("  size_t dependencies_size = 0;\n");
     }
-    coutput("  parsec_taskpool_unregister( &__parsec_tp->super.super );\n"
-            "  if(NULL != __parsec_tp->super.super.tdm.module) __parsec_tp->super.super.tdm.module->unmonitor_taskpool(&__parsec_tp->super.super);\n");
+    coutput("  if( NULL == __parsec_tp->super.super.context ) {\n"
+            "    /* Never added to a context, so the startup hook never ran: nothing was\n"
+            "     * registered with the devices, and the startup tasks whose runtime actions\n"
+            "     * the constructor accounted for never executed. Give those back, otherwise\n"
+            "     * the termination detector refuses to let go of a taskpool with pending work. */\n"
+            "    __parsec_tp->super.super.devices_index_mask = 0;\n"
+            "    if(NULL != __parsec_tp->super.super.tdm.module)\n"
+            "      __parsec_tp->super.super.tdm.module->taskpool_addto_runtime_actions(&__parsec_tp->super.super, -PARSEC_%s_NB_TASK_CLASSES);\n"
+            "  }\n"
+            "  parsec_taskpool_unregister( &__parsec_tp->super.super );\n"
+            "  if(NULL != __parsec_tp->super.super.tdm.module) __parsec_tp->super.super.tdm.module->unmonitor_taskpool(&__parsec_tp->super.super);\n",
+            jdf_basename);
 
     coutput("  for( i = 0; i < (uint32_t)(2 * __parsec_tp->super.super.nb_task_classes); i++ ) {  /* Extra startup function added at the end */\n"
             "    parsec_task_class_t* tc = (parsec_task_class_t*)__parsec_tp->super.super.task_classes_array[i];\n"
@@ -4561,15 +4571,16 @@ static void jdf_generate_destructor( const jdf_t *jdf )
             "  free(__parsec_tp->super.super.task_classes_array); __parsec_tp->super.super.task_classes_array = NULL;\n"
             "  __parsec_tp->super.super.nb_task_classes = 0;\n");
 
-    coutput("  /* Destroy the data repositories for this object */\n");
+    coutput("  /* Destroy the data repositories for this object. The startup tasks create\n"
+            "   * them, so a taskpool that never ran has none. */\n");
     for( f = jdf->functions; NULL != f; f = f->next ) {
         /* Destruct the repo for all tasks classes, they can be used when:
          * - a predecessor sets up a reshape promised for a datacopy
          * - the own tasks use it when reshaping a datacopy directly read from desc
          * No longer only when if( !(f->flags & JDF_FUNCTION_FLAG_NO_SUCCESSORS) )
          */
-        coutput("   data_repo_destroy_nothreadsafe(__parsec_tp->repositories[%d]);  /* %s */\n",
-                f->task_class_id, f->fname);
+        coutput("  if(NULL != __parsec_tp->repositories[%d]) data_repo_destroy_nothreadsafe(__parsec_tp->repositories[%d]);  /* %s */\n",
+                f->task_class_id, f->task_class_id, f->fname);
     }
 
     coutput("  /* Release the dependencies arrays for this object */\n");
@@ -4580,12 +4591,16 @@ static void jdf_generate_destructor( const jdf_t *jdf )
                         "    dependencies_size += parsec_destruct_dependencies( __parsec_tp->super.super.dependencies_array[%d] );\n",
                         f->task_class_id, f->task_class_id);
             } else if (JDF_COMPILER_GLOBAL_ARGS.dep_management == DEP_MANAGEMENT_DYNAMIC_HASH_TABLE ) {
-                coutput("  parsec_hash_table_fini( (parsec_hash_table_t*)__parsec_tp->super.super.dependencies_array[%d] );\n"
-                        "  PARSEC_OBJ_RELEASE(__parsec_tp->super.super.dependencies_array[%d]);\n",
-                        f->task_class_id, f->task_class_id);
+                coutput("  if(NULL != __parsec_tp->super.super.dependencies_array[%d]) {\n"
+                        "    parsec_hash_table_fini( (parsec_hash_table_t*)__parsec_tp->super.super.dependencies_array[%d] );\n"
+                        "    PARSEC_OBJ_RELEASE(__parsec_tp->super.super.dependencies_array[%d]);\n"
+                        "  }\n",
+                        f->task_class_id, f->task_class_id, f->task_class_id);
             }
         } else {
-            coutput("  %s(__parsec_tp, __parsec_tp->super.super.dependencies_array[%d]);\n",
+            coutput("  if(NULL != __parsec_tp->super.super.dependencies_array[%d])\n"
+                    "    %s(__parsec_tp, __parsec_tp->super.super.dependencies_array[%d]);\n",
+                    f->task_class_id,
                     jdf_property_get_function(f->properties, JDF_PROP_UD_FREE_DEPS_FN_NAME, NULL),
                     f->task_class_id);
 
@@ -4645,6 +4660,7 @@ static void jdf_generate_constructor( const jdf_t* jdf )
 {
     string_arena_t *sa1, *sa2;
     profiling_init_info_t pi;
+    jdf_function_entry_t *f;
     int idx = 0, need_profile = 0;
 
     sa1 = string_arena_new(64);
@@ -4679,6 +4695,13 @@ static void jdf_generate_constructor( const jdf_t* jdf )
             string_arena_get_string(jdf->termdet_init_line),
             jdf_basename, jdf_basename,
             string_arena_get_string(sa1));
+
+    if( NULL != jdf->functions ) {
+        coutput("  /* The startup tasks create the data repositories; until they run there are none */\n");
+        for( f = jdf->functions; NULL != f; f = f->next ) {
+            coutput("  __parsec_tp->repositories[%d] = NULL;\n", f->task_class_id);
+        }
+    }
 
     /* Prepare the functions */
     coutput("  for( i = 0; i < __parsec_tp->super.super.nb_task_classes; i++ ) {\n"
