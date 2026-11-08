@@ -50,7 +50,7 @@ parsec_class_t parsec_object_t_class = {
  * Local variables
  */
 static parsec_atomic_lock_t class_lock = PARSEC_ATOMIC_UNLOCKED;
-static void** classes = NULL;
+static parsec_class_t** classes = NULL;
 static int num_classes = 0;
 static int max_classes = 0;
 static const int increment = 10;
@@ -73,7 +73,24 @@ int parsec_obj_update_not_inline(parsec_object_t *object, int inc)
 }
 
 /*
+ * Publish/retract the initialized state of a class. The release store makes
+ * the depth and the constructor/destructor arrays visible to any thread that
+ * reads the flag with the matching acquire load (PARSEC_CLASS_IS_INITIALIZED).
+ */
+#if defined(__GNUC__) || defined(__clang__)
+#define PARSEC_CLASS_SET_INITIALIZED(cls, value) \
+    __atomic_store_n(&(cls)->cls_initialized, (value), __ATOMIC_RELEASE)
+#else
+#define PARSEC_CLASS_SET_INITIALIZED(cls, value) \
+    (*(volatile int*)&(cls)->cls_initialized = (value))
+#endif
+
+/*
  * Lazy initialization of class descriptor.
+ *
+ * It can be called explicitly to pay the initialization cost at a known
+ * point, but this is only an optimization: the first object of a class
+ * initializes it, from any thread.
  */
 void parsec_class_initialize(parsec_class_t *cls)
 {
@@ -89,7 +106,7 @@ void parsec_class_initialize(parsec_class_t *cls)
     /* Check to see if any other thread got in here and initialized
        this class before we got a chance to */
 
-    if (1 == cls->cls_initialized) {
+    if (PARSEC_CLASS_IS_INITIALIZED(cls)) {
         return;
     }
     parsec_atomic_lock(&class_lock);
@@ -98,7 +115,7 @@ void parsec_class_initialize(parsec_class_t *cls)
        roughly the same time, it may have gotten the lock and
        initialized.  So check again. */
 
-    if (1 == cls->cls_initialized) {
+    if (PARSEC_CLASS_IS_INITIALIZED(cls)) {
         parsec_atomic_unlock(&class_lock);
         return;
     }
@@ -159,8 +176,10 @@ void parsec_class_initialize(parsec_class_t *cls)
     }
     *cls_destruct_array = NULL;  /* end marker for the destructors */
 
-    cls->cls_initialized = 1;
     save_class(cls);
+
+    /* Everything above must be visible to the threads that observe the flag */
+    PARSEC_CLASS_SET_INITIALIZED(cls, 1);
 
     /* All done */
 
@@ -175,10 +194,19 @@ void parsec_class_finalize(void)
 {
     int i;
 
+    parsec_atomic_lock(&class_lock);
     if (NULL != classes) {
         for (i = 0; i < num_classes; ++i) {
-            if (NULL != classes[i]) {
-                free(classes[i]);
+            parsec_class_t *cls = classes[i];
+            if (NULL != cls) {
+                /* The class goes back to its static state, so a later
+                 * initialization of the runtime does not find an initialized
+                 * class pointing to freed arrays. */
+                PARSEC_CLASS_SET_INITIALIZED(cls, 0);
+                free(cls->cls_construct_array);  /* also holds the destructors */
+                cls->cls_construct_array = NULL;
+                cls->cls_destruct_array  = NULL;
+                cls->cls_depth = 0;
             }
         }
         free(classes);
@@ -186,6 +214,7 @@ void parsec_class_finalize(void)
         num_classes = 0;
         max_classes = 0;
     }
+    parsec_atomic_unlock(&class_lock);
 }
 
 void parsec_obj_destruct(parsec_object_t * object) {
@@ -226,7 +255,7 @@ static void save_class(parsec_class_t *cls)
         expand_array();
     }
 
-    classes[num_classes] = cls->cls_construct_array;
+    classes[num_classes] = cls;
     ++num_classes;
 }
 
@@ -236,7 +265,7 @@ static void expand_array(void)
     int i;
 
     max_classes += increment;
-    classes = (void**)realloc(classes, sizeof(void *) * max_classes);
+    classes = (parsec_class_t**)realloc(classes, sizeof(parsec_class_t *) * max_classes);
     if (NULL == classes) {
         perror("class malloc failed");
         exit(-1);
