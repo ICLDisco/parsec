@@ -21,6 +21,11 @@ typedef struct testing_redistribute_matrix_s {
     int distribution;
     int memory_location;
     parsec_matrix_uplo_t uplo;
+    /* What the redistribution calls see: desc itself, or a sub-matrix view
+     * of it, with the displacements expressed in that view. */
+    parsec_tiled_matrix_t *view;
+    int view_disi;
+    int view_disj;
 } testing_redistribute_matrix_t;
 
 static int testing_redistribute_imax(int a, int b)
@@ -78,9 +83,9 @@ static int testing_redistribute_region_fits_uplo(int mb, int nb,
 }
 
 static parsec_matrix_uplo_t
-testing_redistribute_select_sbc_uplo(int mb, int nb,
-                                     int size_row, int size_col,
-                                     int disi, int disj)
+testing_redistribute_select_triangular_uplo(int mb, int nb,
+                                            int size_row, int size_col,
+                                            int disi, int disj)
 {
     if( testing_redistribute_region_fits_uplo(mb, nb, size_row, size_col,
                                               disi, disj, PARSEC_MATRIX_LOWER) ) {
@@ -131,6 +136,7 @@ testing_redistribute_apply_uplo(const testing_redistribute_matrix_t *matrix)
                matrix->uplo : PARSEC_MATRIX_FULL;
 }
 
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
 static int
 testing_redistribute_tile_is_stored(const testing_redistribute_matrix_t *matrix,
                                     int m, int n)
@@ -141,6 +147,7 @@ testing_redistribute_tile_is_stored(const testing_redistribute_matrix_t *matrix,
     }
     return (PARSEC_MATRIX_LOWER == matrix->uplo) ? (m >= n) : (n >= m);
 }
+#endif  /* defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) */
 
 static int
 testing_redistribute_uses_cuda_memory(int memory_location)
@@ -387,6 +394,20 @@ testing_redistribute_init_matrix(testing_redistribute_matrix_t *matrix,
     matrix->memory_location = memory_location;
     matrix->uplo = PARSEC_MATRIX_FULL;
 
+    /* Neither triangular descriptor has a k-cyclic grid, so the
+     * supertile sizes would be silently ignored. */
+    if( (REDISTRIBUTE_DIST_2DBC != distribution) &&
+        ((1 != supertile_rows) || (1 != supertile_cols)) ) {
+        if( 0 == rank ) {
+            fprintf(stderr,
+                    "ERROR: %s %s descriptor does not support supertiling (got %dx%d); "
+                    "only 2dbc accepts supertile sizes other than 1\n",
+                    name, redistribute_distribution_name(distribution),
+                    supertile_rows, supertile_cols);
+        }
+        return PARSEC_ERR_NOT_SUPPORTED;
+    }
+
     if( REDISTRIBUTE_DIST_2DBC == distribution ) {
         parsec_matrix_block_cyclic_init(bc, PARSEC_MATRIX_DOUBLE, PARSEC_MATRIX_TILE,
                                         rank, mb, nb, lm, ln, 0, 0,
@@ -395,11 +416,12 @@ testing_redistribute_init_matrix(testing_redistribute_matrix_t *matrix,
         matrix->desc = (parsec_tiled_matrix_t *)bc;
         matrix->mat = &bc->mat;
     } else if( REDISTRIBUTE_DIST_SYM_2DBC == distribution ) {
-        matrix->uplo = testing_redistribute_select_sbc_uplo(mb, nb, size_row, size_col,
-                                                            disi, disj);
+        matrix->uplo = testing_redistribute_select_triangular_uplo(mb, nb, size_row, size_col,
+                                                                   disi, disj);
+        /* Same P x (nodes / P) grid as the 2DBC branch: -Q/-q are not used. */
         parsec_matrix_sym_block_cyclic_init(sym, PARSEC_MATRIX_DOUBLE,
                                            rank, mb, nb, lm, ln, 0, 0,
-                                           lm, ln, grid_rows, grid_cols,
+                                           lm, ln, grid_rows, nodes / grid_rows,
                                            matrix->uplo);
         matrix->desc = (parsec_tiled_matrix_t *)sym;
         matrix->mat = &sym->mat;
@@ -407,8 +429,8 @@ testing_redistribute_init_matrix(testing_redistribute_matrix_t *matrix,
         int r = testing_redistribute_sbc_infer_r(grid_rows, grid_cols, nodes);
         int rc;
 
-        matrix->uplo = testing_redistribute_select_sbc_uplo(mb, nb, size_row, size_col,
-                                                            disi, disj);
+        matrix->uplo = testing_redistribute_select_triangular_uplo(mb, nb, size_row, size_col,
+                                                                   disi, disj);
         rc = parsec_matrix_sbc_init(sbc, PARSEC_MATRIX_DOUBLE,
                                     rank, mb, nb, lm, ln, 0, 0, lm, ln,
                                     nodes, r, matrix->uplo);
@@ -436,6 +458,60 @@ testing_redistribute_init_matrix(testing_redistribute_matrix_t *matrix,
 
     return testing_redistribute_validate_triangular_region(matrix, name, size_row, size_col,
                                                            disi, disj);
+}
+
+/*
+ * Choose the descriptor handed to the redistribution. With a nonzero tile
+ * offset it is a sub-matrix view of the same tiles that starts offset_m tile
+ * rows and offset_n tile columns in, and the displacements shrink by the
+ * same amount, so the same elements move. The view carries a nonzero (i, j),
+ * which exercises the offset handling of the redistribution. Initialization
+ * and checking keep using the full descriptor.
+ */
+static int
+testing_redistribute_make_view(testing_redistribute_matrix_t *matrix,
+                               const char *name,
+                               int offset_m, int offset_n,
+                               int disi, int disj)
+{
+    parsec_tiled_matrix_t *desc = matrix->desc;
+    int i = offset_m * desc->mb;
+    int j = offset_n * desc->nb;
+
+    matrix->view = desc;
+    matrix->view_disi = disi;
+    matrix->view_disj = disj;
+    if( (0 == offset_m) && (0 == offset_n) ) {
+        return PARSEC_SUCCESS;
+    }
+
+    if( (i > disi) || (j > disj) ) {
+        if( 0 == desc->super.myrank ) {
+            fprintf(stderr,
+                    "ERROR: %s view offset (%d, %d) tiles starts past the displacement (%d, %d)\n",
+                    name, offset_m, offset_n, disi, disj);
+        }
+        return PARSEC_ERR_BAD_PARAM;
+    }
+
+    matrix->view = parsec_tiled_matrix_submatrix(desc, i, j, desc->lm - i, desc->ln - j);
+    if( NULL == matrix->view ) {
+        matrix->view = desc;
+        return PARSEC_ERROR;
+    }
+    matrix->view_disi = disi - i;
+    matrix->view_disj = disj - j;
+    return PARSEC_SUCCESS;
+}
+
+static void
+testing_redistribute_free_view(testing_redistribute_matrix_t *matrix)
+{
+    /* A view shares the tiles of its descriptor: only the struct is ours. */
+    if( (NULL != matrix->view) && (matrix->view != matrix->desc) ) {
+        free(matrix->view);
+    }
+    matrix->view = NULL;
 }
 
 /**
@@ -514,6 +590,8 @@ int main(int argc, char *argv[])
     int SNB     = iparam[IPARAM_SNB];
     int disi_Y  = iparam[IPARAM_DISI];
     int disj_Y  = iparam[IPARAM_DISJ];
+    int view_m_Y = iparam[IPARAM_VIEW_M];
+    int view_n_Y = iparam[IPARAM_VIEW_N];
 
     /* Target/redistribute */
     int PR       = iparam[IPARAM_P_R];
@@ -528,6 +606,8 @@ int main(int argc, char *argv[])
     int SNBR     = iparam[IPARAM_SNB_R];
     int disi_T  = iparam[IPARAM_DISI_R];
     int disj_T  = iparam[IPARAM_DISJ_R];
+    int view_m_T = iparam[IPARAM_VIEW_M_R];
+    int view_n_T = iparam[IPARAM_VIEW_N_R];
 
     /* Matrix common */
     int R = iparam[IPARAM_RADIUS];
@@ -564,6 +644,8 @@ int main(int argc, char *argv[])
         goto cleanup_all;
     }
 
+    /* no_optimization is a comparison baseline only and is not tested with
+     * triangular descriptors, so it stays disabled for them. */
     if( no_optimization_version &&
         ((REDISTRIBUTE_DIST_SYM_2DBC == source_distribution) ||
          (REDISTRIBUTE_DIST_SYM_2DBC == target_distribution) ||
@@ -597,6 +679,15 @@ int main(int argc, char *argv[])
         goto cleanup_all;
     }
 
+    rc = testing_redistribute_make_view(&dcY, "dcY", view_m_Y, view_n_Y, disi_Y, disj_Y);
+    if( PARSEC_SUCCESS != rc ) {
+        goto cleanup_all;
+    }
+    rc = testing_redistribute_make_view(&dcT, "dcT", view_m_T, view_n_T, disi_T, disj_T);
+    if( PARSEC_SUCCESS != rc ) {
+        goto cleanup_all;
+    }
+
     for(int i = 0; i < num_runs; i++) {
 #if RUN_PTG
          /*
@@ -619,15 +710,22 @@ int main(int argc, char *argv[])
          * changed in parsec/data_dist/matrix/redistribute/redistribute_internal.h
          */
         if( no_optimization_version )
-            parsec_redistribute_no_optimization(parsec, dcY.desc,
-                                                dcT.desc,
-                                                size_row, size_col, disi_Y, disj_Y,
-                                                disi_T, disj_T);
+            rc = parsec_redistribute_no_optimization(parsec, dcY.view,
+                                                     dcT.view,
+                                                     size_row, size_col,
+                                                     dcY.view_disi, dcY.view_disj,
+                                                     dcT.view_disi, dcT.view_disj);
         else
-            parsec_redistribute(parsec, dcY.desc,
-                                dcT.desc,
-                                size_row, size_col, disi_Y, disj_Y,
-                                disi_T, disj_T);
+            rc = parsec_redistribute(parsec, dcY.view,
+                                     dcT.view,
+                                     size_row, size_col,
+                                     dcY.view_disi, dcY.view_disj,
+                                     dcT.view_disi, dcT.view_disj);
+        if( PARSEC_SUCCESS != rc ) {
+            if( 0 == rank )
+                fprintf(stderr, "ERROR: PTG redistribution of dcY to dcT failed (%d)\n", rc);
+            goto cleanup_all;
+        }
         rc = testing_redistribute_make_device_resident(&dcT);
         if( PARSEC_SUCCESS != rc ) {
             goto cleanup_all;
@@ -655,10 +753,13 @@ int main(int argc, char *argv[])
                 printf("Checking result for PTG:");
 
 #if COPY_TO_1NODE
-            parsec_redistribute_check(parsec, dcY.desc,
-                                      dcT.desc,
-                                      size_row, size_col, disi_Y, disj_Y,
-                                      disi_T, disj_T);
+            if( 0 != parsec_redistribute_check(parsec, dcY.desc,
+                                               dcT.desc,
+                                               size_row, size_col, disi_Y, disj_Y,
+                                               disi_T, disj_T) ) {
+                rc = PARSEC_ERROR;
+                goto cleanup_all;
+            }
 #else
             /* Init dcY to 0 */
             int op_args = 0;
@@ -671,17 +772,26 @@ int main(int argc, char *argv[])
             }
 
             /* Redistribute back from dcT to dcY */
-            parsec_redistribute(parsec, dcT.desc,
-                                dcY.desc,
-                                size_row, size_col, disi_T, disj_T,
-                                disi_Y, disj_Y);
+            rc = parsec_redistribute(parsec, dcT.view,
+                                     dcY.view,
+                                     size_row, size_col,
+                                     dcT.view_disi, dcT.view_disj,
+                                     dcY.view_disi, dcY.view_disj);
+            if( PARSEC_SUCCESS != rc ) {
+                if( 0 == rank )
+                    fprintf(stderr, "ERROR: PTG redistribution of dcT back to dcY failed (%d)\n", rc);
+                goto cleanup_all;
+            }
             rc = testing_redistribute_make_device_resident(&dcY);
             if( PARSEC_SUCCESS != rc ) {
                 goto cleanup_all;
             }
 
-            parsec_redistribute_check2(parsec, dcY.desc,
-                                       size_row, size_col, disi_Y, disj_Y);
+            if( 0 != parsec_redistribute_check2(parsec, dcY.desc,
+                                                size_row, size_col, disi_Y, disj_Y) ) {
+                rc = PARSEC_ERROR;
+                goto cleanup_all;
+            }
 #endif /* COPY_TO_1NODE */
         }
 #endif /* RUN_PTG */
@@ -709,10 +819,16 @@ int main(int argc, char *argv[])
         /* Main part, call parsec_redistribute_dtd; double is default, which could be
          * changed in parsec/data_dist/matrix/redistribute/redistribute_internal.h
          */
-        parsec_redistribute_dtd(parsec, dcY.desc,
-                                dcT.desc,
-                                size_row, size_col, disi_Y, disj_Y,
-                                disi_T, disj_T);
+        rc = parsec_redistribute_dtd(parsec, dcY.view,
+                                     dcT.view,
+                                     size_row, size_col,
+                                     dcY.view_disi, dcY.view_disj,
+                                     dcT.view_disi, dcT.view_disj);
+        if( PARSEC_SUCCESS != rc ) {
+            if( 0 == rank )
+                fprintf(stderr, "ERROR: DTD redistribution of dcY to dcT failed (%d)\n", rc);
+            goto cleanup_all;
+        }
         rc = testing_redistribute_make_device_resident(&dcT);
         if( PARSEC_SUCCESS != rc ) {
             goto cleanup_all;
@@ -740,10 +856,13 @@ int main(int argc, char *argv[])
                 printf("Checking result for DTD:");
 
 #if COPY_TO_1NODE
-            parsec_redistribute_check(parsec, dcY.desc,
-                                      dcT.desc,
-                                      size_row, size_col, disi_Y, disj_Y,
-                                      disi_T, disj_T);
+            if( 0 != parsec_redistribute_check(parsec, dcY.desc,
+                                               dcT.desc,
+                                               size_row, size_col, disi_Y, disj_Y,
+                                               disi_T, disj_T) ) {
+                rc = PARSEC_ERROR;
+                goto cleanup_all;
+            }
 #else
             /* Init dcY to 0 */
             int op_args = 0;
@@ -756,17 +875,26 @@ int main(int argc, char *argv[])
             }
 
             /* Redistribute back from dcT to dcY */
-            parsec_redistribute_dtd(parsec, dcT.desc,
-                                    dcY.desc,
-                                    size_row, size_col, disi_T, disj_T,
-                                    disi_Y, disj_Y);
+            rc = parsec_redistribute_dtd(parsec, dcT.view,
+                                         dcY.view,
+                                         size_row, size_col,
+                                         dcT.view_disi, dcT.view_disj,
+                                         dcY.view_disi, dcY.view_disj);
+            if( PARSEC_SUCCESS != rc ) {
+                if( 0 == rank )
+                    fprintf(stderr, "ERROR: DTD redistribution of dcT back to dcY failed (%d)\n", rc);
+                goto cleanup_all;
+            }
             rc = testing_redistribute_make_device_resident(&dcY);
             if( PARSEC_SUCCESS != rc ) {
                 goto cleanup_all;
             }
 
-            parsec_redistribute_check2(parsec, dcY.desc,
-                                       size_row, size_col, disi_Y, disj_Y);
+            if( 0 != parsec_redistribute_check2(parsec, dcY.desc,
+                                                size_row, size_col, disi_Y, disj_Y) ) {
+                rc = PARSEC_ERROR;
+                goto cleanup_all;
+            }
 #endif /* COPY_TO_1NODE */
         }
 #endif /* RUN_DTD */
@@ -840,6 +968,8 @@ int main(int argc, char *argv[])
 
 cleanup_all:
     /* Free memory */
+    testing_redistribute_free_view(&dcT);
+    testing_redistribute_free_view(&dcY);
     if( NULL != dcT.desc ) {
         parsec_tiled_matrix_destroy(dcT.desc);
     }

@@ -132,6 +132,7 @@ redistribute_region_is_stored(parsec_tiled_matrix_t *dc,
                               int disi, int disj)
 {
     parsec_matrix_uplo_t uplo;
+    int m_offset, n_offset;
     int m_start, m_end, n_start, n_end;
 
     if( dc->dtype & parsec_matrix_sbc_type ) {
@@ -142,10 +143,16 @@ redistribute_region_is_stored(parsec_tiled_matrix_t *dc,
         return 1;
     }
 
-    m_start = disi / dc->mb;
-    m_end = (disi + size_row - 1) / dc->mb;
-    n_start = disj / dc->nb;
-    n_end = (disj + size_col - 1) / dc->nb;
+    /* The displacements are relative to the descriptor's (i, j) origin, but
+     * rank_of decides whether a tile is stored from its global position.
+     * Shift by the same tile offset rank_of adds, so both agree. */
+    m_offset = dc->i / dc->mb;
+    n_offset = dc->j / dc->nb;
+
+    m_start = m_offset + disi / dc->mb;
+    m_end = m_offset + (disi + size_row - 1) / dc->mb;
+    n_start = n_offset + disj / dc->nb;
+    n_end = n_offset + (disj + size_col - 1) / dc->nb;
 
     if( PARSEC_MATRIX_LOWER == uplo ) {
         return m_start >= n_end;

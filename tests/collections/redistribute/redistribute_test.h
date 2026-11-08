@@ -104,6 +104,23 @@ int parsec_redistribute_no_optimization(parsec_context_t *parsec,
                         int disi_target, int disj_target);
 
 /**
+ * @brief Initial value of element (i, j) of tile (m, n) of descA
+ *
+ * @details
+ * The tile term makes every tile distinct, so a tile that lands in the
+ * wrong place fails the check. The in-tile term stays below mb + nb
+ * (it is at most i + (j+1)/10), so the values of two different tiles
+ * never overlap.
+ */
+static inline DTYPE redistribute_init_value(const parsec_tiled_matrix_t *descA,
+                                            int m, int n, int i, int j)
+{
+    DTYPE tile = (DTYPE)m + (DTYPE)n * (DTYPE)descA->lmt;
+
+    return (DTYPE)(10*i+j+1)/(i*j+10) + tile * (DTYPE)(descA->mb + descA->nb);
+}
+
+/**
  * @brief redistribute init operator
  *
  * @param [in] es: execution stream
@@ -124,12 +141,12 @@ static inline int redistribute_init_ops(parsec_execution_stream_t *es,
     for(int j = 0; j < descA->nb; j++) {
         for(int i = 0; i < descA->mb; i++) {
             if( initvalue )
-                A[j*descA->mb+i] = (DTYPE)(10*i+j+1)/(i*j+10);
+                A[j*descA->mb+i] = redistribute_init_value(descA, m, n, i, j);
             else
                 A[j*descA->mb+i] = (DTYPE)0.0;
         }
     }
 
-    (void)es; (void)uplo; (void)m; (void)n;
+    (void)es; (void)uplo;
     return 0;
 }
