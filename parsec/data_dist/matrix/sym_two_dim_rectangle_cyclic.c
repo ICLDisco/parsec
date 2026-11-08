@@ -75,12 +75,16 @@ static uint32_t sym_twoDBC_rank_of(parsec_data_collection_t * desc, ...)
     n = va_arg(ap, unsigned int);
     va_end(ap);
 
+    /* Assert using local info */
+    assert( m < dc->super.mt );
+    assert( n < dc->super.nt );
+
     /* Offset by (i,j) to translate (m,n) in the global matrix */
     m += dc->super.i / dc->super.mb;
     n += dc->super.j / dc->super.nb;
 
-    assert( m < dc->super.mt );
-    assert( n < dc->super.nt );
+    assert( m < dc->super.lmt );
+    assert( n < dc->super.lnt );
 
     assert( (dc->uplo == PARSEC_MATRIX_LOWER && m>=n) ||
             (dc->uplo == PARSEC_MATRIX_UPPER && n>=m) );
@@ -136,16 +140,18 @@ static parsec_data_t* sym_twoDBC_data_of(parsec_data_collection_t *desc, ...)
     n = (int)va_arg(ap, unsigned int);
     va_end(ap);
 
-    /* Offset by (i,j) to translate (m,n) in the global matrix */
-    m += dc->super.i / dc->super.mb;
-    n += dc->super.j / dc->super.nb;
-
+    /* Assert using local info: rank_of applies the (i,j) offset itself */
     assert( m < dc->super.mt );
     assert( n < dc->super.nt );
 
 #if defined(DISTRIBUTED)
     assert(desc->myrank == desc->rank_of(desc, m, n));
 #endif
+
+    /* Offset by (i,j) to translate (m,n) in the global matrix */
+    m += dc->super.i / dc->super.mb;
+    n += dc->super.j / dc->super.nb;
+
     assert( dc->super.storage == PARSEC_MATRIX_TILE );
     assert( (dc->uplo == PARSEC_MATRIX_LOWER && m>=n) ||
             (dc->uplo == PARSEC_MATRIX_UPPER && n>=m) );
@@ -192,16 +198,18 @@ static int32_t sym_twoDBC_vpid_of(parsec_data_collection_t *desc, ...)
     n = (int)va_arg(ap, unsigned int);
     va_end(ap);
 
-    /* Offset by (i,j) to translate (m,n) in the global matrix */
-    m += dc->super.i / dc->super.mb;
-    n += dc->super.j / dc->super.nb;
-
+    /* Assert using local info: rank_of applies the (i,j) offset itself */
     assert( m < dc->super.mt );
     assert( n < dc->super.nt );
 
 #if defined(DISTRIBUTED)
     assert(desc->myrank == desc->rank_of(desc, m, n));
 #endif
+
+    /* Offset by (i,j) to translate (m,n) in the global matrix */
+    m += dc->super.i / dc->super.mb;
+    n += dc->super.j / dc->super.nb;
+
     assert( (dc->uplo == PARSEC_MATRIX_LOWER && m>=n) ||
             (dc->uplo == PARSEC_MATRIX_UPPER && n>=m) );
 

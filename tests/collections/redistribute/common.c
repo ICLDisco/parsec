@@ -85,6 +85,16 @@ static int parse_memory_location_arg(const char *arg)
     return REDISTRIBUTE_MEMORY_HOST;
 }
 
+static void parse_view_offset_arg(const char *arg, int *m, int *n)
+{
+    char tail;
+
+    if( (2 != sscanf(arg, "%d,%d%c", m, n, &tail)) || (*m < 0) || (*n < 0) ) {
+        fprintf(stderr, "#XXXXX invalid view offset '%s' (expected <tile rows>,<tile cols>, both >= 0)\n", arg);
+        exit(2);
+    }
+}
+
 /**********************************
  * Command line arguments
  **********************************/
@@ -105,7 +115,10 @@ void print_usage(void)
             " -S --SNB              : columns of tiles in a supertile (default: 1)\n"
             " -I                    : set row displacement\n"
             " -J                    : set column displacement\n"
-            "\n Target/Redistributed Matrix:\n" 
+            " -o --source-view-offset : <mt>,<nt>: redistribute through a sub-matrix view that starts\n"
+            "                         mt tile rows and nt tile columns in; the same elements move\n"
+            "                         (default: 0,0, the whole descriptor)\n"
+            "\n Target/Redistributed Matrix:\n"
             " -p --target-grid-rows : rows (p) in the pxq process grid (default: NP)\n"
             " -q --target-grid-cols : columns (q) in the pxq process grid (default: NP/p)\n"
             " -G --target-distribution : target distribution, 2dbc, sym-2dbc, sbc, or sdb (default: 2dbc)\n"
@@ -118,7 +131,8 @@ void print_usage(void)
             " -D --SNBR             : columns of tiles in a supertile (default: 1)\n"
             " -i                    : set redistributed row displacement\n"
             " -j                    : set redistributed column displacement\n"
-            "\n Matrix Common:\n" 
+            " -O --target-view-offset : <mt>,<nt>: same as -o, for the target (default: 0,0)\n"
+            "\n Matrix Common:\n"
             " -R --radius           : set radius of ghost region\n"
             " -m --submatrix-rows   : set row size of submatrix to be redistributed\n"
             " -n --submatrix-cols   : set column size of submatrix to be redistributed\n"
@@ -140,7 +154,7 @@ void print_usage(void)
             "\n");
 }
 
-#define GETOPT_STRING "c:P:Q:g:l:M:N:t:T:s:S:I:J:p:q:G:L:a:A:b:B:d:D:i:j:R:m:n:x:v:h:z:u:U:y:e:f:"
+#define GETOPT_STRING "c:P:Q:g:l:M:N:t:T:s:S:I:J:o:p:q:G:L:a:A:b:B:d:D:i:j:O:R:m:n:x:v:h:z:u:U:y:e:f:"
 
 #if defined(PARSEC_HAVE_GETOPT_LONG)
 static struct option long_options[] =
@@ -169,6 +183,8 @@ static struct option long_options[] =
     {"S",                  required_argument,  0, 'S'},
     {"I",                  required_argument,  0, 'I'},
     {"J",                  required_argument,  0, 'J'},
+    {"source-view-offset", required_argument,  0, 'o'},
+    {"o",                  required_argument,  0, 'o'},
 
     /* Target/Redistributed Matrix */
     {"target-grid-rows",   required_argument,  0, 'p'},
@@ -195,6 +211,8 @@ static struct option long_options[] =
     {"D",                  required_argument,  0, 'D'},
     {"i",                  required_argument,  0, 'i'},
     {"j",                  required_argument,  0, 'j'},
+    {"target-view-offset", required_argument,  0, 'O'},
+    {"O",                  required_argument,  0, 'O'},
 
     /* Radius */
     {"R",                  required_argument,  0, 'R'},
@@ -272,6 +290,12 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam, double *dpar
     iparam[IPARAM_SMB_R] = 1;
     iparam[IPARAM_SNB_R] = 1;
 
+    /* Redistribute through the whole descriptors by default */
+    iparam[IPARAM_VIEW_M] = 0;
+    iparam[IPARAM_VIEW_N] = 0;
+    iparam[IPARAM_VIEW_M_R] = 0;
+    iparam[IPARAM_VIEW_N_R] = 0;
+
     /* Default number of runs: 1 */
     iparam[IPARAM_NUM_RUNS] = 1;
 
@@ -309,6 +333,8 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam, double *dpar
             case 'S': iparam[IPARAM_SNB] = atoi(optarg); break;
             case 'I': iparam[IPARAM_DISI] = atoi(optarg); break;
             case 'J': iparam[IPARAM_DISJ] = atoi(optarg); break;
+            case 'o': parse_view_offset_arg(optarg, &iparam[IPARAM_VIEW_M],
+                                            &iparam[IPARAM_VIEW_N]); break;
 
             /* Target/redistribute */
             case 'p': iparam[IPARAM_P_R] = atoi(optarg); break;
@@ -323,6 +349,8 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam, double *dpar
             case 'D': iparam[IPARAM_SNB_R] = atoi(optarg); break;
             case 'i': iparam[IPARAM_DISI_R] = atoi(optarg); break;
             case 'j': iparam[IPARAM_DISJ_R] = atoi(optarg); break;
+            case 'O': parse_view_offset_arg(optarg, &iparam[IPARAM_VIEW_M_R],
+                                            &iparam[IPARAM_VIEW_N_R]); break;
 
             /* Common */
             case 'R': iparam[IPARAM_RADIUS] = atoi(optarg); break;

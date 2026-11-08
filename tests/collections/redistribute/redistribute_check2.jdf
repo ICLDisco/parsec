@@ -18,7 +18,7 @@ int print_more = 0;
  * @brief Check result: init matrix to special value
  *
  * @details
- * Check if results == (DTYPE)(10*i+j+1)/(i*j+10)
+ * Check if results == redistribute_init_value(descY, m, n, i, j)
  */
 descY      [ type = "parsec_tiled_matrix_t *" ]
 size_row   [ type = "int" ]
@@ -57,11 +57,12 @@ BODY
 
     for(int i = i_start; i <= i_end; i++) {
         for(int j = j_start; j <= j_end; j++) {
-            if( ((DTYPE *)Y)[j*descY->mb+i] != (DTYPE)(10*i+j+1)/(i*j+10) ) {
+            DTYPE expected = redistribute_init_value(descY, m, n, i, j);
+            if( ((DTYPE *)Y)[j*descY->mb+i] != expected ) {
                 if( print_more )
                     fprintf(stderr, "ERROR in (%d, %d) of tile (%d, %d): %g -> %g\n",
                                      i, j, m, n, ((DTYPE *)Y)[j*descY->mb+i],
-                                     (DTYPE)(10*i+j+1)/(i*j+10) );
+                                     expected );
                 info[myid] += 1LL;
             }
         }
@@ -94,7 +95,7 @@ parsec_redistribute_check2_New(parsec_tiled_matrix_t *dcY,
     /* Check distribution, and determine batch size: num_col */
     taskpool->_g_num_col = redistribute_distribution_num_cols(dcY, size_col);
     if( taskpool->_g_num_col <= 0 ) {
-        fprintf(stderr, "Only support parsec_matrix_block_cyclic_type, parsec_matrix_tabular_type, and parsec_matrix_sbc_type\n");
+        fprintf(stderr, "Only support parsec_matrix_block_cyclic_type, parsec_matrix_sym_block_cyclic_type, parsec_matrix_tabular_type, and parsec_matrix_sbc_type\n");
         return NULL;
     }
 
@@ -145,19 +146,23 @@ int parsec_redistribute_check2(parsec_context_t *parsec,
                                  (parsec_tiled_matrix_t *)dcY,
                                  size_row, size_col, disi_Y, disj_Y, info);
 
+    /* Init value to check result */
+    long long int info_sum_thd = 0LL, info_total = 0LL;
+
     if( NULL != parsec_redistribute_check2 ) {
         parsec_context_add_taskpool(parsec, parsec_redistribute_check2);
         parsec_context_start(parsec);
         parsec_context_wait(parsec);
         parsec_taskpool_free(parsec_redistribute_check2);
+    } else {
+        /* Nothing was checked: count it as an error rather than a pass. */
+        info_sum_thd = 1LL;
     }
-
-    /* Init value to check result */
-    long long int info_sum_thd = 0LL, info_total = 0LL;
 
     for( int i = 0; i < nb_threads; i++ ) {
         info_sum_thd += info[i];
     }
+    free(info);
 
     int barrier_rc = parsec_tests_barrier(parsec);
     PARSEC_CHECK_ERROR(barrier_rc, "parsec_tests_barrier");
@@ -175,7 +180,8 @@ int parsec_redistribute_check2(parsec_context_t *parsec,
             printf("\nRedistribute Result is NOT correct! %lld\n\n", info_total);
     }
 
-    return info_total;
+    /* Clamp so a very large count cannot wrap around to 0 */
+    return (info_total > INT_MAX) ? INT_MAX : (int)info_total;
 }
 
 %}
