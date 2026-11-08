@@ -52,12 +52,11 @@ parsec_taskpool_t *rtt_new(parsec_data_collection_t *A, int size, int nb)
     tp = parsec_rtt_new(A, nb, 1, worldsize);
     parsec_mca_device_taskpool_restrict((parsec_taskpool_t*)tp, PARSEC_DEV_CPU);
 
-    ptrdiff_t lb, extent;
+    /* Size the arena from the element count: without a communication
+     * backend parsec_type_extent() reports 0 for a derived type. */
     parsec_type_create_contiguous(size, parsec_datatype_uint8_t, &block);
-    parsec_type_extent(block, &lb, &extent);
-
     parsec_arena_datatype_set_type( &tp->arenas_datatypes[PARSEC_rtt_DEFAULT_ADT_IDX],
-                                     extent, PARSEC_ARENA_ALIGNMENT_SSE,
+                                     size * sizeof(uint8_t), PARSEC_ARENA_ALIGNMENT_SSE,
                                      block );
     return (parsec_taskpool_t*)tp;
 }
