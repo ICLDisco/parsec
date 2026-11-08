@@ -2261,11 +2261,22 @@ void parsec_taskpool_sync_ids( void )
 /* Unregister the taskpool with the engine. This make the taskpool_id available for
  * future taskpools. Beware that in a distributed environment the connected taskpools
  * must have the same ID.
+ *
+ * A taskpool that only reserved its id (parsec_taskpool_reserve_id) and was then
+ * freed without ever being added to a context was never registered: its slot still
+ * reads NOTASKPOOL and its termination detector never left its initial state. There
+ * is nothing to take out of the array, and since ids are handed out monotonically
+ * the reservation needs no release either.
  */
 void parsec_taskpool_unregister( parsec_taskpool_t* tp )
 {
     parsec_atomic_lock( &taskpool_array_lock );
     assert( tp->taskpool_id < taskpool_array_size );
+    if( NOTASKPOOL == taskpool_array[tp->taskpool_id] ) {
+        assert( NULL == tp->context );
+        parsec_atomic_unlock( &taskpool_array_lock );
+        return;
+    }
     assert( taskpool_array[tp->taskpool_id] == tp );
     assert( tp->tdm.module == NULL || PARSEC_TERM_TP_TERMINATED == tp->tdm.module->taskpool_state(tp) );
     taskpool_array[tp->taskpool_id] = NOTASKPOOL;

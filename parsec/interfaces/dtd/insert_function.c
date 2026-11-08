@@ -505,6 +505,16 @@ parsec_dtd_taskpool_destructor(parsec_dtd_taskpool_t *tp)
 
        /* taskpool_unregister will unmonitor this taskpool */
         parsec_taskpool_unregister( (parsec_taskpool_t*)tp );
+    } else {
+        /* Never added to a context, but parsec_dtd_taskpool_new() already registered
+         * the taskpool and armed its termination detector. No task could be inserted
+         * without a context, so the detector is still in its initial state and both
+         * can be undone; otherwise the registry keeps pointing at freed memory. */
+        assert( NULL != tp->super.tdm.module );
+        assert( tp->super.tdm.module->taskpool_state(&tp->super) == PARSEC_TERM_TP_NOT_READY );
+        assert( tp->super.nb_pending_actions == 0 && tp->super.nb_tasks == 0 );
+        tp->super.tdm.module->unmonitor_taskpool(&tp->super);
+        parsec_taskpool_unregister( (parsec_taskpool_t*)tp );
     }
 
     /* Destroy the data repositories for this object */
