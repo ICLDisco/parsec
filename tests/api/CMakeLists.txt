@@ -33,6 +33,11 @@ parsec_addtest_executable(C trim_chores SOURCES trim_chores.c)
 parsec_addtest_executable(C init_fini SOURCES init_fini.c)
 parsec_addtest_executable(C operator SOURCES operator.c)
 parsec_addtest_executable(C compose SOURCES compose.c)
+parsec_addtest_executable(C arena_datatype SOURCES arena_datatype.c)
+# arena_datatype reads parsec_arena_t fields: outside the library the LIFO
+# embedded in the arena only has its real layout with BUILDING_PARSEC.
+target_compile_definitions(arena_datatype PRIVATE BUILDING_PARSEC)
+target_compile_options(arena_datatype PRIVATE ${PARSEC_ATOMIC_SUPPORT_OPTIONS})
 target_link_libraries(init_fini PRIVATE tests_runtime_common)
 target_link_libraries(operator PRIVATE tests_runtime_common)
 target_link_libraries(compose PRIVATE tests_runtime_common)
