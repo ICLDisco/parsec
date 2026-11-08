@@ -125,8 +125,13 @@ static parsec_termdet_taskpool_state_t parsec_termdet_local_taskpool_state(parse
     if( tp->tdm.module == NULL )
         return PARSEC_TERM_TP_NOT_MONITORED;
     assert(tp->tdm.module == &parsec_termdet_local_module.module);
-    if( PARSEC_TERMDET_LOCAL_TERMINATED == monitor )
+    if( PARSEC_TERMDET_LOCAL_TERMINATED == monitor ) {
+        /* The caller goes on to on_leave_wait() and then to the user's code,
+         * which must see what the termination callback wrote. Pairs with the
+         * parsec_atomic_wmb() in parsec_termdet_local_termination_detected(). */
+        parsec_atomic_rmb();
         return PARSEC_TERM_TP_TERMINATED;
+    }
     if( (PARSEC_TERMDET_LOCAL_BUSY == monitor) || (PARSEC_TERMDET_LOCAL_TERMINATING == monitor) )
         return PARSEC_TERM_TP_BUSY;
     if( PARSEC_TERMDET_LOCAL_NOT_READY == monitor )
@@ -139,6 +144,10 @@ static parsec_termdet_taskpool_state_t parsec_termdet_local_taskpool_state(parse
  *           which lives in the taskpool) after this function is called */
 static void parsec_termdet_local_termination_detected(parsec_taskpool_t *tp)
 {
+    /* The caller won the BUSY -> TERMINATING CAS. Pairs with the
+     * parsec_atomic_wmb() in parsec_termdet_local_taskpool_ready(), so the
+     * reference taken there comes before the release below. */
+    parsec_atomic_rmb();
     assert( tp->tdm.module != NULL);
     assert( tp->tdm.module == &parsec_termdet_local_module.module );
     assert( tp->tdm.monitor == PARSEC_TERMDET_LOCAL_TERMINATING );
@@ -149,6 +158,9 @@ static void parsec_termdet_local_termination_detected(parsec_taskpool_t *tp)
         PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "TERMDET-LOCAL\tTASKPOOL %p: calling callback", tp);
         tp->tdm.callback(tp);
     }
+    /* Publish TERMINATED only after the callback's writes. Pairs with the
+     * parsec_atomic_rmb() in parsec_termdet_local_taskpool_state(). */
+    parsec_atomic_wmb();
     parsec_atomic_cas_ptr(&tp->tdm.monitor, PARSEC_TERMDET_LOCAL_TERMINATING, PARSEC_TERMDET_LOCAL_TERMINATED);
     PARSEC_OBJ_RELEASE(tp);
 }
@@ -160,8 +172,12 @@ static int parsec_termdet_local_taskpool_ready(parsec_taskpool_t *tp)
     assert( tp->tdm.monitor == PARSEC_TERMDET_LOCAL_NOT_READY );
     /* Retain before publishing BUSY: from then on any thread that completes
      * the last task can detect termination and release this reference, and
-     * a release that came first would free a taskpool still in use. */
+     * a release that came first would free a taskpool still in use. The C11
+     * atomics backend makes both the retain and the CAS relaxed, so order
+     * them explicitly; the matching parsec_atomic_rmb() is in
+     * parsec_termdet_local_termination_detected(). */
     PARSEC_OBJ_RETAIN(tp);
+    parsec_atomic_wmb();
     parsec_atomic_cas_ptr(&tp->tdm.monitor, PARSEC_TERMDET_LOCAL_NOT_READY, PARSEC_TERMDET_LOCAL_BUSY);
     PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "TERMDET-LOCAL:\tTASKPOOL %p READY", tp);
     if( tp->nb_pending_actions == 0) {
