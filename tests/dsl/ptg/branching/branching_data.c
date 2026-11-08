@@ -102,7 +102,7 @@ parsec_data_collection_t *create_and_distribute_data(int rank, int world, int si
     m->data = calloc(nb, sizeof(parsec_data_t*));
     m->nt   = nb;
     m->size = size;
-    m->ptr  = (int32_t*)malloc(nb * size * sizeof(int32_t));
+    m->ptr  = (int32_t*)malloc((size_t)nb * (size_t)size * sizeof(int32_t));
 
     return d;
 }
@@ -114,6 +114,7 @@ void free_data(parsec_data_collection_t *d)
     for(int i = 0; i < m->nt; i++)
         if(NULL != m->data[i]) parsec_data_destroy(m->data[i]);
     free(m->data);
+    parsec_type_free(&d->default_dtt);
     parsec_data_collection_destroy(d);
     free(d);
 }
