@@ -48,7 +48,7 @@ parsec_taskpool_t *choice_new(parsec_data_collection_t *A, int size, int *decisi
 
     parsec_type_create_contiguous(size, parsec_datatype_uint8_t, &newType);
     parsec_arena_datatype_set_type( &tp->arenas_datatypes[PARSEC_choice_DEFAULT_ADT_IDX],
-                                     size * sizeof(char), size * sizeof(char), newType );
+                                     size * sizeof(char), PARSEC_ARENA_ALIGNMENT_SSE, newType );
 
 
     return (parsec_taskpool_t*)tp;
