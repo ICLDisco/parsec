@@ -463,12 +463,13 @@ int parsec_redistribute_dtd(parsec_context_t *parsec,
     parsec_context_start(parsec);
 
     /* New function, only deal with taskpool, not parsec context */
-    parsec_redistribute_New_dtd(parsec, dcY, dcT, size_row, size_col,
-                                disi_Y, disj_Y, disi_T, disj_T);
+    int rc = parsec_redistribute_New_dtd(parsec, dcY, dcT, size_row, size_col,
+                                         disi_Y, disj_Y, disi_T, disj_T);
 
-    /* Waiting on all handle and turning everything off for this context */
-    int rc = parsec_context_wait(parsec);
-    PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
+    /* Waiting on all handle and turning everything off for this context;
+     * also needed when the request was rejected, as the context is started. */
+    int wait_rc = parsec_context_wait(parsec);
+    PARSEC_CHECK_ERROR(wait_rc, "parsec_context_wait");
 
-    return PARSEC_SUCCESS;
+    return rc;
 }

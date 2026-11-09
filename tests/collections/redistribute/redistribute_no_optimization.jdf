@@ -424,7 +424,7 @@ parsec_redistribute_no_optimization_New(parsec_tiled_matrix_t *dcY,
     /* Check distribution, and determine batch size: num_col */
     taskpool->_g_num_col = redistribute_pair_num_cols(dcY, dcT, size_col);
     if( taskpool->_g_num_col <= 0 ) {
-        fprintf(stderr, "Only support parsec_matrix_block_cyclic_type, parsec_matrix_tabular_type, and parsec_matrix_sbc_type\n");
+        fprintf(stderr, "Only support parsec_matrix_block_cyclic_type, parsec_matrix_sym_block_cyclic_type, parsec_matrix_tabular_type, and parsec_matrix_sbc_type\n");
         exit(1);
     }
 
@@ -480,14 +480,16 @@ int parsec_redistribute_no_optimization(parsec_context_t *parsec,
                               dcY, dcT, size_row, size_col, disi_Y,
                               disj_Y, disi_T, disj_T);
 
-    if( NULL != parsec_redistribute_no_optimization_ptg ){
-        parsec_context_add_taskpool(parsec, parsec_redistribute_no_optimization_ptg);
-        parsec_context_start(parsec);
-        parsec_context_wait(parsec);
-        parsec_taskpool_free(parsec_redistribute_no_optimization_ptg);
+    if( NULL == parsec_redistribute_no_optimization_ptg ){
+        return PARSEC_ERR_NOT_SUPPORTED;
     }
 
-    return 0;
+    parsec_context_add_taskpool(parsec, parsec_redistribute_no_optimization_ptg);
+    parsec_context_start(parsec);
+    parsec_context_wait(parsec);
+    parsec_taskpool_free(parsec_redistribute_no_optimization_ptg);
+
+    return PARSEC_SUCCESS;
 }
 
 %}
