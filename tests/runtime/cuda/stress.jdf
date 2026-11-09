@@ -145,6 +145,12 @@ END
 
 BODY
 {
+    /* Touch every flow. This body only runs when something sent the task off
+     * its accelerator, and the point of running it is to find out whether what
+     * came back is readable: a flow left pointing at device memory, or at a
+     * copy nobody filled, has to fail here rather than be ignored. */
+    volatile double seen = ((double*)A)[0] + ((double*)B)[0] + ((double*)C)[0];
+    (void)seen;
     fprintf(stderr, "Kernel GEMM(%d, %d, %d) in stress test is running on a CPU, which is not the intended behavior\n",
             m, g, r);
 }
