@@ -239,6 +239,8 @@ tile_manage_for_testing(parsec_data_t *data, parsec_data_key_t key, int arena_in
         tile->key                   = combined_key;
         tile->rank                  = 0;
         tile->flushed               = NOT_FLUSHED;
+        tile->last_access           = 0;
+        tile->atomic_group          = NULL;
         tile->data_copy             = data->device_copies[0];
         /* The reader count on this copy is not ours to clear: the network, the
          * accelerators and the task bodies all keep it, and a write-back
