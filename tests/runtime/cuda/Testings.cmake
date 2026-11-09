@@ -9,6 +9,8 @@ if(PARSEC_HAVE_CUDA)
     set_tests_properties(runtime/cuda/arch_probe:gpu PROPERTIES FIXTURES_SETUP parsec_cuda_kernels_run)
   endif()
   parsec_addtest_cmd(runtime/cuda/get_best_device:gpu ${SHM_TEST_CMD_LIST} ${CTEST_CUDA_LAUNCHER_OPTIONS} runtime/cuda/testing_get_best_device -N 400 -t 20 -g 4 -- --mca device_show_statistics 1)
+  # Self-checking: the result is the exit code, so do not add a PASS_REGULAR_EXPRESSION.
+  parsec_addtest_cmd(runtime/cuda/device_statistics:gpu ${SHM_TEST_CMD_LIST} ${CTEST_CUDA_LAUNCHER_OPTIONS} runtime/cuda/device_statistics)
   if(TARGET nvlink)
     parsec_addtest_cmd(runtime/cuda/nvlink:gpu ${SHM_TEST_CMD_LIST} ${CTEST_CUDA_LAUNCHER_OPTIONS} runtime/cuda/nvlink --mca device_cuda_enabled 2 --mca device_show_statistics 1)
   endif()
@@ -48,6 +50,8 @@ if(PARSEC_HAVE_CUDA)
 endif()
 
 if(PARSEC_HAVE_HIP)
+  # Self-checking: the result is the exit code, so do not add a PASS_REGULAR_EXPRESSION.
+  parsec_addtest_cmd(runtime/cuda/device_statistics:hip ${SHM_TEST_CMD_LIST} ${CTEST_HIP_LAUNCHER_OPTIONS} runtime/cuda/device_statistics)
   if(TARGET ptg_pingpong)
     parsec_addtest_cmd(runtime/cuda/ptg_pingpong:hip ${SHM_TEST_CMD_LIST} ${CTEST_HIP_LAUNCHER_OPTIONS} runtime/cuda/ptg_pingpong --mca device_hip_enabled 2 --mca device_show_statistics 1)
   endif()

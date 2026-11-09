@@ -355,9 +355,39 @@ PARSEC_DECLSPEC void parsec_mca_device_reset_statistics(parsec_context_t* parsec
 PARSEC_DECLSPEC void parsec_mca_device_dump_and_reset_statistics(parsec_context_t* parsec_context);
 
 /**
+ * Counters stored in an array filled by parsec_devices_save_statistics().
+ * The array holds PARSEC_DEVICE_STAT_COUNT blocks of
+ * parsec_mca_device_enabled() entries, so the counter @p stat of the device
+ * with index @p dev is stats[stat * parsec_mca_device_enabled() + dev].
+ */
+typedef enum parsec_device_statistic_e {
+    PARSEC_DEVICE_STAT_EXECUTED_TASKS = 0, /**< tasks executed */
+    PARSEC_DEVICE_STAT_TRANSFER_IN,        /**< bytes transferred in from the host */
+    PARSEC_DEVICE_STAT_TRANSFER_OUT,       /**< bytes transferred out to the host */
+    PARSEC_DEVICE_STAT_REQUIRED_IN,        /**< bytes required in by tasks */
+    PARSEC_DEVICE_STAT_REQUIRED_OUT,       /**< bytes required out by tasks */
+    PARSEC_DEVICE_STAT_TRANSFER_D2D,       /**< bytes transferred in from other devices */
+    PARSEC_DEVICE_STAT_EVICTIONS,          /**< data evictions */
+    PARSEC_DEVICE_STAT_COUNT               /**< number of counters per device */
+} parsec_device_statistic_t;
+
+/**
  * Save the current devices statistics in a (newly allocated in *pstats is
  * NULL) array of stats. If *pstat is not NULL, the same array is reused and
- * its values are overwritten.
+ * its values are overwritten. See parsec_device_statistic_t for the layout.
+ *
+ * Together with parsec_devices_print_statistics() and
+ * parsec_devices_free_statistics(), this reports the statistics of any
+ * region of the execution, and several such regions may overlap:
+ *
+ *   uint64_t *stats = NULL;
+ *   parsec_devices_save_statistics(&stats);
+ *   ... region of interest ...
+ *   parsec_devices_print_statistics(context, stats);
+ *   parsec_devices_free_statistics(&stats);
+ *
+ * Resetting the device statistics invalidates the arrays saved before the
+ * reset.
  */
 PARSEC_DECLSPEC void parsec_devices_save_statistics(uint64_t **pstats);
 
