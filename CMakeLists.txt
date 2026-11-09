@@ -1098,6 +1098,12 @@ if( BUILD_TESTING )
   add_subdirectory(examples)
 endif( BUILD_TESTING )
 
+option(PARSEC_PYTHON_BINDINGS
+       "Build and install the Python bindings (py_parsec); needs Cython and numpy" OFF)
+if( PARSEC_PYTHON_BINDINGS )
+  add_subdirectory(python)
+endif( PARSEC_PYTHON_BINDINGS )
+
 add_subdirectory(docs)
 
 string(TIMESTAMP PARSEC_COMPILE_DATE)
