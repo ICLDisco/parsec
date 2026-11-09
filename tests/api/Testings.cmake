@@ -22,3 +22,13 @@ parsec_addtest_cmd(api/taskpool_wait ${SHM_TEST_CMD_LIST} api/taskpool_wait/task
 if( MPI_C_FOUND )
   parsec_addtest_cmd(api/taskpool_wait:mp ${MPI_TEST_CMD_LIST} 8 api/taskpool_wait/taskpool_wait)
 endif()
+
+# A taskpool waited (or polled) before any parsec_context_wait. The single
+# process flavors are the ones that matter: the main thread then drives the
+# communication engine itself.
+parsec_addtest_cmd(api/taskpool_wait_first ${SHM_TEST_CMD_LIST} api/taskpool_wait/taskpool_wait_first)
+parsec_addtest_cmd(api/taskpool_wait_first:test ${SHM_TEST_CMD_LIST} api/taskpool_wait/taskpool_wait_first -t)
+if( MPI_C_FOUND )
+  parsec_addtest_cmd(api/taskpool_wait_first:mp ${MPI_TEST_CMD_LIST} 4 api/taskpool_wait/taskpool_wait_first)
+  parsec_addtest_cmd(api/taskpool_wait_first:test:mp ${MPI_TEST_CMD_LIST} 4 api/taskpool_wait/taskpool_wait_first -t)
+endif()
