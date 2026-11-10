@@ -5525,7 +5525,6 @@ parsec_device_kernel_cleanout( parsec_device_gpu_module_t *gpu_device,
             continue;
         }
 
-        assert(gpu_copy->super.super.obj_reference_count > 1);
         /* Issue #134 */
         cpu_copy = original->device_copies[0];
         if( NULL == cpu_copy ) {
@@ -5546,6 +5545,8 @@ parsec_device_kernel_cleanout( parsec_device_gpu_module_t *gpu_device,
         /* An in-place RW flow inputs the copy just detached, and the retry
          * reads data_in: move it, and the task's reference, to the mirror. */
         if( gpu_copy == this_task->data[i].data_in ) {
+            /* The device's own reference must outlive the task's */
+            assert(gpu_copy->super.super.obj_reference_count > 1);
             PARSEC_DATA_COPY_RETAIN(cpu_copy);
             this_task->data[i].data_in = cpu_copy;
             PARSEC_DATA_COPY_RELEASE(gpu_copy);
