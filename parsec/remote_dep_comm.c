@@ -896,23 +896,30 @@ remote_dep_comm_retrieve_datatype(parsec_execution_stream_t *eu,
     if( PARSEC_ARENA_AUTO == output->data.remote.arena ) {
         /* [type_remote = AUTO]: size the reception after the incoming payload */
         parsec_dep_type_auto_resolve(&output->data.remote, output->remote_size);
-    } else if( (0 != output->remote_size) && (0 != output->data.remote.dst_count) ) {
+    }
+#if defined(PARSEC_DEBUG_NOISIER)
+    else if( (0 != output->remote_size) && (0 != output->data.remote.dst_count) ) {
         /* A successor may read only the head of the payload, whatever datatype
          * it reads it with (a multi-size broadcast sends every receiver the
-         * longest version). Declaring more than the sender packed is a mistake
-         * in the dependency: nothing fills the rest, and receiving it as if
-         * something did would hide it. */
+         * longest version). A receiver that declares more than the sender
+         * packed gets a buffer larger than the data: this is how applications
+         * pad receives for data whose size is only known at run time (and
+         * what [type_remote = AUTO] avoids), but it can also be a mistake in
+         * the dependency. Report it at debug level only: a warning per receive
+         * is costly and noisy for the intended use. */
         int dsize = 0;
         if( (PARSEC_SUCCESS == parsec_ce.pack_size(&parsec_ce, output->data.remote.dst_count,
                                                    output->data.remote.dst_datatype, &dsize)) &&
             (dsize > 0) && ((uint32_t)dsize > output->remote_size) ) {
             char tmp[MAX_TASK_STRLEN];
-            parsec_warning("RDEP: %s declares %d bytes (%d elements) on flow %s, but the sender packed only %u bytes:"
-                           " the datatype or count of the dependency does not match the data sent",
-                           parsec_task_snprintf(tmp, MAX_TASK_STRLEN, newcontext), dsize,
-                           output->data.remote.dst_count, dep->flow->name, output->remote_size);
+            PARSEC_DEBUG_VERBOSE(10, parsec_comm_output_stream,
+                                 "RDEP: %s declares %d bytes (%d elements) on flow %s, but the sender packed only %u bytes:"
+                                 " the receive buffer is larger than the data (consider [type_remote = AUTO])",
+                                 parsec_task_snprintf(tmp, MAX_TASK_STRLEN, newcontext), dsize,
+                                 output->data.remote.dst_count, dep->flow->name, output->remote_size);
         }
     }
+#endif  /* defined(PARSEC_DEBUG_NOISIER) */
     /* Checking PARSEC_HOOK_RETURN_DONE == fct->get_datatype and setting
      * output->data to *out_data is no longer valid.
      * Now, send operation can rely on the datacopy dtt,
