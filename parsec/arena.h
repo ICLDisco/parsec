@@ -35,6 +35,36 @@ extern size_t parsec_arena_max_allocated_memory;
  */
 extern size_t parsec_arena_max_cached_memory;
 
+/**
+ * Largest request, in bytes, served from the power-of-two buckets that cache
+ * the storage of PARSEC_ARENA_AUTO allocations. Larger requests are allocated
+ * on demand and returned to the system when released (0 disables caching).
+ */
+extern size_t parsec_arena_auto_max_bucket;
+
+/**
+ * Maximum amount of memory cached by all the PARSEC_ARENA_AUTO buckets
+ * together: each bucket keeps an equal part of it.
+ */
+extern size_t parsec_arena_auto_max_cached_memory;
+
+/**
+ * Marker standing for an arena picked at allocation time from the size of the
+ * request. parsec_arena_get_new_copy() and parsec_arena_allocate_device_private()
+ * accept it in place of an arena: the storage for @p count elements of the
+ * extent of @p dtt is then taken from a runtime-owned arena large enough to
+ * hold them, and the span of the data is set to exactly that many bytes. It is
+ * never dereferenced. The PTG [type_remote = AUTO] dependency property uses it
+ * to receive data whose size is only known once the message arrives.
+ */
+#define PARSEC_ARENA_AUTO ((parsec_arena_t*)(intptr_t)-1)
+
+/**
+ * Release the runtime-owned arenas backing PARSEC_ARENA_AUTO. Every data copy
+ * allocated from them must have been released before.
+ */
+void parsec_arena_auto_fini(void);
+
 #define PARSEC_ALIGN(x,a,t) (((x)+((t)(a)-1)) & ~(((t)(a)-1)))
 #define PARSEC_ALIGN_PTR(x,a,t) ((t)PARSEC_ALIGN((uintptr_t)x, a, uintptr_t))
 #define PARSEC_ALIGN_PAD_AMOUNT(x,s) ((~((uintptr_t)(x))+1) & ((uintptr_t)(s)-1))

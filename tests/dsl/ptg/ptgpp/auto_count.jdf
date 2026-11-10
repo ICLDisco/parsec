@@ -1,0 +1,19 @@
+/*
+ * Copyright (c) 2026
+ */
+/**
+ * This test checks that the compiler rejects count_remote together with
+ * [type_remote = AUTO]: the count comes from the incoming data.
+ */
+TASK(k)
+
+k = 1 .. 10
+
+: A( k )
+
+  READ A <- A TASK(k-1)   [ type_remote = AUTO  count_remote = 4 ]
+BODY
+{
+    /* Nothing */
+}
+END

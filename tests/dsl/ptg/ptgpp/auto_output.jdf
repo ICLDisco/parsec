@@ -1,0 +1,20 @@
+/*
+ * Copyright (c) 2026
+ */
+/**
+ * This test checks that the compiler rejects [type_remote = AUTO] on an
+ * output dependency: the receiver sizes the reception, not the sender.
+ */
+TASK(k)
+
+k = 0 .. 10
+
+: A( k )
+
+  RW A <- A(k)
+       -> A TASK(k+1)     [ type_remote = AUTO ]
+BODY
+{
+    /* Nothing */
+}
+END

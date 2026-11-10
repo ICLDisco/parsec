@@ -453,8 +453,14 @@ parsec_set_up_reshape_promise(parsec_execution_stream_t *es,
             int dsize;
             parsec_dep_data_description_t aux_data;
 
+            memset(&aux_data, 0, sizeof(aux_data));
             if ( PARSEC_HOOK_RETURN_DONE == fct->get_datatype(es, newcontext, oldcontext, &flow_mask, &aux_data)){
                 parsec_fatal("Unable to find unpacking datatype.");
+            }
+            if( PARSEC_ARENA_AUTO == aux_data.remote.arena ) {
+                /* [type_remote = AUTO]: unpack the whole payload, the packed
+                 * copy has been allocated with the exact size of it */
+                parsec_dep_type_auto_resolve(&aux_data.remote, data->data->original->span);
             }
             data->local = aux_data.remote;
             data->local.src_datatype = PARSEC_DATATYPE_PACKED;

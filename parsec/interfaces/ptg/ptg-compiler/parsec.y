@@ -215,7 +215,10 @@ process_datatype(jdf_datatransfer_type_t *datatype,
         expr->jdf_type = PARSEC_RETURN_TYPE_ARENA_DATATYPE_T;
     }
 
-    if( (JDF_STRING == expr->op) || (JDF_VAR == expr->op) ) {
+    if( jdf_datatype_expr_is_auto(expr) ) {
+        /* [type_remote = AUTO] names no arena datatype, the dependency rule
+         * validates where it is used */
+    } else if( (JDF_STRING == expr->op) || (JDF_VAR == expr->op) ) {
         /* Special case: [type = SOMETHING] -> define the PARSEC_ARENA_SOMETHING arena index */
         for(prec = NULL, g = current_jdf.datatypes; g != NULL; g = g->next) {
             if( 0 == strcmp(expr->jdf_var, g->name) ) {
@@ -786,6 +789,39 @@ dependency:   ARROW named_expr guarded_call properties
                       jdf_fatal(JDF_OBJECT_LINENO($4),
                           " the simultaneous usage of type_remote and type_data is not supported. \n");
                       YYERROR;
+                  }
+
+                  /* AUTO sizes a reception after the incoming payload: it only
+                   * describes how an input dependency coming from another task
+                   * is received, and the count is not the user's to give. */
+                  if( jdf_datatype_expr_is_auto(expr) || jdf_datatype_expr_is_auto(expr_data) ) {
+                      jdf_fatal(JDF_OBJECT_LINENO($4),
+                                "%s = " JDF_DATATYPE_AUTO_NAME " is not supported, " JDF_DATATYPE_AUTO_NAME
+                                " is only valid for type_remote\n",
+                                jdf_datatype_expr_is_auto(expr) ? "type" : "type_data");
+                      YYERROR;
+                  }
+                  if( jdf_datatype_expr_is_auto(expr_remote) ) {
+                      if( $1 != JDF_DEP_FLOW_IN ) {
+                          jdf_fatal(JDF_OBJECT_LINENO($4),
+                                    "type_remote = " JDF_DATATYPE_AUTO_NAME " is only valid on an input dependency"
+                                    " (the receiver sizes the reception)\n");
+                          YYERROR;
+                      }
+                      if( (NULL == $3->calltrue->var) ||
+                          ((NULL != $3->callfalse) && (NULL == $3->callfalse->var)) ) {
+                          jdf_fatal(JDF_OBJECT_LINENO($4),
+                                    "type_remote = " JDF_DATATYPE_AUTO_NAME " is only valid on a dependency"
+                                    " from another task, not from a data collection, NEW or NULL\n");
+                          YYERROR;
+                      }
+                      if( (NULL != jdf_find_property($4, "count_remote", NULL)) ||
+                          (NULL != jdf_find_property($4, "displ_remote", NULL)) ) {
+                          jdf_fatal(JDF_OBJECT_LINENO($4),
+                                    "type_remote = " JDF_DATATYPE_AUTO_NAME " derives the count from the incoming"
+                                    " data, count_remote and displ_remote cannot be specified\n");
+                          YYERROR;
+                      }
                   }
 
                   /* If neither is defined, we define the old simple DEFAULT arena */

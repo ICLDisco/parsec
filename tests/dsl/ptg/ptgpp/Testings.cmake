@@ -36,6 +36,38 @@ set_tests_properties(dsl/ptg/ptgpp/output_NEW dsl/ptg/ptgpp/output_NEW_true dsl/
   )
 
 #
+# Test that AUTO is only accepted where it makes sense: as the type_remote of
+# an input dependency from another task, without a count
+#
+parsec_addtest_cmd(dsl/ptg/ptgpp/auto_type
+  COMMAND ${PARSEC_PTGPP_EXECUTABLE} ${PARSEC_PTGPP_FLAGS} -E -i ${CMAKE_CURRENT_SOURCE_DIR}/dsl/ptg/ptgpp/auto_type.jdf -o auto_type -f auto_type)
+set_tests_properties(dsl/ptg/ptgpp/auto_type
+  PROPERTIES
+  DEPENDS "${PARSEC_PTGPP_EXECUTABLE}"
+  PASS_REGULAR_EXPRESSION "AUTO is only valid for type_remote")
+
+parsec_addtest_cmd(dsl/ptg/ptgpp/auto_output
+  COMMAND ${PARSEC_PTGPP_EXECUTABLE} ${PARSEC_PTGPP_FLAGS} -E -i ${CMAKE_CURRENT_SOURCE_DIR}/dsl/ptg/ptgpp/auto_output.jdf -o auto_output -f auto_output)
+set_tests_properties(dsl/ptg/ptgpp/auto_output
+  PROPERTIES
+  DEPENDS "${PARSEC_PTGPP_EXECUTABLE}"
+  PASS_REGULAR_EXPRESSION "AUTO is only valid on an input dependency")
+
+parsec_addtest_cmd(dsl/ptg/ptgpp/auto_from_desc
+  COMMAND ${PARSEC_PTGPP_EXECUTABLE} ${PARSEC_PTGPP_FLAGS} -E -i ${CMAKE_CURRENT_SOURCE_DIR}/dsl/ptg/ptgpp/auto_from_desc.jdf -o auto_from_desc -f auto_from_desc)
+set_tests_properties(dsl/ptg/ptgpp/auto_from_desc
+  PROPERTIES
+  DEPENDS "${PARSEC_PTGPP_EXECUTABLE}"
+  PASS_REGULAR_EXPRESSION "only valid on a dependency from another task")
+
+parsec_addtest_cmd(dsl/ptg/ptgpp/auto_count
+  COMMAND ${PARSEC_PTGPP_EXECUTABLE} ${PARSEC_PTGPP_FLAGS} -E -i ${CMAKE_CURRENT_SOURCE_DIR}/dsl/ptg/ptgpp/auto_count.jdf -o auto_count -f auto_count)
+set_tests_properties(dsl/ptg/ptgpp/auto_count
+  PROPERTIES
+  DEPENDS "${PARSEC_PTGPP_EXECUTABLE}"
+  PASS_REGULAR_EXPRESSION "count_remote and displ_remote cannot be specified")
+
+#
 # Test that a NULL cannot be forwarded
 #
 parsec_addtest_cmd(dsl/ptg/ptgpp/forward_RW_NULL   ${SHM_TEST_CMD_LIST}       dsl/ptg/ptgpp/jdf_forward_RW_NULL)
