@@ -4009,10 +4009,11 @@ parsec_gpu_task_again_exceeded(parsec_device_gpu_module_t *gpu_device,
  * ring, the ring is returned as the out_task parameter and chained into the
  * next stream by the caller's next invocation of this helper.
  *
- * Beware: this function does not generate errors by itself, instead
- * it propagates upward the return code of the progress function.
- * However, by convention the error code follows the parsec_hook_return_e
- * enum.
+ * Beware: apart from a failed event query, which is reported as
+ * PARSEC_HOOK_RETURN_ERROR with a NULL out_task, this function does not
+ * generate errors by itself, instead it propagates upward the return code
+ * of the progress function. However, by convention the error code follows
+ * the parsec_hook_return_e enum.
  */
 static inline int
 parsec_device_progress_stream( parsec_device_gpu_module_t* gpu_device,
@@ -4374,8 +4375,9 @@ parsec_gpu_release_withdrawn_tasks(parsec_device_gpu_module_t *gpu_device,
  * Every call either completes the oldest event of the stream, or submits a
  * single ring, so that the caller progresses all stages evenly.
  *
- * Beware: this function does not generate errors by itself, instead it
- * propagates upward the return codes of the progress function.
+ * Beware: apart from a failed event query, this function does not generate
+ * errors by itself, instead it propagates upward the return codes of the
+ * progress function.
  *
  * @returns
  *   PARSEC_HOOK_RETURN_DONE: *out_task is the ring of tasks that completed the
@@ -4384,9 +4386,9 @@ parsec_gpu_release_withdrawn_tasks(parsec_device_gpu_module_t *gpu_device,
  *                             device, and no task completed the stage.
  *   PARSEC_HOOK_RETURN_NEXT: tasks were delayed because of physical constraints,
  *                            and no task completed the stage. *out_task is NULL.
- *   PARSEC_HOOK_RETURN_AGAIN: the stream could not be queried. *out_task is NULL.
  *   PARSEC_HOOK_RETURN_ERROR or PARSEC_HOOK_RETURN_DISABLE: *out_task is the
- *                             ring of tasks that failed.
+ *                             ring of tasks that failed, or NULL if the stream
+ *                             could not be queried (always ERROR).
  */
 static int
 parsec_device_progress_stream_batch( parsec_device_gpu_module_t* gpu_device,
@@ -4454,9 +4456,14 @@ parsec_device_progress_stream_batch( parsec_device_gpu_module_t* gpu_device,
                 }
                 goto complete;
             }
-        } else if( 0 != rc ) {
-            return PARSEC_HOOK_RETURN_AGAIN;
+        } else if( 0 > rc ) {
+            /* As in parsec_device_progress_stream(): a backend event error is
+             * fatal for this device, and PARSEC_ERROR must not reach the
+             * caller as PARSEC_HOOK_RETURN_AGAIN, which has the same value. */
+            return PARSEC_HOOK_RETURN_ERROR;
         }
+        /* Otherwise the oldest event is not ready yet: fall through to fill
+         * the remaining event slots of this stream. */
     }
 
     if( NULL != stream->tasks[stream->start] ) {  /* no room on the stream */
