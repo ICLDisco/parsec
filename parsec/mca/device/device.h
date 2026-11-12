@@ -229,6 +229,15 @@ int  parsec_device_data_copy_pin_reader(parsec_data_copy_t *copy);
 void parsec_device_data_copy_unpin_reader(parsec_data_copy_t *copy);
 
 /**
+ * Count one more reader on a host copy, unless a write-back took it. This is
+ * what a pin amounts to on the host, with or without an accelerator: DSLs that
+ * gate their writers on the reader count of a copy, like DTD, see it.
+ *
+ * Returns 1 on success, 0 while a write-back holds the copy.
+ */
+int  parsec_device_host_copy_take_reader(parsec_data_copy_t *copy);
+
+/**
  * Same, for a caller that may not be kept waiting: a thread managing an
  * accelerator, which is the one that ends the write-back a host copy would
  * have it wait for. Returns 0 rather than waiting, and the caller is expected
