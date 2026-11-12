@@ -3377,10 +3377,12 @@ parsec_gpu_task_ring_release(parsec_gpu_task_t *ring)
     return count;
 }
 
-/* A terminal submit error can be reported after the hook queued partial work.
- * Record and wait for a stream event before cleaning the affected batch. The
- * runtime currently treats this as fatal; draining the rest of the device is a
- * separate recovery problem.
+/* Record an event on a stream and wait for everything already queued on it to
+ * finish. Waiting here makes the manager wait for every unrelated transfer
+ * queued ahead of the one it cares about, so it belongs only where there is no
+ * pipeline left to keep busy: a device on its way out. The runtime currently
+ * treats that as fatal; draining the rest of the device is a separate recovery
+ * problem.
  */
 static int
 parsec_gpu_stream_quiesce_after_failure(parsec_device_gpu_module_t *gpu_device,
@@ -4158,18 +4160,15 @@ parsec_device_progress_stream( parsec_device_gpu_module_t* gpu_device,
 #endif
                 *out_task = task;
             } else {
-                /* ERROR and DISABLE are terminal. A hook may have queued work
-                 * before failing, so quiesce the stream before returning the
-                 * complete ring for cleanup. Unknown negative values are
+                /* Hand the complete ring back with its failure. DISABLE is not
+                 * terminal on its own: the manager may still have an incarnation
+                 * to fall back on, and it is the one that decides whether the
+                 * stream has to be drained. Unknown negative values are
                  * normalized to ERROR at this boundary.
                  */
                 rc = (PARSEC_HOOK_RETURN_DISABLE == rc) ?
                      PARSEC_HOOK_RETURN_DISABLE : PARSEC_HOOK_RETURN_ERROR;
                 task->last_status = rc;
-                if( PARSEC_SUCCESS !=
-                    parsec_gpu_stream_quiesce_after_failure(gpu_device, stream) ) {
-                    rc = task->last_status = PARSEC_HOOK_RETURN_ERROR;
-                }
 #if defined(PARSEC_PROF_TRACE)
                 parsec_gpu_profile_exec_ring_end(stream, task);
 #endif
@@ -4521,13 +4520,9 @@ parsec_device_progress_stream_batch( parsec_device_gpu_module_t* gpu_device,
         parsec_gpu_stream_push_pending(stream, iter);
     }
     if( NULL != error_ring ) {
-        /* ERROR and DISABLE are terminal. Other tasks of the ring may have queued
-         * work before the failure, so quiesce the stream before returning the
-         * failed tasks for cleanup. The device is disabled, so the other tasks
-         * are not taken care of. */
-        if( PARSEC_SUCCESS != parsec_gpu_stream_quiesce_after_failure(gpu_device, stream) ) {
-            error_rc = PARSEC_HOOK_RETURN_ERROR;
-        }
+        /* Hand the failed tasks back. Whether this is terminal is the manager's
+         * call, and so is draining the stream: a DISABLE the manager can retry
+         * elsewhere must not cost the device a full stop. */
         *out_task = error_ring;
         return error_rc;
     }
@@ -5696,6 +5691,10 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
     parsec_gpu_task_t *gpu_task = (parsec_gpu_task_t*)_gpu_task;
     parsec_gpu_task_t *failed_batch = NULL;
     parsec_gpu_task_t *release_ring, *iter, *ring_next;
+    /* The stream the terminal failure came from, and the only one this manager
+     * ever waits on: the copies of a device being taken apart must not still be
+     * written into. */
+    parsec_gpu_exec_stream_t *failed_stream = NULL;
     int completed_w2r = 0;  /* write-backs completed here, each counted at creation */
     int failed_batch_staged = 1;
     parsec_hook_return_t failure_status = PARSEC_HOOK_RETURN_DISABLE;
@@ -5804,6 +5803,7 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
         if( PARSEC_HOOK_RETURN_ERROR == rc ) {
             failure_status = PARSEC_HOOK_RETURN_ERROR;
             failed_batch = progress_task;
+            failed_stream = gpu_device->exec_stream[0];
             progress_task = NULL;
             goto disable_gpu;
         }
@@ -5855,6 +5855,7 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
         if( PARSEC_HOOK_RETURN_ERROR == rc ) {
             failure_status = rc;
             failed_batch = progress_task;
+            failed_stream = gpu_device->exec_stream[2+exec_stream];
             progress_task = NULL;
             goto disable_gpu;
         }
@@ -5877,6 +5878,7 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
             }
             failure_status = rc;
             failed_batch = progress_task;
+            failed_stream = gpu_device->exec_stream[2+exec_stream];
             progress_task = NULL;
             goto disable_gpu;  /* no incarnation left to fall back on */
         }
@@ -5924,6 +5926,7 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
         if( (PARSEC_HOOK_RETURN_ERROR == rc) || (PARSEC_HOOK_RETURN_DISABLE == rc) ) {
             failure_status = rc;
             failed_batch = progress_task;
+            failed_stream = gpu_device->exec_stream[1];
             progress_task = NULL;
             goto disable_gpu;
         }
@@ -6078,6 +6081,14 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
     /* The scheduler currently treats device failure as fatal. Clean the batch
      * that observed the failure before propagating its terminal status.
      */
+    if( NULL != failed_stream ) {
+        /* The hook that failed may have queued work before it did, and the
+         * cleanup below takes apart the copies that work writes into. This is
+         * the one place the manager owes a full stop: the device is going away,
+         * so there is no pipeline left for it to keep busy.
+         */
+        (void)parsec_gpu_stream_quiesce_after_failure(gpu_device, failed_stream);
+    }
     if( NULL != failed_batch ) {
         /* Only a batch that reached the device pipeline owns device copies.
          * parsec_device_kernel_cleanout() reads data[i].data_out expecting the
