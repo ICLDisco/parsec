@@ -13,7 +13,7 @@ elseif exists("b:current_syntax")
   finish
 endif
 
-" avoid displaying annoying errors du to twisted
+" avoid displaying annoying errors due to twisted
 " embedded C syntax
 let c_no_curly_error = 1
 let c_no_bracket_error = 1
