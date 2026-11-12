@@ -583,6 +583,7 @@ char *parsec_device_describe_gpu_task( char *tmp, size_t len, parsec_gpu_task_t 
 #define PARSEC_GPU_TASK_TYPE_WARMUP       0x4000
 #define PARSEC_GPU_TASK_TYPE_D2D_COMPLETE 0x8000
 #define PARSEC_GPU_TASK_TYPE_RELEASE_COPY 0x0800
+#define PARSEC_GPU_TASK_TYPE_EVACUATE     0x0400
 #define PARSEC_GPU_TASK_TYPE_INVALID      0xf000
 
 #if defined(PARSEC_PROF_TRACE)

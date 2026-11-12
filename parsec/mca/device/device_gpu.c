@@ -3386,7 +3386,7 @@ parsec_gpu_task_ring_release(parsec_gpu_task_t *ring)
  */
 static int
 parsec_gpu_stream_quiesce_after_failure(parsec_device_gpu_module_t *gpu_device,
-                                        parsec_gpu_exec_stream_t *stream)
+                            parsec_gpu_exec_stream_t *stream)
 {
     struct timespec delay = { .tv_sec = 0, .tv_nsec = 100 };
     int rc;
@@ -5122,6 +5122,16 @@ parsec_device_kernel_pop_task( parsec_device_gpu_module_t   *gpu_device,
         return how_many;
     }
 
+    if (gpu_task->task_type == PARSEC_GPU_TASK_TYPE_EVACUATE) {
+        /* The cleanout already picked the flows, made their mirrors and took
+         * them; all that is left is to have the transfers issued. */
+        *transfer_mask = gpu_task->pushout;
+        for( uint32_t i = 0; i < gpu_task->nb_flows; i++ ) {
+            if( gpu_task->pushout & (1U << i) ) how_many++;
+        }
+        return how_many;
+    }
+
     PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
                         "GPU[%d:%s]: Try to Pop %s",
                         gpu_device->super.device_index, gpu_device->super.name,
@@ -5461,6 +5471,103 @@ parsec_device_kernel_epilog( parsec_device_gpu_module_t *gpu_device,
     return 0;
 }
 
+/* Give back what the task was charged on the way in and forget the choice.
+ * parsec_select_best_device() hands a task that still names a device straight
+ * back to it without ever reading chore_mask, which would return a declined
+ * incarnation to the device that just declined it.
+ */
+static void
+parsec_device_task_leaves_device( parsec_device_gpu_module_t *gpu_device,
+                                  parsec_task_t              *this_task )
+{
+    if( &gpu_device->super != this_task->selected_device )
+        return;
+    parsec_atomic_fetch_add_int64(&gpu_device->super.device_load, -this_task->load);
+    assert(gpu_device->super.device_load >= 0);
+    this_task->selected_device = NULL;
+    this_task->selected_chore = -1;
+}
+
+/* Build the write-back of the flows of @p gpu_task marked in @p evacuate_mask.
+ * The wrapper borrows the declined execution context, whose data_out still
+ * names the device copies to read, and carries a copy of the flow descriptions
+ * because the declined wrapper is released as soon as the manager returns.
+ */
+static parsec_gpu_task_t *
+parsec_device_create_evacuate_task( parsec_gpu_task_t *gpu_task,
+                                    uint32_t           evacuate_mask )
+{
+    parsec_gpu_dsl_task_t *dsl_task = PARSEC_OBJ_NEW(parsec_gpu_dsl_task_t);
+    parsec_gpu_task_t *evacuate_task = &dsl_task->super;
+
+    for( uint32_t i = 0; i < gpu_task->nb_flows; i++ ) {
+        dsl_task->flows[i] = gpu_task->flow_info[i];
+    }
+    evacuate_task->ec         = gpu_task->ec;
+    evacuate_task->task_type  = PARSEC_GPU_TASK_TYPE_EVACUATE;
+    evacuate_task->nb_flows   = gpu_task->nb_flows;
+    evacuate_task->pushout    = evacuate_mask;
+    evacuate_task->stage_out  = &parsec_default_gpu_stage_out;
+    /* This one does not enter through parsec_device_kernel_scheduler(), so it
+     * never gets the priority its execution context would have lent it. */
+    evacuate_task->priority   = gpu_task->priority;
+    return evacuate_task;
+}
+
+/* The write-back landed: finish what the cleanout left undone for the flows it
+ * could not settle on the spot, then hand the task back to the scheduler.
+ */
+static void
+parsec_device_complete_evacuate_task( parsec_device_gpu_module_t *gpu_device,
+                                      parsec_execution_stream_t  *es,
+                                      parsec_gpu_task_t          *evacuate_task )
+{
+    parsec_task_t *this_task = evacuate_task->ec;
+
+    for( uint32_t i = 0; i < evacuate_task->nb_flows; i++ ) {
+        parsec_data_copy_t *gpu_copy, *cpu_copy;
+        parsec_data_t *original;
+
+        if( !(evacuate_task->pushout & (1U << i)) ) continue;
+
+        gpu_copy = this_task->data[i].data_out;
+        original = gpu_copy->original;
+        parsec_atomic_lock(&original->lock);
+        cpu_copy = original->device_copies[0];
+        (void)parsec_atomic_fetch_dec_int32(&gpu_copy->readers);
+        cpu_copy->version = gpu_copy->version;
+        cpu_copy->coherency_state = PARSEC_DATA_COHERENCY_SHARED;
+        gpu_copy->coherency_state = PARSEC_DATA_COHERENCY_SHARED;
+        cpu_copy->data_transfer_status = PARSEC_DATA_STATUS_COMPLETE_TRANSFER;
+        /* The host bytes are final, so the mirror this transfer had taken goes
+         * back to the readers that were kept out of it. */
+        (void)parsec_atomic_fetch_add_int32(&cpu_copy->readers,
+                                            PARSEC_DEVICE_DATA_COPY_ATOMIC_SENTINEL);
+
+        if( 0 != (evacuate_task->flow_info[i].flow->flow_flags & PARSEC_FLOW_ACCESS_WRITE) ) {
+            /* Issue #134 */
+            parsec_data_copy_detach(original, gpu_copy, gpu_device->super.device_index);
+            /* Lie to the engine: the working version of this data is on the CPU */
+            this_task->data[i].data_out = cpu_copy;
+            /* An in-place RW flow inputs the copy just detached, and the retry
+             * reads data_in: move it, and the task's reference, to the mirror. */
+            if( gpu_copy == this_task->data[i].data_in ) {
+                PARSEC_DATA_COPY_RETAIN(cpu_copy);
+                this_task->data[i].data_in = cpu_copy;
+                PARSEC_DATA_COPY_RELEASE(gpu_copy);
+            }
+            if( 0 != (gpu_copy->flags & PARSEC_DATA_FLAG_PARSEC_OWNED) ) {
+                parsec_list_nolock_push_back(&gpu_device->gpu_mem_lru, (parsec_list_item_t*)gpu_copy);
+            }
+        }
+        parsec_atomic_unlock(&original->lock);
+    }
+    gpu_device->data_avail_epoch++;
+    parsec_device_task_leaves_device(gpu_device, this_task);
+    PARSEC_OBJ_RELEASE(evacuate_task);
+    __parsec_reschedule(es, this_task);
+}
+
 /** @brief Release the GPU copies of the data used in WRITE mode.
  *
  * @details This function can be used when the GPU task didn't run
@@ -5476,15 +5583,22 @@ parsec_device_kernel_epilog( parsec_device_gpu_module_t *gpu_device,
  *             supposed to execute.
  * @param [IN] gpu_task, the task that has been cancelled, and which
  *             needs it's data returned to the runtime.
- * @return Currently only success.
+ * @param [OUT] evacuation, the write-back of the flows whose value this
+ *             device alone holds, or NULL when the caller is tearing the
+ *             device down and nothing is worth moving.
+ * @return 1 if an evacuation was built, in which case the task stays on this
+ *             device until it lands, 0 if the task is free to go.
  */
 static int
 parsec_device_kernel_cleanout( parsec_device_gpu_module_t *gpu_device,
-                               parsec_gpu_task_t          *gpu_task )
+                               parsec_execution_stream_t  *es,
+                               parsec_gpu_task_t          *gpu_task,
+                               parsec_gpu_task_t         **evacuation )
 {
     parsec_task_t *this_task = gpu_task->ec;
     parsec_gpu_data_copy_t     *gpu_copy, *cpu_copy;
     parsec_data_t              *original;
+    uint32_t evacuate_mask = 0;
     int data_avail_epoch = 0;
 
 #if defined(PARSEC_DEBUG_NOISIER)
@@ -5509,11 +5623,60 @@ parsec_device_kernel_cleanout( parsec_device_gpu_module_t *gpu_device,
          * released right after, and its data_out_readers bits with it. */
         (void)parsec_device_flow_release_data_out(gpu_device, gpu_task, i, !is_write);
 
-        /* Make sure data_in is not NULL */
+        /* Nothing was staged into this output, so whatever the reservation
+         * allocated holds no value, and the kernel never gave it one. Say so
+         * before letting go: a copy left announcing a version is one the next
+         * task looking for this data on this device will read.
+         */
         if( NULL == this_task->data[i].data_in ) {
+            if( 0 != (gpu_copy->flags & PARSEC_DATA_FLAG_PARSEC_OWNED) ) {
+                gpu_copy->coherency_state = PARSEC_DATA_COHERENCY_INVALID;
+                gpu_copy->version = UINT_MAX;
+            }
+            this_task->data[i].data_out = NULL;
             parsec_atomic_unlock(&original->lock);
             continue;
         }
+
+        /* This flow has an input, so the copy holds a value the retry needs,
+         * and wherever the retry lands it reads the flow through the host. A
+         * temporary born on the device may have no mirror at all: make one and
+         * leave the flow to the write-back, which carries it to the host on the
+         * out stream like any other transfer. Nothing else about this flow can
+         * be settled until the bytes are there.
+         */
+        cpu_copy = original->device_copies[0];
+        if( NULL == cpu_copy ) {
+            int taken;
+
+            if( NULL == evacuation ) {
+                /* The device is being disabled and this task will never run
+                 * again, so there is nobody left to read what we would move. */
+                parsec_atomic_unlock(&original->lock);
+                continue;
+            }
+            cpu_copy = parsec_device_gpu_ensure_host_mirror(es, this_task, flow, gpu_copy);
+            if( NULL == cpu_copy ) {
+                parsec_fatal("GPU[%d:%s]: cannot bring flow %s of data %p back to the host for a task "
+                             "this device declined; the value exists nowhere else.",
+                             gpu_device->super.device_index, gpu_device->super.name,
+                             (NULL == flow) ? "(none)" : flow->name, original);
+            }
+            /* The mirror was just made, so it is still out of everybody's
+             * reach; take it for the duration of the transfer. */
+            taken = parsec_atomic_cas_int32(&cpu_copy->readers, 0,
+                                            -PARSEC_DEVICE_DATA_COPY_ATOMIC_SENTINEL);
+            assert(taken); (void)taken;
+            cpu_copy->data_transfer_status = PARSEC_DATA_STATUS_UNDER_TRANSFER;
+            /* The reservation's reader is gone, so count the transfer as one:
+             * the copy must survive, and stay off the eviction lists, until it
+             * has been read. */
+            (void)parsec_atomic_fetch_inc_int32(&gpu_copy->readers);
+            evacuate_mask |= (1U << i);
+            parsec_atomic_unlock(&original->lock);
+            continue;
+        }
+
         if( !is_write ) {
             /* A read-only flow leaves nothing behind for us to put back */
             parsec_atomic_unlock(&original->lock);
@@ -5522,14 +5685,6 @@ parsec_device_kernel_cleanout( parsec_device_gpu_module_t *gpu_device,
 
         assert(gpu_copy->super.super.obj_reference_count > 1);
         /* Issue #134 */
-        cpu_copy = original->device_copies[0];
-        if( NULL == cpu_copy ) {
-            /* A temporary born on the device has no host mirror to lie about,
-             * and the kernel never ran, so leave the copy attached and valid
-             * for the retry to read where it is. */
-            parsec_atomic_unlock(&original->lock);
-            continue;
-        }
         parsec_data_copy_detach(original, gpu_copy, gpu_device->super.device_index);
         gpu_copy->coherency_state = PARSEC_DATA_COHERENCY_SHARED;
 
@@ -5556,6 +5711,14 @@ parsec_device_kernel_cleanout( parsec_device_gpu_module_t *gpu_device,
     }
     if( data_avail_epoch )  /* Update data availability epoch */
         gpu_device->data_avail_epoch++;
+
+    if( 0 != evacuate_mask ) {
+        /* The task still has a foot on this device: it keeps its load and its
+         * copies until the write-back lands, and only then is it handed back. */
+        *evacuation = parsec_device_create_evacuate_task(gpu_task, evacuate_mask);
+        return 1;
+    }
+    parsec_device_task_leaves_device(gpu_device, this_task);
     return 0;
 }
 
@@ -5585,13 +5748,15 @@ parsec_gpu_pending_chain_reverse(parsec_list_item_t *chain)
  */
 static void
 parsec_device_kernel_cleanout_ring(parsec_device_gpu_module_t *gpu_device,
+                                   parsec_execution_stream_t *es,
                                    parsec_gpu_task_t *ring)
 {
     parsec_gpu_task_t *task = ring;
 
     do {
         if( PARSEC_GPU_TASK_TYPE_KERNEL == task->task_type ) {
-            parsec_device_kernel_cleanout(gpu_device, task);
+            /* No evacuation: the device is going down with its tasks */
+            (void)parsec_device_kernel_cleanout(gpu_device, es, task, NULL);
         }
         task = (parsec_gpu_task_t *)task->list_item.list_next;
     } while( task != ring );
@@ -5624,16 +5789,25 @@ parsec_device_kernel_ring_can_retry_elsewhere(parsec_gpu_task_t *ring)
  * execution context back to the scheduler. Only call this once
  * parsec_device_kernel_ring_can_retry_elsewhere() has agreed that no member
  * would be left without an incarnation.
+ *
+ * A member whose values exist nowhere but on this device is not rescheduled
+ * here: it is handed to the write-back collected in @p evacuation, which gives
+ * it back once they have reached the host. Returns how many members went that
+ * way, which is also the length of the evacuation ring.
  */
-static void
+static int
 parsec_device_kernel_retire_incarnation_ring(parsec_device_gpu_module_t *gpu_device,
                                              parsec_execution_stream_t *es,
-                                             parsec_gpu_task_t *ring)
+                                             parsec_gpu_task_t *ring,
+                                             parsec_gpu_task_t **evacuation)
 {
     parsec_gpu_task_t *task = ring;
+    int nb_evacuations = 0;
 
+    *evacuation = NULL;
     do {
         parsec_task_t *ec = task->ec;
+        parsec_gpu_task_t *evacuate_task = NULL;
         char decl[MAX_TASK_STRLEN];
 
         ec->chore_mask &= ~(1 << ec->selected_chore);
@@ -5641,13 +5815,19 @@ parsec_device_kernel_retire_incarnation_ring(parsec_device_gpu_module_t *gpu_dev
         parsec_warning("GPU[%d:%s]: %s cannot run on this device, falling back to another incarnation",
                        gpu_device->super.device_index, gpu_device->super.name,
                        parsec_task_snprintf(decl, MAX_TASK_STRLEN, ec));
-        parsec_device_kernel_cleanout(gpu_device, task);
+        parsec_device_kernel_cleanout(gpu_device, es, task, &evacuate_task);
         /* Advance before rescheduling: ec re-enters the scheduler immediately
          * and must no longer be reachable through this walk.
          */
         task = (parsec_gpu_task_t *)task->list_item.list_next;
-        __parsec_reschedule(es, ec);
+        if( NULL != evacuate_task ) {
+            parsec_gpu_task_ring_append(evacuation, evacuate_task);
+            nb_evacuations++;
+        } else {
+            __parsec_reschedule(es, ec);
+        }
     } while( task != ring );
+    return nb_evacuations;
 }
 
 /**
@@ -5690,12 +5870,14 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
     parsec_gpu_task_t *progress_task = NULL;
     parsec_gpu_task_t *gpu_task = (parsec_gpu_task_t*)_gpu_task;
     parsec_gpu_task_t *failed_batch = NULL;
+    parsec_gpu_task_t *evacuation = NULL;
     parsec_gpu_task_t *release_ring, *iter, *ring_next;
     /* The stream the terminal failure came from, and the only one this manager
      * ever waits on: the copies of a device being taken apart must not still be
      * written into. */
     parsec_gpu_exec_stream_t *failed_stream = NULL;
-    int completed_w2r = 0;  /* write-backs completed here, each counted at creation */
+    int completed_transfers = 0;  /* transfers completed here, each counted at creation */
+    int nb_evacuations = 0;
     int failed_batch_staged = 1;
     parsec_hook_return_t failure_status = PARSEC_HOOK_RETURN_DISABLE;
 #if defined(PARSEC_DEBUG_NOISIER)
@@ -5871,10 +6053,11 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
              */
             if( (NULL != progress_task) &&
                 parsec_device_kernel_ring_can_retry_elsewhere(progress_task) ) {
-                parsec_device_kernel_retire_incarnation_ring(gpu_device, es, progress_task);
+                nb_evacuations = parsec_device_kernel_retire_incarnation_ring(gpu_device, es,
+                                                                              progress_task, &evacuation);
                 gpu_task = progress_task;
                 progress_task = NULL;
-                goto remove_gpu_task;
+                goto evacuate_and_remove_gpu_task;
             }
             failure_status = rc;
             failed_batch = progress_task;
@@ -5887,11 +6070,13 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
                another incarnation of the task will be executed. */
             if( NULL != progress_task ) {
                 assert(PARSEC_HOOK_RETURN_NEXT == rc);
-                parsec_device_kernel_cleanout(gpu_device, progress_task);
-                __parsec_reschedule(es, progress_task->ec);
+                nb_evacuations = parsec_device_kernel_cleanout(gpu_device, es, progress_task,
+                                                               &evacuation);
+                if( 0 == nb_evacuations )
+                    __parsec_reschedule(es, progress_task->ec);
                 gpu_task = progress_task;
                 progress_task = NULL;
-                goto remove_gpu_task;
+                goto evacuate_and_remove_gpu_task;
             }
             gpu_task = NULL;
             goto fetch_task_from_shared_queue;
@@ -6008,7 +6193,7 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
     assert( NULL != gpu_task );
     /* Everything went fine so far, the results are correct and back in the main memory */
     release_ring = NULL;
-    completed_w2r = 0;
+    completed_transfers = 0;
     for( iter = gpu_task; NULL != iter; iter = ring_next ) {
         ring_next = parsec_gpu_task_ring_pop(iter);
         PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,  "GPU[%d:%s]:\tComplete %s",
@@ -6019,7 +6204,13 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
                                              parsec_gpu_complete_w2r_task(gpu_device, iter, es));
             /* The mirrors are back, so the count this transfer took goes back too.
              * It is not part of the release ring: its completion is handled here. */
-            completed_w2r++;
+            completed_transfers++;
+            continue;
+        }
+        if (iter->task_type == PARSEC_GPU_TASK_TYPE_EVACUATE) {
+            /* The declined task's values are home: give it back to the scheduler. */
+            parsec_device_complete_evacuate_task(gpu_device, es, iter);
+            completed_transfers++;
             continue;
         }
         if (iter->task_type == PARSEC_GPU_TASK_TYPE_D2D_COMPLETE) {
@@ -6042,14 +6233,36 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
     }
     gpu_task = release_ring;
     if( NULL == gpu_task ) {
-        if( 0 != completed_w2r ) {
-            released_tasks = completed_w2r;
-            completed_w2r = 0;  /* consumed: later paths must not count it again */
+        if( 0 != completed_transfers ) {
+            released_tasks = completed_transfers;
+            completed_transfers = 0;  /* consumed: later paths must not count it again */
             goto release_device_slots;
         }
         gpu_task = progress_task;
         goto fetch_task_from_shared_queue;
     }
+    goto remove_gpu_task;
+
+  evacuate_and_remove_gpu_task:
+    /* The declined kernels are done with the device, but some of them left a
+     * value that exists nowhere else and has to reach the host before they can
+     * be tried again. Those write-backs ride the out stream like any other
+     * work, and hand their tasks back when they land.
+     */
+    if( 0 != nb_evacuations ) {
+        /* Count them before giving back the kernel wrappers: a manager whose
+         * outstanding count reaches zero leaves, and these transfers still owe
+         * their tasks a reschedule. */
+        (void)parsec_atomic_fetch_add_int32(&gpu_device->mutex, nb_evacuations);
+        nb_evacuations = 0;
+        released_tasks = parsec_gpu_task_ring_release(gpu_task);
+        rc = parsec_atomic_fetch_sub_int32(&(gpu_device->mutex), released_tasks);
+        assert(rc > released_tasks); (void)rc;
+        gpu_task = evacuation;
+        evacuation = NULL;
+        goto get_data_out_of_device;
+    }
+
   remove_gpu_task:
     PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream, "GPU[%d:%s]: gpu_task %p freed",
                          gpu_device->super.device_index, gpu_device->super.name,
@@ -6057,8 +6270,8 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
     /* Release the GPU task */
     released_tasks = parsec_gpu_task_ring_release(gpu_task);
     assert(released_tasks > 0);
-    released_tasks += completed_w2r;
-    completed_w2r = 0;  /* consumed: later paths must not count it again */
+    released_tasks += completed_transfers;
+    completed_transfers = 0;  /* consumed: later paths must not count it again */
 
   release_device_slots:
     rc = parsec_atomic_fetch_sub_int32(&(gpu_device->mutex), released_tasks);
@@ -6097,7 +6310,7 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
          * would corrupt the original.
          */
         if( failed_batch_staged ) {
-            parsec_device_kernel_cleanout_ring(gpu_device, failed_batch);
+            parsec_device_kernel_cleanout_ring(gpu_device, es, failed_batch);
         }
         released_tasks = parsec_gpu_task_ring_release(failed_batch);
         /* The wrappers are gone, so they must also leave the manager's
