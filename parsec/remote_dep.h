@@ -39,6 +39,21 @@ typedef unsigned long remote_dep_datakey_t;
 #define PARSEC_ACTION_RESHAPE_REMOTE_ON_RELEASE  0x80000000
 #define PARSEC_ACTION_RELEASE_REMOTE_DEPS        (PARSEC_ACTION_SEND_INIT_REMOTE_DEPS | PARSEC_ACTION_SEND_REMOTE_DEPS)
 
+/**
+ * Destination sets of a collective, appended to an activation message (see
+ * bcast_mask below). Each starts with a word holding the number of destinations,
+ * flagged with REMOTE_DEP_BCAST_SET_LIST if what follows is that many
+ * root-relative ranks in increasing order, or else a bitmask of
+ * remote_dep_rank_bits_length() words, whichever is shorter. Both are at most
+ * REMOTE_DEP_BCAST_SET_WORDS words: a bitmask for 64k ranks takes 2k words, and
+ * the list does for 2k destinations. A broadcast to more destinations than that
+ * is split by its root into several, each to a distinct group of destinations.
+ */
+#define REMOTE_DEP_BCAST_SET_WORDS 2048
+#define REMOTE_DEP_BCAST_SET_LIST  (1U << 31)
+/* Room for the sets of all the outputs of an activation (one header word each) */
+#define REMOTE_DEP_BCAST_SET_ROOM  ((REMOTE_DEP_BCAST_SET_WORDS + MAX_PARAM_COUNT) * sizeof(uint32_t))
+
 typedef struct remote_dep_wire_activate_s {
     remote_dep_datakey_t deps;         /**< a pointer to the dep structure on the source */
     remote_dep_datakey_t output_mask;  /**< the mask of the output dependencies satisfied by this activation message */
@@ -46,6 +61,11 @@ typedef struct remote_dep_wire_activate_s {
     uint16_t             task_class_id;
     uint16_t             length;
     uint32_t             root;
+    uint32_t             bcast_mask;   /**< outputs of a collective, for which the destination set is
+                                        *   appended to this message. Every destination of such an output
+                                        *   receives the same set, unmodified at every hop, finds its own
+                                        *   position in it, and from there the peers it has to forward
+                                        *   to. */
     parsec_assignment_t  locals[MAX_LOCAL_COUNT];
 } remote_dep_wire_activate_t;
 
@@ -249,6 +269,14 @@ int parsec_remote_dep_reconfigure(parsec_context_t* context);
 int parsec_remote_dep_propagate(parsec_execution_stream_t* es,
                                const parsec_task_t* task,
                                parsec_remote_deps_t* deps);
+
+/* True if the broadcast topology of the taskpool is a star: the root sends to
+ * everybody and nobody forwards. */
+int remote_dep_bcast_is_star(const parsec_taskpool_t *taskpool);
+
+/* The largest number of destinations a broadcast of the given number of outputs
+ * can have, before its root splits it. */
+int remote_dep_bcast_group_size(int nb_outputs);
 #endif
 
 #else
@@ -440,6 +468,40 @@ extern int parsec_comm_gets_max;
 extern int parsec_comm_gets;
 extern int parsec_comm_puts_max;
 extern int parsec_comm_puts;
+
+/* Length, in uint32_t, of one root-relative rank set (output[].rank_bits) for np nodes. */
+static inline uint32_t remote_dep_rank_bits_length_for(int np)
+{
+    return (uint32_t)((np + 31) / 32);
+}
+
+/* Same, for the number of nodes the remote dependencies were sized for. */
+static inline uint32_t remote_dep_rank_bits_length(void)
+{
+#if defined(DISTRIBUTED)
+    return remote_dep_rank_bits_length_for((int)parsec_remote_dep_context.max_nodes_number);
+#else
+    return 1;
+#endif
+}
+
+static inline int remote_dep_popcount(uint32_t word)
+{
+    word = word - ((word >> 1) & 0x55555555u);
+    word = (word & 0x33333333u) + ((word >> 2) & 0x33333333u);
+    return (int)((((word + (word >> 4)) & 0x0F0F0F0Fu) * 0x01010101u) >> 24);
+}
+
+/* Position (starting at 1) of the given rank among the destinations of a
+ * root-relative rank set, in the order the topologies see them. */
+static inline int remote_dep_rank_position(const uint32_t *rank_bits, uint32_t bank, uint32_t bit)
+{
+    int position = remote_dep_popcount(rank_bits[bank] & (0xFFFFFFFFu >> (31 - bit)));
+
+    for(uint32_t b = 0; b < bank; b++)
+        position += remote_dep_popcount(rank_bits[b]);
+    return position;
+}
 
 static inline void
 remote_dep_rank_to_bit(int rank, uint32_t *bank, uint32_t *bit, int root)
