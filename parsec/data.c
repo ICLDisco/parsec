@@ -132,12 +132,14 @@ int parsec_data_init(parsec_context_t* context)
     /**
      * This is a trick. Now that we know the number of available devices
      * we can update the size of the parsec_data_t class to the correct value.
+     * The size is computed from the static size of the type, not incremented,
+     * so it does not grow if the runtime is initialized multiple times.
      */
     if( !parsec_mca_device_registration_completed(context) ) {
         parsec_warning("Cannot configure the data infrastructure as the devices layer has not yet been froze.");
         return PARSEC_ERROR;
     }
-    parsec_data_t_class.cls_sizeof += sizeof(parsec_data_copy_t*) * parsec_nb_devices;
+    parsec_data_t_class.cls_sizeof = sizeof(parsec_data_t) + sizeof(parsec_data_copy_t*) * parsec_nb_devices;
     return PARSEC_SUCCESS;
 }
 
@@ -145,6 +147,8 @@ int parsec_data_fini(parsec_context_t* context)
 {
     PARSEC_OBJ_DESTRUCT(&parsec_data_lifo);
     PARSEC_OBJ_DESTRUCT(&parsec_data_copies_lifo);
+    /* back to the static size, the number of devices may differ next time */
+    parsec_data_t_class.cls_sizeof = sizeof(parsec_data_t);
     (void)context;
     return PARSEC_SUCCESS;
 }
