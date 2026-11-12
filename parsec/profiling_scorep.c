@@ -245,10 +245,13 @@ static int scorep_trace(parsec_profiling_stream_t *stream, void *state,
     SCOREP_User_RegionHandle handle;
     int depth;
 
-    (void)stream; (void)state;
+    (void)state;
     if( !parsec_scorep_active ||
-        (event->flags & PARSEC_PROFILING_EVENT_COUNTER) ||
-        (!event->is_default_stream && !parsec_scorep_all_streams) ) {
+        (event->flags & PARSEC_PROFILING_EVENT_COUNTER) ) {
+        return 0;
+    }
+    /* Only the events of the default stream of the calling thread nest */
+    if( !parsec_scorep_all_streams && stream != parsec_profiling_get_default_stream() ) {
         return 0;
     }
     stack = parsec_scorep_get_stack();

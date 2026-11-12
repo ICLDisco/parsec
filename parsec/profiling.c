@@ -49,6 +49,7 @@ static int parsec_prof_warning_issued = 0; /* no warning was issued */
 
 static parsec_time_t parsec_start_time;
 static int           start_called = 0;
+static int           parsec_profiling_process_id = 0;
 
 /* All the substrates built in, in the order in which they receive the events */
 static parsec_profiling_substrate_t *parsec_profiling_substrates[] = {
@@ -66,7 +67,7 @@ static parsec_profiling_substrate_t *parsec_profiling_substrates[] = {
 #define NB_SUBSTRATES ((int)(sizeof(parsec_profiling_substrates) / sizeof(parsec_profiling_substrates[0])))
 
 #define SUBSTRATE_UNUSED   0  /* not selected, or failed to initialize */
-#define SUBSTRATE_PREPARED 1  /* initialized file substrate, waiting for parsec_profiling_dbp_start */
+#define SUBSTRATE_SELECTED 1  /* file substrate, initialized by parsec_profiling_dbp_start */
 #define SUBSTRATE_ACTIVE   2  /* receives the events */
 #define SUBSTRATE_CLOSED   3  /* file substrate dumped, does not receive events anymore */
 static int substrate_status[NB_SUBSTRATES];
@@ -101,7 +102,6 @@ void parsec_profiling_set_last_error(const char *format, ...)
     va_start(ap, format);
     rc = vsnprintf(parsec_profiling_last_error, MAX_PROFILING_ERROR_STRING_LEN, format, ap);
     va_end(ap);
-    fprintf(stderr, "-- %s", parsec_profiling_last_error);
     parsec_profiling_raise_error = 1;
     (void)rc;
 }
@@ -179,6 +179,23 @@ const parsec_profiling_key_t *parsec_profiling_dictionary_entry(int key)
     return entry;
 }
 
+/* Attach a substrate to a stream. A substrate that cannot attach ignores the
+ * events of the stream, the other substrates still record them. */
+static void attach_stream(int s, parsec_profiling_stream_t *stream)
+{
+    parsec_profiling_substrate_t *sub = parsec_profiling_substrates[s];
+
+    stream->substrate_data[s] = NULL;
+    if( NULL == sub->stream_init ) {
+        return;
+    }
+    if( 0 != sub->stream_init(stream, &stream->substrate_data[s]) ) {
+        parsec_warning("Profiling system: the %s substrate could not attach to stream %s, its events will be ignored (%s).",
+                       sub->name, stream->hr_id, parsec_profiling_strerror());
+        stream->substrate_data[s] = NULL;
+    }
+}
+
 /* Make a substrate receive the events, after giving it the keys and the
  * streams created before its activation. */
 static void activate_substrate(int s)
@@ -196,20 +213,13 @@ static void activate_substrate(int s)
         }
         pthread_mutex_unlock(&profiling_keyword_lock);
     }
-    if( NULL != sub->stream_init ) {
-        parsec_list_lock(&streams);
-        for( it = PARSEC_LIST_ITERATOR_FIRST(&streams);
-             it != PARSEC_LIST_ITERATOR_END(&streams);
-             it = PARSEC_LIST_ITERATOR_NEXT(it) ) {
-            parsec_profiling_stream_t *stream = (parsec_profiling_stream_t*)it;
-            if( 0 != sub->stream_init(stream, &stream->substrate_data[s]) ) {
-                parsec_warning("Profiling system: substrate %s could not attach to stream %s, its events will be ignored.",
-                               sub->name, stream->hr_id);
-                stream->substrate_data[s] = NULL;
-            }
-        }
-        parsec_list_unlock(&streams);
+    parsec_list_lock(&streams);
+    for( it = PARSEC_LIST_ITERATOR_FIRST(&streams);
+         it != PARSEC_LIST_ITERATOR_END(&streams);
+         it = PARSEC_LIST_ITERATOR_NEXT(it) ) {
+        attach_stream(s, (parsec_profiling_stream_t*)it);
     }
+    parsec_list_unlock(&streams);
     substrate_status[s] = SUBSTRATE_ACTIVE;
     active_substrates[nb_active_substrates] = sub;
     parsec_mfence();
@@ -372,7 +382,11 @@ int parsec_profiling_init( int process_id )
         substrate_status[s] = SUBSTRATE_UNUSED;
         requested = (NULL != sub->register_mca) ? sub->register_mca() : 0;
         if( PARSEC_PROFILING_SUBSTRATE_FILE == sub->kind ) {
-            requested = (NULL != formats) && format_is_selected(formats, sub->name);
+            /* Initialized by parsec_profiling_dbp_start, only if a file is written */
+            if( (NULL != formats) && format_is_selected(formats, sub->name) ) {
+                substrate_status[s] = SUBSTRATE_SELECTED;
+            }
+            continue;
         }
         if( !requested ) {
             continue;
@@ -380,13 +394,10 @@ int parsec_profiling_init( int process_id )
         if( (NULL != sub->init) && (0 != sub->init(process_id)) ) {
             continue;
         }
-        if( PARSEC_PROFILING_SUBSTRATE_FILE == sub->kind ) {
-            substrate_status[s] = SUBSTRATE_PREPARED;
-        } else {
-            activate_substrate(s);
-        }
+        activate_substrate(s);
     }
     free(formats);
+    parsec_profiling_process_id = process_id;
 
     /* As we called the _start function automatically, the timing will be
      * based on this moment. */
@@ -403,33 +414,48 @@ int parsec_profiling_dbp_start( const char *basefile, const char *hr_info )
 {
     char *xmlbuffer;
     int  buflen;
-    int  rc = PARSEC_ERR_NOT_SUPPORTED, nb_opened = 0;
+    int  rc = PARSEC_ERR_NOT_SUPPORTED, nb_selected = 0, nb_opened = 0;
 
     if( !__profile_initialized ) return PARSEC_ERR_NOT_SUPPORTED;
 
+    for( int s = 0; s < NB_SUBSTRATES; s++ ) {
+        nb_selected += (SUBSTRATE_SELECTED == substrate_status[s]);
+    }
     reset_last_error();
     for( int s = 0; s < NB_SUBSTRATES; s++ ) {
         parsec_profiling_substrate_t *sub = parsec_profiling_substrates[s];
-        if( SUBSTRATE_PREPARED != substrate_status[s] ) {
+        if( SUBSTRATE_SELECTED != substrate_status[s] ) {
             continue;
         }
-        rc = sub->open(basefile, hr_info);
+        rc = (NULL != sub->init) ? sub->init(parsec_profiling_process_id) : 0;
+        if( 0 == rc ) {
+            rc = sub->open(basefile, hr_info);
+            if( 0 != rc && NULL != sub->fini ) {
+                sub->fini();
+            }
+        }
         if( 0 != rc ) {
-            parsec_warning("Profiling system: the %s substrate could not be started (%s).",
-                           sub->name, parsec_profiling_strerror());
+            substrate_status[s] = SUBSTRATE_UNUSED;
+            /* With a single format the caller reports the error */
+            if( nb_selected > 1 ) {
+                parsec_warning("Profiling system: the %s format could not be started (%s).",
+                               sub->name, parsec_profiling_strerror());
+            }
             continue;
         }
         activate_substrate(s);
         nb_opened++;
     }
     if( 0 == nb_opened ) {
-        if( PARSEC_ERR_NOT_SUPPORTED == rc ) {
-            parsec_profiling_set_last_error("Profiling system: error: no file format selected (profile_format)\n");
+        if( 0 == nb_selected ) {
+            parsec_profiling_set_last_error("Profiling system: error: no file format selected (profile_format)");
+        } else if( nb_selected > 1 ) {
+            /* Each failure was reported above */
+            parsec_profiling_set_last_error("Profiling system: error: none of the selected file formats could be started");
         }
         return (0 != rc) ? rc : PARSEC_ERROR;
     }
-    /* The file substrates reported their errors through warnings, the
-     * profiling is started on the other ones. */
+    /* The failed formats were reported, the profiling is started on the others. */
     reset_last_error();
 
     /* It's fine to re-reset the event date: we're back with a zero-length event set */
@@ -485,29 +511,13 @@ parsec_profiling_stream_t* parsec_profiling_stream_init( size_t length, const ch
     va_end(ap);
 
     for( s = 0; s < NB_SUBSTRATES; s++ ) {
-        parsec_profiling_substrate_t *sub = parsec_profiling_substrates[s];
-        if( SUBSTRATE_ACTIVE != substrate_status[s] || NULL == sub->stream_init ) {
-            continue;
-        }
-        if( 0 != sub->stream_init(stream, &stream->substrate_data[s]) ) {
-            goto cleanup_and_fail;
+        if( SUBSTRATE_ACTIVE == substrate_status[s] ) {
+            attach_stream(s, stream);
         }
     }
 
     parsec_list_push_back( &streams, (parsec_list_item_t*)stream );
     return stream;
-
-  cleanup_and_fail:
-    while( --s >= 0 ) {
-        parsec_profiling_substrate_t *sub = parsec_profiling_substrates[s];
-        if( NULL != stream->substrate_data[s] && NULL != sub->stream_fini ) {
-            sub->stream_fini(stream, stream->substrate_data[s]);
-        }
-    }
-    PARSEC_OBJ_DESTRUCT(stream);
-    free(stream->hr_id);
-    free(stream);
-    return NULL;
 }
 
 parsec_profiling_stream_t *parsec_profiling_set_default_thread( parsec_profiling_stream_t *stream )
@@ -522,7 +532,7 @@ void parsec_profiling_thread_fini(void)
 {
     for( int s = 0; s < NB_SUBSTRATES; s++ ) {
         parsec_profiling_substrate_t *sub = parsec_profiling_substrates[s];
-        if( SUBSTRATE_UNUSED != substrate_status[s] && NULL != sub->thread_fini ) {
+        if( substrate_status[s] >= SUBSTRATE_ACTIVE && NULL != sub->thread_fini ) {
             sub->thread_fini();
         }
     }
@@ -552,8 +562,11 @@ int parsec_profiling_dbp_dump( void )
         return PARSEC_ERR_NOT_SUPPORTED;
     }
 
-    if( parsec_profiling_raise_error )
+    if( parsec_profiling_raise_error ) {
+        /* Errors raised while tracing or dumping are only known here */
+        parsec_warning("Profiling system: the profile may be incomplete: %s", parsec_profiling_strerror());
         return PARSEC_ERROR;
+    }
 
     return 0;
 }
@@ -572,7 +585,7 @@ static void dictionary_clear(void)
     parsec_prof_keys_count = 0;
     for( int s = 0; s < NB_SUBSTRATES; s++ ) {
         parsec_profiling_substrate_t *sub = parsec_profiling_substrates[s];
-        if( SUBSTRATE_UNUSED != substrate_status[s] && NULL != sub->dictionary_flush ) {
+        if( substrate_status[s] >= SUBSTRATE_ACTIVE && NULL != sub->dictionary_flush ) {
             sub->dictionary_flush();
         }
     }
@@ -581,14 +594,16 @@ static void dictionary_clear(void)
 int parsec_profiling_fini( void )
 {
     parsec_profiling_stream_t *t;
+    int ret = 0;
 
     if( !__profile_initialized ) return PARSEC_ERR_NOT_SUPPORTED;
 
     for( int s = 0; s < NB_SUBSTRATES; s++ ) {
         if( PARSEC_PROFILING_SUBSTRATE_FILE == parsec_profiling_substrates[s]->kind &&
             SUBSTRATE_ACTIVE == substrate_status[s] ) {
+            /* The dump reports its errors, release everything anyway */
             if( 0 != parsec_profiling_dbp_dump() ) {
-                return PARSEC_ERROR;
+                ret = PARSEC_ERROR;
             }
             break;
         }
@@ -619,7 +634,7 @@ int parsec_profiling_fini( void )
 
     for( int s = 0; s < NB_SUBSTRATES; s++ ) {
         parsec_profiling_substrate_t *sub = parsec_profiling_substrates[s];
-        if( SUBSTRATE_UNUSED != substrate_status[s] && NULL != sub->fini ) {
+        if( substrate_status[s] >= SUBSTRATE_ACTIVE && NULL != sub->fini ) {
             sub->fini();
         }
         substrate_status[s] = SUBSTRATE_UNUSED;
@@ -632,7 +647,7 @@ int parsec_profiling_fini( void )
     parsec_profile_enabled = 0;  /* turn off the profiling */
     __profile_initialized = 0;   /* not initialized */
 
-    return 0;
+    return ret;
 }
 
 int parsec_profiling_reset( void )
@@ -773,6 +788,7 @@ parsec_profiling_trace_flags_info_fn(parsec_profiling_stream_t* context, int key
                                      parsec_profiling_info_fn_t *info_fn, const void *info_data, uint16_t flags)
 {
     parsec_profiling_trace_event_t event;
+    parsec_time_t now;
     int rc, ret = 0;
 
     if( !__profile_initialized ||
@@ -782,7 +798,7 @@ parsec_profiling_trace_flags_info_fn(parsec_profiling_stream_t* context, int key
     }
 
     if(flags & PARSEC_PROFILING_EVENT_TIME_AT_START) {
-        event.start_time = take_time();
+        now = take_time();
     }
 
     if( -1 == key ) {
@@ -802,12 +818,25 @@ parsec_profiling_trace_flags_info_fn(parsec_profiling_stream_t* context, int key
 
     event.key = BASE_KEY(key);
     event.is_start = KEY_IS_START(key);
-    event.is_default_stream = (context == PARSEC_TLS_GET_SPECIFIC(tls_profiling));
     event.flags = flags;
     event.taskpool_id = taskpool_id;
     event.event_id = event_id;
-    event.info_fn = info_fn;
-    event.info_data = info_data;
+    if( (NULL != info_fn) && (NULL != info_data) ) {
+        event.info_fn = info_fn;
+        event.info_data = info_data;
+        event.info_length = dictionary_slot(event.key)->info_length;
+    } else {
+        event.info_fn = NULL;
+        event.info_data = NULL;
+        event.info_length = 0;
+    }
+    /* All the substrates record the same time for the event: the beginning
+     * of the trace call with PARSEC_PROFILING_EVENT_TIME_AT_START, otherwise
+     * the time the event is handed to the substrates. */
+    if( !(flags & PARSEC_PROFILING_EVENT_TIME_AT_START) ) {
+        now = take_time();
+    }
+    event.timestamp = parsec_profiling_timestamp(now);
 
     for( int i = 0; i < nb_active_substrates; i++ ) {
         parsec_profiling_substrate_t *sub = active_substrates[i];

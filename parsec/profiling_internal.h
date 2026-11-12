@@ -61,14 +61,13 @@ struct parsec_profiling_stream_s {
 typedef struct parsec_profiling_trace_event_s {
     int                         key;          /**< index of the dictionary entry */
     int                         is_start;
-    int                         is_default_stream; /**< the stream is the default stream of the calling thread */
     uint16_t                    flags;
     uint32_t                    taskpool_id;
     uint64_t                    event_id;
-    parsec_profiling_info_fn_t *info_fn;
+    uint64_t                    timestamp;    /**< taken once by the core, the same for all the substrates */
+    parsec_profiling_info_fn_t *info_fn;      /**< NULL if the event has no info */
     const void                 *info_data;
-    parsec_time_t               start_time;   /**< taken at the beginning of the trace call,
-                                               *   used when PARSEC_PROFILING_EVENT_TIME_AT_START is set */
+    size_t                      info_length;  /**< size of the info of the key, 0 if the event has no info */
 } parsec_profiling_trace_event_t;
 
 #define PARSEC_PROFILING_SUBSTRATE_FILE   0
@@ -84,14 +83,17 @@ struct parsec_profiling_substrate_s {
     int         kind;   /**< PARSEC_PROFILING_SUBSTRATE_FILE or _MIRROR */
     int         index;  /**< set by the core, index of the substrate state in the streams */
 
-    /** Register the MCA parameters. For mirror substrates, returns non-zero
-     *  if the substrate is requested. */
+    /** Register the MCA parameters, called from parsec_profiling_init. For
+     *  mirror substrates, returns non-zero if the substrate is requested. */
     int  (*register_mca)(void);
-    /** Prepare the substrate, called from parsec_profiling_init for the
-     *  selected file substrates and the requested mirror substrates.
-     *  Mirror substrates are active once this returns 0. */
+    /** Prepare the substrate. Called from parsec_profiling_init for the
+     *  requested mirror substrates, which are active once this returns 0,
+     *  and from parsec_profiling_dbp_start for the selected file substrates,
+     *  so that they cost nothing when no file is written. */
     int  (*init)(int process_id);
-    /** Activate a file substrate, called from parsec_profiling_dbp_start */
+    /** Activate a file substrate, called from parsec_profiling_dbp_start
+     *  after init. On failure the substrate must release what it acquired,
+     *  fini is called afterwards. */
     int  (*open)(const char *basefile, const char *hr_info);
     /** Called from parsec_profiling_start, before the time base is set */
     void (*start)(void);
@@ -103,6 +105,7 @@ struct parsec_profiling_substrate_s {
     void (*register_key)(int key, const parsec_profiling_key_t *entry);
     void (*dictionary_flush)(void);
 
+    /** On failure, the substrate ignores the events of this stream */
     int  (*stream_init)(parsec_profiling_stream_t *stream, void **state);
     void (*stream_reset)(parsec_profiling_stream_t *stream, void *state);
     void (*stream_fini)(parsec_profiling_stream_t *stream, void *state);
@@ -126,6 +129,8 @@ extern parsec_profiling_substrate_t parsec_profiling_substrate_scorep;
 
 /* Services of the core to the substrates */
 
+/** Record an error, returned by parsec_profiling_strerror. The error is
+ *  not printed: the caller of the failing API function reports it. */
 void parsec_profiling_set_last_error(const char *format, ...);
 int  parsec_profiling_is_started(void);
 /** Time elapsed between the start of the profiling and @p t */

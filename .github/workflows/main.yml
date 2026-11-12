@@ -76,3 +76,47 @@ jobs:
       with:
         name: CMake-error-log
         path: CMakeFiles/CMakeError.log
+
+  # Compile all the profiling substrates (binary, OTF2, NVTX, Score-P), the
+  # jobs above only build the binary format.
+  profiling_substrates:
+    timeout-minutes: 45
+    name: "Debug Shared=ON Profile=all-substrates cpu (build only)"
+    runs-on: [ "cpu", self-hosted ]
+    env:
+      BUILD_TYPE:  Debug
+      SHARED_TYPE: ON
+      PROFILING:   ON
+      DEVICE: cpu
+      SETUP: ${{github.workspace}}/.github/CI/env_setup.sh
+      DEPS: ~/.cache/parsec-profiling-deps
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Cache profiling dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/parsec-profiling-deps
+        key: profiling-deps-${{ runner.os }}-${{ hashFiles('.github/CI/profiling_deps.sh') }}
+
+    - name: Fetch profiling dependencies
+      run: |
+            source $SETUP
+            $GITHUB_WORKSPACE/.github/CI/profiling_deps.sh $(eval echo $DEPS)
+            cmake -E make_directory build
+
+    - name: Configure CMake
+      working-directory: build
+      run: |
+           source $SETUP
+           DEPS=$(eval echo $DEPS)
+           cmake $GITHUB_WORKSPACE $BUILD_CONFIG \
+                 -DPARSEC_PROF_TRACE_SYSTEM=OTF2 -DOTF2_DIR=$DEPS/otf2 \
+                 -DPARSEC_PROF_TRACE_NVTX=ON -DPARSEC_NVTX_ROOT=$DEPS/nvtx/c \
+                 -DPARSEC_PROF_TRACE_SCOREP=ON -DPARSEC_SCOREP_ROOT=$DEPS/scorep
+
+    - name: Build
+      working-directory: build
+      run: |
+           source $SETUP
+           cmake --build .

@@ -237,9 +237,9 @@ endif()
 option(PARSEC_PROF_TRACE
   "Enable the generation of the profiling information during
   execution" OFF)
-  set(PARSEC_PROF_TRACE_SYSTEM "PaRSEC Binary Tracing Format" CACHE STRING "Default profiling file format, if PARSEC_PROF_TRACE is ON. The PaRSEC Binary Tracing Format is always available; OTF2 adds support for OTF2 archives (the format is selected at runtime with the profile_format MCA parameter)")
+  set(PARSEC_PROF_TRACE_SYSTEM "PaRSEC Binary Tracing Format" CACHE STRING "Profiling file formats to build, if PARSEC_PROF_TRACE is ON. The PaRSEC Binary Tracing Format is always built. OTF2 also builds OTF2 support (an error if OTF2 is not found) and makes it the default format, Auto does the same if OTF2 is found. The formats written are selected at runtime with the profile_format MCA parameter")
 #This enforces that only valid values are available in ccmake or cmake-gui
-set_property(CACHE PARSEC_PROF_TRACE_SYSTEM PROPERTY STRINGS "OTF2" "PaRSEC Binary Tracing Format")
+set_property(CACHE PARSEC_PROF_TRACE_SYSTEM PROPERTY STRINGS "PaRSEC Binary Tracing Format" "OTF2" "Auto")
 option(PARSEC_PROF_TRACE_NVTX
   "Mirror PaRSEC profiling events as NVIDIA NVTX ranges for Nsight Systems" OFF)
 option(PARSEC_PROF_TRACE_SCOREP

@@ -149,12 +149,17 @@ void parsec_profiling_otf2_set_comm(void *_pcomm)
     }
 }
 
+static int otf2_register_mca( void )
+{
+    parsec_mca_param_reg_int_name("profile", "max_streams", "Maximum number of profiling streams per process",
+                                  false, false, max_stream_id, &max_stream_id);
+    return 0;
+}
+
+/* Called only when an OTF2 archive is requested */
 static int otf2_init( int _process_id )
 {
     (void)_process_id; /* OTF2 renames the processes according to their rank */
-
-    parsec_mca_param_reg_int_name("profile", "max_streams", "Maximum number of profiling streams per process",
-                                  false, false, max_stream_id, &max_stream_id);
 
     nbregions = 128;
     regions = (parsec_profiling_region_t*)calloc(nbregions, sizeof(parsec_profiling_region_t));
@@ -299,18 +304,14 @@ static int otf2_open( const char *_basefile, const char *hr_info )
     }
 
     gethostname(hostname, 256);
-    if( (rc = OTF2_Archive_SetMachineName(otf2_archive, hostname)) != OTF2_SUCCESS ) {
+    if( (rc = OTF2_Archive_SetMachineName(otf2_archive, hostname)) != OTF2_SUCCESS ||
+        (rc = OTF2_Archive_SetDescription(otf2_archive, hr_info)) != OTF2_SUCCESS ||
+        (rc = OTF2_Archive_SetCreator(otf2_archive, "PaRSEC Profiling System")) != OTF2_SUCCESS ) {
         set_last_error("PaRSEC Profiling System: error -- %s (%s)", OTF2_Error_GetName(rc), OTF2_Error_GetDescription(rc));
-        return PARSEC_ERROR;
-    }
-
-    if( (rc = OTF2_Archive_SetDescription(otf2_archive, hr_info)) != OTF2_SUCCESS ) {
-        set_last_error("PaRSEC Profiling System: error -- %s (%s)", OTF2_Error_GetName(rc), OTF2_Error_GetDescription(rc));
-        return PARSEC_ERROR;
-    }
-
-    if( (rc = OTF2_Archive_SetCreator(otf2_archive, "PaRSEC Profiling System")) != OTF2_SUCCESS ) {
-        set_last_error("PaRSEC Profiling System: error -- %s (%s)", OTF2_Error_GetName(rc), OTF2_Error_GetDescription(rc));
+        /* The event files are open: close the archive, the substrate is not used */
+        OTF2_Archive_Close(otf2_archive);
+        otf2_archive = NULL;
+        global_def_writer = NULL;
         return PARSEC_ERROR;
     }
 
@@ -559,7 +560,7 @@ static int otf2_trace(parsec_profiling_stream_t *stream, void *state,
     int region = event->key;
     int rc = OTF2_SUCCESS;
     OTF2_AttributeList *attribute_list = NULL;
-    uint64_t timestamp;
+    uint64_t timestamp = event->timestamp;
 
     (void)stream;
     if( NULL == otf2_archive || NULL == context ) {
@@ -570,13 +571,10 @@ static int otf2_trace(parsec_profiling_stream_t *stream, void *state,
         return PARSEC_ERR_BAD_PARAM;
     }
 
-    timestamp = parsec_profiling_get_time();
-
-    if( (NULL != event->info_fn) && (NULL != event->info_data) &&
+    if( NULL != event->info_fn &&
         region < next_region && NULL != regions[region].attr_info ) {
-        size_t info_length = regions[region].info_length;
-        char *info = alloca(info_length);
-        event->info_fn(info, event->info_data, info_length);
+        char *info = alloca(event->info_length);
+        event->info_fn(info, event->info_data, event->info_length);
         attribute_list = OTF2_AttributeList_New();
         const char *ptr = info;
         for(int t = 0; t < regions[region].otf2_nb_attributes; t++) {
@@ -738,7 +736,16 @@ static int otf2_dump( void )
 
     epoch = parsec_profiling_get_time();
 
-    int num_locations = thread_profiling_id;
+    /* The locations are the streams that have an OTF2 state */
+    int num_locations = 0;
+    parsec_list_lock( threads );
+    for( r = PARSEC_LIST_ITERATOR_FIRST(threads);
+         r != PARSEC_LIST_ITERATOR_END(threads);
+         r = PARSEC_LIST_ITERATOR_NEXT(r) ) {
+        num_locations += (NULL != parsec_profiling_stream_state((parsec_profiling_stream_t*)r,
+                                                                &parsec_profiling_substrate_otf2));
+    }
+    parsec_list_unlock( threads );
     int total_num_locations = num_locations;
     parsec_profiling_stream_data_t *stream_data;
 
@@ -775,7 +782,7 @@ static int otf2_dump( void )
             parsec_warning("PaRSEC Profiling System: OTF2 Error -- %s (%s)", OTF2_Error_GetName(rc), OTF2_Error_GetDescription(rc));
         }
     }
-    assert((uint64_t)thread_profiling_id == nb_local_threads);
+    assert((uint64_t)num_locations == nb_local_threads);
     parsec_list_unlock( threads );
 
 
@@ -1064,6 +1071,7 @@ static void otf2_fini( void )
 parsec_profiling_substrate_t parsec_profiling_substrate_otf2 = {
     .name             = "otf2",
     .kind             = PARSEC_PROFILING_SUBSTRATE_FILE,
+    .register_mca     = otf2_register_mca,
     .init             = otf2_init,
     .open             = otf2_open,
     .start            = otf2_start,

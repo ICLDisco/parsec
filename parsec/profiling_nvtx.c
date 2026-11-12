@@ -15,6 +15,7 @@
 
 #include <nvtx3/nvToolsExt.h>
 
+#include "parsec/sys/atomic.h"
 #include "parsec/utils/mca_param.h"
 
 typedef struct parsec_profiling_nvtx_range_s parsec_profiling_nvtx_range_t;
@@ -34,10 +35,14 @@ typedef struct parsec_profiling_nvtx_key_s {
     uint32_t color;
 } parsec_profiling_nvtx_key_t;
 
+/* Keys indexed by the dictionary key. The table is two-level and chunks are
+ * never reallocated, so that tracing threads can read it while new keys are
+ * registered. */
+#define PARSEC_PROFILING_NVTX_KEYS_CHUNK      256
+#define PARSEC_PROFILING_NVTX_KEYS_MAX_CHUNKS 128  /* the dictionary has at most 1<<15 keys */
+
 static nvtxDomainHandle_t parsec_profiling_nvtx_domain = NULL;
-static parsec_profiling_nvtx_key_t *parsec_profiling_nvtx_keys = NULL;
-static int parsec_profiling_nvtx_keys_count = 0;
-static int parsec_profiling_nvtx_keys_size = 0;
+static parsec_profiling_nvtx_key_t *parsec_profiling_nvtx_keys[PARSEC_PROFILING_NVTX_KEYS_MAX_CHUNKS];
 static int parsec_profiling_nvtx_enabled = 0;
 static int parsec_profiling_nvtx_mca_registered = 0;
 static parsec_profiling_nvtx_range_t *parsec_profiling_nvtx_active_ranges = NULL;
@@ -114,20 +119,42 @@ static int parsec_profiling_nvtx_init(int process_id)
     return (NULL != parsec_profiling_nvtx_domain) ? 0 : PARSEC_ERROR;
 }
 
+/* The key, or NULL if no key was registered at this position */
+static parsec_profiling_nvtx_key_t *parsec_profiling_nvtx_get_key(int key)
+{
+    parsec_profiling_nvtx_key_t *chunk;
+    int c = key / PARSEC_PROFILING_NVTX_KEYS_CHUNK;
+
+    if( key < 0 || c >= PARSEC_PROFILING_NVTX_KEYS_MAX_CHUNKS ) {
+        return NULL;
+    }
+    chunk = parsec_profiling_nvtx_keys[c];
+    if( NULL == chunk || NULL == chunk[key % PARSEC_PROFILING_NVTX_KEYS_CHUNK].name ) {
+        return NULL;
+    }
+    return &chunk[key % PARSEC_PROFILING_NVTX_KEYS_CHUNK];
+}
+
 static void parsec_profiling_nvtx_dictionary_flush(void)
 {
-    for(int i = 0; i < parsec_profiling_nvtx_keys_count; i++) {
-        free(parsec_profiling_nvtx_keys[i].name);
+    for(int c = 0; c < PARSEC_PROFILING_NVTX_KEYS_MAX_CHUNKS; c++) {
+        if( NULL == parsec_profiling_nvtx_keys[c] ) {
+            continue;
+        }
+        for(int i = 0; i < PARSEC_PROFILING_NVTX_KEYS_CHUNK; i++) {
+            free(parsec_profiling_nvtx_keys[c][i].name);
+            parsec_profiling_nvtx_keys[c][i].name = NULL;
+        }
     }
-    free(parsec_profiling_nvtx_keys);
-    parsec_profiling_nvtx_keys = NULL;
-    parsec_profiling_nvtx_keys_count = 0;
-    parsec_profiling_nvtx_keys_size = 0;
 }
 
 static void parsec_profiling_nvtx_fini(void)
 {
     parsec_profiling_nvtx_dictionary_flush();
+    for(int c = 0; c < PARSEC_PROFILING_NVTX_KEYS_MAX_CHUNKS; c++) {
+        free(parsec_profiling_nvtx_keys[c]);
+        parsec_profiling_nvtx_keys[c] = NULL;
+    }
     if( NULL != parsec_profiling_nvtx_domain ) {
         nvtxDomainDestroy(parsec_profiling_nvtx_domain);
         parsec_profiling_nvtx_domain = NULL;
@@ -137,46 +164,39 @@ static void parsec_profiling_nvtx_fini(void)
 static void parsec_profiling_nvtx_register_key(int key, const char *name,
                                                const char *attributes)
 {
-    char *new_name;
+    parsec_profiling_nvtx_key_t *entry;
+    char *new_name, *old_name;
+    int c = key / PARSEC_PROFILING_NVTX_KEYS_CHUNK;
 
     if( !parsec_profiling_nvtx_enabled ||
         NULL == parsec_profiling_nvtx_domain ||
-        key < 0 ) {
+        key < 0 || c >= PARSEC_PROFILING_NVTX_KEYS_MAX_CHUNKS ) {
         return;
     }
 
-    if( key >= parsec_profiling_nvtx_keys_size ) {
-        int old_size = parsec_profiling_nvtx_keys_size;
-        int new_size = (0 == old_size) ? 128 : old_size;
-        parsec_profiling_nvtx_key_t *new_keys;
-        while( key >= new_size ) {
-            new_size *= 2;
-        }
-        new_keys = realloc(parsec_profiling_nvtx_keys,
-                           (size_t)new_size * sizeof(parsec_profiling_nvtx_key_t));
-        if( NULL == new_keys ) {
+    /* Keys are registered with the dictionary lock held */
+    if( NULL == parsec_profiling_nvtx_keys[c] ) {
+        parsec_profiling_nvtx_keys[c] = (parsec_profiling_nvtx_key_t*)
+            calloc(PARSEC_PROFILING_NVTX_KEYS_CHUNK, sizeof(parsec_profiling_nvtx_key_t));
+        if( NULL == parsec_profiling_nvtx_keys[c] ) {
             return;
         }
-        parsec_profiling_nvtx_keys = new_keys;
-        memset(&parsec_profiling_nvtx_keys[old_size], 0,
-               (size_t)(new_size - old_size) * sizeof(parsec_profiling_nvtx_key_t));
-        parsec_profiling_nvtx_keys_size = new_size;
     }
-    if( key >= parsec_profiling_nvtx_keys_count ) {
-        parsec_profiling_nvtx_keys_count = key + 1;
-    }
+    entry = &parsec_profiling_nvtx_keys[c][key % PARSEC_PROFILING_NVTX_KEYS_CHUNK];
 
     new_name = strdup((NULL == name) ? "PaRSEC event" : name);
     if( NULL == new_name ) {
         return;
     }
-    free(parsec_profiling_nvtx_keys[key].name);
-    parsec_profiling_nvtx_keys[key].name = new_name;
-    parsec_profiling_nvtx_keys[key].color =
-        parsec_profiling_nvtx_parse_color(attributes, key);
+    old_name = entry->name;
+    entry->color = parsec_profiling_nvtx_parse_color(attributes, key);
+    /* The entry is complete before it becomes visible through its name */
+    parsec_mfence();
+    entry->name = new_name;
+    free(old_name);
     nvtxDomainNameCategoryA(parsec_profiling_nvtx_domain,
                             (uint32_t)key,
-                            parsec_profiling_nvtx_keys[key].name);
+                            entry->name);
 }
 
 static parsec_profiling_nvtx_range_t*
@@ -310,13 +330,12 @@ static void parsec_profiling_nvtx_trace(parsec_profiling_nvtx_range_t **active,
                                         uint64_t event_id, uint32_t taskpool_id)
 {
     parsec_profiling_nvtx_range_t *range;
+    parsec_profiling_nvtx_key_t *entry;
     nvtxEventAttributes_t event_attrib;
 
     if( !parsec_profiling_nvtx_enabled ||
         NULL == parsec_profiling_nvtx_domain ||
-        key < 0 ||
-        key >= parsec_profiling_nvtx_keys_count ||
-        NULL == parsec_profiling_nvtx_keys[key].name ) {
+        NULL == (entry = parsec_profiling_nvtx_get_key(key)) ) {
         return;
     }
 
@@ -326,9 +345,9 @@ static void parsec_profiling_nvtx_trace(parsec_profiling_nvtx_range_t **active,
         event_attrib.size = NVTX_EVENT_ATTRIB_STRUCT_SIZE;
         event_attrib.category = (uint32_t)key;
         event_attrib.colorType = NVTX_COLOR_ARGB;
-        event_attrib.color = parsec_profiling_nvtx_keys[key].color;
+        event_attrib.color = entry->color;
         event_attrib.messageType = NVTX_MESSAGE_TYPE_ASCII;
-        event_attrib.message.ascii = parsec_profiling_nvtx_keys[key].name;
+        event_attrib.message.ascii = entry->name;
         event_attrib.payloadType = NVTX_PAYLOAD_TYPE_UNSIGNED_INT64;
         event_attrib.payload.ullValue = event_id;
 
@@ -397,7 +416,8 @@ static int nvtx_trace(parsec_profiling_stream_t *stream, void *state,
 {
     parsec_profiling_nvtx_stream_t *s = (parsec_profiling_nvtx_stream_t*)state;
     (void)stream;
-    if( NULL != s ) {
+    /* Counter events carry values to accumulate, they are not ranges */
+    if( NULL != s && !(event->flags & PARSEC_PROFILING_EVENT_COUNTER) ) {
         parsec_profiling_nvtx_trace(&s->ranges, &s->freelist,
                                     event->key, event->is_start,
                                     event->event_id, event->taskpool_id);
