@@ -8,6 +8,9 @@ add_Subdirectory(cuda)
 if( MPI_C_FOUND )
   parsec_addtest_executable(C multichain)
   target_ptg_sources(multichain PRIVATE "multichain.jdf")
+
+  parsec_addtest_executable(C many_activations)
+  target_ptg_sources(many_activations PRIVATE "many_activations.jdf")
 endif( MPI_C_FOUND )
 
 parsec_addtest_executable(C dtt_bug_replicator SOURCES dtt_bug_replicator_ex.c)

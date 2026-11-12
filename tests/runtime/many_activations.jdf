@@ -1,0 +1,173 @@
+extern "C" %{
+/*
+ * Copyright (c) 2026      The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
+/*
+ * Every producer(k) runs on the last rank and sends a small value, which
+ * fits in the activation message, to consumer(k) on rank 0. The last rank
+ * has no input dependencies, so it completes its share of the taskpool as
+ * soon as its NT activations are handed to the communication engine, and
+ * switches the engine off while rank 0 is still waiting for them. Every
+ * activation must reach rank 0 before the sender's engine goes to sleep,
+ * whatever the number of activations in flight.
+ */
+
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include "parsec.h"
+#include "parsec/arena.h"
+#include "parsec/data_dist/matrix/matrix.h"
+#include "parsec/data_distribution.h"
+#include "parsec/datatype.h"
+#include "parsec/utils/debug.h"
+
+#if defined(PARSEC_HAVE_MPI)
+#include <mpi.h>
+#endif
+
+static int nb_received = 0;
+%}
+
+ranks [ type = "parsec_data_collection_t*" ]
+NT [ type = "int" ]
+
+producer(k)
+
+k = 0 .. NT-1
+
+: ranks(ranks->nodes - 1)
+
+WRITE V <- NEW
+        -> V consumer(k)
+
+BODY
+{
+    *(int*)V = k;
+}
+END
+
+consumer(k)
+
+k = 0 .. NT-1
+
+: ranks(0)
+
+READ V <- V producer(k)
+
+BODY
+{
+    if( k != *(int*)V ) {
+        fprintf(stderr, "consumer(%d) received %d\n", k, *(int*)V);
+        abort();
+    }
+    parsec_atomic_fetch_inc_int32(&nb_received);
+}
+END
+
+extern "C" %{
+
+static uint32_t rank_of(parsec_data_collection_t *dc, ...)
+{
+    va_list ap;
+    int r;
+    va_start(ap, dc);
+    r = va_arg(ap, int);
+    va_end(ap);
+    return (uint32_t)r;
+}
+
+static int32_t vpid_of(parsec_data_collection_t *dc, ...)
+{
+    (void)dc;
+    return 0;
+}
+
+static parsec_data_key_t data_key(parsec_data_collection_t *dc, ...)
+{
+    va_list ap;
+    int r;
+    va_start(ap, dc);
+    r = va_arg(ap, int);
+    va_end(ap);
+    return (parsec_data_key_t)r;
+}
+
+int main(int argc, char *argv[])
+{
+    parsec_context_t *parsec;
+    parsec_taskpool_t *tp;
+    parsec_data_collection_t dc;
+    parsec_arena_datatype_t *adt;
+    int rank = 0, world = 1, nt = 1000, rounds = 3, rc, ch;
+
+#if defined(PARSEC_HAVE_MPI)
+    {
+        int provided;
+        MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
+    }
+    MPI_Comm_size(MPI_COMM_WORLD, &world);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+#endif
+
+    while( -1 != (ch = getopt(argc, argv, "n:r:")) ) {
+        switch( ch ) {
+        case 'n': nt = atoi(optarg); break;
+        case 'r': rounds = atoi(optarg); break;
+        default:
+            fprintf(stderr, "Usage: %s [-n activations] [-r rounds] [-- parsec options]\n", argv[0]);
+            exit(1);
+        }
+    }
+
+    parsec = parsec_init(-1, &argc, &argv);
+    if( NULL == parsec ) {
+        exit(1);
+    }
+
+    parsec_data_collection_init(&dc, world, rank);
+    dc.rank_of = rank_of;
+    dc.vpid_of = vpid_of;
+    dc.data_key = data_key;
+
+    for( int r = 0; r < rounds; r++ ) {
+        parsec_many_activations_taskpool_t *mtp;
+        nb_received = 0;
+
+        mtp = parsec_many_activations_new(&dc, nt);
+        tp = &mtp->super;
+        adt = &mtp->arenas_datatypes[PARSEC_many_activations_DEFAULT_ADT_IDX];
+        parsec_matrix_adt_define_rect(adt, parsec_datatype_int32_t, 1, 1, 1);
+
+        rc = parsec_context_add_taskpool(parsec, tp);
+        PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
+        rc = parsec_context_start(parsec);
+        PARSEC_CHECK_ERROR(rc, "parsec_context_start");
+        rc = parsec_context_wait(parsec);
+        PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
+
+        parsec_matrix_arena_datatype_destruct_free_type(adt);
+        parsec_taskpool_free(tp);
+
+        if( 0 == rank ) {
+            if( nb_received != nt ) {
+                fprintf(stderr, "round %d: rank 0 received %d activations out of %d\n", r, nb_received, nt);
+                exit(1);
+            }
+            printf("round %d: rank 0 received all %d activations\n", r, nt);
+        }
+    }
+
+    parsec_data_collection_destroy(&dc);
+    parsec_fini(&parsec);
+#if defined(PARSEC_HAVE_MPI)
+    MPI_Finalize();
+#endif
+    return 0;
+}
+
+%}
