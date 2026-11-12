@@ -44,7 +44,9 @@ cmake -S <src> -B <build> \
 ```
 
 OTF2 support requires a distributed MPI build and an OTF2 installation
-that provides `otf2-config`.
+that provides `otf2-config`. With `PARSEC_PROF_TRACE_SYSTEM=Auto`, OTF2
+support is built only if OTF2 is found, instead of failing the
+configuration.
 
 To add NVTX support, enable both the common profiling layer and the NVTX
 mirror:
@@ -335,4 +337,7 @@ in `parsec/profiling_internal.h` (`profiling_binary.c`,
 existing implementations) and is added to the list of substrates at the
 top of `parsec/profiling.c`. A substrate activated after keys or streams
 were created receives them when it is activated, so substrates do not
-depend on the order in which the profiling calls are made.
+depend on the order in which the profiling calls are made. File
+substrates are only initialized when a file is written, and the core
+takes the timestamp of each event once, so that all the substrates record
+the same time for it.

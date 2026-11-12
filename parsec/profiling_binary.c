@@ -310,7 +310,6 @@ free_to_freelist(tl_freelist_t *fl, parsec_profiling_buffer_t *b)
     pthread_mutex_unlock(&fl->lock);
 }
 
-#if defined(PARSEC_PROFILING_USE_HELPER_THREAD)
 static void profiling_release_buffer_memory(parsec_profiling_buffer_t *buffer)
 {
     if( NULL == buffer ) {
@@ -357,6 +356,8 @@ static void profiling_cleanup_file_backend(void)
     file_backend_size = 0;
     file_backend_next_offset = 0;
 }
+
+#if defined(PARSEC_PROFILING_USE_HELPER_THREAD)
 
 /**
  * Profiling I/O command structure
@@ -496,7 +497,7 @@ static int io_helper_thread_init(void)
 
     rc = pthread_create(&io_helper_thread_id, NULL, io_helper_thread_fct, NULL);
     if( 0 != rc ) {
-        set_last_error("Profiling system: unable to create I/O helper thread: %s\n", strerror(rc));
+        set_last_error("Profiling system: unable to create I/O helper thread: %s", strerror(rc));
         pthread_mutex_destroy(&io_cmd_flush_mutex);
         pthread_cond_destroy(&io_cmd_flush_cond);
         io_cmd_queue_destroy(&cmd_queue);
@@ -510,19 +511,38 @@ static int io_helper_thread_init(void)
 
 static int switch_event_buffer(binary_stream_t *context);
 
-static int binary_init( int process_id )
+/* Initialize a freelist with its minimal number of buffers, in allocation
+ * order (the header of the file is the first buffer of the default
+ * freelist). Returns 0 or an error, in which case nothing remains allocated. */
+static int freelist_init(tl_freelist_t *fl)
 {
-    parsec_profiling_buffer_t dummy_events_buffer;
-    long ps = (16 * 1024);  /* a sane default value */
-    int parsec_profiling_minimal_ebs;
+    tl_freelist_buffer_t *e, **last = &fl->first;
 
-    file_backend_extendable = 1;
-#if defined(PARSEC_HAVE_SYSCONF)
-    ps = sysconf(_SC_PAGESIZE);
-#endif  /* defined(PARSEC_HAVE_SYSCONF) */
+    pthread_mutex_init(&fl->lock, NULL);
+    fl->first = NULL;
+    fl->nb_allocated = 0;
+    while( fl->nb_allocated < parsec_profiling_per_thread_buffer_freelist_min ) {
+        e = (tl_freelist_buffer_t*)profiling_allocate_new_buffer();
+        if( NULL == e ) {
+            while( NULL != (e = fl->first) ) {
+                fl->first = e->next;
+                profiling_release_buffer_memory((parsec_profiling_buffer_t*)e);
+            }
+            pthread_mutex_destroy(&fl->lock);
+            return PARSEC_ERR_OUT_OF_RESOURCE;
+        }
+        e->next = NULL;
+        *last = e;
+        last = &e->next;
+        fl->nb_allocated++;
+    }
+    return 0;
+}
 
-    parsec_profiling_process_id   = process_id;
-    parsec_profiling_minimal_ebs = 1;
+static int parsec_profiling_minimal_ebs = 1;
+
+static int binary_register_mca( void )
+{
     parsec_mca_param_reg_int_name("profile", "buffer_pages", "Number of pages per profiling buffer"
                                  " (default is 1, must be at least large enough to hold the binary file header)",
                                  false, false, parsec_profiling_minimal_ebs, &parsec_profiling_minimal_ebs);
@@ -532,6 +552,20 @@ static int binary_init( int process_id )
     parsec_mca_param_reg_int_name("profile", "show_profiling_performance", "Print profiling performance at the end of the execution"
                                       " (default is no/0)",
                                       false, false, parsec_profiling_show_profiling_performance, &parsec_profiling_show_profiling_performance);
+    return 0;
+}
+
+static int binary_init( int process_id )
+{
+    parsec_profiling_buffer_t dummy_events_buffer;
+    long ps = (16 * 1024);  /* a sane default value */
+
+    file_backend_extendable = 1;
+#if defined(PARSEC_HAVE_SYSCONF)
+    ps = sysconf(_SC_PAGESIZE);
+#endif  /* defined(PARSEC_HAVE_SYSCONF) */
+
+    parsec_profiling_process_id   = process_id;
     if( parsec_profiling_minimal_ebs <= 0 )
         parsec_profiling_minimal_ebs = 10;
     if( parsec_profiling_file_multiplier <= 0 )
@@ -573,25 +607,12 @@ static int binary_stream_init(parsec_profiling_stream_t *stream, void **state)
     }
 
     sprof->buffers_freelist = (tl_freelist_t*)malloc(sizeof(tl_freelist_t));
-    tl_freelist_t *t_fl = sprof->buffers_freelist;
-    tl_freelist_buffer_t *e;
-    pthread_mutex_init(&t_fl->lock, NULL);
-    e = (tl_freelist_buffer_t*)profiling_allocate_new_buffer();
-    if( NULL == e ) {
-        pthread_mutex_destroy(&t_fl->lock);
+    if( NULL == sprof->buffers_freelist ||
+        0 != (rc = freelist_init(sprof->buffers_freelist)) ) {
+        set_last_error("Profiling system: parsec_profiling_stream_init: unable to allocate the event buffers");
         free(sprof->buffers_freelist);
         free(sprof);
         return PARSEC_ERR_OUT_OF_RESOURCE;
-    }
-    e->next = NULL;
-    t_fl->first = e;
-    t_fl->nb_allocated = 1;
-    for(rc = 1; rc < parsec_profiling_per_thread_buffer_freelist_min; rc++) {
-        e->next = (tl_freelist_buffer_t*)profiling_allocate_new_buffer();
-        assert(NULL != e->next);
-        e = e->next;
-        e->next = NULL;
-        t_fl->nb_allocated++;
     }
 
     assert( event_buffer_size != 0 );
@@ -834,22 +855,15 @@ static int binary_trace(parsec_profiling_stream_t *stream, void *state,
                         const parsec_profiling_trace_event_t *event)
 {
     binary_stream_t *context = (binary_stream_t*)state;
-    const parsec_profiling_key_t *entry;
     parsec_profiling_output_t *this_event;
-    size_t this_event_length, info_length = 0;
-    int has_info = (NULL != event->info_fn) && (NULL != event->info_data);
-    parsec_time_t now;
+    size_t this_event_length;
 
     (void)stream;
     if( NULL == context || -1 == file_backend_fd ) {
         return 0;
     }
 
-    if( has_info ) {
-        entry = parsec_profiling_dictionary_entry(event->key);
-        info_length = (NULL != entry) ? entry->info_length : 0;
-    }
-    this_event_length = sizeof(parsec_profiling_output_base_event_t) + info_length;
+    this_event_length = sizeof(parsec_profiling_output_base_event_t) + event->info_length;
     assert( this_event_length < event_avail_space );
     if( context->next_event_position + this_event_length > event_avail_space ) {
         int rc = switch_event_buffer(context);
@@ -869,17 +883,12 @@ static int binary_trace(parsec_profiling_stream_t *stream, void *state,
     this_event->event.taskpool_id = event->taskpool_id;
     this_event->event.flags = 0;
 
-    if( has_info ) {
-        event->info_fn(this_event->info, event->info_data, info_length);
+    if( NULL != event->info_fn ) {
+        event->info_fn(this_event->info, event->info_data, event->info_length);
         this_event->event.flags = PARSEC_PROFILING_EVENT_HAS_INFO;
     }
     this_event->event.flags |= event->flags;
-    now = event->start_time;
-    if(event->flags ^ PARSEC_PROFILING_EVENT_TIME_AT_START) {
-        /* default behavior is to take time at end */
-        now = take_time();
-    }
-    this_event->event.timestamp = parsec_profiling_timestamp(now);
+    this_event->event.timestamp = event->timestamp;
 
     return 0;
 }
@@ -901,7 +910,7 @@ static int64_t dump_global_infos(int *nbinfos)
 
     b = allocate_empty_buffer(default_freelist, &first_off, PROFILING_BUFFER_TYPE_GLOBAL_INFO);
     if( NULL == b ) {
-        set_last_error("Profiling system: error: Unable to dump the global infos -- buffer allocation error\n");
+        set_last_error("Profiling system: error: Unable to dump the global infos -- buffer allocation error");
         *nbinfos = 0;
         return PARSEC_ERR_OUT_OF_RESOURCE;
     }
@@ -919,7 +928,7 @@ static int64_t dump_global_infos(int *nbinfos)
             write_down_existing_buffer(default_freelist, b, pos);
 
             if( NULL == n ) {
-                set_last_error("Profiling System: error: Global Infos will be truncated to %d infos only -- buffer allocation error\n", nb);
+                set_last_error("Profiling System: error: Global Infos will be truncated to %d infos only -- buffer allocation error", nb);
                 *nbinfos = nb;
                 return first_off;
             }
@@ -931,7 +940,7 @@ static int64_t dump_global_infos(int *nbinfos)
 
         /* The key must fit in event_avail_space */
         if( sizeof(parsec_profiling_info_buffer_t) + is - 1 > event_avail_space ) {
-            set_last_error("Profiling System: error: Key of size %d does not fit in an entire file segment of %d bytes\n",
+            set_last_error("Profiling System: error: Key of size %d does not fit in an entire file segment of %d bytes",
                            is, event_avail_space);
             nb++;
             continue;
@@ -959,7 +968,7 @@ static int64_t dump_global_infos(int *nbinfos)
                 write_down_existing_buffer(default_freelist, b, pos);
 
                 if( NULL == n ) {
-                    set_last_error("Profiling System: error: Global Infos will be truncated to %d infos only -- buffer allocation error\n", nb);
+                    set_last_error("Profiling System: error: Global Infos will be truncated to %d infos only -- buffer allocation error", nb);
                     *nbinfos = nb;
                     return first_off;
                 }
@@ -997,7 +1006,7 @@ static int64_t dump_dictionary(int *nbdico)
 
     b = allocate_empty_buffer(default_freelist, &first_off, PROFILING_BUFFER_TYPE_DICTIONARY);
     if( NULL == b ) {
-        set_last_error("Profiling System: error: Unable to dump the dictionary -- buffer allocation error\n");
+        set_last_error("Profiling System: error: Unable to dump the dictionary -- buffer allocation error");
         *nbdico = 0;
         return PARSEC_ERR_OUT_OF_RESOURCE;
     }
@@ -1027,7 +1036,7 @@ static int64_t dump_dictionary(int *nbdico)
             nbthis = 0;
 
             if( NULL == b ) {
-                set_last_error("Profiling system: error: Dictionary will be truncated to %d entries only -- buffer allocation error\n", nb);
+                set_last_error("Profiling system: error: Dictionary will be truncated to %d entries only -- buffer allocation error", nb);
                 *nbdico = nb;
                 return first_off;
             }
@@ -1063,7 +1072,7 @@ static size_t thread_size(parsec_profiling_stream_t *thread)
         ks = strlen(i->key);
         vs = strlen(i->value);
         if( s + ks + vs + sizeof(parsec_profiling_info_buffer_t) - 1 > event_avail_space ) {
-            set_last_error("Profiling system: warning: unable to save info %s of thread %s, info ignored\n",
+            set_last_error("Profiling system: warning: unable to save info %s of thread %s, info ignored",
                            i->key, thread->hr_id);
             continue;
         }
@@ -1093,7 +1102,7 @@ static int64_t dump_thread(int *nbth)
 
     b = allocate_empty_buffer(default_freelist, &off, PROFILING_BUFFER_TYPE_THREAD);
     if( NULL == b ) {
-        set_last_error("Profiling system: error: Unable to dump some thread profiles -- buffer allocation error\n");
+        set_last_error("Profiling system: error: Unable to dump some thread profiles -- buffer allocation error");
         *nbth = 0;
         return PARSEC_ERR_OUT_OF_RESOURCE;
     }
@@ -1119,7 +1128,7 @@ static int64_t dump_thread(int *nbth)
             write_down_existing_buffer(bs->buffers_freelist, b, pos);
 
             if( NULL == n ) {
-                set_last_error("Profiling system: error: Threads will be truncated to %d threads only -- buffer allocation error\n", nb);
+                set_last_error("Profiling system: error: Threads will be truncated to %d threads only -- buffer allocation error", nb);
                 *nbth = nb;
                 return off;
             }
@@ -1283,12 +1292,12 @@ static int binary_open( const char *basefile, const char *hr_info )
 
     rc = asprintf(&bpf_filename, "%s-%d.prof", basefile, parsec_profiling_process_id);
     if (rc == -1) {
-        set_last_error("Profiling system: error: one (or more) process could not create the backend file name (out of resource).\n");
+        set_last_error("Profiling system: error: one (or more) process could not create the backend file name (out of resource).");
         return PARSEC_ERR_OUT_OF_RESOURCE;
     }
     file_backend_fd = open(bpf_filename, O_RDWR | O_CREAT | O_TRUNC, 00600);
     if( -1 == file_backend_fd ) {
-        set_last_error("Profiling system: error: this process could not create the backend file. Events not logged.\n");
+        set_last_error("Profiling system: error: this process could not create the backend file. Events not logged.");
         free(bpf_filename);
         bpf_filename = NULL;
         file_backend_extendable = 0;
@@ -1296,29 +1305,16 @@ static int binary_open( const char *basefile, const char *hr_info )
     }
 
     default_freelist = malloc(sizeof(tl_freelist_t));
-    tl_freelist_buffer_t *e;
-    pthread_mutex_init(&default_freelist->lock, NULL);
-    e = (tl_freelist_buffer_t*)profiling_allocate_new_buffer();
-    if( NULL == e ) {
-        return PARSEC_ERR_OUT_OF_RESOURCE;
-    }
-    e->next = NULL;
-    default_freelist->first = e;
-    default_freelist->nb_allocated = 1;
-    for(rc = 1; rc < parsec_profiling_per_thread_buffer_freelist_min; rc++) {
-        e->next = (tl_freelist_buffer_t*)profiling_allocate_new_buffer();
-        if( NULL == e->next ) {
-            return PARSEC_ERR_OUT_OF_RESOURCE;
-        }
-        e = e->next;
-        e->next = NULL;
-        default_freelist->nb_allocated++;
+    if( NULL == default_freelist || 0 != freelist_init(default_freelist) ) {
+        free(default_freelist);
+        default_freelist = NULL;
+        goto out_of_resource;
     }
 
     /* Create the header of the profiling file */
     profile_head = (parsec_profiling_binary_file_header_t*)allocate_empty_buffer(default_freelist, &zero, PROFILING_BUFFER_TYPE_HEADER);
     if( NULL == profile_head )
-        return PARSEC_ERR_OUT_OF_RESOURCE;
+        goto out_of_resource;
 
     /* We set the magick to 0 for now. Only when the profile is complete and dumped we will overwrite
      * this with the bytes that mark a valid file */
@@ -1336,11 +1332,17 @@ static int binary_open( const char *basefile, const char *hr_info )
 #endif
 
     return 0;
+
+  out_of_resource:
+    set_last_error("Profiling system: error: unable to allocate the buffers of the backend file %s", bpf_filename);
+    profiling_cleanup_file_backend();
+    return PARSEC_ERR_OUT_OF_RESOURCE;
 }
 
 parsec_profiling_substrate_t parsec_profiling_substrate_binary = {
     .name         = "binary",
     .kind         = PARSEC_PROFILING_SUBSTRATE_FILE,
+    .register_mca = binary_register_mca,
     .init         = binary_init,
     .open         = binary_open,
     .dump         = binary_dump,

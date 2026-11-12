@@ -236,13 +236,9 @@ typedef struct {
 
 /* A profiling stream, as read from the file */
 typedef struct dbp_stream_s {
-    parsec_list_item_t         list;
-    int64_t                    next_event_position;
-    char                      *hr_id;
-    uint64_t                   nb_events;
-    void                      *infos;
-    off_t                      first_events_buffer_offset;
-    parsec_profiling_buffer_t *current_events_buffer;
+    char     *hr_id;
+    uint64_t  nb_events;
+    off_t     first_events_buffer_offset;
 } dbp_stream_t;
 
 struct dbp_thread {
@@ -1022,15 +1018,13 @@ static int read_dictionary(dbp_file_t *file, const parsec_profiling_binary_file_
     return 0;
 }
 
-static size_t read_thread_infos(dbp_stream_t* res,
-                                dbp_thread_t *th,
+static size_t read_thread_infos(dbp_thread_t *th,
                                 int nb_infos, const char *br)
 {
     parsec_profiling_info_buffer_t *ib;
     dbp_info_t *nfo;
     int i, pos = 0;
     pos = 0;
-    res->infos = NULL;
     th->infos = (dbp_info_t *)calloc(nb_infos, sizeof(dbp_info_t));
     for(i = 0; i < nb_infos; i++) {
         ib = (parsec_profiling_info_buffer_t*)(&br[pos]);
@@ -1068,14 +1062,10 @@ static int read_threads(dbp_file_t *dbp, const parsec_profiling_binary_file_head
 
         br = (parsec_profiling_stream_buffer_t*)&(b->buffer[pos]);
         res = (dbp_stream_t*)malloc( sizeof(dbp_stream_t) );
-        res->next_event_position = -1; /* No need for a next event position */
         res->nb_events = br->nb_events;
         res->hr_id = (char*)malloc(128);
         strncpy(res->hr_id, br->hr_id, 128);
         res->first_events_buffer_offset = br->first_events_buffer_offset;
-        res->current_events_buffer = refer_events_buffer(dbp, br->first_events_buffer_offset);
-
-        PARSEC_OBJ_CONSTRUCT( res, parsec_list_item_t );
 
         thr = &dbp->threads[head->nb_threads - nb];
         thr->file        = dbp;
@@ -1086,7 +1076,7 @@ static int read_threads(dbp_file_t *dbp, const parsec_profiling_binary_file_head
         thr->cache.done  = 0;
 
         pos += sizeof(parsec_profiling_stream_buffer_t) - sizeof(parsec_profiling_info_buffer_t);
-        pos += read_thread_infos( res, thr, br->nb_infos, (char*)br->infos );
+        pos += read_thread_infos( thr, br->nb_infos, (char*)br->infos );
 
         nbthis--;
         nb--;
