@@ -5482,6 +5482,7 @@ parsec_device_task_leaves_device( parsec_device_gpu_module_t *gpu_device,
 {
     if( &gpu_device->super != this_task->selected_device )
         return;
+    gpu_device->super.nb_rejected_tasks++;
     parsec_atomic_fetch_add_int64(&gpu_device->super.device_load, -this_task->load);
     assert(gpu_device->super.device_load >= 0);
     this_task->selected_device = NULL;

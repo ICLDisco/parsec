@@ -520,10 +520,10 @@ void parsec_compute_best_unit( uint64_t length, float* updated_value, char** bes
 
 void parsec_devices_save_statistics(uint64_t **pstats) {
     if(NULL == *pstats) {
-        *pstats = (uint64_t*)calloc(parsec_nb_devices * 7 /* see below for the number of arrays */, sizeof(uint64_t));
+        *pstats = (uint64_t*)calloc(parsec_nb_devices * 8 /* see below for the number of arrays */, sizeof(uint64_t));
     }
     else {
-        memset(*pstats, 0, parsec_nb_devices * sizeof(uint64_t) * 7);
+        memset(*pstats, 0, parsec_nb_devices * sizeof(uint64_t) * 8);
     }
     uint64_t *stats = *pstats;
     uint64_t *executed_tasks = stats;
@@ -533,6 +533,7 @@ void parsec_devices_save_statistics(uint64_t **pstats) {
     uint64_t *req_out        = stats + 4*parsec_nb_devices;
     uint64_t *transfer_d2d   = stats + 5*parsec_nb_devices;
     uint64_t *nb_evictions   = stats + 6*parsec_nb_devices;
+    uint64_t *rejected_tasks = stats + 7*parsec_nb_devices;
 
     for(uint32_t i = 0; i < parsec_nb_devices; i++) {
         parsec_device_module_t *device = parsec_devices[i];
@@ -540,6 +541,7 @@ void parsec_devices_save_statistics(uint64_t **pstats) {
         assert( i == device->device_index );
         executed_tasks[i] = device->executed_tasks;
         nb_evictions[i]   = device->nb_evictions;
+        rejected_tasks[i] = device->nb_rejected_tasks;
         transfer_in[i]    = device->data_in_from_device[0]; /* cpu-core device */
         transfer_out[i]   = device->data_out_to_host;
         req_in[i]         = device->required_data_in;
@@ -560,7 +562,7 @@ void parsec_devices_print_statistics(parsec_context_t *parsec_context, uint64_t 
     uint64_t *end_stats = NULL;
     uint64_t total_tasks = 0, total_data_in = 0, total_data_out = 0;
     uint64_t total_required_in = 0, total_required_out = 0, total_d2d = 0;
-    uint64_t total_evicted = 0;
+    uint64_t total_evicted = 0, total_rejected = 0;
     float gtotal = 0.0;
     float best_data_in, best_data_out, best_d2d;
     float best_required_in, best_required_out;
@@ -572,7 +574,7 @@ void parsec_devices_print_statistics(parsec_context_t *parsec_context, uint64_t 
     /* initialize the arrays */
     parsec_devices_save_statistics(&end_stats);
     if(NULL != start_stats) {
-        for(i = 0; i < parsec_nb_devices * 7; i++) {
+        for(i = 0; i < parsec_nb_devices * 8; i++) {
             assert(end_stats[i] >= start_stats[i]);
             end_stats[i] -= start_stats[i];
         }
@@ -584,6 +586,7 @@ void parsec_devices_print_statistics(parsec_context_t *parsec_context, uint64_t 
     uint64_t *required_out      = end_stats + 4*parsec_nb_devices;
     uint64_t *transferred_d2d   = end_stats + 5*parsec_nb_devices;
     uint64_t *nb_evictions      = end_stats + 6*parsec_nb_devices;
+    uint64_t *rejected_tasks    = end_stats + 7*parsec_nb_devices;
 
     /* Compute total statistics */
     for(i = 0; i < parsec_nb_devices; i++) {
@@ -596,17 +599,18 @@ void parsec_devices_print_statistics(parsec_context_t *parsec_context, uint64_t 
         total_required_out += required_out[i];
         total_d2d          += transferred_d2d[i];
         total_evicted      += nb_evictions[i];
+        total_rejected    += rejected_tasks[i];
     }
 
     /* Print statistics */
     gtotal = (float)total_tasks;
     double percent_in, percent_out, percent_d2d;
 
-    printf("+---------------------------------------------------------------------------------------------------------------------------------------------+\n");
-    printf("|         |                    |                       Data In                              |                    Data Out                     |\n");
-    printf("|Rank %3d |  # KERNEL |    %%   |  Required  |   Transferred H2D(%%)  |   Transferred D2D(%%)  |  Required  |     Transferred(%%)  |   Evictions  |\n",
+    printf("+------------------------------------------------------------------------------------------------------------------------------------------------------------+\n");
+    printf("|         |                    |                       Data In                              |                    Data Out                                   |\n");
+    printf("|Rank %3d |  # KERNEL |    %%   |  Required  |   Transferred H2D(%%)  |   Transferred D2D(%%)  |  Required  |     Transferred(%%)  |   Evictions  |   Rejected   |\n",
            (NULL == parsec_context ? parsec_debug_rank : parsec_context->my_rank));
-    printf("|---------|-----------|--------|------------|-----------------------|-----------------------|------------|---------------------|--------------|\n");
+    printf("|---------|-----------|--------|------------|-----------------------|-----------------------|------------|---------------------|--------------|--------------|\n");
     for( i = 0; i < parsec_nb_devices; i++ ) {
         if( NULL == (device = parsec_devices[i]) ) continue;
 
@@ -620,16 +624,16 @@ void parsec_devices_print_statistics(parsec_context_t *parsec_context, uint64_t 
         percent_d2d = (0 == required_in[i])? nan(""): (((double)transferred_d2d[i])  / (double)required_in[i] ) * 100.0;
         percent_out = (0 == required_out[i])? nan(""): (((double)transferred_out[i])  / (double)required_out[i] ) * 100.0;
 
-        printf("|  Dev %2d |%10"PRIu64" | %6.2f | %8.2f%2s |   %8.2f%2s(%6.2f)  |   %8.2f%2s(%6.2f)  | %8.2f%2s | %8.2f%2s(%6.2f)  |  %10"PRIu64"  | %s\n",
+        printf("|  Dev %2d |%10"PRIu64" | %6.2f | %8.2f%2s |   %8.2f%2s(%6.2f)  |   %8.2f%2s(%6.2f)  | %8.2f%2s | %8.2f%2s(%6.2f)  |  %10"PRIu64"  |  %10"PRIu64"  | %s\n",
                device->device_index, executed_tasks[i], (executed_tasks[i]/gtotal)*100.00,
                best_required_in,  required_in_unit,  best_data_in,  data_in_unit, percent_in,
                best_d2d, d2d_unit, percent_d2d,
                best_required_out, required_out_unit, best_data_out, data_out_unit, percent_out,
-               nb_evictions[i],
+               nb_evictions[i], rejected_tasks[i],
                device->name );
     }
 
-    printf("|---------|-----------|--------|------------|-----------------------|-----------------------|------------|---------------------|--------------|\n");
+    printf("|---------|-----------|--------|------------|-----------------------|-----------------------|------------|---------------------|--------------|--------------|\n");
 
     parsec_compute_best_unit( total_required_in,  &best_required_in,  &required_in_unit  );
     parsec_compute_best_unit( total_required_out, &best_required_out, &required_out_unit );
@@ -641,13 +645,13 @@ void parsec_devices_print_statistics(parsec_context_t *parsec_context, uint64_t 
     percent_d2d = (0 == total_required_in)? nan(""): (((double)total_d2d)  / (double)total_required_in) * 100.0;
     percent_out = (0 == total_required_out)? nan(""): (((double)total_data_out)  / (double)total_required_out) * 100.0;
 
-    printf("|All Devs |%10"PRIu64" | %6.2f | %8.2f%2s |   %8.2f%2s(%6.2f)  |   %8.2f%2s(%6.2f)  | %8.2f%2s | %8.2f%2s(%6.2f)  |  %10"PRIu64"  |\n",
+    printf("|All Devs |%10"PRIu64" | %6.2f | %8.2f%2s |   %8.2f%2s(%6.2f)  |   %8.2f%2s(%6.2f)  | %8.2f%2s | %8.2f%2s(%6.2f)  |  %10"PRIu64"  |  %10"PRIu64"  |\n",
            total_tasks, (total_tasks/gtotal)*100.00,
            best_required_in,  required_in_unit,  best_data_in,  data_in_unit, percent_in,
            best_d2d, d2d_unit, percent_d2d,
            best_required_out, required_out_unit, best_data_out, data_out_unit, percent_out,
-           total_evicted);
-    printf("+---------------------------------------------------------------------------------------------------------------------------------------------+\n");
+           total_evicted, total_rejected);
+    printf("+------------------------------------------------------------------------------------------------------------------------------------------------------------+\n");
 
     parsec_devices_free_statistics(&end_stats);
 }
@@ -665,6 +669,7 @@ void parsec_mca_device_reset_statistics(parsec_context_t *parsec_context) {
         device->required_data_in     = 0;
         device->required_data_out    = 0;
         device->nb_evictions         = 0;
+        device->nb_rejected_tasks    = 0;
     }
 }
 
