@@ -1,0 +1,28 @@
+{
+  "$comment": "DTD (parsec/interfaces/dtd/insert_function.h) is a C API, not a language of its own. This injection grammar only adds the DTD names on top of the C and C++ highlighting. All the names carry the parsec_ / PARSEC_ prefix, so it is harmless in any other C file.",
+  "name": "PaRSEC DTD (C/C++ injection)",
+  "scopeName": "parsec-dtd.injection",
+  "injectionSelector": "L:source.c -comment -string, L:source.cpp -comment -string, L:source.cuda-cpp -comment -string, L:meta.embedded.block.c -comment -string",
+  "patterns": [
+    {
+      "$comment": "parsec_dtd_taskpool_t, parsec_dtd_task_t, parsec_dtd_tile_t, ...",
+      "name": "support.type.parsec-dtd.c",
+      "match": "\\bparsec_dtd_\\w*_t\\b"
+    },
+    {
+      "name": "support.type.parsec-dtd.c",
+      "match": "\\bparsec_arena_datatype_t\\b"
+    },
+    {
+      "$comment": "parsec_dtd_taskpool_new, parsec_dtd_insert_task, parsec_dtd_data_flush, parsec_dtd_unpack_args, parsec_dtd_tile_of, ...",
+      "$comment": "The leading \\s* makes the match start where the C++ grammar's own function-call rule starts, otherwise that rule wins the tie.",
+      "match": "(\\s*)(\\bparsec_dtd_\\w+\\b(?<!_t)|\\bparsec_insert_dtd_task\\b)",
+      "captures": { "2": { "name": "support.function.parsec-dtd.c" } }
+    },
+    {
+      "$comment": "Access mode of an argument, then modifier flags that can be or-ed with it (PARSEC_INOUT | PARSEC_AFFINITY | PARSEC_PUSHOUT)",
+      "match": "(\\s*)(\\b(?:PARSEC_(?:INPUT|OUTPUT|INOUT|ATOMIC_WRITE|SCRATCH|VALUE|REF|AFFINITY|DONT_TRACK|PUSHOUT|PULLIN|PROFILE_INFO)|PARSEC_DTD_(?:ARG_END|EMPTY_FLAG|MAX_PARAMS|TILE_OF|TILE_OF_KEY)|PASSED_BY_REF)\\b)",
+      "captures": { "2": { "name": "support.constant.parsec-dtd.c" } }
+    }
+  ]
+}

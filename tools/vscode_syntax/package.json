@@ -1,0 +1,53 @@
+{
+  "name": "parsec-jdf",
+  "displayName": "PaRSEC JDF",
+  "description": "Syntax highlighting for PaRSEC JDF files (the PTG input language), and for the DTD (Dynamic Task Discovery) API in C and C++",
+  "version": "0.1.0",
+  "publisher": "icldisco",
+  "license": "BSD-3-Clause-Open-MPI",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ICLDisco/parsec"
+  },
+  "engines": {
+    "vscode": "^1.60.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "jdf",
+        "aliases": [
+          "PaRSEC JDF",
+          "JDF"
+        ],
+        "extensions": [
+          ".jdf"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "jdf",
+        "scopeName": "source.jdf",
+        "path": "./syntaxes/jdf.tmLanguage.json",
+        "embeddedLanguages": {
+          "meta.embedded.block.c": "c"
+        }
+      },
+      {
+        "scopeName": "parsec-dtd.injection",
+        "path": "./syntaxes/parsec-dtd.injection.tmLanguage.json",
+        "injectTo": [
+          "source.c",
+          "source.cpp",
+          "source.cuda-cpp",
+          "source.jdf"
+        ]
+      }
+    ]
+  }
+}
