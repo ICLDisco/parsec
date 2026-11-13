@@ -5433,7 +5433,12 @@ parsec_device_kernel_epilog( parsec_device_gpu_module_t *gpu_device,
              * report the CPU copy as the task output. Otherwise, keep the GPU copy
              * as the output so remote successors can use the GPU-aware send path.
              */
-            if( 0 == (parsec_mpi_allow_gpu_memory_communications & PARSEC_RUNTIME_SEND_GPU_MEMORY) ) {
+#if defined(DISTRIBUTED)
+            int send_from_gpu = (0 != (parsec_mpi_allow_gpu_memory_communications & PARSEC_RUNTIME_SEND_GPU_MEMORY));
+#else
+            int send_from_gpu = 0;  /* no communication engine, and no remote successors */
+#endif  /* defined(DISTRIBUTED) */
+            if( !send_from_gpu ) {
                 /* Report the CPU copy as the output of the task. */
                 this_task->data[i].data_out = cpu_copy;
                 PARSEC_DEBUG_VERBOSE(100, parsec_gpu_output_stream,
