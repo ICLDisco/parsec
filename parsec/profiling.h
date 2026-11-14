@@ -170,13 +170,15 @@ void parsec_profiling_start(void);
  *  @param[IN] pcomm: a pointer to the communicator handle to
  *       use.
  *
- *  @remark 
- *     - this call is a collective on *pcomm. The process calls
- *       MPI_Comm_dup on *pcomm during this call
+ *  @remark
+ *     - this call only records *pcomm, it issues no MPI call. The
+ *       communicator is duplicated (a collective on *pcomm) when the
+ *       OTF2 archive is opened by parsec_profiling_dbp_start, so *pcomm
+ *       must remain valid until then.
  *     - the duplicate of the communicator is MPI_Comm_free(d) when
- *       parsec_profiling_fini is called. 
- *     - If parsec_profiling_otf2_set_comm is not called before 
- *       parsec_profiling_init, MPI_COMM_WORLD is used by default.
+ *       parsec_profiling_fini is called.
+ *     - If parsec_profiling_otf2_set_comm is not called before
+ *       parsec_profiling_dbp_start, MPI_COMM_WORLD is used by default.
  *     - Only local MPI calls are issued in all other functions, so
  *       any MPI threading model should be supported.
  */

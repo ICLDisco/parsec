@@ -179,7 +179,7 @@ trace analysis tools.
 
 ## Selecting the File Formats
 
-The `profile_format` MCA parameter is a comma-separated list of the file
+The `profile_format` MCA parameter is a comma- or space-separated list of the file
 formats written when a `profile_filename` is provided. Its default is
 `otf2` when OTF2 support is built, and `binary` otherwise. Both formats
 can be written in the same run, using the same base name:

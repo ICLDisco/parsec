@@ -34,6 +34,9 @@
 #include <mpi.h>
 static MPI_Comm parsec_otf2_profiling_comm;
 static int parsec_profiling_mpi_on = 0;
+/* Communicator requested by parsec_profiling_otf2_set_comm, duplicated by otf2_init */
+static MPI_Comm parsec_otf2_user_comm;
+static int parsec_otf2_user_comm_set = 0;
 static int process_id = 0;
 
 #define set_last_error parsec_profiling_set_last_error
@@ -141,12 +144,10 @@ static int next_otf2_global_strid(void)
 
 void parsec_profiling_otf2_set_comm(void *_pcomm)
 {
-    MPI_Comm *pcomm = (MPI_Comm*)_pcomm;
-    (void)MPI_Initialized( &parsec_profiling_mpi_on );
-    if( parsec_profiling_mpi_on ) {
-        MPI_Comm_dup(*pcomm, &parsec_otf2_profiling_comm);
-        MPI_Comm_rank(parsec_otf2_profiling_comm, &process_id);
-    }
+    /* Only record the communicator: it is duplicated when an archive is
+     * opened, so nothing leaks if no archive is ever opened. */
+    parsec_otf2_user_comm = *(MPI_Comm*)_pcomm;
+    parsec_otf2_user_comm_set = 1;
 }
 
 static int otf2_register_mca( void )
@@ -165,11 +166,12 @@ static int otf2_init( int _process_id )
     regions = (parsec_profiling_region_t*)calloc(nbregions, sizeof(parsec_profiling_region_t));
     next_region = 0;
 
-    if( !parsec_profiling_mpi_on ) {
-        /* Nobody has called parsec_profiling_otf2_set_comm yet,
-         * so we use MPI_COMM_WORLD by default */
-        MPI_Comm comm = MPI_COMM_WORLD;
-        parsec_profiling_otf2_set_comm( &comm );
+    (void)MPI_Initialized( &parsec_profiling_mpi_on );
+    if( parsec_profiling_mpi_on ) {
+        /* MPI_COMM_WORLD unless parsec_profiling_otf2_set_comm was called */
+        MPI_Comm_dup(parsec_otf2_user_comm_set ? parsec_otf2_user_comm : MPI_COMM_WORLD,
+                     &parsec_otf2_profiling_comm);
+        MPI_Comm_rank(parsec_otf2_profiling_comm, &process_id);
     }
     return 0;
 }
@@ -190,6 +192,7 @@ static int otf2_stream_init(parsec_profiling_stream_t *stream, void **state)
 
     res = (otf2_stream_t*)calloc(1, sizeof(otf2_stream_t));
     if( NULL == res ) {
+        set_last_error("Profiling system: OTF2: unable to allocate %zu bytes", sizeof(otf2_stream_t));
         return PARSEC_ERR_OUT_OF_RESOURCE;
     }
     res->data.id = parsec_atomic_fetch_inc_int32(&thread_profiling_id);

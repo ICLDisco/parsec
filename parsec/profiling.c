@@ -185,19 +185,26 @@ static void attach_stream(int s, parsec_profiling_stream_t *stream)
 {
     parsec_profiling_substrate_t *sub = parsec_profiling_substrates[s];
 
+    int rc;
+
     stream->substrate_data[s] = NULL;
     if( NULL == sub->stream_init ) {
         return;
     }
-    if( 0 != sub->stream_init(stream, &stream->substrate_data[s]) ) {
-        parsec_warning("Profiling system: the %s substrate could not attach to stream %s, its events will be ignored (%s).",
-                       sub->name, stream->hr_id, parsec_profiling_strerror());
+    reset_last_error();
+    if( 0 != (rc = sub->stream_init(stream, &stream->substrate_data[s])) ) {
+        parsec_warning("Profiling system: the %s substrate could not attach to stream %s, its events will be ignored (error %d: %s).",
+                       sub->name, stream->hr_id, rc, parsec_profiling_strerror());
         stream->substrate_data[s] = NULL;
     }
 }
 
 /* Make a substrate receive the events, after giving it the keys and the
- * streams created before its activation. */
+ * streams created before its activation.
+ * Not thread safe: a key or a stream created by another thread between the
+ * replay below and the publication in active_substrates would never reach
+ * the substrate. Substrates are activated by parsec_profiling_init and
+ * parsec_profiling_dbp_start, which run before any other thread profiles. */
 static void activate_substrate(int s)
 {
     parsec_profiling_substrate_t *sub = parsec_profiling_substrates[s];
@@ -238,25 +245,30 @@ static void deactivate_substrate(int s)
     substrate_status[s] = SUBSTRATE_CLOSED;
 }
 
+/* Formats are separated by commas and/or spaces. format_is_selected and
+ * check_formats must split the list the same way. */
+#define PROFILE_FORMAT_SEPARATORS ", "
+
 static int format_is_selected(const char *formats, const char *name)
 {
-    size_t len = strlen(name);
-    const char *c = formats;
-
-    while( NULL != c && '\0' != *c ) {
-        while( ',' == *c || ' ' == *c ) c++;
-        if( 0 == strncasecmp(c, name, len) && ('\0' == c[len] || ',' == c[len] || ' ' == c[len]) ) {
-            return 1;
+    char *copy = strdup(formats), *saveptr = NULL;
+    int found = 0;
+    for( char *f = strtok_r(copy, PROFILE_FORMAT_SEPARATORS, &saveptr); NULL != f;
+         f = strtok_r(NULL, PROFILE_FORMAT_SEPARATORS, &saveptr) ) {
+        if( 0 == strcasecmp(f, name) ) {
+            found = 1;
+            break;
         }
-        c = strchr(c, ',');
     }
-    return 0;
+    free(copy);
+    return found;
 }
 
 static void check_formats(const char *formats)
 {
     char *copy = strdup(formats), *saveptr = NULL;
-    for( char *f = strtok_r(copy, ", ", &saveptr); NULL != f; f = strtok_r(NULL, ", ", &saveptr) ) {
+    for( char *f = strtok_r(copy, PROFILE_FORMAT_SEPARATORS, &saveptr); NULL != f;
+         f = strtok_r(NULL, PROFILE_FORMAT_SEPARATORS, &saveptr) ) {
         int s;
         for( s = 0; s < NB_SUBSTRATES; s++ ) {
             if( PARSEC_PROFILING_SUBSTRATE_FILE == parsec_profiling_substrates[s]->kind &&
@@ -362,7 +374,7 @@ int parsec_profiling_init( int process_id )
         parsec_prof_keys_number = PARSEC_PROFILING_KEYS_MAX;
     }
     parsec_mca_param_reg_string_name("profile", "format",
-                                     "Comma separated list of the file formats written when a profile_filename is provided"
+                                     "Comma or space separated list of the file formats written when a profile_filename is provided"
                                      " (binary"
 #if defined(PARSEC_HAVE_OTF2)
                                      ", otf2"
