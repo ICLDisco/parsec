@@ -1292,12 +1292,12 @@ static int binary_open( const char *basefile, const char *hr_info )
 
     rc = asprintf(&bpf_filename, "%s-%d.prof", basefile, parsec_profiling_process_id);
     if (rc == -1) {
-        set_last_error("Profiling system: error: one (or more) process could not create the backend file name (out of resource).");
+        set_last_error("Profiling system: error: one (or more) process could not create the backend file name (out of resource)");
         return PARSEC_ERR_OUT_OF_RESOURCE;
     }
     file_backend_fd = open(bpf_filename, O_RDWR | O_CREAT | O_TRUNC, 00600);
     if( -1 == file_backend_fd ) {
-        set_last_error("Profiling system: error: this process could not create the backend file. Events not logged.");
+        set_last_error("Profiling system: error: this process could not create the backend file. Events not logged");
         free(bpf_filename);
         bpf_filename = NULL;
         file_backend_extendable = 0;

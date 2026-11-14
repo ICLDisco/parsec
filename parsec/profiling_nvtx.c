@@ -395,7 +395,12 @@ static int nvtx_stream_init(parsec_profiling_stream_t *stream, void **state)
 {
     (void)stream;
     *state = calloc(1, sizeof(parsec_profiling_nvtx_stream_t));
-    return (NULL != *state) ? 0 : PARSEC_ERR_OUT_OF_RESOURCE;
+    if( NULL == *state ) {
+        parsec_profiling_set_last_error("Profiling system: NVTX: unable to allocate %zu bytes",
+                                        sizeof(parsec_profiling_nvtx_stream_t));
+        return PARSEC_ERR_OUT_OF_RESOURCE;
+    }
+    return 0;
 }
 
 static void nvtx_stream_reset(parsec_profiling_stream_t *stream, void *state)
