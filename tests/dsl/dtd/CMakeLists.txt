@@ -30,6 +30,7 @@ parsec_addtest_executable(C dtd_test_explicit_task_creation SOURCES dtd_test_exp
 parsec_addtest_executable(C dtd_test_task_class_release SOURCES dtd_test_task_class_release.c)
 parsec_addtest_executable(C dtd_test_tp_enqueue_dequeue SOURCES dtd_test_tp_enqueue_dequeue.c)
 parsec_addtest_executable(C dtd_test_interleave_actions SOURCES dtd_test_interleave_actions.c)
+parsec_addtest_executable(C dtd_bench_arg_passing SOURCES dtd_bench_arg_passing.c)
 if( PARSEC_HAVE_MPI )
   parsec_addtest_executable(C dtd_test_ce SOURCES dtd_test_ce.c)
 endif( PARSEC_HAVE_MPI )
