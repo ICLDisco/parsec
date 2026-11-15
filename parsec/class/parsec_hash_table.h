@@ -92,9 +92,11 @@ typedef struct parsec_hash_table_head_s {
  */
 struct parsec_hash_table_s {
     parsec_object_t           super;                /**< A Hash Table is a PaRSEC object */
-    parsec_atomic_rwlock_t    rw_lock;              /**< 'readers' are threads that manipulate rw_hash (add, delete, find)
-                                                     *   but do not resize it; 'writers' are threads that resize
-                                                     *   rw_hash */
+    volatile int32_t          resizing;             /**< 1 while a thread resizes rw_hash. 'Readers', threads that
+                                                     *   add, delete or find elements without resizing, announce
+                                                     *   themselves in a slot of their own instead of taking a
+                                                     *   shared lock (see parsec_hash_table.c) */
+    volatile int32_t          overflow_readers;     /**< Readers that had no free slot of their own */
     int64_t                   elt_hashitem_offset;  /**< Elements belonging to this hash table have a parsec_hash_table_item_t
                                                      *   at this offset */
     parsec_key_fn_t           key_functions;        /**< How to access and modify the keys */
