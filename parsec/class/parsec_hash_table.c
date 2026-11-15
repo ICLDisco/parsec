@@ -26,6 +26,123 @@ struct parsec_hash_table_bucket_s {
     parsec_hash_table_item_t *first_item;       /**< Otherwise they are simply chained lists */
 };
 
+/*
+ * Readers and resizers.
+ *
+ * Threads that add, remove or find elements ("readers") only need rw_hash not
+ * to be replaced under them, and resizing it is rare. Readers used to take a
+ * table-wide rwlock in read mode: an atomic operation on one cache line that
+ * every thread using the table shares, which all workers contend on when tasks
+ * are small. Instead, each thread announces the table it reads in one of its
+ * own slots, on a cache line no other thread writes. A resizer sets
+ * ht->resizing, then waits until no slot of any thread names the table. A
+ * reader stores the table in its slot, then reads ht->resizing, both
+ * sequentially consistent, and backs off while a resize is under way: either
+ * the reader sees ht->resizing set, or the resizer sees the reader's slot.
+ *
+ * A thread beyond PARSEC_HT_READER_THREADS, a thread already reading
+ * PARSEC_HT_READER_SLOTS tables, and every thread without thread-local storage
+ * count themselves in ht->overflow_readers instead, which the resizer also
+ * waits for. As before, a thread must not resize a table it is reading.
+ */
+#define PARSEC_HT_READER_THREADS 1024
+#define PARSEC_HT_READER_SLOTS   8   /* 8 pointers: one cache line per thread */
+
+typedef struct parsec_ht_reader_s {
+    parsec_hash_table_t * volatile slot[PARSEC_HT_READER_SLOTS];
+}
+#if defined(__GNUC__)
+__attribute__((aligned(64)))
+#endif
+parsec_ht_reader_t;
+
+static parsec_ht_reader_t parsec_ht_readers[PARSEC_HT_READER_THREADS];
+static int32_t parsec_ht_nb_readers = 0;   /* slots handed out so far */
+
+#if defined(__GNUC__)
+#define HT_STORE_SC(p, v)      __atomic_store_n((p), (v), __ATOMIC_SEQ_CST)
+#define HT_LOAD_SC(p)          __atomic_load_n((p), __ATOMIC_SEQ_CST)
+#define HT_STORE_RELEASE(p, v) __atomic_store_n((p), (v), __ATOMIC_RELEASE)
+#else
+#define HT_STORE_SC(p, v)      do { *(p) = (v); parsec_mfence(); } while(0)
+#define HT_LOAD_SC(p)          (*(p))
+#define HT_STORE_RELEASE(p, v) do { parsec_atomic_wmb(); *(p) = (v); } while(0)
+#endif
+
+#if defined(PARSEC_HAVE_THREAD_LOCAL)
+static __thread parsec_ht_reader_t *parsec_ht_me = NULL;
+static __thread int parsec_ht_me_set = 0;
+#endif
+
+/* this thread's slots, or NULL if it has none */
+static inline parsec_ht_reader_t *parsec_ht_my_reader(void)
+{
+#if defined(PARSEC_HAVE_THREAD_LOCAL)
+    if( !parsec_ht_me_set ) {
+        int32_t id = parsec_atomic_fetch_inc_int32(&parsec_ht_nb_readers);
+        parsec_mfence();  /* a resizer that misses this id sees ht->resizing before we read it */
+        parsec_ht_me = (id < PARSEC_HT_READER_THREADS) ? &parsec_ht_readers[id] : NULL;
+        parsec_ht_me_set = 1;
+    }
+    return parsec_ht_me;
+#else
+    return NULL;
+#endif
+}
+
+static inline void parsec_ht_read_enter(parsec_hash_table_t *ht)
+{
+    parsec_ht_reader_t *me = parsec_ht_my_reader();
+    for(;;) {
+        int k = PARSEC_HT_READER_SLOTS;
+        if( NULL != me )
+            for( k = 0; k < PARSEC_HT_READER_SLOTS && NULL != me->slot[k]; k++ ) ;
+        if( k < PARSEC_HT_READER_SLOTS ) {
+            HT_STORE_SC(&me->slot[k], ht);
+            if( 0 == HT_LOAD_SC(&ht->resizing) ) return;
+            HT_STORE_RELEASE(&me->slot[k], NULL);
+        } else {
+            parsec_atomic_fetch_inc_int32(&ht->overflow_readers);
+            parsec_mfence();
+            if( 0 == HT_LOAD_SC(&ht->resizing) ) return;
+            parsec_atomic_fetch_dec_int32(&ht->overflow_readers);
+        }
+        while( 0 != HT_LOAD_SC(&ht->resizing) ) ;  /* wait for the resize to end */
+    }
+}
+
+static inline void parsec_ht_read_leave(parsec_hash_table_t *ht)
+{
+    parsec_ht_reader_t *me = parsec_ht_my_reader();
+    if( NULL != me ) {
+        for( int k = PARSEC_HT_READER_SLOTS - 1; k >= 0; k-- ) {
+            if( me->slot[k] == ht ) {
+                HT_STORE_RELEASE(&me->slot[k], NULL);
+                return;
+            }
+        }
+    }
+    parsec_atomic_wmb();
+    parsec_atomic_fetch_dec_int32(&ht->overflow_readers);
+}
+
+static void parsec_ht_resize_enter(parsec_hash_table_t *ht)
+{
+    while( !parsec_atomic_cas_int32(&ht->resizing, 0, 1) ) ;
+    parsec_mfence();
+    int32_t n = HT_LOAD_SC(&parsec_ht_nb_readers);
+    if( n > PARSEC_HT_READER_THREADS ) n = PARSEC_HT_READER_THREADS;
+    for( int32_t t = 0; t < n; t++ )
+        for( int k = 0; k < PARSEC_HT_READER_SLOTS; k++ )
+            while( HT_LOAD_SC(&parsec_ht_readers[t].slot[k]) == ht ) ;
+    while( 0 != HT_LOAD_SC(&ht->overflow_readers) ) ;
+}
+
+static void parsec_ht_resize_leave(parsec_hash_table_t *ht)
+{
+    HT_STORE_RELEASE(&ht->resizing, 0);
+}
+
 #define BASEADDROF(item, ht)  (void*)(  ( (char*)(item) ) - ( (ht)->elt_hashitem_offset ) )
 #define ITEMADDROF(ptr, ht)   (parsec_hash_table_item_t*)( ((char*)(ptr)) + ( (ht)->elt_hashitem_offset ) )
 
@@ -89,7 +206,6 @@ int parsec_hash_tables_init(void)
 
 void parsec_hash_table_init(parsec_hash_table_t *ht, int64_t offset, int nb_bits, parsec_key_fn_t key_functions, void *data)
 {
-    parsec_atomic_rwlock_t unlock = PARSEC_RWLOCK_UNLOCKED;
     parsec_hash_table_head_t *head;
     size_t i;
     int v;
@@ -120,7 +236,8 @@ void parsec_hash_table_init(parsec_hash_table_t *ht, int64_t offset, int nb_bits
     head->next         = NULL;
     head->next_to_free = NULL;
     ht->rw_hash        = head;
-    ht->rw_lock        = unlock;
+    ht->resizing         = 0;
+    ht->overflow_readers = 0;
 
     for( i = 0; i < (1ULL<<nb_bits); i++) {
         parsec_atomic_lock_init(&head->buckets[i].lock);
@@ -161,7 +278,7 @@ void parsec_hash_table_lock_bucket(parsec_hash_table_t *ht, parsec_key_t key )
 {
     uint64_t hash;
 
-    parsec_atomic_rwlock_rdlock(&ht->rw_lock);
+    parsec_ht_read_enter(ht);
     hash = parsec_hash_table_universal_rehash(ht->key_functions.key_hash(key, ht->hash_data), ht->rw_hash->nb_bits);
     assert( hash < (1ULL<<ht->rw_hash->nb_bits) );
     parsec_atomic_lock(&ht->rw_hash->buckets[hash].lock);
@@ -173,7 +290,7 @@ void parsec_hash_table_lock_bucket_handle(parsec_hash_table_t *ht,
 {
     uint64_t hash64, hash;
 
-    parsec_atomic_rwlock_rdlock(&ht->rw_lock);
+    parsec_ht_read_enter(ht);
     hash64 = ht->key_functions.key_hash(key, ht->hash_data);
     hash = parsec_hash_table_universal_rehash(hash64, ht->rw_hash->nb_bits);
     assert( hash < (1ULL<<ht->rw_hash->nb_bits) );
@@ -246,17 +363,17 @@ void parsec_hash_table_unlock_bucket_handle_impl(parsec_hash_table_t *ht,
     }
     cur_head = ht->rw_hash;
     parsec_atomic_unlock(&ht->rw_hash->buckets[hash].lock);
-    parsec_atomic_rwlock_rdunlock(&ht->rw_lock);
+    parsec_ht_read_leave(ht);
 
     if( resize ) {
-        parsec_atomic_rwlock_wrlock(&ht->rw_lock);
+        parsec_ht_resize_enter(ht);
         if( cur_head == ht->rw_hash ) {
             /* Barring ABA problems, nobody resized the hash table;
              * Good enough hint that it's our role to do so */
             parsec_hash_table_resize(ht);
         }
         /* Otherwise, let's assume somebody resized already */
-        parsec_atomic_rwlock_wrunlock(&ht->rw_lock);
+        parsec_ht_resize_leave(ht);
     }
 }
 
@@ -526,7 +643,7 @@ void parsec_hash_table_insert_impl(parsec_hash_table_t *ht, parsec_hash_table_it
     uint64_t hash;
     parsec_hash_table_head_t *cur_head;
     int resize = 0;
-    parsec_atomic_rwlock_rdlock(&ht->rw_lock);
+    parsec_ht_read_enter(ht);
     cur_head = ht->rw_hash;
     hash = parsec_hash_table_universal_rehash(ht->key_functions.key_hash(item->key, ht->hash_data), ht->rw_hash->nb_bits);
     assert( hash < (1ULL<<ht->rw_hash->nb_bits) );
@@ -544,17 +661,17 @@ void parsec_hash_table_insert_impl(parsec_hash_table_t *ht, parsec_hash_table_it
         }
     }
     parsec_atomic_unlock(&ht->rw_hash->buckets[hash].lock);
-    parsec_atomic_rwlock_rdunlock(&ht->rw_lock);
+    parsec_ht_read_leave(ht);
 
     if( resize ) {
-        parsec_atomic_rwlock_wrlock(&ht->rw_lock);
+        parsec_ht_resize_enter(ht);
         if( cur_head == ht->rw_hash ) {
             /* Barring ABA problems, nobody resized the hash table;
              * Good enough hint that it's our role to do so */
             parsec_hash_table_resize(ht);
         }
             /* Otherwise, let's assume somebody resized already */
-        parsec_atomic_rwlock_wrunlock(&ht->rw_lock);
+        parsec_ht_resize_leave(ht);
     }
 }
 
@@ -562,13 +679,13 @@ void *parsec_hash_table_find(parsec_hash_table_t *ht, parsec_key_t key)
 {
     uint64_t hash;
     void *ret;
-    parsec_atomic_rwlock_rdlock(&ht->rw_lock);
+    parsec_ht_read_enter(ht);
     hash = parsec_hash_table_universal_rehash(ht->key_functions.key_hash(key, ht->hash_data), ht->rw_hash->nb_bits);
     assert( hash < (1ULL<<ht->rw_hash->nb_bits) );
     parsec_atomic_lock(&ht->rw_hash->buckets[hash].lock);
     ret = parsec_hash_table_nolock_find(ht, key);
     parsec_atomic_unlock(&ht->rw_hash->buckets[hash].lock);
-    parsec_atomic_rwlock_rdunlock(&ht->rw_lock);
+    parsec_ht_read_leave(ht);
     return ret;
 }
 
@@ -576,13 +693,13 @@ void *parsec_hash_table_remove(parsec_hash_table_t *ht, parsec_key_t key)
 {
     uint64_t hash;
     void *ret;
-    parsec_atomic_rwlock_rdlock(&ht->rw_lock);
+    parsec_ht_read_enter(ht);
     hash = parsec_hash_table_universal_rehash(ht->key_functions.key_hash(key, ht->hash_data), ht->rw_hash->nb_bits);
     assert( hash < (1ULL<<ht->rw_hash->nb_bits) );
     parsec_atomic_lock(&ht->rw_hash->buckets[hash].lock);
     ret = parsec_hash_table_nolock_remove(ht, key);
     parsec_atomic_unlock(&ht->rw_hash->buckets[hash].lock);
-    parsec_atomic_rwlock_rdunlock(&ht->rw_lock);
+    parsec_ht_read_leave(ht);
     return ret;
 }
 
