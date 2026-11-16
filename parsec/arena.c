@@ -84,7 +84,39 @@ int parsec_arena_construct_ex(parsec_arena_t* arena,
     arena->max_released = (max_cached_memory / elem_size > (size_t)INT32_MAX)? INT32_MAX: max_cached_memory / elem_size;
     arena->data_malloc  = parsec_data_allocate;
     arena->data_free    = parsec_data_free;
+    arena->nb_classes   = 0;
+    arena->class_released = 0;
+    arena->class_lifo   = NULL;
     return PARSEC_SUCCESS;
+}
+
+int parsec_arena_set_count_classes(parsec_arena_t *arena, size_t max_count)
+{
+    int nb = 0;
+    assert((0 == arena->nb_classes) && (0 != arena->elem_size));
+    while( (nb < 29) && ((((size_t)1) << (nb + 1)) < max_count) ) nb++;  /* classes up to 2^30 elements */
+    nb++;  /* class nb-1 holds 2^nb >= max_count elements */
+    arena->class_lifo = (parsec_lifo_t*)malloc(nb * sizeof(parsec_lifo_t));
+    if( NULL == arena->class_lifo ) return PARSEC_ERR_OUT_OF_RESOURCE;
+    for( int c = 0; c < nb; c++ ) {
+        PARSEC_OBJ_CONSTRUCT(&arena->class_lifo[c], parsec_lifo_t);
+    }
+    arena->nb_classes = nb;
+    return PARSEC_SUCCESS;
+}
+
+/* The class caching chunks of count > 1 elements, -1 if none: class c holds
+ * 2^(c+1) elements, so count goes to class ceil(log2(count)) - 1 */
+static inline int parsec_arena_class_of(const parsec_arena_t *arena, size_t count)
+{
+    int c;
+    assert(count > 1);
+#if defined(__GNUC__)
+    c = (int)(8 * sizeof(unsigned long long)) - __builtin_clzll((unsigned long long)(count - 1)) - 1;
+#else
+    for( c = 0; (((size_t)1) << (c + 1)) < count; c++ );
+#endif
+    return (c < arena->nb_classes) ? c : -1;
 }
 
 int parsec_arena_construct(parsec_arena_t* arena,
@@ -101,6 +133,14 @@ static void parsec_arena_destructor(parsec_arena_t* arena)
 {
     parsec_list_item_t* item;
 
+    /* Cached multi-element chunks are still counted in used: give them back first */
+    for( int c = 0; (0 != arena->elem_size) && (c < arena->nb_classes); c++ ) {
+        while(NULL != (item = parsec_lifo_pop(&arena->class_lifo[c]))) {
+            if(arena->max_used != 0 && arena->max_used != INT32_MAX)
+                (void)parsec_atomic_fetch_sub_int32(&arena->used, ((parsec_arena_chunk_t*)item)->count);
+            arena->data_free(item);
+        }
+    }
     assert( arena->used == arena->released
          || arena->max_released == 0
          || arena->max_released == INT32_MAX
@@ -116,6 +156,12 @@ static void parsec_arena_destructor(parsec_arena_t* arena)
             arena->data_free(item);
         }
         PARSEC_OBJ_DESTRUCT(&arena->area_lifo);
+        for( int c = 0; c < arena->nb_classes; c++ ) {
+            PARSEC_OBJ_DESTRUCT(&arena->class_lifo[c]);  /* drained above */
+        }
+        free(arena->class_lifo);
+        arena->class_lifo = NULL;
+        arena->nb_classes = 0;
     }
 }
 
@@ -172,7 +218,19 @@ parsec_arena_release_chunk(parsec_arena_t* arena,
 {
     TRACE_FREE(arena_memory_unused_key, -arena->elem_size*chunk->count, chunk);
 
-    if( (chunk->count == 1) && (arena->released < arena->max_released) ) {
+    if( (chunk->count > 1) && (arena->nb_classes > 0) ) {
+        int c = parsec_arena_class_of(arena, chunk->count);
+        if( (c >= 0) && (chunk->count == (((uint32_t)1) << (c + 1))) ) {
+            /* one budget for the single elements and the classes cached */
+            if( parsec_atomic_fetch_add_int32(&arena->class_released, (int32_t)chunk->count) + (int32_t)chunk->count
+                + arena->released <= arena->max_released ) {
+                parsec_lifo_push(&arena->class_lifo[c], &chunk->item);  /* stays counted in used */
+                return;
+            }
+            (void)parsec_atomic_fetch_sub_int32(&arena->class_released, (int32_t)chunk->count);  /* over budget */
+        }
+    }
+    if( (chunk->count == 1) && (arena->released + arena->class_released < arena->max_released) ) {
         PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Arena:\tpush a data of size %zu from arena %p, aligned by %zu, base ptr %p, data ptr %p, sizeof prefix %zu(%zd)",
                 arena->elem_size, arena, arena->alignment, chunk, chunk->data, sizeof(parsec_arena_chunk_t),
                 PARSEC_ARENA_MIN_ALIGNMENT(arena->alignment));
@@ -209,7 +267,21 @@ int  parsec_arena_allocate_device_private(parsec_data_copy_t *copy,
                             arena->alignment, size_t);
         chunk = (parsec_arena_chunk_t *)parsec_arena_get_chunk( arena, size, arena->data_malloc );
     } else {
+        size_t request = count;
+        int c;
         assert(count > 1);
+        /* A cached chunk of the class holding count elements, if any */
+        if( (arena->nb_classes > 0) && (0 <= (c = parsec_arena_class_of(arena, count))) ) {
+            count = ((size_t)1) << (c + 1);
+            chunk = (parsec_arena_chunk_t*)parsec_lifo_pop(&arena->class_lifo[c]);
+            if( NULL != chunk ) {
+                (void)parsec_atomic_fetch_sub_int32(&arena->class_released, (int32_t)count);  /* still in used */
+                size = PARSEC_ALIGN(arena->elem_size * count + arena->alignment + sizeof(parsec_arena_chunk_t),
+                                    arena->alignment, size_t);
+                goto chunk_ready;
+            }
+        }
+        (void)request;
         if(arena->max_used != INT32_MAX) {
             int32_t current = parsec_atomic_fetch_add_int32(&arena->used, count) + count;
             if(current > arena->max_used) {
@@ -227,6 +299,8 @@ int  parsec_arena_allocate_device_private(parsec_data_copy_t *copy,
         PARSEC_OBJ_CONSTRUCT(&chunk->item, parsec_list_item_t);
 
         TRACE_MALLOC(arena_memory_alloc_key, size, chunk);
+      chunk_ready:
+        data->span = request * arena->elem_size;  /* the data is what was asked for, not the class */
     }
     if(NULL == chunk) return PARSEC_ERR_OUT_OF_RESOURCE;  /* no more */
 
@@ -243,7 +317,7 @@ int  parsec_arena_allocate_device_private(parsec_data_copy_t *copy,
     assert(0 == (((ptrdiff_t)chunk->data) % arena->alignment));
     assert((arena->elem_size + (ptrdiff_t)chunk->data)  <= (size + (ptrdiff_t)chunk));
 
-    data->span = count * arena->elem_size;
+    if( 1 == count ) data->span = arena->elem_size;  /* multi-element chunks set it above */
 
     copy->flags = PARSEC_DATA_FLAG_ARENA |
                   PARSEC_DATA_FLAG_PARSEC_OWNED |
