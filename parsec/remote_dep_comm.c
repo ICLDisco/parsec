@@ -820,7 +820,10 @@ void parsec_local_reshape_cb(parsec_base_future_t *future, ... )
             parsec_ce.pack_size(&parsec_ce, dt->local->dst_count, dt->local->dst_datatype, &dst_pack_size);
         }
     }
-    if(src_pack_size != dst_pack_size){
+    /* Unpacking fewer bytes than the receiver declares is a padded receive
+     * (see parsec_set_up_reshape_promise), not a mismatch */
+    if( (src_pack_size != dst_pack_size) &&
+        !((PARSEC_DATATYPE_PACKED == dt->local->src_datatype) && (src_pack_size < dst_pack_size)) ) {
         parsec_warning("parsec_local_reshape: reshape requested between dtt with different packed size fut %p dtt [0x%" PRIxPTR " = sz(%d) -> 0x%" PRIxPTR " = sz(%d)]",
                          future,
                          type_id_src, src_pack_size,
@@ -990,7 +993,11 @@ remote_dep_comm_retrieve_datatype(parsec_execution_stream_t *eu,
          * the datatype, and instead fall back into a packed format (aka bytes) and the
          * entire length of the incoming data.
          */
-        if(old_dtt != output->data.remote.dst_datatype) {
+        /* An [type = AUTO] receive spans exactly the payload, other receives
+         * span what their arena gives: successors that differ there cannot
+         * share one copy either, whatever their datatypes. */
+        if( (old_dtt != output->data.remote.dst_datatype) ||
+            ((PARSEC_ARENA_AUTO == old_remote.arena) != (PARSEC_ARENA_AUTO == output->data.remote.arena)) ) {
 #if defined(PARSEC_DEBUG_NOISIER)
             PARSEC_DEBUG_VERBOSE(30, parsec_comm_output_stream,
                 "RDEP: retrieve dtt for %s [dep_datatype_index %x] DTT: old 0x%" PRIxPTR " new 0x%" PRIxPTR " --> PACKED",

@@ -44,4 +44,9 @@ if( MPI_C_FOUND )
   parsec_addtest_cmd(dsl/ptg/receive_auto_mixed ${SHM_TEST_CMD_LIST} dsl/ptg/receive_auto_mixed)
   parsec_addtest_cmd(dsl/ptg/receive_auto_mixed:mp ${MPI_TEST_CMD_LIST} 2 dsl/ptg/receive_auto_mixed)
   parsec_addtest_cmd(dsl/ptg/receive_auto_mixed:rdv:mp ${MPI_TEST_CMD_LIST} 2 dsl/ptg/receive_auto_mixed -- --mca runtime_comm_short_limit 0)
+  # a padded receiver must not unpack more than was sent, and must not share
+  # its copy with the AUTO receivers of the same datatype
+  parsec_addtest_cmd(dsl/ptg/receive_auto_pad ${SHM_TEST_CMD_LIST} dsl/ptg/receive_auto_pad)
+  parsec_addtest_cmd(dsl/ptg/receive_auto_pad:mp ${MPI_TEST_CMD_LIST} 2 dsl/ptg/receive_auto_pad)
+  parsec_addtest_cmd(dsl/ptg/receive_auto_pad:rdv:mp ${MPI_TEST_CMD_LIST} 2 dsl/ptg/receive_auto_pad -- --mca runtime_comm_short_limit 0)
 endif( MPI_C_FOUND )

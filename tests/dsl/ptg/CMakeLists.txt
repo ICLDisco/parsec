@@ -49,6 +49,11 @@ parsec_addtest_executable(C receive_auto_mixed)
 target_link_libraries(receive_auto_mixed PRIVATE tests_runtime_common)
 target_ptg_sources(receive_auto_mixed PRIVATE "receive_auto_mixed.jdf")
 
+# a padded receive and AUTO receives of one payload, in both orders
+parsec_addtest_executable(C receive_auto_pad)
+target_link_libraries(receive_auto_pad PRIVATE tests_runtime_common)
+target_ptg_sources(receive_auto_pad PRIVATE "receive_auto_pad.jdf")
+
 # benchmark (see its header): receives sized after the incoming data against
 # padded receives for variable-rank payloads; built, not run by ctest
 parsec_addtest_executable(C tlr_bench)
