@@ -1211,7 +1211,7 @@ jdf_datatype_remove_redundancy(const jdf_datatransfer_type_t* src,
     int are_types_equal = 0, are_layout_equal = 0, are_count_equal = 0, are_displ_equal = 0;
     string_arena_t* sa = string_arena_new(64);
     string_arena_t* sa1 = string_arena_new(64);
-    expr_info_t linfo;
+    expr_info_t linfo = EMPTY_EXPR_INFO;
 
     linfo.sa = sa1;
     linfo.prefix = ":";
@@ -1278,6 +1278,11 @@ int jdf_datatype_expr_is_auto(const jdf_expr_t *expr)
 void jdf_expr_mark_dep_context(jdf_expr_t *expr)
 {
     if( NULL == expr ) return;
+    /* Leaves first: JDF_OP_IS_BINARY() does not exclude strings, and the
+     * operands of a binary expression share their storage with jdf_var. */
+    if( JDF_OP_IS_CST(expr->op) || JDF_OP_IS_VAR(expr->op) || JDF_OP_IS_STRING(expr->op) ) {
+        return;
+    }
     if( JDF_OP_IS_C_CODE(expr->op) ) {
         expr->jdf_c_code.dep_context = 1;
     } else if( JDF_OP_IS_UNARY(expr->op) ) {
@@ -1468,7 +1473,7 @@ void jdf_dump_function_flows(jdf_function_entry_t* function, int expanded)
     for( flow = function->dataflow; NULL != flow; flow = flow->next) {
         string_arena_t* sa1 = string_arena_new(64);
         string_arena_t* sa2 = string_arena_new(64);
-        expr_info_t linfo;
+        expr_info_t linfo = EMPTY_EXPR_INFO;
         jdf_dep_t *dep;
 
         linfo.sa = sa1;

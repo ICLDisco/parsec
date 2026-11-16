@@ -3387,7 +3387,7 @@ static  void jdf_generate_deps_key_functions(const jdf_t *jdf, const jdf_functio
         string_arena_t *sa_format = string_arena_new(64);
         string_arena_t *sa_params = string_arena_new(64);
         string_arena_t *sa_info = string_arena_new(64);
-        expr_info_t info;
+        expr_info_t info = EMPTY_EXPR_INFO;
         int first_param = 1;
         int need_assignment = 0;
 
