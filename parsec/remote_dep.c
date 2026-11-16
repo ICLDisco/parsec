@@ -88,7 +88,7 @@ uint64_t parsec_dep_copy_count(const parsec_data_copy_t *copy, uint64_t count)
 
 size_t parsec_dep_type_arena_count(const parsec_dep_type_description_t *remote)
 {
-    ptrdiff_t lb = 0, extent = 0;
+    ptrdiff_t lb = 0, extent = 0, true_lb = 0, true_extent = 0;
     size_t bytes, count;
 
     if( (NULL == remote->arena) || (0 == remote->dst_count) ||
@@ -99,6 +99,14 @@ size_t parsec_dep_type_arena_count(const parsec_dep_type_description_t *remote)
     if( lb < 0 ) lb = 0;  /* data before the buffer is not ours to size */
     /* element i of the datatype spans [lb + i * extent, lb + (i + 1) * extent) */
     bytes = (size_t)remote->dst_displ + (size_t)lb + remote->dst_count * (size_t)extent;
+    /* but its data spans [i * extent + true_lb, i * extent + true_lb + true_extent),
+     * which goes further for a datatype resized below its data */
+    if( (PARSEC_SUCCESS == parsec_type_true_extent(remote->dst_datatype, &true_lb, &true_extent)) &&
+        (true_extent > 0) && (true_lb + true_extent > 0) ) {
+        size_t end = (size_t)remote->dst_displ + (remote->dst_count - 1) * (size_t)extent +
+                     (size_t)(true_lb + true_extent);
+        if( end > bytes ) bytes = end;
+    }
     count = (bytes + remote->arena->elem_size - 1) / remote->arena->elem_size;
     return (0 == count) ? 1 : count;
 }

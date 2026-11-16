@@ -81,6 +81,18 @@ parsec_type_extent(parsec_datatype_t type, ptrdiff_t *lb, ptrdiff_t *extent)
 }
 
 int
+parsec_type_true_extent(parsec_datatype_t type, ptrdiff_t *lb, ptrdiff_t *extent)
+{
+    if( !parsec_datatype_module_ready() ) {
+        return PARSEC_ERR_NOT_FOUND;
+    }
+    if( NULL == parsec_datatype_selected_module->true_extent ) {
+        return parsec_datatype_selected_module->extent(type, lb, extent);
+    }
+    return parsec_datatype_selected_module->true_extent(type, lb, extent);
+}
+
+int
 parsec_type_free(parsec_datatype_t *type)
 {
     if( !parsec_datatype_module_ready() ) {

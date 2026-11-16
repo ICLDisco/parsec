@@ -15,6 +15,9 @@
  *  - above the largest class the request is served as is, and not cached;
  *  - the arena is destructed with chunks still cached, its max_used bounded,
  *    which checks that cached chunks stay counted as used.
+ * And parsec_dep_type_arena_count(), the number of elements of an arena a
+ * receive takes, for a datatype resized below its data: its last element ends
+ * past count * extent.
  */
 
 #include <stdint.h>
@@ -25,6 +28,7 @@
 #include "parsec.h"
 #include "parsec/arena.h"
 #include "parsec/data_internal.h"
+#include "parsec/remote_dep.h"
 #include "tests/tests_runtime.h"
 
 #define ELEM sizeof(double)
@@ -118,6 +122,36 @@ int main(int argc, char **argv)
     }
 
     PARSEC_OBJ_RELEASE(arena);  /* with chunks cached in several classes */
+
+    /* A column of an NB x NB tile, resized to one double so that columns
+     * interleave: column j starts at j doubles and spans (NB-1)*NB+1. NB
+     * columns end exactly at the end of the tile, NB+1 one double past it.
+     * Only a backend that builds derived datatypes can check this. */
+    {
+        const int nb = 16;
+        parsec_datatype_t col = PARSEC_DATATYPE_NULL, rcol = PARSEC_DATATYPE_NULL;
+        if( (PARSEC_SUCCESS == parsec_type_create_vector(nb, 1, nb, parsec_datatype_double_t, &col)) &&
+            (PARSEC_DATATYPE_NULL != col) &&
+            (PARSEC_SUCCESS == parsec_type_create_resized(col, 0, (ptrdiff_t)sizeof(double), &rcol)) &&
+            (PARSEC_DATATYPE_NULL != rcol) ) {
+            parsec_arena_t *tile = PARSEC_OBJ_NEW(parsec_arena_t);
+            parsec_dep_type_description_t d;
+            rc = parsec_arena_construct(tile, (size_t)nb * nb * sizeof(double), PARSEC_ARENA_ALIGNMENT_SSE);
+            PARSEC_CHECK_ERROR(rc, "parsec_arena_construct");
+            memset(&d, 0, sizeof(d));
+            d.arena = tile;
+            d.dst_datatype = rcol;
+            d.dst_count = (uint64_t)nb;
+            EXPECT(1 == parsec_dep_type_arena_count(&d), "%d interleaved columns take %zu tiles, expected 1",
+                   nb, parsec_dep_type_arena_count(&d));
+            d.dst_count = (uint64_t)nb + 1;
+            EXPECT(2 == parsec_dep_type_arena_count(&d), "%d interleaved columns take %zu tiles, expected 2",
+                   nb + 1, parsec_dep_type_arena_count(&d));
+            PARSEC_OBJ_RELEASE(tile);
+        }
+        if( PARSEC_DATATYPE_NULL != rcol ) parsec_type_free(&rcol);
+        if( PARSEC_DATATYPE_NULL != col ) parsec_type_free(&col);
+    }
 
     rc = parsec_tests_context_fini(&parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_tests_context_fini");
