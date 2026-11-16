@@ -267,13 +267,22 @@ int main(int argc, char **argv)
 #endif
 
 #if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) && defined(PARSEC_HAVE_CU_COMPILER)
+    /* cuda_accumulate() selects its accumulator by the CUDA ordinal of the
+     * device it runs on, which is not the rank of that device among the
+     * enabled ones: with device_cuda_mask=0x2 the only device is cuda(1).
+     * Index gpu_accs by cuda_index and size it to cover the largest one. */
+    int nb_accs = 0;
     for(unsigned int i = 0; i < parsec_nb_devices; i++) {
         parsec_device_module_t *dev = parsec_mca_device_get(i);
-        if( dev->type & PARSEC_DEV_CUDA )
+        if( dev->type & PARSEC_DEV_CUDA ) {
+            parsec_device_cuda_module_t *gpu_device = (parsec_device_cuda_module_t *)dev;
+            if( gpu_device->cuda_index >= nb_accs )
+                nb_accs = gpu_device->cuda_index + 1;
             nb_gpus++;
+        }
     }
     if(nb_gpus > 0) {
-        gpu_accs = (int **)malloc(sizeof(int *) * nb_gpus);
+        gpu_accs = (int **)calloc(nb_accs, sizeof(int *));
         gpu_devices = (parsec_device_cuda_module_t **)malloc(sizeof(parsec_device_cuda_module_t*)*nb_gpus);
         nb_gpus = 0;
         for(unsigned int i = 0; i < parsec_nb_devices; i++) {
@@ -286,12 +295,12 @@ int main(int argc, char **argv)
                     fprintf(stderr, "Unable to select CUDA device %d: %s -- device ignored\n", gpu_device->cuda_index,
                             cudaGetErrorString(status));
                 } else {
-                    status = cudaMalloc((void**)&gpu_accs[nb_gpus], sizeof(int));
+                    status = cudaMalloc((void**)&gpu_accs[gpu_device->cuda_index], sizeof(int));
                     if( cudaSuccess != status ) {
                         fprintf(stderr, "Unable to allocate memory on CUDA device %d: %s -- device ignored\n",
                                 gpu_device->cuda_index, cudaGetErrorString(status));
                     } else {
-                        status = cudaMemset((void*)gpu_accs[nb_gpus], 0, sizeof(int));
+                        status = cudaMemset((void*)gpu_accs[gpu_device->cuda_index], 0, sizeof(int));
                         if( cudaSuccess != status ) {
                             fprintf(stderr, "Unable to initialize memory on CUDA device %d: %s -- device ignored\n",
                                     gpu_device->cuda_index, cudaGetErrorString(status));
@@ -468,14 +477,14 @@ int main(int argc, char **argv)
                     cudaGetErrorString(status));
             nb_errors++;
         }
-        status = cudaMemcpy(&gpu_acc, gpu_accs[i], sizeof(int), cudaMemcpyDeviceToHost);
+        status = cudaMemcpy(&gpu_acc, gpu_accs[gpu_device->cuda_index], sizeof(int), cudaMemcpyDeviceToHost);
         if( cudaSuccess != status ) {
             fprintf(stderr, "Unable to copy back accumulator from CUDA device %d: %s -- fatal error\n",
                     gpu_device->cuda_index, cudaGetErrorString(status));
             nb_errors++;
         }
         acc += gpu_acc;
-        status = cudaFree(gpu_accs[i]);
+        status = cudaFree(gpu_accs[gpu_device->cuda_index]);
         if( cudaSuccess != status ) {
             fprintf(stderr, "Unable to free memory on CUDA device %d: %s -- fatal error\n",
                     gpu_device->cuda_index, cudaGetErrorString(status));

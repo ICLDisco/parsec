@@ -1,0 +1,225 @@
+{
+  "$comment": "Follows parsec/interfaces/ptg/ptg-compiler/parsec.l and parsec.y. C (source.c) is only used inside extern \"C\" %{ %}, inline %{ %} and BODY ... END.",
+  "name": "PaRSEC JDF",
+  "scopeName": "source.jdf",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#extern-c" },
+    { "include": "#inline-c" },
+    { "include": "#body" },
+    { "include": "#option" },
+    { "include": "#properties" },
+    { "include": "#strings" },
+    { "include": "#flow-type" },
+    { "include": "#flow-name" },
+    { "include": "#flow-ref" },
+    { "include": "#special-data" },
+    { "include": "#simcost" },
+    { "include": "#local" },
+    { "include": "#partition" },
+    { "include": "#priority" },
+    { "include": "#call" },
+    { "include": "#arrow" },
+    { "include": "#range" },
+    { "include": "#numbers" },
+    { "include": "#operators" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.block.jdf",
+          "begin": "/\\*",
+          "end": "\\*/",
+          "beginCaptures": { "0": { "name": "punctuation.definition.comment.begin.jdf" } },
+          "endCaptures": { "0": { "name": "punctuation.definition.comment.end.jdf" } }
+        },
+        {
+          "name": "comment.line.double-slash.jdf",
+          "match": "(//).*$",
+          "captures": { "1": { "name": "punctuation.definition.comment.jdf" } }
+        }
+      ]
+    },
+
+    "extern-c": {
+      "$comment": "extern \"C\" %{ ... %}: verbatim prologue / epilogue",
+      "begin": "\\b(extern)\\s+(\"C\")\\s*(%\\{)",
+      "end": "%\\}",
+      "beginCaptures": {
+        "1": { "name": "keyword.control.extern.jdf" },
+        "2": { "name": "string.quoted.double.jdf" },
+        "3": { "name": "punctuation.section.embedded.begin.jdf" }
+      },
+      "endCaptures": { "0": { "name": "punctuation.section.embedded.end.jdf" } },
+      "contentName": "meta.embedded.block.c",
+      "patterns": [{ "include": "source.c" }]
+    },
+
+    "inline-c": {
+      "$comment": "%{ ... %}, %c{ ... %} and inline_c %{ ... %}",
+      "begin": "(?:\\b(inline_c)\\b\\s*)?(%c?\\{)",
+      "end": "%\\}",
+      "beginCaptures": {
+        "1": { "name": "keyword.control.inline-c.jdf" },
+        "2": { "name": "punctuation.section.embedded.begin.jdf" }
+      },
+      "endCaptures": { "0": { "name": "punctuation.section.embedded.end.jdf" } },
+      "contentName": "meta.embedded.block.c",
+      "patterns": [{ "include": "source.c" }]
+    },
+
+    "body": {
+      "$comment": "BODY [ properties ] ... END, both case insensitive and only recognized at the beginning of a line",
+      "begin": "^\\s*((?i:body))\\b",
+      "end": "^\\s*((?i:end))\\b",
+      "beginCaptures": { "1": { "name": "keyword.control.body.jdf" } },
+      "endCaptures": { "1": { "name": "keyword.control.body.jdf" } },
+      "patterns": [
+        {
+          "$comment": "Properties are only allowed on the BODY line itself (\\G anchors to the end of the begin match)",
+          "name": "meta.properties.jdf",
+          "begin": "\\G\\s*(\\[)",
+          "end": "\\]",
+          "beginCaptures": { "1": { "name": "punctuation.section.properties.begin.jdf" } },
+          "endCaptures": { "0": { "name": "punctuation.section.properties.end.jdf" } },
+          "patterns": [{ "include": "#property-content" }]
+        },
+        {
+          "name": "meta.embedded.block.c",
+          "patterns": [{ "include": "source.c" }]
+        }
+      ]
+    },
+
+    "option": {
+      "$comment": "%option name = value",
+      "match": "^(%)((?i:option))\\b(?:\\s+([A-Za-z_]\\w*))?",
+      "captures": {
+        "1": { "name": "punctuation.definition.directive.jdf" },
+        "2": { "name": "keyword.other.option.jdf" },
+        "3": { "name": "entity.name.tag.option.jdf" }
+      }
+    },
+
+    "properties": {
+      "$comment": "[ key = value ... ] on globals, task classes and dependencies",
+      "name": "meta.properties.jdf",
+      "begin": "\\[",
+      "end": "\\]",
+      "beginCaptures": { "0": { "name": "punctuation.section.properties.begin.jdf" } },
+      "endCaptures": { "0": { "name": "punctuation.section.properties.end.jdf" } },
+      "patterns": [{ "include": "#property-content" }]
+    },
+
+    "property-content": {
+      "patterns": [
+        { "include": "#comments" },
+        { "include": "#inline-c" },
+        { "include": "#strings" },
+        {
+          "$comment": "the lexer accepts these in any case inside properties",
+          "name": "constant.language.boolean.jdf",
+          "match": "\\b(?i:on|off|true|false|yes|no)\\b"
+        },
+        {
+          "name": "support.type.property-name.jdf",
+          "match": "\\b[A-Za-z_]\\w*(?:\\.[A-Za-z_]\\w*)*(?=\\s*=(?!=))"
+        },
+        { "include": "#numbers" }
+      ]
+    },
+
+    "strings": {
+      "name": "string.quoted.double.jdf",
+      "begin": "\"",
+      "end": "\"",
+      "beginCaptures": { "0": { "name": "punctuation.definition.string.begin.jdf" } },
+      "endCaptures": { "0": { "name": "punctuation.definition.string.end.jdf" } },
+      "patterns": [
+        {
+          "name": "constant.character.escape.jdf",
+          "match": "\\\\(?:[0-7]{1,3}|.)"
+        }
+      ]
+    },
+
+    "flow-type": {
+      "$comment": "[READ|RW|WRITE|RO|WO|CTL] FlowName",
+      "match": "\\b(READ|RW|WRITE|RO|WO|CTL)\\b(?:\\s+([A-Za-z_]\\w*))?",
+      "captures": {
+        "1": { "name": "storage.modifier.flow-type.jdf" },
+        "2": { "name": "variable.other.flow.jdf" }
+      }
+    },
+
+    "flow-name": {
+      "$comment": "A flow declared without a flow type: 'A <- ...' / 'A -> ...' (the default is RW)",
+      "match": "^\\s*([A-Za-z_]\\w*)(?=\\s*(?:<-|->))",
+      "captures": { "1": { "name": "variable.other.flow.jdf" } }
+    },
+
+    "flow-ref": {
+      "$comment": "Flow referenced on the other side of a dependency: -> A TaskRecv(k)",
+      "match": "(<-|->|\\?|:)\\s*([A-Za-z_]\\w*)(?=\\s+[A-Za-z_]\\w*\\s*\\()",
+      "captures": {
+        "1": { "name": "keyword.operator.jdf" },
+        "2": { "name": "variable.other.flow.jdf" }
+      }
+    },
+
+    "special-data": {
+      "name": "constant.language.jdf",
+      "match": "\\b(?:NEW|NULL)\\b"
+    },
+
+    "simcost": {
+      "name": "keyword.control.simcost.jdf",
+      "match": "\\bSIMCOST\\b"
+    },
+
+    "local": {
+      "$comment": "Local variables of the execution space:  k = 0 .. NB .. 2",
+      "match": "^\\s*([A-Za-z_]\\w*)(?=\\s*=(?!=))",
+      "captures": { "1": { "name": "variable.other.local.jdf" } }
+    },
+
+    "partition": {
+      "$comment": "Partitioning (task affinity):  : descA(m, n)",
+      "match": "^\\s*(:)",
+      "captures": { "1": { "name": "punctuation.separator.partition.jdf" } }
+    },
+
+    "priority": {
+      "$comment": "Priority:  ; expr",
+      "match": "^\\s*(;)",
+      "captures": { "1": { "name": "punctuation.separator.priority.jdf" } }
+    },
+
+    "call": {
+      "$comment": "Task classes and data collections: Name(k, n)",
+      "name": "entity.name.function.jdf",
+      "match": "\\b[A-Za-z_]\\w*(?=\\s*\\()"
+    },
+
+    "arrow": {
+      "name": "keyword.operator.arrow.jdf",
+      "match": "->|<-"
+    },
+
+    "range": {
+      "name": "keyword.operator.range.jdf",
+      "match": "\\.\\."
+    },
+
+    "numbers": {
+      "name": "constant.numeric.jdf",
+      "match": "\\b[0-9]+\\b"
+    },
+
+    "operators": {
+      "name": "keyword.operator.jdf",
+      "match": "==|!=|<=|>=|<<|>>|&&?|\\|\\|?|[-+*/%^<>!?:]"
+    }
+  }
+}

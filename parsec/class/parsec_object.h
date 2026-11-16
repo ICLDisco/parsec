@@ -203,7 +203,10 @@ struct parsec_class_t {
     parsec_class_t *cls_parent;       /**< parent class descriptor */
     parsec_construct_t cls_construct; /**< class constructor */
     parsec_destruct_t cls_destruct;   /**< class destructor */
-    int cls_initialized;            /**< is class initialized */
+    int cls_initialized;            /**< is class initialized: published with release
+                                     *   semantics once cls_depth and the constructor and
+                                     *   destructor arrays are complete, so it must be read
+                                     *   with PARSEC_CLASS_IS_INITIALIZED() */
     int cls_depth;                  /**< depth of class hierarchy tree */
     parsec_construct_t *cls_construct_array;
                                     /**< array of parent class constructors */
@@ -492,6 +495,29 @@ PARSEC_DECLSPEC PARSEC_OBJ_CLASS_DECLARATION(parsec_object_t);
 /* declarations *******************************************************/
 
 /**
+ * Has the class descriptor been fully initialized?
+ *
+ * The thread that initializes a class fills cls_depth and the constructor and
+ * destructor arrays, and then publishes cls_initialized with release
+ * semantics. A thread that observes the flag set must therefore read it with
+ * acquire semantics before using these fields, or it may see them
+ * uninitialized on weakly ordered architectures (or after compiler reordering).
+ * The acquire load is a plain load on x86 and a single load-acquire on aarch64,
+ * which is negligible next to the allocation and constructors of an object.
+ *
+ * This header is part of the installed API and cannot depend on the atomic
+ * layer of PaRSEC, hence the compiler builtins.
+ */
+#if defined(__GNUC__) || defined(__clang__)
+#define PARSEC_CLASS_IS_INITIALIZED(cls) \
+    (0 != __atomic_load_n(&(cls)->cls_initialized, __ATOMIC_ACQUIRE))
+#else
+/* volatile accesses are acquire/release on the toolchains that lack the builtins */
+#define PARSEC_CLASS_IS_INITIALIZED(cls) \
+    (0 != *(volatile const int*)&(cls)->cls_initialized)
+#endif
+
+/**
  * Lazy initialization of class descriptor.
  *
  * Specifically cache arrays of function pointers for the constructor
@@ -506,9 +532,11 @@ PARSEC_DECLSPEC void parsec_class_initialize(parsec_class_t *cls);
  *
  * This function should be invoked as the ABSOLUTE LAST function to
  * use the class subsystem.  It frees all associated memory with ALL
- * classes, rendering all of them inoperable.  It is here so that
- * tools like valgrind and purify don't report still-reachable memory
- * upon process termination.
+ * classes, and returns them to the uninitialized state: they are lazily
+ * initialized again by the next object that uses them, so the class
+ * system can be used again by a later initialization of the runtime in
+ * the same process. No object of these classes may be alive, or be
+ * constructed or destructed, concurrently with this call.
  */
 PARSEC_DECLSPEC void parsec_class_finalize(void);
 
@@ -575,7 +603,7 @@ static inline parsec_object_t *parsec_obj_init(parsec_object_t *object,
                                                parsec_class_t *cls,
                                                parsec_obj_allocator_t *allocator)
 {
-    if (0 == cls->cls_initialized) {
+    if (!PARSEC_CLASS_IS_INITIALIZED(cls)) {
         parsec_class_initialize(cls);
     }
     if (NULL != object) {

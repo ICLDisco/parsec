@@ -343,7 +343,9 @@ parsec_dtd_ordering_correctly( parsec_execution_stream_t *es,
 
 #if defined(DISTRIBUTED)
             if( (action_mask & PARSEC_ACTION_COMPLETE_LOCAL_TASK) && (NULL != arg->remote_deps) ) {
-                parsec_dtd_data_copy_reader_retain(current_task->super.data[current_dep].data_out);
+                /* The message counts itself among the readers of what it sends,
+                 * and does it on the copy it ends up sending from, which is not
+                 * this one when the engine reads the host mirror instead. */
                 parsec_remote_dep_activate(es, (parsec_task_t *)current_task, arg->remote_deps, arg->remote_deps->outgoing_mask);
                 arg->remote_deps = NULL;
             }

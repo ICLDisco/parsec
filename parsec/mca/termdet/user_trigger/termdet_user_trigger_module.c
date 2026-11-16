@@ -171,7 +171,10 @@ static void parsec_termdet_user_trigger_unmonitor_taskpool(parsec_taskpool_t *tp
     assert(&parsec_termdet_user_trigger_module.module == tp->tdm.module);
     monitor = (parsec_termdet_user_trigger_monitor_t *)tp->tdm.monitor;
     assert(NULL != monitor);
-    assert(monitor->state == PARSEC_TERMDET_USER_TRIGGER_TERMINATED);
+    /* Terminated, or never made ready: a taskpool freed before it was added
+     * to a context has nothing in flight either. */
+    assert(monitor->state == PARSEC_TERMDET_USER_TRIGGER_TERMINATED ||
+           monitor->state == PARSEC_TERMDET_USER_TRIGGER_NOT_READY);
     free(monitor);
     tp->tdm.monitor = NULL;
     tp->tdm.module   = NULL;

@@ -16,6 +16,8 @@ if( MPI_C_FOUND )
   parsec_addtest_cmd(api/operator:mp ${MPI_TEST_CMD_LIST} 4 api/operator)
 endif( MPI_C_FOUND )
 
+parsec_addtest_cmd(api/taskpool_free_unenqueued ${SHM_TEST_CMD_LIST} api/taskpool_free_unenqueued)
+
 parsec_addtest_cmd(api/taskpool_wait ${SHM_TEST_CMD_LIST} api/taskpool_wait/taskpool_wait)
 if( MPI_C_FOUND )
   parsec_addtest_cmd(api/taskpool_wait:mp ${MPI_TEST_CMD_LIST} 8 api/taskpool_wait/taskpool_wait)

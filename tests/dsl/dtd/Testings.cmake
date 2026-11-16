@@ -20,6 +20,7 @@ parsec_addtest_cmd(dsl/dtd/multiple_handle_wait ${SHM_TEST_CMD_LIST} dsl/dtd/dtd
 parsec_addtest_cmd(dsl/dtd/null_as_tile ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_test_null_as_tile)
 parsec_addtest_cmd(dsl/dtd/reduce ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_test_reduce)
 parsec_addtest_cmd(dsl/dtd/explicit_task_creation ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_test_explicit_task_creation)
+parsec_addtest_cmd(dsl/dtd/task_class_release ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_test_task_class_release)
 parsec_addtest_cmd(dsl/dtd/template_counter ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_test_template_counter)
 parsec_addtest_cmd(dsl/dtd/untie ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_test_untie)
 parsec_addtest_cmd(dsl/dtd/new_tile:cpu ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_test_new_tile --mca device_cuda_enabled 0)
@@ -44,6 +45,21 @@ if(PARSEC_HAVE_CUDA AND CMAKE_CUDA_COMPILER)
                        -M 2048 -N 2048 -K 2048 -m 512 -n 512 -k 512 -t 2
                        -- --mca device_cuda_enabled 1 --mca device cuda)
   endif(TARGET dtd_test_simple_gemm)
+  # A single execution stream, where a hook returning AGAIN until a peer task
+  # gets submitted must not hold back that peer, with and without delaying
+  # batch-capable tasks behind work in flight.
+  foreach(delay 0 1)
+    parsec_addtest_cmd(dsl/dtd/cuda_batch_status:1stream:delay${delay}:gpu ${SHM_TEST_CMD_LIST}
+                       ${CTEST_CUDA_LAUNCHER_OPTIONS}
+                       dsl/dtd/dtd_test_cuda_again_async
+                       --mca device_cuda_enabled 1
+                       --mca device_cuda_mask 1
+                       --mca device_enable_batching 1
+                       --mca device_cuda_max_streams 3
+                       --mca device_cuda_exec_delay_batch ${delay}
+                       --mca device cuda
+                       --mca runtime_num_cores 2)
+  endforeach()
 endif(PARSEC_HAVE_CUDA AND CMAKE_CUDA_COMPILER)
 if(PARSEC_HAVE_DEV_CAPABILITY_BATCH)
   parsec_addtest_cmd(dsl/dtd/batch_cpu ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_test_batch_cpu)

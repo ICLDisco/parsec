@@ -27,6 +27,9 @@ if(TARGET parsec-ptgpp)
     endif(CMAKE_Fortran_COMPILER_SUPPORTS_F90)
   endif(MPI_Fortran_FOUND AND CMAKE_Fortran_COMPILER_WORKS)
   add_subdirectory(taskpool_wait)
+
+  parsec_addtest_executable(C taskpool_free_unenqueued SOURCES taskpool_free_unenqueued.c)
+  target_link_libraries(taskpool_free_unenqueued PRIVATE tests_runtime_common)
 endif(TARGET parsec-ptgpp)
 
 parsec_addtest_executable(C trim_chores SOURCES trim_chores.c)

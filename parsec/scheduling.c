@@ -123,6 +123,18 @@ int __parsec_context_wait_task( parsec_execution_stream_t* es,
 }
 #endif
 
+/** Hand back the readers __parsec_execute() took on a task's host inputs. Idempotent. */
+static void parsec_task_unpin_inputs( parsec_task_t* task )
+{
+    uint32_t mask = task->pinned_input_mask;
+
+    task->pinned_input_mask = 0;
+    for( int i = 0; mask >> i; i++ ) {
+        if( !((1U << i) & mask) ) continue;
+        parsec_device_data_copy_unpin_reader(task->data[i].data_in);
+    }
+}
+
 int __parsec_execute( parsec_execution_stream_t* es,
                       parsec_task_t* task )
 {
@@ -166,6 +178,16 @@ int __parsec_execute( parsec_execution_stream_t* es,
                 PARSEC_DATA_COPY_RETAIN(task->data[i].data_in);
                 PARSEC_DATA_COPY_RELEASE(copy);
             }
+            /* The body is about to read these bytes, and a write-back coming
+             * down from an accelerator would land on the very same host mirror.
+             * Say that the mirror is being read, for as long as that is true.
+             * Remember the flows rather than look for them again afterwards, so
+             * what is handed back cannot drift from what was taken.
+             */
+            assert(i < MAX_PARAM_COUNT);
+            if( parsec_device_data_copy_pin_reader(task->data[i].data_in) ) {
+                task->pinned_input_mask |= (1U << i);
+            }
         }
     }
 
@@ -189,6 +211,13 @@ int __parsec_execute( parsec_execution_stream_t* es,
     assert( NULL != hook );
     PARSEC_PINS(es, EXEC_BEGIN, task);
     rc = hook( es, task );
+    /* A body that declines is not reading anything either, and will pin again
+     * when tried afresh. One that returns ASYNC is not done reading yet, so it
+     * keeps its pins until the task is completed.
+     */
+    if( PARSEC_HOOK_RETURN_ASYNC != rc ) {
+        parsec_task_unpin_inputs(task);
+    }
 #if defined(PARSEC_PROF_TRACE)
     task->prof_info.task_return_code = rc;
 #endif
@@ -510,6 +539,14 @@ int __parsec_complete_execution( parsec_execution_stream_t *es,
     if( NULL != task->task_class->prepare_output ) {
         task->task_class->prepare_output( es, task );
     }
+
+    /* Where a body that returned ASYNC is finally done with its inputs. This
+     * has to happen before the completion: releasing the dependencies hands
+     * every input back, and the last reference to a copy may be dropped there
+     * by a successor or by the communication engine, leaving nothing to unpin.
+     */
+    parsec_task_unpin_inputs(task);
+
     if( NULL != task->task_class->complete_execution )
         rc = task->task_class->complete_execution( es, task );
 

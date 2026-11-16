@@ -288,7 +288,10 @@ static void parsec_termdet_fourcounter_unmonitor_taskpool(parsec_taskpool_t *tp)
     parsec_termdet_fourcounter_monitor_t *tpm;
     tpm = tp->tdm.monitor;
     assert(NULL != tpm);
-    assert(tpm->state == PARSEC_TERMDET_FOURCOUNTER_TERMINATED);
+    /* Terminated, or never made ready: a taskpool freed before it was added
+     * to a context has nothing in flight either. */
+    assert(tpm->state == PARSEC_TERMDET_FOURCOUNTER_TERMINATED ||
+           tpm->state == PARSEC_TERMDET_FOURCOUNTER_NOT_READY);
     free(tpm);
     tp->tdm.monitor  = NULL;
     tp->tdm.module   = NULL;

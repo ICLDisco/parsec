@@ -27,6 +27,7 @@ parsec_addtest_executable(C dtd_test_insert_task_interface SOURCES dtd_test_inse
 parsec_addtest_executable(C dtd_test_data_flush SOURCES dtd_test_data_flush.c)
 parsec_addtest_executable(C dtd_test_global_id_for_dc_assumed SOURCES dtd_test_global_id_for_dc_assumed.c)
 parsec_addtest_executable(C dtd_test_explicit_task_creation SOURCES dtd_test_explicit_task_creation.c)
+parsec_addtest_executable(C dtd_test_task_class_release SOURCES dtd_test_task_class_release.c)
 parsec_addtest_executable(C dtd_test_tp_enqueue_dequeue SOURCES dtd_test_tp_enqueue_dequeue.c)
 parsec_addtest_executable(C dtd_test_interleave_actions SOURCES dtd_test_interleave_actions.c)
 if( PARSEC_HAVE_MPI )

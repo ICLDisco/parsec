@@ -11,9 +11,12 @@ if( MPI_C_FOUND )
         -M 12 -N 12 -a 12 -A 12
         -t 2 -T 2 -b 2 -B 2
         -m 4 -n 4
-        -I 6 -J 0 -i 6 -j 0
         -x -P 3 -Q 1 -p 3 -q 1)
-    set(PARSEC_REDISTRIBUTE_DISTRIBUTIONS 2dbc sdb)
+    # Triangular descriptors pick the triangle that holds the region: the
+    # first region lies in the lower triangle, its mirror in the upper one.
+    set(PARSEC_REDISTRIBUTE_LOWER_REGION -I 6 -J 0 -i 6 -j 0)
+    set(PARSEC_REDISTRIBUTE_UPPER_REGION -I 0 -J 6 -i 0 -j 6)
+    set(PARSEC_REDISTRIBUTE_DISTRIBUTIONS 2dbc sym-2dbc sdb)
     set(PARSEC_REDISTRIBUTE_MEMORY_LOCATIONS cpu)
     if(PARSEC_HAVE_CUDA)
         list(APPEND PARSEC_REDISTRIBUTE_MEMORY_LOCATIONS managed cuda)
@@ -36,12 +39,43 @@ if( MPI_C_FOUND )
                 ${_redistribute_cuda_launcher}
                 collections/redistribute/testing_redistribute
                 ${PARSEC_REDISTRIBUTE_SMALL_ARGS}
+                ${PARSEC_REDISTRIBUTE_LOWER_REGION}
                 -g ${_source_distribution} -G ${_target_distribution}
                 -l ${_source_memory} -L ${_target_memory}
                 ${_redistribute_cuda_options})
           endforeach()
         endforeach()
       endforeach()
+
+      foreach(_target_distribution ${PARSEC_REDISTRIBUTE_DISTRIBUTIONS})
+        parsec_addtest_cmd(collections/redistribute:mp:${_source_distribution}_to_${_target_distribution}:cpu_to_cpu:upper
+            ${MPI_TEST_CMD_LIST} 3
+            collections/redistribute/testing_redistribute
+            ${PARSEC_REDISTRIBUTE_SMALL_ARGS}
+            ${PARSEC_REDISTRIBUTE_UPPER_REGION}
+            -g ${_source_distribution} -G ${_target_distribution})
+      endforeach()
+    endforeach()
+
+    # Redistribute through sub-matrix views that start a few tiles in, so the
+    # descriptors carry a nonzero (i, j): whether a tile is stored must be
+    # decided from its global position. The lower case keeps equal tile sizes
+    # (reshuffle path), the upper case uses 3x3 target tiles (general path).
+    foreach(_distribution sym-2dbc sdb)
+      parsec_addtest_cmd(collections/redistribute:mp:${_distribution}_to_${_distribution}:cpu_to_cpu:lower_view
+          ${MPI_TEST_CMD_LIST} 3
+          collections/redistribute/testing_redistribute
+          ${PARSEC_REDISTRIBUTE_SMALL_ARGS}
+          ${PARSEC_REDISTRIBUTE_LOWER_REGION}
+          -g ${_distribution} -G ${_distribution}
+          -o 3,0 -O 3,0)
+      parsec_addtest_cmd(collections/redistribute:mp:${_distribution}_to_${_distribution}:cpu_to_cpu:upper_view
+          ${MPI_TEST_CMD_LIST} 3
+          collections/redistribute/testing_redistribute
+          ${PARSEC_REDISTRIBUTE_SMALL_ARGS} -b 3 -B 3
+          ${PARSEC_REDISTRIBUTE_UPPER_REGION}
+          -g ${_distribution} -G ${_distribution}
+          -o 0,3 -O 0,2)
     endforeach()
 
     parsec_addtest_cmd(collections/redistribute_random:mp ${MPI_TEST_CMD_LIST} 8 collections/redistribute/testing_redistribute_random -M 2400 -N 2400 -a 2400 -A 2400 -t 300 -T 300 -b 200 -B 200 -m 2000 -n 2000 -I 30 -J 40 -i 100 -j 121 -v -z -x -P 2 -Q 4 -p 4 -q 2)

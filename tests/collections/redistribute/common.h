@@ -32,6 +32,8 @@ enum iparam_t {
   IPARAM_SNB,          /* Number of columns in a super-tile */
   IPARAM_DISI,         /* row start point                   */
   IPARAM_DISJ,         /* column start point                */
+  IPARAM_VIEW_M,       /* Tile row offset of the redistributed view    */
+  IPARAM_VIEW_N,       /* Tile column offset of the redistributed view */
   /* Target/Redistributed Matrix */
   IPARAM_P_R,          /* Rows in the process grid          */
   IPARAM_Q_R,          /* Columns in the process grid       */
@@ -45,6 +47,8 @@ enum iparam_t {
   IPARAM_SNB_R,        /* Number of columns in a super-tile */
   IPARAM_DISI_R,       /* row start point                   */
   IPARAM_DISJ_R,       /* column start point                */
+  IPARAM_VIEW_M_R,     /* Tile row offset of the redistributed view    */
+  IPARAM_VIEW_N_R,     /* Tile column offset of the redistributed view */
   /* Matrix Common */
   IPARAM_RADIUS,       /* Radius of ghost region            */
   IPARAM_M_SUB,        /* Row size of submatrix             */
@@ -64,6 +68,7 @@ enum iparam_t {
 
 typedef enum redistribute_distribution_e {
   REDISTRIBUTE_DIST_2DBC,
+  REDISTRIBUTE_DIST_SYM_2DBC,
   REDISTRIBUTE_DIST_SBC
 } redistribute_distribution_t;
 
