@@ -1268,6 +1268,23 @@ jdf_datatype_remove_redundancy(const jdf_datatransfer_type_t* src,
     (DST)->dep_datatype_index = (SRC)->dep_datatype_index
 
 
+void jdf_expr_mark_dep_context(jdf_expr_t *expr)
+{
+    if( NULL == expr ) return;
+    if( JDF_OP_IS_C_CODE(expr->op) ) {
+        expr->jdf_c_code.dep_context = 1;
+    } else if( JDF_OP_IS_UNARY(expr->op) ) {
+        jdf_expr_mark_dep_context(expr->jdf_ua);
+    } else if( JDF_OP_IS_TERNARY(expr->op) ) {
+        jdf_expr_mark_dep_context(expr->jdf_tat);
+        jdf_expr_mark_dep_context(expr->jdf_ta1);
+        jdf_expr_mark_dep_context(expr->jdf_ta2);
+    } else if( JDF_OP_IS_BINARY(expr->op) ) {
+        jdf_expr_mark_dep_context(expr->jdf_ba1);
+        jdf_expr_mark_dep_context(expr->jdf_ba2);
+    }
+}
+
 /* Function to check the datatype specified on the dependency.
  * Returns:
  * - DEP_UNDEFINED_DATATYPE if no datatype has been set up by the user.

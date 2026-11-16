@@ -453,6 +453,10 @@ parsec_set_up_reshape_promise(parsec_execution_stream_t *es,
             int dsize;
             parsec_dep_data_description_t aux_data;
 
+            memset(&aux_data, 0, sizeof(aux_data));
+            /* The packed copy spans exactly the payload (remote_dep_copy_allocate):
+             * that is the size the properties of the dependency see. */
+            aux_data.remote.src_count = data->data->original->span;
             if ( PARSEC_HOOK_RETURN_DONE == fct->get_datatype(es, newcontext, oldcontext, &flow_mask, &aux_data)){
                 parsec_fatal("Unable to find unpacking datatype.");
             }

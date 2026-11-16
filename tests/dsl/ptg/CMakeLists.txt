@@ -34,3 +34,8 @@ add_subdirectory(controlgather)
 add_subdirectory(user-defined-functions)
 add_subdirectory(local-indices)
 add_subdirectory(multisize_bcast)
+
+# the inline C code of a dependency property sees the dependency (dep_ctx)
+parsec_addtest_executable(C receive_ctx)
+target_link_libraries(receive_ctx PRIVATE tests_runtime_common)
+target_ptg_sources(receive_ctx PRIVATE "receive_ctx.jdf")

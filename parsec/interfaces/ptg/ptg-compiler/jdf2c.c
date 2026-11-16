@@ -424,11 +424,13 @@ char * dump_expr(void **elem, void *arg)
     li.prefix = expr_info->prefix;
     li.suffix = expr_info->suffix;
     li.assignments = expr_info->assignments;
+    li.dep_ctx = expr_info->dep_ctx;
 
     ri.sa = ra;
     ri.prefix = expr_info->prefix;
     ri.suffix = expr_info->suffix;
     ri.assignments = expr_info->assignments;
+    ri.dep_ctx = expr_info->dep_ctx;
 
     switch( e->op ) {
     case JDF_VAR: {
@@ -547,6 +549,7 @@ char * dump_expr(void **elem, void *arg)
         ti.prefix = expr_info->prefix;
         ti.suffix = expr_info->suffix;
         ti.assignments = expr_info->assignments;
+        ti.dep_ctx = expr_info->dep_ctx;
 
         string_arena_add_string(sa, "((%s) ? (%s) : (%s))",
                                 dump_expr((void**)e->jdf_tat, &ti),
@@ -585,6 +588,10 @@ char * dump_expr(void **elem, void *arg)
              */
             string_arena_add_string(sa, "\n#error Expression %s has not been generated\n",
                                     e->jdf_c_code.code);
+        } else if( e->jdf_c_code.dep_context ) {
+            string_arena_add_string(sa, "%s(__parsec_tp, %s, %s)",
+                                    e->jdf_c_code.fname, expr_info->assignments,
+                                    (NULL != expr_info->dep_ctx) ? expr_info->dep_ctx : "&parsec_dep_context_none");
         } else {
             string_arena_add_string(sa, "%s(__parsec_tp, %s)",
                                     e->jdf_c_code.fname, expr_info->assignments);
@@ -5042,8 +5049,9 @@ static char *jdf_create_code_assignments_calls(string_arena_t *sa, int spaces,
 }
 
 static void
-jdf_generate_arena_string_from_datatype(string_arena_t *sa,
-                                        jdf_datatransfer_type_t datatype)
+jdf_generate_arena_string_from_datatype_ctx(string_arena_t *sa,
+                                            jdf_datatransfer_type_t datatype,
+                                            const char *dep_ctx)
 {
     expr_info_t info = EMPTY_EXPR_INFO;
     string_arena_t *sa2 = string_arena_new(64);
@@ -5052,6 +5060,7 @@ jdf_generate_arena_string_from_datatype(string_arena_t *sa,
     info.prefix = "";
     info.suffix = "";
     info.assignments = "&this_task->locals, this_task ";
+    info.dep_ctx = dep_ctx;
     if( JDF_CST == datatype.type->op ) {
         string_arena_add_string(sa, "%d", datatype.type->jdf_cst);
     } else if( (JDF_VAR == datatype.type->op) || (JDF_STRING == datatype.type->op) ) {
@@ -5060,6 +5069,13 @@ jdf_generate_arena_string_from_datatype(string_arena_t *sa,
         string_arena_add_string(sa, "%s", dump_expr((void**)datatype.type, &info));
     }
     string_arena_free(sa2);
+}
+
+static void
+jdf_generate_arena_string_from_datatype(string_arena_t *sa,
+                                        jdf_datatransfer_type_t datatype)
+{
+    jdf_generate_arena_string_from_datatype_ctx(sa, datatype, NULL);
 }
 
 static void
@@ -6307,6 +6323,7 @@ jdf_generate_code_datatype_lookup(const jdf_t *jdf,
     info.prefix = "";
     info.suffix = "";
     info.assignments = "&this_task->locals";
+    info.dep_ctx = "&__parsec_dep_ctx";
 
     ai.sa = sa2;
     ai.holder = "this_task->locals.";
@@ -6316,7 +6333,11 @@ jdf_generate_code_datatype_lookup(const jdf_t *jdf,
             "{\n"
             "  const %s *this_task = (%s*)this_generic_task;\n"
             "  const __parsec_%s_internal_taskpool_t *__parsec_tp = (__parsec_%s_internal_taskpool_t *)this_task->taskpool;\n"
-            "  (void)__parsec_tp; (void)es; (void)this_task; (void)data; (void)parent_task;\n"
+            "  /* What the properties of the dependency may look at: the task on the\n"
+            "   * other side, and the size of the incoming data, which the caller\n"
+            "   * preloads in data->remote.src_count (0 when there is none). */\n"
+            "  const parsec_dep_context_t __parsec_dep_ctx = { .parent = parent_task, .incoming_bytes = (size_t)data->remote.src_count };\n"
+            "  (void)__parsec_tp; (void)es; (void)this_task; (void)data; (void)parent_task; (void)__parsec_dep_ctx;\n"
             "%s",
             name,
             parsec_get_name(jdf, f, "task_t"), parsec_get_name(jdf, f, "task_t"),
@@ -6368,7 +6389,7 @@ jdf_generate_code_datatype_lookup(const jdf_t *jdf,
                 string_arena_init(sa_tmp_arena);
                 string_arena_init(sa_tmp_type);
                 string_arena_init(sa_temp);
-                jdf_generate_arena_string_from_datatype(sa_temp, dl->datatype_remote);
+                jdf_generate_arena_string_from_datatype_ctx(sa_temp, dl->datatype_remote, info.dep_ctx);
                 string_arena_add_string(sa_tmp_arena, " %s->arena ", string_arena_get_string(sa_temp));
 
                 if( NULL == dl->datatype_remote.layout ) { /* no specific layout */
@@ -8091,14 +8112,19 @@ static void jdf_generate_inline_c_function(jdf_expr_t *expr)
                       ++inline_c_functions, expr->jdf_c_code.lineno);
         assert(rc != -1);
 
+        /* The inline C code of a dependency property also receives the
+         * description of the dependency, dep_ctx */
+        const char *dep_ctx_param = expr->jdf_c_code.dep_context ? ", const parsec_dep_context_t *dep_ctx" : "";
+        const char *dep_ctx_void = expr->jdf_c_code.dep_context ? "  (void)dep_ctx;\n" : "";
         if(expr->jdf_type == PARSEC_RETURN_TYPE_ARENA_DATATYPE_T) {
-            coutput("static inline %s %s(const __parsec_%s_internal_taskpool_t *__parsec_tp, const %s *assignments, const __parsec_%s_%s_task_t *this_task)\n"
+            coutput("static inline %s %s(const __parsec_%s_internal_taskpool_t *__parsec_tp, const %s *assignments, const __parsec_%s_%s_task_t *this_task%s)\n"
                     "{\n"
-                    "  (void)__parsec_tp;\n",
+                    "  (void)__parsec_tp;\n"
+                    "%s",
                     full_type[expr->jdf_type],
                     expr->jdf_c_code.fname, jdf_basename,
                     parsec_get_name(NULL, expr->jdf_c_code.function_context, "parsec_assignment_t"),
-                    jdf_basename, expr->jdf_c_code.function_context->fname);
+                    jdf_basename, expr->jdf_c_code.function_context->fname, dep_ctx_param, dep_ctx_void);
         } else if(expr->jdf_type == PARSEC_INLINE_WITH_TASK) {
             coutput("static inline %s %s(const __parsec_%s_%s_task_t *this_task)\n"
                     "{\n"
@@ -8108,12 +8134,14 @@ static void jdf_generate_inline_c_function(jdf_expr_t *expr)
                     jdf_basename, expr->jdf_c_code.function_context->fname,
                     parsec_get_name(NULL, expr->jdf_c_code.function_context, "parsec_assignment_t"));
         } else {
-            coutput("static inline %s %s(const __parsec_%s_internal_taskpool_t *__parsec_tp, const %s *assignments)\n"
+            coutput("static inline %s %s(const __parsec_%s_internal_taskpool_t *__parsec_tp, const %s *assignments%s)\n"
                     "{\n"
-                    "  (void)__parsec_tp;\n",
+                    "  (void)__parsec_tp;\n"
+                    "%s",
                     full_type[expr->jdf_type],
                     expr->jdf_c_code.fname, jdf_basename,
-                    parsec_get_name(NULL, expr->jdf_c_code.function_context, "parsec_assignment_t"));
+                    parsec_get_name(NULL, expr->jdf_c_code.function_context, "parsec_assignment_t"),
+                    dep_ctx_param, dep_ctx_void);
         }
 
         coutput("  /* This inline C function was declared in the context of the task %s */\n",

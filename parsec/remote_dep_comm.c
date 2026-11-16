@@ -696,9 +696,16 @@ remote_dep_copy_allocate(parsec_dep_type_description_t* data, int preferred_devi
      * copy on the main memory (device 0), and parsec will transfer the data as needed
      * for all tasks executing on acclerators.
      */
-    dc = parsec_arena_get_new_copy(data->arena, data->dst_count, preferred_device, data->dst_datatype);
+    dc = parsec_arena_get_new_copy(data->arena, parsec_dep_type_arena_count(data),
+                                   preferred_device, data->dst_datatype);
     if( NULL == dc ) {
         return NULL;
+    }
+    if( PARSEC_DATATYPE_PACKED == data->dst_datatype ) {
+        /* Packed bytes are not elements of the arena they are stored in: the
+         * data is the bytes, which is how the unpack tells the successors the
+         * size of what they receive (parsec_set_up_reshape_promise). */
+        dc->original->span = data->dst_count;
     }
     if( 0 == preferred_device ) {
         /* Device-0 arena copies normally keep an extra data_t reference because
@@ -723,8 +730,8 @@ remote_dep_copy_allocate(parsec_dep_type_description_t* data, int preferred_devi
         PARSEC_DEBUG_VERBOSE(5, parsec_comm_output_stream, "RDEP:\tFail to allocate tile on device %d and instead allocate on device %d\n",
                              preferred_device, dc->device_index);
     }
-    PARSEC_DEBUG_VERBOSE(5, parsec_comm_output_stream, "RDEP:\tMalloc new temporary tile [dev %d] copy %p size %" PRIu64 " count = %" PRIu64 " displ = %" PRIi64 " %p",
-                         dc->device_index, dc, data->arena->elem_size, data->dst_count, data->dst_displ, data->arena);
+    PARSEC_DEBUG_VERBOSE(5, parsec_comm_output_stream, "RDEP:\tMalloc new temporary tile [dev %d] copy %p span %zu count = %" PRIu64 " displ = %" PRIi64 " %p",
+                         dc->device_index, dc, dc->original->span, data->dst_count, data->dst_displ, data->arena);
     return dc;
 }
 
@@ -889,7 +896,9 @@ remote_dep_comm_retrieve_datatype(parsec_execution_stream_t *eu,
     const parsec_task_class_t* fct           = newcontext->task_class;
     uint32_t flow_mask                       = (1U << dep->flow->flow_index) | 0x80000000;  /* in flow */
 
-    parsec_datatype_t old_dtt = output->data.remote.dst_datatype;
+    /* what the successors seen so far receive */
+    parsec_dep_type_description_t old_remote = output->data.remote;
+    parsec_datatype_t old_dtt = old_remote.dst_datatype;
 
     /* A successor with no accelerator incarnation reads this data in main
      * memory whatever its affinity says, and once one of them has asked for it
@@ -903,9 +912,35 @@ remote_dep_comm_retrieve_datatype(parsec_execution_stream_t *eu,
         output->data.preferred_device = -1;
     }
 
-    /* Extract the datatype, count and displacement from the target task */
-
+    /* Extract the datatype, count and displacement from the target task. Its
+     * get_datatype() reads the size of the incoming payload, which the
+     * properties of the dependency can use (dep_ctx->incoming_bytes), in
+     * src_count; a previous successor of the same payload has overwritten it. */
+    output->data.remote.src_count = output->remote_size;
     fct->get_datatype(eu, newcontext, oldcontext, &flow_mask, &output->data);
+#if defined(PARSEC_DEBUG_NOISIER)
+    if( (0 != output->remote_size) && (0 != output->data.remote.dst_count) ) {
+        /* A successor may read only the head of the payload, whatever datatype
+         * it reads it with (a multi-size broadcast sends every receiver the
+         * longest version). A receiver that declares more than the sender
+         * packed gets a buffer larger than the data: this is how applications
+         * pad receives for data whose size is only known at run time (and
+         * what a count computed from dep_ctx->incoming_bytes avoids), but it
+         * can also be a mistake in the dependency. Report it at debug level only: a warning per receive
+         * is costly and noisy for the intended use. */
+        int dsize = 0;
+        if( (PARSEC_SUCCESS == parsec_ce.pack_size(&parsec_ce, output->data.remote.dst_count,
+                                                   output->data.remote.dst_datatype, &dsize)) &&
+            (dsize > 0) && ((uint32_t)dsize > output->remote_size) ) {
+            char tmp[MAX_TASK_STRLEN];
+            PARSEC_DEBUG_VERBOSE(10, parsec_comm_output_stream,
+                                 "RDEP: %s declares %d bytes (%" PRIu64 " elements) on flow %s, but the sender packed only %u bytes:"
+                                 " the receive buffer is larger than the data",
+                                 parsec_task_snprintf(tmp, MAX_TASK_STRLEN, newcontext), dsize,
+                                 output->data.remote.dst_count, dep->flow->name, output->remote_size);
+        }
+    }
+#endif  /* defined(PARSEC_DEBUG_NOISIER) */
     /* Checking PARSEC_HOOK_RETURN_DONE == fct->get_datatype and setting
      * output->data to *out_data is no longer valid.
      * Now, send operation can rely on the datacopy dtt,
@@ -956,7 +991,12 @@ remote_dep_comm_retrieve_datatype(parsec_execution_stream_t *eu,
                 (uintptr_t)old_dtt, (uintptr_t)output->data.remote.dst_datatype);
 #endif
             int dsize;
-            parsec_ce.pack_size(&parsec_ce, output->data.remote.dst_count, output->data.remote.dst_datatype, &dsize);
+            if( 0 != output->remote_size ) {
+                /* the sender told us how many bytes it packed */
+                dsize = (int)output->remote_size;
+            } else {
+                parsec_ce.pack_size(&parsec_ce, output->data.remote.dst_count, output->data.remote.dst_datatype, &dsize);
+            }
             output->data.remote.src_count = output->data.remote.dst_count = dsize;
             output->data.remote.src_datatype = output->data.remote.dst_datatype = PARSEC_DATATYPE_PACKED;
             /* Packed bytes are unpacked into a copy in main memory whoever
@@ -966,6 +1006,12 @@ remote_dep_comm_retrieve_datatype(parsec_execution_stream_t *eu,
              */
             output->data.preferred_device = -1;
             return PARSEC_ITERATE_STOP;
+        }
+        if( old_remote.dst_count > output->data.remote.dst_count ) {
+            /* Same datatype, fewer elements: this successor reads the head of
+             * what the previous ones receive. Keep receiving all of it, as it
+             * was going to be, whatever the order the successors come in. */
+            output->data.remote = old_remote;
         }
     }
 #if defined(PARSEC_DEBUG_NOISIER)
@@ -1070,6 +1116,7 @@ remote_dep_get_datatypes(parsec_execution_stream_t* es,
             PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "RDEP:\tRetrieve datatype with mask 0x%x (remote_dep_get_datatypes)", (1U<<k));
             origin->msg.task_class_id = dtd_task->super.task_class->task_class_id;
             origin->output[k].data.remote.src_datatype = origin->output[k].data.remote.dst_datatype = PARSEC_DATATYPE_NULL;
+            origin->output[k].remote_size = 0;
             /* Default incoming temporaries to main memory. Some paths in the
              * iterator below return early, notably the packed fallback for
              * mixed receive datatypes, and must not inherit a stale placement
@@ -1140,6 +1187,9 @@ remote_dep_get_datatypes(parsec_execution_stream_t* es,
             origin->output[k].data.preferred_device = 0;
             assert(idx <= data_sizes[0]);
             origin->output[k].data.remote.src_count = (idx < data_sizes[0]) ? data_sizes[idx+1] : 0;
+            /* get_datatype() overwrites src_count: keep the payload size for
+             * every successor of it (dep_ctx->incoming_bytes) */
+            origin->output[k].remote_size = (uint32_t)origin->output[k].data.remote.src_count;
             PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream,
                                  "RDEP:\tRetrieve datatype with mask 0x%x (remote_dep_get_datatypes) remote size %u",
                                  local_mask, origin->output[k].data.remote.src_count);
@@ -1154,6 +1204,7 @@ remote_dep_get_datatypes(parsec_execution_stream_t* es,
                 idx++;
             } else {
                 origin->output[k].data.remote.src_count = 0;
+                origin->output[k].remote_size = 0;
             }
         }
         assert(idx <= data_sizes[0]);

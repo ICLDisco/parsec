@@ -438,6 +438,8 @@ typedef struct jdf_expr {
                     int                   lineno;
                     char                 *fname;
                     jdf_function_entry_t *function_context;
+                    int                   dep_context;  /**< a property of a dependency: the inline function
+                                                         *   also receives the parsec_dep_context_t dep_ctx */
                 } c_code;
                 int32_t           int32_cstval;
                 int64_t           int64_cstval;
@@ -540,6 +542,11 @@ int jdf_link_params_and_locals(jdf_function_entry_t* f);
 #define DEP_UNDEFINED_DATATYPE 0
 #define DEP_CUSTOM_DATATYPE 1
 int jdf_dep_undefined_type(jdf_datatransfer_type_t datatype );
+
+/* Mark the inline C code of a dependency property (type, layout, count,
+ * displ and their _remote / _data variants): its function also receives the
+ * description of the dependency at runtime, parsec_dep_context_t *dep_ctx. */
+void jdf_expr_mark_dep_context(jdf_expr_t *expr);
 
 #define PARSEC_RETURN_TYPE_INT32                0
 #define PARSEC_RETURN_TYPE_INT64                1

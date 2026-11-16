@@ -1,6 +1,22 @@
 Changelog for features specific to the PTG Domain Specific Language
 
 
+2026-11-16
+
+ - The inline C code of a dependency property (type, layout, count, displ and
+   their _remote and _data variants) receives a description of the dependency,
+   dep_ctx (parsec_dep_context_t, parsec/runtime.h): the task on the other side
+   (parent) and the size of the incoming data (incoming_bytes). A receive can
+   be sized after what the producer sent, into the application's own arena:
+         B <- B SEND(k) [type_remote = DBL layout_remote = parsec_datatype_double_t
+                         count_remote = %{ return dep_ctx->incoming_bytes / sizeof(double); %}]
+ - A receive is allocated as the number of elements of its arena that hold it.
+   Release note: when the successors of one payload disagree on the datatype
+   (the packed fallback), the receive takes the packed bytes rounded up to
+   elements of the arena, no longer the packed bytes times the element size.
+   When they agree on the datatype but not on the count, the largest count is
+   received, whatever their order (the last one used to win).
+
 2020-12-22
 
  - Add PTG CUDA bodies support for:

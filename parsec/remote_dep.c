@@ -29,6 +29,25 @@ int parsec_communication_engine_up = -1;
 int parsec_comm_output_stream = 0;
 int parsec_comm_verbose = 0;
 
+const parsec_dep_context_t parsec_dep_context_none = { .parent = NULL, .incoming_bytes = 0 };
+
+size_t parsec_dep_type_arena_count(const parsec_dep_type_description_t *remote)
+{
+    ptrdiff_t lb = 0, extent = 0;
+    size_t bytes, count;
+
+    if( (NULL == remote->arena) || (0 == remote->dst_count) ||
+        (PARSEC_SUCCESS != parsec_type_extent(remote->dst_datatype, &lb, &extent)) ||
+        (extent <= 0) || (remote->dst_displ < 0) ) {
+        return remote->dst_count;
+    }
+    if( lb < 0 ) lb = 0;  /* data before the buffer is not ours to size */
+    /* element i of the datatype spans [lb + i * extent, lb + (i + 1) * extent) */
+    bytes = (size_t)remote->dst_displ + (size_t)lb + remote->dst_count * (size_t)extent;
+    count = (bytes + remote->arena->elem_size - 1) / remote->arena->elem_size;
+    return (0 == count) ? 1 : count;
+}
+
 #ifdef DISTRIBUTED
 
 /* comm_yield mode: see valid values in the corresponding mca_register */
@@ -218,6 +237,7 @@ inline void remote_deps_free(parsec_remote_deps_t* deps)
         for(a = 0; a < (parsec_remote_dep_context.max_nodes_number + 31)/32; a++)
             deps->output[k].rank_bits[a] = 0;
         deps->output[k].count_bits = 0;
+        deps->output[k].remote_size = 0;
         deps->output[k].data.preferred_device = 0;
 #if defined(PARSEC_DEBUG_PARANOID)
         deps->output[k].data.data   = NULL;

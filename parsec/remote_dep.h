@@ -133,6 +133,8 @@ struct remote_dep_output_param_s {
                                                        dependencies indexes not flow indexes. */
     int32_t                              priority;    /**< the priority of the message */
     uint32_t                             count_bits;  /**< The number of participants */
+    uint32_t                             remote_size; /**< Receiver side: the size, in bytes, of the payload
+                                                       as packed by the sender (0 when none is expected). */
     uint32_t*                            rank_bits;   /**< The array of bits representing the propagation path */
 };
 
@@ -169,6 +171,17 @@ extern int parsec_communication_engine_up;
 extern int parsec_comm_output_stream;
 extern int parsec_comm_verbose;
 extern parsec_execution_stream_t parsec_comm_es;
+
+
+/**
+ * The number of elements of remote->arena that hold what the description
+ * receives (dst_displ, then dst_count elements of dst_datatype). An arena
+ * counts in elements of its own size, while the description counts in
+ * elements of its datatype: the two only agree when the datatype spans exactly
+ * one arena element. A tile arena holds a short receive in one element, an
+ * arena of small elements holds it in as many as it takes.
+ */
+size_t parsec_dep_type_arena_count(const parsec_dep_type_description_t *remote);
 extern int parsec_param_comm_thread_multiple;
 
 #ifdef DISTRIBUTED
