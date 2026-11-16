@@ -69,6 +69,23 @@ uint64_t parsec_dep_auto_count(const parsec_dep_context_t *dep_ctx, parsec_datat
     return dep_ctx->incoming_bytes / (size_t)esize;
 }
 
+uint64_t parsec_dep_copy_count(const parsec_data_copy_t *copy, uint64_t count)
+{
+    const parsec_arena_chunk_t *chunk;
+    ptrdiff_t lb = 0, extent = 0;
+
+    if( (1 != count) || (NULL == copy) || (NULL == copy->original) ) return count;
+    /* A copy on a device has no chunk of its own: the arena that sized the
+     * data is the one of its main-memory copy. */
+    chunk = copy->arena_chunk;
+    if( (NULL == chunk) && (NULL != copy->original->device_copies[0]) ) {
+        chunk = copy->original->device_copies[0]->arena_chunk;
+    }
+    if( (NULL == chunk) || (PARSEC_ARENA_AUTO != chunk->origin) ) return count;
+    if( (PARSEC_SUCCESS != parsec_type_extent(copy->dtt, &lb, &extent)) || (extent <= 0) ) return count;
+    return (copy->original->span > (size_t)extent) ? copy->original->span / (size_t)extent : 1;
+}
+
 size_t parsec_dep_type_arena_count(const parsec_dep_type_description_t *remote)
 {
     ptrdiff_t lb = 0, extent = 0;
