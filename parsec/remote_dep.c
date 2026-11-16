@@ -31,6 +31,44 @@ int parsec_comm_verbose = 0;
 
 const parsec_dep_context_t parsec_dep_context_none = { .parent = NULL, .incoming_bytes = 0 };
 
+/* The size of an element of layout as the sender packs it, 0 if unknown */
+static int parsec_dep_auto_element_size(parsec_datatype_t layout)
+{
+    int esize = 0;
+    if( (NULL == parsec_ce.pack_size) ||
+        (PARSEC_SUCCESS != parsec_ce.pack_size(&parsec_ce, 1, layout, &esize)) ) {
+        if( PARSEC_SUCCESS != parsec_type_size(layout, &esize) ) {
+            esize = 0;
+        }
+    }
+    return esize;
+}
+
+parsec_datatype_t parsec_dep_auto_datatype(const parsec_dep_context_t *dep_ctx, parsec_datatype_t layout)
+{
+    int esize;
+    if( 0 == dep_ctx->incoming_bytes ) return PARSEC_DATATYPE_NULL;
+    esize = parsec_dep_auto_element_size(layout);
+    if( (esize <= 0) || (0 != (dep_ctx->incoming_bytes % (size_t)esize)) ) {
+        PARSEC_DEBUG_VERBOSE(10, parsec_comm_output_stream,
+                             "RDEP:\tAUTO receive of %zu bytes is not a whole number of %d byte elements, receive it as bytes",
+                             dep_ctx->incoming_bytes, esize);
+        return parsec_datatype_int8_t;
+    }
+    return layout;
+}
+
+uint64_t parsec_dep_auto_count(const parsec_dep_context_t *dep_ctx, parsec_datatype_t layout)
+{
+    int esize;
+    if( 0 == dep_ctx->incoming_bytes ) return 0;
+    esize = parsec_dep_auto_element_size(layout);
+    if( (esize <= 0) || (0 != (dep_ctx->incoming_bytes % (size_t)esize)) ) {
+        return dep_ctx->incoming_bytes;  /* as bytes */
+    }
+    return dep_ctx->incoming_bytes / (size_t)esize;
+}
+
 size_t parsec_dep_type_arena_count(const parsec_dep_type_description_t *remote)
 {
     ptrdiff_t lb = 0, extent = 0;

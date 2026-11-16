@@ -706,6 +706,13 @@ remote_dep_copy_allocate(parsec_dep_type_description_t* data, int preferred_devi
          * data is the bytes, which is how the unpack tells the successors the
          * size of what they receive (parsec_set_up_reshape_promise). */
         dc->original->span = data->dst_count;
+    } else if( PARSEC_ARENA_AUTO == data->arena ) {
+        /* [type = AUTO]: the arena counts in grains, the data spans what it
+         * receives (count elements of their extent) */
+        ptrdiff_t lb = 0, extent = 0;
+        if( (PARSEC_SUCCESS == parsec_type_extent(data->dst_datatype, &lb, &extent)) && (extent > 0) ) {
+            dc->original->span = data->dst_count * (size_t)extent;
+        }
     }
     if( 0 == preferred_device ) {
         /* Device-0 arena copies normally keep an extra data_t reference because

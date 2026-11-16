@@ -16,6 +16,11 @@ Changelog for features specific to the PTG Domain Specific Language
    elements of the arena, no longer the packed bytes times the element size.
    When they agree on the datatype but not on the count, the largest count is
    received, whatever their order (the last one used to win).
+ - [type = AUTO] on an input dependency from another task, on a READ flow:
+   receive whatever the producer sends, as elements of layout (bytes by
+   default), in a buffer of exactly that size taken from the runtime arena
+   PARSEC_ARENA_AUTO, and give it to the task as received:
+         A <- A SEND(k) [type = AUTO layout = parsec_datatype_double_t]
 
 2020-12-22
 

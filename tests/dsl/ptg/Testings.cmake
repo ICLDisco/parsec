@@ -17,3 +17,31 @@ if( MPI_C_FOUND )
   parsec_addtest_cmd(dsl/ptg/receive_ctx:mp ${MPI_TEST_CMD_LIST} 2 dsl/ptg/receive_ctx)
   parsec_addtest_cmd(dsl/ptg/receive_ctx:rdv:mp ${MPI_TEST_CMD_LIST} 2 dsl/ptg/receive_ctx -d=4096 -- --mca runtime_comm_short_limit 0)
 endif( MPI_C_FOUND )
+
+# [type = AUTO] only matters when data crosses processes. The single
+# process flavor checks the generated code still runs when everything is local.
+if( MPI_C_FOUND )
+  parsec_addtest_cmd(dsl/ptg/receive_auto ${SHM_TEST_CMD_LIST} dsl/ptg/receive_auto)
+  parsec_addtest_cmd(dsl/ptg/receive_auto:mp ${MPI_TEST_CMD_LIST} 2 dsl/ptg/receive_auto)
+  # rendezvous only, no data embedded in the activation message
+  parsec_addtest_cmd(dsl/ptg/receive_auto:rdv:mp ${MPI_TEST_CMD_LIST} 2 dsl/ptg/receive_auto -- --mca runtime_comm_short_limit 0)
+  # payloads larger than the largest cached class of the AUTO arena (1GiB) would
+  # be slow to test; these are larger than the eager limit and than most classes
+  parsec_addtest_cmd(dsl/ptg/receive_auto:large:mp ${MPI_TEST_CMD_LIST} 2 dsl/ptg/receive_auto -n=8 -b=3145728)
+  if(PARSEC_HAVE_CUDA)
+    # SEND, MOD and RECV have CUDA incarnations: produce the data on a GPU,
+    # check it once staged in GPU memory, and keep checking the datatypes on
+    # the CPU incarnation. -G=1 gives each process its own GPU (none is
+    # shared). -m=1 requires the host copy of a GPU-only data to have been
+    # rebuilt, sized after an AUTO receive, to stage it out (see CHECK).
+    parsec_addtest_cmd(dsl/ptg/receive_auto:gpu:mp ${MPI_TEST_CMD_LIST} 2 ${CTEST_CUDA_LAUNCHER_OPTIONS} dsl/ptg/receive_auto -g=1 -G=1 -m=1 -- --mca device_cuda_enabled 1)
+    parsec_addtest_cmd(dsl/ptg/receive_auto:cpu:mp ${MPI_TEST_CMD_LIST} 2 dsl/ptg/receive_auto -- --mca device_cuda_enabled 0)
+    if(PARSEC_MPI_IS_GPU_AWARE)
+      # the tiles prefer the GPU: the data is received straight into GPU memory
+      parsec_addtest_cmd(dsl/ptg/receive_auto:gpudirect:mp ${MPI_TEST_CMD_LIST} 2 ${CTEST_CUDA_LAUNCHER_OPTIONS} dsl/ptg/receive_auto -g=1 -G=1 -d=1 -m=1 -- --mca device_cuda_enabled 1 --mca mpi_gpu_aware 3 --mca runtime_comm_short_limit 0)
+    endif(PARSEC_MPI_IS_GPU_AWARE)
+  endif(PARSEC_HAVE_CUDA)
+  parsec_addtest_cmd(dsl/ptg/receive_auto_mixed ${SHM_TEST_CMD_LIST} dsl/ptg/receive_auto_mixed)
+  parsec_addtest_cmd(dsl/ptg/receive_auto_mixed:mp ${MPI_TEST_CMD_LIST} 2 dsl/ptg/receive_auto_mixed)
+  parsec_addtest_cmd(dsl/ptg/receive_auto_mixed:rdv:mp ${MPI_TEST_CMD_LIST} 2 dsl/ptg/receive_auto_mixed -- --mca runtime_comm_short_limit 0)
+endif( MPI_C_FOUND )

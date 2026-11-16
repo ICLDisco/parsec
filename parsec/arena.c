@@ -129,6 +129,24 @@ int parsec_arena_construct(parsec_arena_t* arena,
                                     parsec_arena_max_cached_memory);
 }
 
+parsec_arena_t parsec_arena_auto;
+
+int parsec_arena_auto_init(void)
+{
+    int rc;
+    PARSEC_OBJ_CONSTRUCT(&parsec_arena_auto, parsec_arena_t);
+    rc = parsec_arena_construct_ex(&parsec_arena_auto, PARSEC_ARENA_AUTO_GRAIN, PARSEC_ARENA_ALIGNMENT_SSE,
+                                   parsec_arena_max_allocated_memory, parsec_arena_max_cached_memory);
+    if( PARSEC_SUCCESS != rc ) return rc;
+    /* classes up to 1GiB, larger requests are served on demand */
+    return parsec_arena_set_count_classes(&parsec_arena_auto, ((size_t)1 << 30) / PARSEC_ARENA_AUTO_GRAIN);
+}
+
+void parsec_arena_auto_fini(void)
+{
+    PARSEC_OBJ_DESTRUCT(&parsec_arena_auto);
+}
+
 static void parsec_arena_destructor(parsec_arena_t* arena)
 {
     parsec_list_item_t* item;

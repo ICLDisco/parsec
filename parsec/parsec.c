@@ -701,6 +701,9 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     parsec_mca_param_reg_sizet_name("arena", "max_cached", "The maximum amount of memory each arena can"
                                    " cache in a freelist (0=no caching)",
                                    false, false, parsec_arena_max_cached_memory, &parsec_arena_max_cached_memory);
+    if( PARSEC_SUCCESS != parsec_arena_auto_init() ) {
+        parsec_warning("Unable to set up the arena of the buffers sized at runtime ([type = AUTO])");
+    }
 
     parsec_mca_param_reg_sizet_name("task", "startup_iter", "The number of ready tasks to be generated during the startup "
                                    "before allowing the scheduler to distribute them across the entire execution context.",
@@ -1336,6 +1339,8 @@ int parsec_fini( parsec_context_t** pcontext )
     parsec_data_dist_fini();
 
     parsec_mca_device_fini();
+    /* after the devices, which may still hold copies taken from it */
+    parsec_arena_auto_fini();
 
     for(p = 0; p < context->nb_vp; p++) {
         parsec_vp_fini(context->virtual_processes[p]);

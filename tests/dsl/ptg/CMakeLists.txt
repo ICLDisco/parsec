@@ -39,3 +39,12 @@ add_subdirectory(multisize_bcast)
 parsec_addtest_executable(C receive_ctx)
 target_link_libraries(receive_ctx PRIVATE tests_runtime_common)
 target_ptg_sources(receive_ctx PRIVATE "receive_ctx.jdf")
+
+# [type = AUTO]: receive data whose size is only known at runtime
+parsec_addtest_executable(C receive_auto)
+target_link_libraries(receive_auto PRIVATE tests_runtime_common)
+target_ptg_sources(receive_auto PRIVATE "receive_auto.jdf")
+
+parsec_addtest_executable(C receive_auto_mixed)
+target_link_libraries(receive_auto_mixed PRIVATE tests_runtime_common)
+target_ptg_sources(receive_auto_mixed PRIVATE "receive_auto_mixed.jdf")

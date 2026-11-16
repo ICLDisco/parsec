@@ -5078,6 +5078,27 @@ jdf_generate_arena_string_from_datatype(string_arena_t *sa,
     jdf_generate_arena_string_from_datatype_ctx(sa, datatype, NULL);
 }
 
+/*
+ * [type = AUTO]: the receive is sized after the incoming payload, from the
+ * runtime arena of buffers sized at runtime, as elements of the layout (bytes
+ * by default). The datatype and the count come from the dependency context
+ * (parsec_dep_auto_datatype / parsec_dep_auto_count).
+ */
+static void
+jdf_generate_auto_remote_datatype(jdf_datatransfer_type_t datatype, expr_info_t *info,
+                                  string_arena_t *sa_arena, string_arena_t *sa_type,
+                                  string_arena_t *sa_count, string_arena_t *sa_displ)
+{
+    const char *ctx = (NULL != info->dep_ctx) ? info->dep_ctx : "&parsec_dep_context_none";
+    char *layout = (NULL == datatype.layout) ? strdup("parsec_datatype_int8_t")
+                                             : strdup(dump_expr((void**)datatype.layout, info));
+    string_arena_add_string(sa_arena, "PARSEC_ARENA_AUTO");
+    string_arena_add_string(sa_type, "parsec_dep_auto_datatype(%s, %s)", ctx, layout);
+    string_arena_add_string(sa_count, "parsec_dep_auto_count(%s, %s)", ctx, layout);
+    string_arena_add_string(sa_displ, "0");
+    free(layout);
+}
+
 static void
 jdf_generate_code_fillup_datatypes(string_arena_t * sa_tmp_arena,     string_arena_t * sa_arena,
                                    string_arena_t * sa_tmp_type_src,  string_arena_t * sa_type_src,
@@ -6389,18 +6410,24 @@ jdf_generate_code_datatype_lookup(const jdf_t *jdf,
                 string_arena_init(sa_tmp_arena);
                 string_arena_init(sa_tmp_type);
                 string_arena_init(sa_temp);
-                jdf_generate_arena_string_from_datatype_ctx(sa_temp, dl->datatype_remote, info.dep_ctx);
-                string_arena_add_string(sa_tmp_arena, " %s->arena ", string_arena_get_string(sa_temp));
-
-                if( NULL == dl->datatype_remote.layout ) { /* no specific layout */
-                    string_arena_add_string(sa_tmp_type, "%s->opaque_dtt", string_arena_get_string(sa_temp));
-                } else {
-                    string_arena_add_string(sa_tmp_type, "%s", dump_expr((void**)dl->datatype_remote.layout, &info));
-                }
                 string_arena_init(sa_tmp_count);
-                string_arena_add_string(sa_tmp_count, "%s", dump_expr((void**)dl->datatype_remote.count, &info));
                 string_arena_init(sa_tmp_displ);
-                string_arena_add_string(sa_tmp_displ, "%s", dump_expr((void**)dl->datatype_remote.displ, &info));
+                if( jdf_datatype_is_auto(dl->datatype_remote) ) {
+                    jdf_generate_auto_remote_datatype(dl->datatype_remote, &info,
+                                                      sa_tmp_arena, sa_tmp_type,
+                                                      sa_tmp_count, sa_tmp_displ);
+                } else {
+                    jdf_generate_arena_string_from_datatype_ctx(sa_temp, dl->datatype_remote, info.dep_ctx);
+                    string_arena_add_string(sa_tmp_arena, " %s->arena ", string_arena_get_string(sa_temp));
+
+                    if( NULL == dl->datatype_remote.layout ) { /* no specific layout */
+                        string_arena_add_string(sa_tmp_type, "%s->opaque_dtt", string_arena_get_string(sa_temp));
+                    } else {
+                        string_arena_add_string(sa_tmp_type, "%s", dump_expr((void**)dl->datatype_remote.layout, &info));
+                    }
+                    string_arena_add_string(sa_tmp_count, "%s", dump_expr((void**)dl->datatype_remote.count, &info));
+                    string_arena_add_string(sa_tmp_displ, "%s", dump_expr((void**)dl->datatype_remote.displ, &info));
+                }
 
                 jdf_generate_code_fillup_datatypes(sa_tmp_arena,    sa_arena,
                                                    sa_tmp_type,     sa_type,
@@ -7852,6 +7879,11 @@ jdf_generate_code_iterate_successors_or_predecessors(const jdf_t *jdf,
                 string_arena_add_string(sa_tmp_count_r, "  /* Control: always empty */ 0");
                 string_arena_add_string(sa_tmp_type_r, "PARSEC_DATATYPE_NULL");
                 string_arena_add_string(sa_tmp_displ_r, "0");
+            } else if( jdf_datatype_is_auto(dl->datatype_remote) ) {
+                /* Only on input dependencies, i.e. when iterating over the predecessors */
+                jdf_generate_auto_remote_datatype(dl->datatype_remote, &info,
+                                                  sa_tmp_arena_r, sa_tmp_type_r,
+                                                  sa_tmp_count_r, sa_tmp_displ_r);
             } else {
                 string_arena_init(sa_temp);
                 jdf_generate_arena_string_from_datatype(sa_temp, dl->datatype_remote);
