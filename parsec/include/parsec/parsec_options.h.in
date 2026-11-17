@@ -110,6 +110,8 @@
 /* profiling */
 #cmakedefine PARSEC_PROF_TRACE
 #cmakedefine PARSEC_PROF_TRACE_NVTX
+#cmakedefine PARSEC_PROF_TRACE_SCOREP
+#cmakedefine PARSEC_HAVE_OTF2
 #cmakedefine PARSEC_PROF_TRACE_PTG_INTERNAL_INIT
 #cmakedefine PARSEC_PROF_RUSAGE_EU
 #cmakedefine PARSEC_PROF_TRACE_SCHEDULING_EVENTS

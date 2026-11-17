@@ -72,6 +72,8 @@ cat <<EOF
                 produce a trace of the execution that can be analyzed in a trace vizualizer
 --enable-prof-nvtx
                 emit profiling events as NVTX ranges for NVIDIA Nsight Systems
+--enable-prof-scorep
+                emit profiling events as Score-P user regions
 --enable-prof-calltrace
                 print a message when each task body is executed
 --enable-prof-dryrun=yes|dep|body|no
@@ -93,6 +95,8 @@ cat <<EOF
                 use the Ayudame package [installed in DIR] (optional)
 --with-nvtx[=DIR]
                 use NVTX headers [installed in DIR] for Nsight Systems annotations
+--with-scorep[=DIR]
+                use the Score-P user adapter headers [installed in DIR]
 
 --with-hwloc[=DIR]
                 use the HWLoc package [installed in DIR] (default=autodetect)
@@ -216,6 +220,8 @@ while [ "x$1" != x ]; do
         --disable-prof-trace) enable_prof_trace=no; shift;;
         --enable-prof-nvtx|--enable-nvtx) enable_prof_nvtx=yes; shift;;
         --disable-prof-nvtx|--disable-nvtx) enable_prof_nvtx=no; shift;;
+        --enable-prof-scorep|--enable-scorep) enable_prof_scorep=yes; shift;;
+        --disable-prof-scorep|--disable-scorep) enable_prof_scorep=no; shift;;
         --enable-prof-calltrace) enable_prof_calltrace=yes; shift;;
         --disable-prof-calltrace) enable_prof_calltrace=no; shift;;
         --enable-prof-dryrun=*) enable_prof_dryrun="${1#*=}"; shift;;
@@ -241,6 +247,9 @@ while [ "x$1" != x ]; do
         --with-nvtx=*) with_nvtx="${1#*=}"; shift;;
         --with-nvtx) with_nvtx=yes; shift;;
         --without-nvtx) with_nvtx=no; shift;;
+        --with-scorep=*) with_scorep="${1#*=}"; shift;;
+        --with-scorep) with_scorep=yes; shift;;
+        --without-scorep) with_scorep=no; shift;;
 
 # MPI options
         --with-mpi=*) with_mpi="${1#*=}"; shift;;
@@ -494,6 +503,15 @@ x) ;;
 esac
 [ x$enable_prof_nvtx = xyes ] && CMAKE_DEFINES+=" -DPARSEC_PROF_TRACE=ON -DPARSEC_PROF_TRACE_NVTX=ON"
 [ x$enable_prof_nvtx = xno ] && CMAKE_DEFINES+=" -DPARSEC_PROF_TRACE_NVTX=OFF"
+case x$with_scorep in
+xno) enable_prof_scorep=no;;
+xyes) enable_prof_scorep=yes;;
+x) ;;
+*) enable_prof_scorep=yes
+   CMAKE_DEFINES+=" -DPARSEC_SCOREP_ROOT=$(printf %q "$with_scorep")";;
+esac
+[ x$enable_prof_scorep = xyes ] && CMAKE_DEFINES+=" -DPARSEC_PROF_TRACE=ON -DPARSEC_PROF_TRACE_SCOREP=ON"
+[ x$enable_prof_scorep = xno ] && CMAKE_DEFINES+=" -DPARSEC_PROF_TRACE_SCOREP=OFF"
 [ x$enable_prof_calltrace = xyes ] && CMAKE_DEFINES+=" -DPARSEC_PROF_CALLTRACE=ON"
 [ x$enable_prof_calltrace = xno ] && CMAKE_DEFINES+=" -DPARSEC_PROF_CALLTRACE=OFF"
 [ x$enable_prof_grapher = xyes ] && CMAKE_DEFINES+=" -DPARSEC_PROF_GRAPHER=ON"
