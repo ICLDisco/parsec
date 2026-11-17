@@ -76,6 +76,7 @@ static void *do_perf_test(void *_param)
     uint64_t duration, max_duration = 0;
     empty_hash_item_t *item_array;
 
+    parsec_hash_tables_set_thread_id(id);  /* the runtime does that for its threads */
     parsec_bindthread(id%nbcores, 0);
 
     item_array = malloc(sizeof(empty_hash_item_t)*nbtests);
@@ -142,6 +143,7 @@ static void *do_test(void *_param)
     uint64_t duration;
     empty_hash_item_t *item_array;
 
+    parsec_hash_tables_set_thread_id(id);  /* the runtime does that for its threads */
     parsec_bindthread(id%nbcores, 0);
 
     item_array = malloc(sizeof(empty_hash_item_t)*nbtests);
@@ -608,6 +610,8 @@ int main(int argc, char *argv[])
             md_tuning_max = md_tuning+1;
         }
     }
+
+    parsec_hash_tables_set_nb_threads(maxthreads);  /* the runtime does that at startup */
 
     threads = calloc(maxthreads, sizeof(pthread_t));
     params = calloc(maxthreads+1, sizeof(param_t));

@@ -299,6 +299,12 @@ static void* __parsec_thread_init( __parsec_temporary_thread_initialization_t* s
     PARSEC_TLS_SET_SPECIFIC(parsec_tls_execution_stream, es);
 
     es->th_id            = startup->th_id;
+    {   /* the hash tables count the readers per thread */
+        int global_th_id = startup->th_id;
+        for( int vp = 0; vp < startup->virtual_process->vp_id; vp++ )
+            global_th_id += parsec_vpmap_get_vp_threads(vp);
+        parsec_hash_tables_set_thread_id(global_th_id);
+    }
     es->virtual_process  = startup->virtual_process;
     es->rand_seed        = tv_now.tv_usec + startup->th_id;
     es->scheduler_object = NULL;
@@ -622,6 +628,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
 
     /* end of vpmap init */
 
+    parsec_hash_tables_set_nb_threads(parsec_vpmap_get_nb_total_threads());
     parsec_hash_tables_init();
 
 #if defined(PARSEC_PROF_GRAPHER)

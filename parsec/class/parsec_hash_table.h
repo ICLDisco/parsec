@@ -87,6 +87,9 @@ typedef struct parsec_hash_table_head_s {
     parsec_hash_table_bucket_t      *buckets;              /**< These are the buckets (that are lists of items) of this table */
 } parsec_hash_table_head_t;
 
+/** Size used to keep fields written by different threads on different cache lines */
+#define PARSEC_HT_CACHE_LINE 64
+
 /**
  * @brief One type of hash table for task, tiles and functions
  */
@@ -94,9 +97,13 @@ struct parsec_hash_table_s {
     parsec_object_t           super;                /**< A Hash Table is a PaRSEC object */
     volatile int32_t          resizing;             /**< 1 while a thread resizes rw_hash. 'Readers', threads that
                                                      *   add, delete or find elements without resizing, announce
-                                                     *   themselves in a slot of their own instead of taking a
+                                                     *   themselves in a counter of their own instead of taking a
                                                      *   shared lock (see parsec_hash_table.c) */
-    volatile int32_t          overflow_readers;     /**< Readers that had no free slot of their own */
+    int32_t                   nb_readers;           /**< Number of per-thread reader counters in 'readers' */
+    void                     *readers;              /**< Cache-line aligned, one cache line per counter: the first one is
+                                                     *   for the readers that have no counter of their own, then one per
+                                                     *   PaRSEC thread (see parsec_hash_table.c) */
+    void                     *readers_alloc;        /**< What to free to release 'readers' */
     int64_t                   elt_hashitem_offset;  /**< Elements belonging to this hash table have a parsec_hash_table_item_t
                                                      *   at this offset */
     parsec_key_fn_t           key_functions;        /**< How to access and modify the keys */
@@ -132,6 +139,33 @@ struct parsec_hash_table_item_s {
  *   @return PARSEC_SUCCESS on success, an error in other cases
  */
 int parsec_hash_tables_init(void);
+
+/**
+ * @brief Tell the hash tables how many threads will have an identifier
+ *
+ * @details
+ *   Threads that use a hash table and have an identifier in [0, nb_threads)
+ *   announce themselves in a cache line of their own, instead of a shared one.
+ *   This must be called before the creation of the tables that are to benefit
+ *   from it, and with the same value in every thread; tables created before,
+ *   or by a thread without an identifier, work as well but have a shared
+ *   counter for all such threads.
+ *
+ *   @param[in] nb_threads number of threads that will call
+ *                         parsec_hash_tables_set_thread_id
+ */
+void parsec_hash_tables_set_nb_threads(int nb_threads);
+
+/**
+ * @brief Give the calling thread its identifier
+ *
+ * @details
+ *   Each identifier in [0, nb_threads) must be used by at most one thread at a
+ *   time. A thread without identifier (the default) is always correct.
+ *
+ *   @param[in] thread_id the identifier, or -1 to remove it
+ */
+void parsec_hash_tables_set_thread_id(int thread_id);
 
 /**
  * @brief Create a hash table
