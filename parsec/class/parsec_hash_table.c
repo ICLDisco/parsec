@@ -8,9 +8,11 @@
 #include "parsec/parsec_config.h"
 #include "parsec/class/parsec_hash_table.h"
 #include "parsec/class/list.h"
+#include "parsec/sys/cpu_relax.h"
 #include "parsec/utils/mca_param.h"
 #include "parsec/utils/debug.h"
 #include <stdio.h>
+#include <sched.h>
 
 #undef HELPFIRST
 
@@ -69,6 +71,26 @@ static int32_t parsec_ht_nb_readers = 0;   /* slots handed out so far */
 #define HT_STORE_RELEASE(p, v) do { parsec_atomic_wmb(); *(p) = (v); } while(0)
 #endif
 
+/* Waiting for a reader to leave, or for a resize to end, can take as long as the
+ * other thread needs to run, which is unbounded if it was descheduled (more threads
+ * than cores). Relax the CPU for a while, then give it up. */
+#define PARSEC_HT_SPINS_BEFORE_YIELD 1024
+
+/* Wait until the counter at location is zero. Spin at most max_spins times, then
+ * give up the CPU between the checks. */
+static inline void parsec_ht_wait_for_zero(volatile int32_t *location, unsigned int max_spins)
+{
+    unsigned int spins = 0;
+    while( 0 != HT_LOAD_SC(location) ) {
+        if( spins < max_spins ) {
+            spins++;
+            parsec_cpu_relax();
+        } else {
+            sched_yield();
+        }
+    }
+}
+
 #if defined(PARSEC_HAVE_THREAD_LOCAL)
 static __thread parsec_ht_reader_t *parsec_ht_me = NULL;
 static __thread int parsec_ht_me_set = 0;
@@ -107,7 +129,7 @@ static inline void parsec_ht_read_enter(parsec_hash_table_t *ht)
             if( 0 == HT_LOAD_SC(&ht->resizing) ) return;
             parsec_atomic_fetch_dec_int32(&ht->overflow_readers);
         }
-        while( 0 != HT_LOAD_SC(&ht->resizing) ) ;  /* wait for the resize to end */
+        parsec_ht_wait_for_zero(&ht->resizing, PARSEC_HT_SPINS_BEFORE_YIELD);  /* wait for the resize to end */
     }
 }
 
@@ -128,14 +150,22 @@ static inline void parsec_ht_read_leave(parsec_hash_table_t *ht)
 
 static void parsec_ht_resize_enter(parsec_hash_table_t *ht)
 {
-    while( !parsec_atomic_cas_int32(&ht->resizing, 0, 1) ) ;
+    for(;;) {
+        parsec_ht_wait_for_zero(&ht->resizing, PARSEC_HT_SPINS_BEFORE_YIELD);
+        if( parsec_atomic_cas_int32(&ht->resizing, 0, 1) ) break;
+    }
     parsec_mfence();
     int32_t n = HT_LOAD_SC(&parsec_ht_nb_readers);
     if( n > PARSEC_HT_READER_THREADS ) n = PARSEC_HT_READER_THREADS;
     for( int32_t t = 0; t < n; t++ )
-        for( int k = 0; k < PARSEC_HT_READER_SLOTS; k++ )
-            while( HT_LOAD_SC(&parsec_ht_readers[t].slot[k]) == ht ) ;
-    while( 0 != HT_LOAD_SC(&ht->overflow_readers) ) ;
+        for( int k = 0; k < PARSEC_HT_READER_SLOTS; k++ ) {
+            /* the slot holds the address of the table being read: wait until it is not ours */
+            unsigned int spins = 0;
+            while( HT_LOAD_SC(&parsec_ht_readers[t].slot[k]) == ht ) {
+                if( spins < PARSEC_HT_SPINS_BEFORE_YIELD ) { spins++; parsec_cpu_relax(); } else sched_yield();
+            }
+        }
+    parsec_ht_wait_for_zero(&ht->overflow_readers, PARSEC_HT_SPINS_BEFORE_YIELD);
 }
 
 static void parsec_ht_resize_leave(parsec_hash_table_t *ht)
