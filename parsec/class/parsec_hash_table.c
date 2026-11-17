@@ -13,6 +13,7 @@
 #include "parsec/utils/debug.h"
 #include <stdio.h>
 #include <sched.h>
+#include <stdlib.h>
 
 #undef HELPFIRST
 
@@ -35,31 +36,34 @@ struct parsec_hash_table_bucket_s {
  * to be replaced under them, and resizing it is rare. Readers used to take a
  * table-wide rwlock in read mode: an atomic operation on one cache line that
  * every thread using the table shares, which all workers contend on when tasks
- * are small. Instead, each thread announces the table it reads in one of its
- * own slots, on a cache line no other thread writes. A resizer sets
- * ht->resizing, then waits until no slot of any thread names the table. A
- * reader stores the table in its slot, then reads ht->resizing, both
- * sequentially consistent, and backs off while a resize is under way: either
- * the reader sees ht->resizing set, or the resizer sees the reader's slot.
+ * are small. Instead, each table has an array with one counter per thread the
+ * runtime runs, each on a cache line no other thread writes, indexed by an
+ * identifier the runtime gave to the thread
+ * (parsec_hash_tables_set_thread_id). A reader increments its counter, then
+ * reads ht->resizing, both sequentially consistent, and backs off while a
+ * resize is under way. A resizer sets ht->resizing, then waits until all the
+ * counters are zero: either the reader sees ht->resizing set, or the resizer
+ * sees the reader's counter. A counter is only written by the one thread that
+ * owns it, so nested reads of the same table just count up.
  *
- * A thread beyond PARSEC_HT_READER_THREADS, a thread already reading
- * PARSEC_HT_READER_SLOTS tables, and every thread without thread-local storage
- * count themselves in ht->overflow_readers instead, which the resizer also
- * waits for. As before, a thread must not resize a table it is reading.
+ * The array is sized when the table is created, from the number of threads the
+ * runtime announced (parsec_hash_tables_set_nb_threads). Threads that have no
+ * counter of their own count themselves in a shared counter instead, which the
+ * resizer also waits for: the communication thread, threads that PaRSEC did not
+ * create, and every thread when the table is created before the runtime knows
+ * its threads, or on a platform without thread-local storage. As before, a
+ * thread must not resize a table it is reading.
+ *
+ * The array holds one cache line per counter. The shared counter, which many
+ * threads may write, comes first: it is thus never on a cache line with the
+ * fields of the table that every operation reads, nor with the counter of a
+ * thread, without padding the table itself, which is not guaranteed to be
+ * cache-line aligned.
  */
-#define PARSEC_HT_READER_THREADS 1024
-#define PARSEC_HT_READER_SLOTS   8   /* 8 pointers: one cache line per thread */
-
 typedef struct parsec_ht_reader_s {
-    parsec_hash_table_t * volatile slot[PARSEC_HT_READER_SLOTS];
-}
-#if defined(__GNUC__)
-__attribute__((aligned(64)))
-#endif
-parsec_ht_reader_t;
-
-static parsec_ht_reader_t parsec_ht_readers[PARSEC_HT_READER_THREADS];
-static int32_t parsec_ht_nb_readers = 0;   /* slots handed out so far */
+    volatile int32_t count;     /**< Number of reads of the table in progress by this thread */
+    char             pad[PARSEC_HT_CACHE_LINE - sizeof(int32_t)];
+} parsec_ht_reader_t;
 
 #if defined(__GNUC__)
 #define HT_STORE_SC(p, v)      __atomic_store_n((p), (v), __ATOMIC_SEQ_CST)
@@ -91,43 +95,59 @@ static inline void parsec_ht_wait_for_zero(volatile int32_t *location, unsigned 
     }
 }
 
+/* Threads that use hash tables, as told by the runtime */
+static int parsec_ht_nb_threads = 0;
+
 #if defined(PARSEC_HAVE_THREAD_LOCAL)
-static __thread parsec_ht_reader_t *parsec_ht_me = NULL;
-static __thread int parsec_ht_me_set = 0;
+static __thread int parsec_ht_my_thread_id = -1;
 #endif
 
-/* this thread's slots, or NULL if it has none */
-static inline parsec_ht_reader_t *parsec_ht_my_reader(void)
+void parsec_hash_tables_set_nb_threads(int nb_threads)
+{
+    parsec_ht_nb_threads = nb_threads;
+}
+
+void parsec_hash_tables_set_thread_id(int thread_id)
 {
 #if defined(PARSEC_HAVE_THREAD_LOCAL)
-    if( !parsec_ht_me_set ) {
-        int32_t id = parsec_atomic_fetch_inc_int32(&parsec_ht_nb_readers);
-        parsec_mfence();  /* a resizer that misses this id sees ht->resizing before we read it */
-        parsec_ht_me = (id < PARSEC_HT_READER_THREADS) ? &parsec_ht_readers[id] : NULL;
-        parsec_ht_me_set = 1;
-    }
-    return parsec_ht_me;
+    parsec_ht_my_thread_id = thread_id;
 #else
-    return NULL;
+    (void)thread_id;
 #endif
+}
+
+/* The counter shared by the readers that have none of their own */
+static inline volatile int32_t *parsec_ht_overflow_readers(const parsec_hash_table_t *ht)
+{
+    return &((parsec_ht_reader_t*)ht->readers)[0].count;
+}
+
+/* The counter of the calling thread in this table, or NULL if it has none */
+static inline parsec_ht_reader_t *parsec_ht_my_reader(const parsec_hash_table_t *ht)
+{
+#if defined(PARSEC_HAVE_THREAD_LOCAL)
+    if( (uint32_t)parsec_ht_my_thread_id < (uint32_t)ht->nb_readers )
+        return (parsec_ht_reader_t*)ht->readers + 1 + parsec_ht_my_thread_id;
+#else
+    (void)ht;
+#endif
+    return NULL;
 }
 
 static inline void parsec_ht_read_enter(parsec_hash_table_t *ht)
 {
-    parsec_ht_reader_t *me = parsec_ht_my_reader();
+    parsec_ht_reader_t *me = parsec_ht_my_reader(ht);
     for(;;) {
-        int k = PARSEC_HT_READER_SLOTS;
-        if( NULL != me )
-            for( k = 0; k < PARSEC_HT_READER_SLOTS && NULL != me->slot[k]; k++ ) ;
-        if( k < PARSEC_HT_READER_SLOTS ) {
-            HT_STORE_SC(&me->slot[k], ht);
+        if( NULL != me ) {
+            int32_t nested = me->count;
+            HT_STORE_SC(&me->count, nested + 1);
             if( 0 == HT_LOAD_SC(&ht->resizing) ) return;
-            HT_STORE_RELEASE(&me->slot[k], NULL);
+            HT_STORE_RELEASE(&me->count, nested);
         } else {
-            parsec_atomic_fetch_inc_int32(&ht->overflow_readers);
+            parsec_atomic_fetch_inc_int32(parsec_ht_overflow_readers(ht));
             parsec_mfence();
             if( 0 == HT_LOAD_SC(&ht->resizing) ) return;
-            parsec_atomic_fetch_dec_int32(&ht->overflow_readers);
+            parsec_atomic_fetch_dec_int32(parsec_ht_overflow_readers(ht));
         }
         parsec_ht_wait_for_zero(&ht->resizing, PARSEC_HT_SPINS_BEFORE_YIELD);  /* wait for the resize to end */
     }
@@ -135,17 +155,14 @@ static inline void parsec_ht_read_enter(parsec_hash_table_t *ht)
 
 static inline void parsec_ht_read_leave(parsec_hash_table_t *ht)
 {
-    parsec_ht_reader_t *me = parsec_ht_my_reader();
+    parsec_ht_reader_t *me = parsec_ht_my_reader(ht);
     if( NULL != me ) {
-        for( int k = PARSEC_HT_READER_SLOTS - 1; k >= 0; k-- ) {
-            if( me->slot[k] == ht ) {
-                HT_STORE_RELEASE(&me->slot[k], NULL);
-                return;
-            }
-        }
+        assert( me->count > 0 );
+        HT_STORE_RELEASE(&me->count, me->count - 1);
+    } else {
+        parsec_atomic_wmb();
+        parsec_atomic_fetch_dec_int32(parsec_ht_overflow_readers(ht));
     }
-    parsec_atomic_wmb();
-    parsec_atomic_fetch_dec_int32(&ht->overflow_readers);
 }
 
 static void parsec_ht_resize_enter(parsec_hash_table_t *ht)
@@ -155,17 +172,9 @@ static void parsec_ht_resize_enter(parsec_hash_table_t *ht)
         if( parsec_atomic_cas_int32(&ht->resizing, 0, 1) ) break;
     }
     parsec_mfence();
-    int32_t n = HT_LOAD_SC(&parsec_ht_nb_readers);
-    if( n > PARSEC_HT_READER_THREADS ) n = PARSEC_HT_READER_THREADS;
-    for( int32_t t = 0; t < n; t++ )
-        for( int k = 0; k < PARSEC_HT_READER_SLOTS; k++ ) {
-            /* the slot holds the address of the table being read: wait until it is not ours */
-            unsigned int spins = 0;
-            while( HT_LOAD_SC(&parsec_ht_readers[t].slot[k]) == ht ) {
-                if( spins < PARSEC_HT_SPINS_BEFORE_YIELD ) { spins++; parsec_cpu_relax(); } else sched_yield();
-            }
-        }
-    parsec_ht_wait_for_zero(&ht->overflow_readers, PARSEC_HT_SPINS_BEFORE_YIELD);
+    for( int32_t t = 0; t < ht->nb_readers; t++ )
+        parsec_ht_wait_for_zero(&((parsec_ht_reader_t*)ht->readers)[1 + t].count, PARSEC_HT_SPINS_BEFORE_YIELD);
+    parsec_ht_wait_for_zero(parsec_ht_overflow_readers(ht), PARSEC_HT_SPINS_BEFORE_YIELD);
 }
 
 static void parsec_ht_resize_leave(parsec_hash_table_t *ht)
@@ -267,7 +276,19 @@ void parsec_hash_table_init(parsec_hash_table_t *ht, int64_t offset, int nb_bits
     head->next_to_free = NULL;
     ht->rw_hash        = head;
     ht->resizing         = 0;
-    ht->overflow_readers = 0;
+    {   /* One counter for the readers without one of their own, then one per thread the
+         * runtime runs, if it already knows; otherwise everybody uses the first. */
+        size_t nb_readers = 0;
+#if defined(PARSEC_HAVE_THREAD_LOCAL)
+        if( parsec_ht_nb_threads > 0 )
+            nb_readers = (size_t)parsec_ht_nb_threads;
+#endif
+        ht->readers_alloc = calloc(1 + nb_readers + 1, PARSEC_HT_CACHE_LINE);  /* + 1: alignment */
+        assert( NULL != ht->readers_alloc );
+        ht->readers = (void*)(((uintptr_t)ht->readers_alloc + PARSEC_HT_CACHE_LINE - 1) &
+                              ~(uintptr_t)(PARSEC_HT_CACHE_LINE - 1));
+        ht->nb_readers = (int32_t)nb_readers;
+    }
 
     for( i = 0; i < (1ULL<<nb_bits); i++) {
         parsec_atomic_lock_init(&head->buckets[i].lock);
@@ -426,6 +447,10 @@ void parsec_hash_table_fini(parsec_hash_table_t *ht)
         head = next;
     }
     ht->rw_hash = NULL;
+    free(ht->readers_alloc);
+    ht->readers_alloc = NULL;
+    ht->readers       = NULL;
+    ht->nb_readers    = 0;
 }
 
 void parsec_hash_table_nolock_insert(parsec_hash_table_t *ht, parsec_hash_table_item_t *item)
