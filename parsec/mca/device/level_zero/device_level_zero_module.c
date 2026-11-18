@@ -407,6 +407,7 @@ int parsec_level_zero_module_init( int dev_id, parsec_device_level_zero_driver_t
     device->required_data_in     = 0;
     device->required_data_out    = 0;
     device->nb_evictions         = 0;
+    device->nb_rejected_tasks     = 0;
 
     device->attach              = parsec_device_attach;
     device->detach              = parsec_device_detach;
