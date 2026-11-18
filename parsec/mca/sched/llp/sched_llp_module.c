@@ -301,6 +301,18 @@ static void sched_llp_remove( parsec_context_t *master )
 }
 
 
+/**
+ * @brief Merge a ring of elements into a chain detached from a LIFO
+ *
+ * @details The chain starting at next_in_lifo is in descending priority
+ *          order. Each element of the ring is placed after at least
+ *          distance elements of the chain and after all the elements of
+ *          higher priority, i.e., *before* the old elements of the same
+ *          priority. The elements of the ring keep their order. Only the
+ *          links change: the elements stay attached to the LIFO.
+ *
+ * @return the head of the merged chain
+ */
 static
 parsec_list_item_t* lifo_merge_ring(parsec_list_item_t *next_in_lifo,
                                     parsec_list_item_t *ring,
@@ -317,9 +329,10 @@ parsec_list_item_t* lifo_merge_ring(parsec_list_item_t *next_in_lifo,
     parsec_list_item_t* prev = NULL;
     int d = 0;
     do {
-        /* Find the right place for the first element in the ring
+        /* Find the right place for the first element in the ring: skip at
+         * least distance elements, then all the elements of higher priority.
          * NOTE: we put new elements *before* old elements with same priority */
-        while (next != NULL && !(d < distance || A_HIGHER_PRIORITY_THAN_B(next, ring, offset)))
+        while (next != NULL && (d < distance || A_HIGHER_PRIORITY_THAN_B(next, ring, offset)))
         {
             prev = next;
             next = (parsec_list_item_t*)next->list_next;
@@ -337,22 +350,50 @@ parsec_list_item_t* lifo_merge_ring(parsec_list_item_t *next_in_lifo,
             ring->list_prev = NULL;
             break;
         } else {
-            /* insert a single element */
+            /* insert a single element between prev and next. Unlink it by
+             * hand: in paranoid builds parsec_list_item_ring_chop() would
+             * also detach it from the LIFO it stays in. */
             parsec_list_item_t* item = ring;
-            ring = parsec_list_item_ring_chop(ring);
-            PARSEC_LIST_ITEM_SINGLETON(item);
+            if (item->list_next == item) {
+                ring = NULL;
+            } else {
+                ring = (parsec_list_item_t*)item->list_next;
+                ring->list_prev = item->list_prev;
+                item->list_prev->list_next = ring;
+            }
+            item->list_next = next;
             if (NULL != prev) {
-                item->list_next = prev->list_next;
                 prev->list_next = item;
             } else {
-                item->list_next = next;
-                next = list = item;
+                list = item;
             }
+            /* the rest of the ring goes after this element */
+            prev = item;
         }
 
     } while (NULL != ring);
 
     return list;
+}
+
+/**
+ * @brief Make a ring of the chain of elements other threads pushed into
+ *        the LIFO while lifo_chain_sorted() merged
+ *
+ * @details In paranoid builds, parsec_list_item_ring() detaches the
+ *          elements: lifo_chain_sorted() attaches them again before it
+ *          merges them back.
+ *
+ * @return the ring
+ */
+static
+parsec_list_item_t* lifo_chain_to_ring(parsec_list_item_t *first)
+{
+    parsec_list_item_t *last = first;
+    while (NULL != last->list_next) {
+        last = (parsec_list_item_t*)last->list_next;
+    }
+    return parsec_list_item_ring(first, last);
 }
 
 #if defined(PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128)
@@ -366,7 +407,6 @@ void lifo_chain_sorted( parsec_lifo_t* lifo,
 #if defined(PARSEC_DEBUG_PARANOID)
     assert( (uintptr_t)ring % PARSEC_LIFO_ALIGNMENT(lifo) == 0 );
 #endif
-    PARSEC_ITEMS_ATTACH(lifo, ring);
 
     /* first: mark the lifo as empty */
     parsec_list_item_t *next;
@@ -387,6 +427,9 @@ void lifo_chain_sorted( parsec_lifo_t* lifo,
 #endif // CHECK_RING_SORTED
 
 repeat:
+    /* attach the new elements, or on a repeat the elements pushed in
+     * between, which lifo_chain_to_ring() detached */
+    PARSEC_ITEMS_ATTACH(lifo, ring);
 
     /* first try to push the whole ring or detach existing elements */
     do {
@@ -442,13 +485,7 @@ repeat:
                     break;
                 }
                 /* form a ring of popped items */
-                parsec_list_item_t *last = next;
-				parsec_list_item_t *prev_last = last;
-                while (last != NULL) {
-					prev_last = last;
-                    last = PARSEC_LIST_ITEM_NEXT(last);
-                }
-                new_ring = parsec_list_item_ring(next, prev_last);
+                new_ring = lifo_chain_to_ring(next);
                 break;
             }
         } while (1);
@@ -482,7 +519,6 @@ void lifo_chain_sorted( parsec_lifo_t* lifo,
     int last_prio = COMPARISON_VAL(ring, offset);
     next = ring;
     do {
-        PARSEC_ITEM_ATTACH(lifo, next);
         next = PARSEC_LIST_ITEM_NEXT(next);
         if (last_prio < COMPARISON_VAL(next, offset)) {
             sorted = false;
@@ -492,6 +528,9 @@ void lifo_chain_sorted( parsec_lifo_t* lifo,
 #endif // CHECK_RING_SORTED
 
 repeat:
+    /* attach the new elements, or on a repeat the elements pushed in
+     * between, which lifo_chain_to_ring() detached */
+    PARSEC_ITEMS_ATTACH(lifo, ring);
 
     /* first try to detach existing elements */
 
@@ -543,11 +582,7 @@ repeat:
                 }
 
                 /* form a ring of popped items to repeat the process */
-                parsec_list_item_t *last = next;
-                while (last != NULL) {
-                    last = PARSEC_LIST_ITEM_NEXT(last);
-                }
-                new_ring = parsec_list_item_ring(next, last);
+                new_ring = lifo_chain_to_ring(next);
                 break;
             }
         } while (1);
@@ -586,7 +621,6 @@ void lifo_chain_sorted( parsec_lifo_t* lifo,
     int last_prio = COMPARISON_VAL(ring, offset);
     next = ring;
     do {
-        PARSEC_ITEM_ATTACH(lifo, next);
         next = PARSEC_LIST_ITEM_NEXT(next);
         if (last_prio < COMPARISON_VAL(next, offset)) {
             sorted = false;
@@ -599,6 +633,9 @@ void lifo_chain_sorted( parsec_lifo_t* lifo,
     parsec_atomic_lock(&lifo->lifo_head.data.guard.lock);
 
 repeat:
+    /* attach the new elements, or on a repeat the elements pushed in
+     * between, which lifo_chain_to_ring() detached */
+    PARSEC_ITEMS_ATTACH(lifo, ring);
 
     next = lifo->lifo_head.data.item;
     if (sorted && distance == 0 &&
@@ -637,11 +674,7 @@ repeat:
 
         /* check if there are new items */
         if (next != NULL) {
-            parsec_list_item_t *last = next;
-            while (last != NULL) {
-                last = PARSEC_LIST_ITEM_NEXT(last);
-            }
-            new_ring = parsec_list_item_ring(next, last);
+            new_ring = lifo_chain_to_ring(next);
         }
 
         if (NULL != new_ring) {
