@@ -158,6 +158,9 @@ parsec_data_destroy( parsec_data_t *holder );
  * The opaque_dtt is not freed by the arena datatype destructor.
  * The destructor will take care of cleanup for other internal members
  * and work whether set_type was called or not.
+ * Returns PARSEC_ERR_BAD_PARAM when the arena cannot be constructed
+ * (elem_size of 0, or an alignment that is not a power of two larger
+ * than 1); the adt can still be destructed safely in that case.
  */
 PARSEC_DECLSPEC int
 parsec_arena_datatype_set_type( parsec_arena_datatype_t *adt,

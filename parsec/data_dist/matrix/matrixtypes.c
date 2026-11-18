@@ -240,7 +240,7 @@ int parsec_matrix_arena_datatype_define_type(parsec_arena_datatype_t *adt,
                                        m, n, ld, resized, &extent);
     if( PARSEC_SUCCESS != rc ) return rc;
 
-    parsec_arena_datatype_set_type(adt, extent, alignment, newtype);
+    rc = parsec_arena_datatype_set_type(adt, extent, alignment, newtype);
     if( PARSEC_SUCCESS != rc ) return rc;
 
     return PARSEC_SUCCESS;

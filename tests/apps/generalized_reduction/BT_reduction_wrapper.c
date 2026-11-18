@@ -40,12 +40,11 @@ parsec_taskpool_t *BT_reduction_new(parsec_tiled_matrix_t *A, int nb, int nt)
 
     tp = parsec_BT_reduction_new(A, nb, nt);
 
-    ptrdiff_t lb, extent;
+    /* Size the arena from the element count: without a communication
+     * backend parsec_type_extent() reports 0 for a derived type. */
     parsec_type_create_contiguous(nb, parsec_datatype_int32_t, &block);
-    parsec_type_extent(block, &lb, &extent);
-
     parsec_arena_datatype_set_type( &tp->arenas_datatypes[PARSEC_BT_reduction_DEFAULT_ADT_IDX],
-                                     extent, PARSEC_ARENA_ALIGNMENT_SSE,
+                                     nb * sizeof(int32_t), PARSEC_ARENA_ALIGNMENT_SSE,
                                      block);
 
     return (parsec_taskpool_t*)tp;
