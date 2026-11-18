@@ -301,6 +301,18 @@ static void sched_llp_remove( parsec_context_t *master )
 }
 
 
+/**
+ * @brief Merge a ring of elements into a chain detached from a LIFO
+ *
+ * @details The chain starting at next_in_lifo is in descending priority
+ *          order. Each element of the ring is placed after at least
+ *          distance elements of the chain and after all the elements of
+ *          higher priority, i.e., *before* the old elements of the same
+ *          priority. The elements of the ring keep their order. Only the
+ *          links change: the elements stay attached to the LIFO.
+ *
+ * @return the head of the merged chain
+ */
 static
 parsec_list_item_t* lifo_merge_ring(parsec_list_item_t *next_in_lifo,
                                     parsec_list_item_t *ring,
@@ -317,9 +329,10 @@ parsec_list_item_t* lifo_merge_ring(parsec_list_item_t *next_in_lifo,
     parsec_list_item_t* prev = NULL;
     int d = 0;
     do {
-        /* Find the right place for the first element in the ring
+        /* Find the right place for the first element in the ring: skip at
+         * least distance elements, then all the elements of higher priority.
          * NOTE: we put new elements *before* old elements with same priority */
-        while (next != NULL && !(d < distance || A_HIGHER_PRIORITY_THAN_B(next, ring, offset)))
+        while (next != NULL && (d < distance || A_HIGHER_PRIORITY_THAN_B(next, ring, offset)))
         {
             prev = next;
             next = (parsec_list_item_t*)next->list_next;
@@ -337,17 +350,25 @@ parsec_list_item_t* lifo_merge_ring(parsec_list_item_t *next_in_lifo,
             ring->list_prev = NULL;
             break;
         } else {
-            /* insert a single element */
+            /* insert a single element between prev and next. Unlink it by
+             * hand: in paranoid builds parsec_list_item_ring_chop() would
+             * also detach it from the LIFO it stays in. */
             parsec_list_item_t* item = ring;
-            ring = parsec_list_item_ring_chop(ring);
-            PARSEC_LIST_ITEM_SINGLETON(item);
+            if (item->list_next == item) {
+                ring = NULL;
+            } else {
+                ring = (parsec_list_item_t*)item->list_next;
+                ring->list_prev = item->list_prev;
+                item->list_prev->list_next = ring;
+            }
+            item->list_next = next;
             if (NULL != prev) {
-                item->list_next = prev->list_next;
                 prev->list_next = item;
             } else {
-                item->list_next = next;
-                next = list = item;
+                list = item;
             }
+            /* the rest of the ring goes after this element */
+            prev = item;
         }
 
     } while (NULL != ring);
