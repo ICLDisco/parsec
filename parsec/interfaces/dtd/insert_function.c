@@ -3217,8 +3217,16 @@ parsec_insert_dtd_task(parsec_task_t *__this_task)
                  * cases the task we are forming will never be enabled if it has an order of
                  * operation on the data as following: R, .... R, W. This takes care of those
                  * cases.
+                 *
+                 * The tile keeps pointing at its last user after that user is gone, and
+                 * a finished task goes back to the mempool, from where the very next
+                 * insertion can get it again. The pointer comparison alone then holds
+                 * for a task that has never touched this tile, and the release below
+                 * takes a reader away from a copy that never counted it. A task that
+                 * really uses the tile in this flow is the only one that may do this.
                  */
-                if( last_user.task == this_task ) {
+                if( last_user.task == this_task &&
+                    FLOW_OF(this_task, last_user.flow_index)->tile == tile ) {
                     if((last_user.op_type & PARSEC_GET_OP_TYPE) == PARSEC_INPUT ) {
                         if( this_task->super.data[last_user.flow_index].data_in != NULL) {
 /* #if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) */

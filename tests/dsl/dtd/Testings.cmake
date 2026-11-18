@@ -8,6 +8,7 @@ parsec_addtest_cmd(dsl/dtd/task_generation ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_test
 parsec_addtest_cmd(dsl/dtd/task_inserting_task ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_test_task_inserting_task)
 parsec_addtest_cmd(dsl/dtd/task_insertion ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_test_task_insertion)
 parsec_addtest_cmd(dsl/dtd/war ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_test_war)
+parsec_addtest_cmd(dsl/dtd/reader_release ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_test_reader_release)
 parsec_addtest_cmd(dsl/dtd/interleave_actions ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_test_interleave_actions)
 parsec_addtest_cmd(dsl/dtd/allreduce ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_test_allreduce)
 parsec_addtest_cmd(dsl/dtd/broadcast ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_test_broadcast)
