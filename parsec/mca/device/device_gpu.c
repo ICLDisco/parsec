@@ -2251,20 +2251,6 @@ parsec_gpu_data_copy_release_reader(parsec_device_gpu_module_t *gpu_device,
  *         parsec_device_data_copy_unpin_reader(). 0 if it may not, either
  *         because the device is reclaiming the copy or because it already has.
  */
-/**
- * @brief Count one more reader on a host copy, unless a write-back took it.
- *
- * @return 1 on success, 0 while a write-back holds the copy.
- */
-static inline int parsec_device_host_copy_take_reader(parsec_data_copy_t *copy)
-{
-    int readers = parsec_atomic_fetch_inc_int32(&copy->readers);
-
-    if( readers >= 0 ) return 1;
-    (void)parsec_atomic_fetch_add_int32(&copy->readers, -1);
-    return 0;
-}
-
 int parsec_device_data_copy_try_pin_reader(parsec_data_copy_t *copy)
 {
     parsec_device_module_t *device;
