@@ -131,6 +131,35 @@ static int64_t time_estimate(const parsec_task_t *this_task, parsec_device_modul
 }
 
 /**
+ * The device a task is expected to use to write @p original, if the data already
+ * says so: the preferred device of the data when it can run the task, otherwise the
+ * GPU that owns the data. Every WRITE flow goes through this, including the ones
+ * that are not ordered with the other writers (PARSEC_ATOMIC_WRITE in DTD).
+ *
+ * @param tp the taskpool of the task, the device has to be enabled for it
+ * @param original the data written
+ * @param valid_types the device types that have a chore for the task
+ * @return the device, or NULL if the data has no opinion
+ */
+parsec_device_module_t *
+parsec_select_device_for_write_data(const parsec_taskpool_t *tp, const parsec_data_t *original,
+                                    unsigned int valid_types)
+{
+    parsec_device_module_t *dev;
+
+    dev = parsec_mca_device_get(original->preferred_device);
+    if( NULL != dev && (dev->type & valid_types) && (tp->devices_index_mask & (1<<dev->device_index)) ) {
+        return dev;
+    }
+    dev = parsec_mca_device_get(original->owner_device);
+    if( NULL != dev && (dev->type & valid_types) && (tp->devices_index_mask & (1<<dev->device_index)) &&
+        PARSEC_DEV_IS_GPU(dev->type) ) {
+        return dev;
+    }
+    return NULL;
+}
+
+/**
  * Find the best device to execute the kernel based on the compute
  * capability of the device.
  *
@@ -218,18 +247,10 @@ int parsec_select_best_device( parsec_task_t* this_task ) {
         data_copy = this_task->data[this_task->task_class->out[i]->flow_index].data_in;
         if( NULL == data_copy ) continue; /* possible for NULL flows */
 
-        /* If the WRITE data has a preferred device, select it. */
-        dev = parsec_mca_device_get(data_copy->original->preferred_device);
-        if( NULL != dev && (dev->type & valid_types) && (tp->devices_index_mask & (1<<dev->device_index))) {
-            PARSEC_DEBUG_VERBOSE(30, parsec_device_output, "%s: Task %s set selected_device %d:%s because preferred by data %p AWRITE flow out[%d]",
-                                 __func__, tmp, dev->device_index, dev->name, data_copy->original, i);
-            this_task->selected_device = dev;
-            goto device_selected;
-        }
-        /* WRITE data is already located on a GPU device, select it */
-        dev = parsec_mca_device_get(data_copy->original->owner_device);
-        if( NULL != dev && (dev->type & valid_types) && (tp->devices_index_mask & (1<<dev->device_index)) && PARSEC_DEV_IS_GPU(dev->type) ) {
-            PARSEC_DEBUG_VERBOSE(30, parsec_device_output, "%s: Task %s set selected_device %d:%s because owner of data %p flow AWRITE flow out[%d]",
+        /* The preferred device of the WRITE data, or the GPU that owns it */
+        dev = parsec_select_device_for_write_data(tp, data_copy->original, valid_types);
+        if( NULL != dev ) {
+            PARSEC_DEBUG_VERBOSE(30, parsec_device_output, "%s: Task %s set selected_device %d:%s because of data %p AWRITE flow out[%d]",
                                  __func__, tmp, dev->device_index, dev->name, data_copy->original, i);
             this_task->selected_device = dev;
             goto device_selected;

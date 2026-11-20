@@ -174,7 +174,10 @@ parsec_dtd_ordering_correctly( parsec_execution_stream_t *es,
             }
 
             if(action_mask & PARSEC_ACTION_RELEASE_LOCAL_DEPS) {
-                if( PARSEC_INPUT == op_type_on_current_flow ) {
+                /* Every flow that does not own the data had a reader retained for it
+                 * below, so both unordered access types have to give it back here. */
+                if( PARSEC_INPUT == op_type_on_current_flow ||
+                    PARSEC_ATOMIC_WRITE == op_type_on_current_flow ) {
                     if(parsec_dtd_task_is_local(current_task)){
                        parsec_dtd_data_copy_reader_release(current_task->super.data[current_dep].data_out);
                     }
