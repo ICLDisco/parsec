@@ -1,0 +1,44 @@
+extern "C" %{
+/*
+ * Copyright (c) 2026      The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
+/*
+ * K tasks per tile, the first reading the tile from the matrix, the last
+ * writing it back, each modifying it in place in between:
+ *
+ *     RW A <- (k == 0)   ? descA(m, n) : A UPD(m, n, k-1)
+ *          -> (k == K-1) ? descA(m, n) : A UPD(m, n, k+1)
+ *
+ * Task k applies operation OP0 + k. CPU only: when the other taskpools run on
+ * a GPU, every tile goes back and forth between the device and the host.
+ */
+
+#include "parsec/parsec_config.h"
+#include "parsec/data_dist/matrix/matrix.h"
+#include "auto_merge_ops.h"
+
+%}
+
+descA    [type = "parsec_tiled_matrix_t*"]
+OP0      [type = "int"]
+K        [type = "int"]
+NB_VIOL  [type = "int32_t*"]
+
+UPD(m, n, k)
+  m = 0 .. descA->mt-1
+  n = 0 .. descA->nt-1
+  k = 0 .. K-1
+
+: descA(m, n)
+
+RW A <- (k == 0)   ? descA(m, n) : A UPD(m, n, k-1)
+     -> (k == K-1) ? descA(m, n) : A UPD(m, n, k+1)
+
+BODY
+{
+    am_cpu_stage((int*)A, descA->mb * descA->nb, m, n, OP0 + k, 0, NB_VIOL);
+}
+END

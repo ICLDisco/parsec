@@ -10,6 +10,7 @@
 #include "parsec/remote_dep.h"
 #include "parsec/mca/device/device.h"
 #include "parsec/scheduling.h"
+#include "parsec/taskpool_merge.h"
 #include "parsec/execution_stream.h"
 #include "parsec/data_internal.h"
 #include "parsec/arena.h"
@@ -144,6 +145,11 @@ remote_dep_complete_and_cleanup(parsec_remote_deps_t** deps,
         for( int i = 0; (*deps)->outgoing_mask >> i; i++ )
             if( (1U << i) & (*deps)->outgoing_mask ) {
                 assert( (*deps)->output[i].count_bits );
+                if( NULL != (*deps)->output[i].merge_held ) {
+                    /* The message is out: the tile is no longer read for it */
+                    parsec_merge_unhold((*deps)->taskpool, (*deps)->output[i].merge_held);
+                    (*deps)->output[i].merge_held = NULL;
+                }
                 if( NULL != (*deps)->output[i].data.data ) { /* if not CONTROL */
                     if( (1U << i) & (*deps)->pinned_mask ) {
                         (*deps)->pinned_mask ^= (1U << i);
@@ -185,6 +191,7 @@ parsec_remote_deps_t* remote_deps_allocate( parsec_lifo_t* lifo )
             remote_deps->output[i].deps_mask  = 0;
             remote_deps->output[i].count_bits = 0;
             remote_deps->output[i].priority   = 0xffffffff;
+            remote_deps->output[i].merge_held = NULL;
             ptr += rank_bit_size;
         }
         /* fw_mask immediately follows outputs */
@@ -548,6 +555,12 @@ int parsec_remote_dep_activate(parsec_execution_stream_t* es,
                     remote_deps->pinned_mask |= (1U << i);
                 }
             }
+            /* The network reads the tile after the task that sent it is gone:
+             * a merged taskpool holds the tile until the message is out, so a
+             * later taskpool does not overwrite it under the send. Given back
+             * by remote_dep_complete_and_cleanup(). */
+            assert(NULL == output->merge_held);
+            output->merge_held = parsec_merge_hold(task->taskpool, output->data.data);
         }
 
         for( array_index = count = 0; count < remote_deps->output[i].count_bits; array_index++ ) {

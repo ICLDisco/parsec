@@ -1,0 +1,66 @@
+extern "C" %{
+/*
+ * Copyright (c) 2026      The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
+/*
+ * One reader per tile forwards it, read only, to J users. User j of tile
+ * (m, n) runs where tile (m+j, n) lives, on another rank when the matrix is
+ * distributed over rows, so the tile is also sent over the network:
+ *
+ *     RD(m, n):     READ A <- descA(m, n)
+ *                          -> A USE(m, n, 0 .. J-1)
+ *     USE(m, n, j): READ A <- A RD(m, n)
+ *
+ * Only RD names the tile in memory. A later taskpool that writes the tile
+ * must still wait for every USE, and for the messages carrying it: each USE
+ * checks, after a delay, that the tile went through operations 0 .. NB_OPS-1
+ * and nothing more.
+ */
+
+#include "parsec/parsec_config.h"
+#include "parsec/data_dist/matrix/matrix.h"
+#include "auto_merge_ops.h"
+
+%}
+
+descA    [type = "parsec_tiled_matrix_t*"]
+NB_OPS   [type = "int"]
+J        [type = "int"]
+DELAY    [type = "int"]
+NB_VIOL  [type = "int32_t*"]
+
+RD(m, n)
+  m = 0 .. descA->mt-1
+  n = 0 .. descA->nt-1
+
+: descA(m, n)
+
+READ A <- descA(m, n)
+       -> A USE(m, n, 0 .. J-1)
+
+BODY
+{
+    /* Only forwards the tile */
+}
+END
+
+USE(m, n, j)
+  m = 0 .. descA->mt-1
+  n = 0 .. descA->nt-1
+  j = 0 .. J-1
+
+: descA((m + j) % descA->mt, n)
+
+READ A <- A RD(m, n)
+
+BODY
+{
+    /* Half the tiles have slow users; which half depends on the position in
+     * the sequence, as for the maps */
+    am_cpu_check((const int*)A, descA->mb * descA->nb, m, n, NB_OPS,
+                 ((m + n + NB_OPS) % 2 == 0) ? DELAY : 0, NB_VIOL);
+}
+END

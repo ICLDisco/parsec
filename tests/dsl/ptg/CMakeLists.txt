@@ -28,6 +28,7 @@ if(PARSEC_HAVE_DEV_CAPABILITY_BATCH)
   target_ptg_sources(batch_cpu PRIVATE "batch_cpu.jdf")
 endif(PARSEC_HAVE_DEV_CAPABILITY_BATCH)
 
+add_subdirectory(auto_merge)
 add_subdirectory(branching)
 add_subdirectory(choice)
 add_subdirectory(controlgather)

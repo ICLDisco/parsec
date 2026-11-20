@@ -621,6 +621,72 @@ parsec_taskpool_t* parsec_compose(parsec_taskpool_t* start, parsec_taskpool_t* n
 /** @endcond */
 
 /**
+ * @brief Values of the automatic merging of PTG taskpools
+ */
+#define PARSEC_AUTO_MERGE_DEFAULT  (-1)  /**< taskpool only: do what its context does */
+#define PARSEC_AUTO_MERGE_OFF        0   /**< taskpools run side by side, unordered */
+#define PARSEC_AUTO_MERGE_ON         1   /**< taskpools are ordered tile by tile */
+
+/**
+ * @brief Order the PTG taskpools of a context as if their DAGs were merged
+ *
+ * @details
+ *  Taskpools added to a context run concurrently, in no particular order. When
+ *  two of them read or write the same tile of a data collection, nothing makes
+ *  the second wait for the first: with
+ *
+ *      JDF1:  RW A <- descA(m, n) -> descA(m, n)
+ *      JDF2:  RW B <- descA(m, n) -> descA(m, n)
+ *
+ *  added one after the other before parsec_context_wait(), JDF2 may read
+ *  descA(m, n) before JDF1 writes it back.
+ *
+ *  With automatic merging on, every PTG taskpool added to the context is
+ *  ordered after the ones added before it that are still running, tile by
+ *  tile, as if one DAG had been written for all of them:
+ *   - a task that reads a tile from a collection starts once the earlier
+ *     taskpools that write that tile are done with it;
+ *   - a task that writes a tile to a collection, or reads it to modify it,
+ *     starts once every earlier taskpool that uses that tile is done with it,
+ *     including the tasks it forwarded the tile to.
+ *  Tasks on other tiles are not held, so the taskpools overlap wherever their
+ *  data allow it. The order is enforced before a task is given to a device,
+ *  so CPU and GPU incarnations are ordered alike, and each rank orders the
+ *  tiles it owns, without extra communication.
+ *
+ *  Only accesses written as memory references in the JDF (`<- desc(...)`,
+ *  `-> desc(...)`) are ordered: a task body that reaches into a collection
+ *  through other means is not seen. Taskpools that are not PTG (DTD,
+ *  compound) are neither ordered nor waited for. A taskpool added from inside
+ *  a task of a merged taskpool and working on the same tiles (a recursive
+ *  call) must opt out with parsec_taskpool_set_auto_merge(), or it would wait
+ *  for the very task that started it; parsec_recursivecall() does so.
+ *
+ *  The default comes from the MCA parameter runtime_auto_merge (0, off).
+ *
+ * @param[inout] context the context
+ * @param[in] enable PARSEC_AUTO_MERGE_ON or PARSEC_AUTO_MERGE_OFF; applies to
+ *            the taskpools added from now on
+ * @return PARSEC_SUCCESS, or PARSEC_ERR_BAD_PARAM
+ */
+int parsec_context_set_auto_merge(parsec_context_t *context, int enable);
+
+/**
+ * @brief Choose whether one taskpool is merged with the others of its context
+ *
+ * @details
+ *  Overrides the choice of the context for this taskpool. Must be called
+ *  before the taskpool is added to the context. See
+ *  parsec_context_set_auto_merge().
+ *
+ * @param[inout] tp the taskpool
+ * @param[in] enable PARSEC_AUTO_MERGE_ON, PARSEC_AUTO_MERGE_OFF, or
+ *            PARSEC_AUTO_MERGE_DEFAULT to follow the context
+ * @return PARSEC_SUCCESS, or PARSEC_ERR_BAD_PARAM
+ */
+int parsec_taskpool_set_auto_merge(parsec_taskpool_t *tp, int enable);
+
+/**
  * @brief Free the resource allocated in the parsec taskpool.
  *
  * @details

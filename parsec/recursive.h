@@ -70,6 +70,11 @@ parsec_recursivecall( parsec_task_t                *task,
     parsec_taskpool_set_complete_callback( tp, &parsec_recursivecall_callback,
                                            (void *)cbdata );
 
+    /* The inner taskpool works on the tiles of the task that spawns it: were
+     * it ordered after that task's taskpool, it would wait for the very task
+     * that waits for it. */
+    parsec_taskpool_set_auto_merge( tp, PARSEC_AUTO_MERGE_OFF );
+
     parsec_context_add_taskpool( task->taskpool->context, tp);
 
     return -1;

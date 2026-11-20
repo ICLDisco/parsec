@@ -29,6 +29,7 @@
 #include "parsec/papi_sde.h"
 #include "parsec/interfaces/dtd/insert_function_internal.h"
 #include "parsec/remote_dep.h"
+#include "parsec/taskpool_merge.h"
 #include "parsec/class/dequeue.h"
 
 #include "parsec/parsec_binary_profile.h"
@@ -678,6 +679,10 @@ void parsec_remote_dep_memcpy(parsec_execution_stream_t* es,
 
     PARSEC_DATA_COPY_RETAIN(src);
     remote_dep_inc_flying_messages(tp);
+    /* The write lands in dst after the task that asked for it is complete: a
+     * merged taskpool holds the tile until it has. Given back where the
+     * command completes, in remote_dep_nothread_memcpy(). */
+    (void)parsec_merge_hold(tp, dst);
 
     parsec_dequeue_push_back(&dep_cmd_queue, (parsec_list_item_t*) item);
 }
@@ -1677,6 +1682,10 @@ static int remote_dep_nothread_memcpy(parsec_execution_stream_t* es,
     }
 
     PARSEC_DATA_COPY_RELEASE(cmd->memcpy.source);
+    /* Symmetric with the hold of parsec_remote_dep_memcpy(): the destination
+     * is a copy of the same tile, and the tile can only be released by this
+     * very command while it is held. */
+    parsec_merge_unhold(cmd->memcpy.taskpool, cmd->memcpy.destination->original);
     remote_dep_dec_flying_messages(item->cmd.memcpy.taskpool);
     (void)es;
     return rc;

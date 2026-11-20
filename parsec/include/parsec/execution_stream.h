@@ -145,6 +145,9 @@ struct parsec_context_s {
     parsec_hash_table_t  dtd_arena_datatypes_hash_table; /**< Hash table that stores the arena datatypes used by DTD */
     int                  dtd_arena_datatypes_next_id;    /**< Next ID to use for the next Arena Datatype by DTD */
 
+    int32_t                        auto_merge;     /**< PARSEC_AUTO_MERGE_*: order the PTG taskpools added from now on */
+    struct parsec_merge_tracker_s *merge_tracker;  /**< Per-tile order of the merged taskpools */
+
 #if defined(PARSEC_SIM)
     int largest_simulation_date;
 #endif
