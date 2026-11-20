@@ -214,6 +214,14 @@ struct parsec_comm_engine_capabilites_s {
     unsigned int supports_noncontiguous_datatype : 1;
     /** The backend can safely be called concurrently by worker threads. */
     unsigned int multithreaded : 1;
+    /**
+     * The device types whose memory the backend accepts as a communication
+     * buffer, as a mask of PARSEC_DEV_*. A backend reports what it can really
+     * do rather than what it was built hoping for, because a type it cannot
+     * take is one it does not refuse: it reads the address and dies. Host
+     * memory belongs in every answer.
+     */
+    uint8_t      buffer_device_types;
 };
 
 struct parsec_comm_engine_s {
@@ -246,6 +254,18 @@ struct parsec_comm_engine_s {
 
 /* global comm_engine */
 PARSEC_DECLSPEC extern parsec_comm_engine_t parsec_ce;
+
+/**
+ * The device types whose memory may be handed to the communication engine, as
+ * a mask of PARSEC_DEV_*: what the selected backend reported it can take, less
+ * what the user excluded. A type that is absent is one whose memory must never
+ * be passed down; such memory is read through its host mirror instead.
+ *
+ * Read it rather than the backend's own capability: this is the answer the
+ * user's say has been applied to, and it holds host memory alone when there is
+ * no backend at all.
+ */
+PARSEC_DECLSPEC extern uint8_t parsec_comm_buffer_device_types;
 
 parsec_comm_engine_t * parsec_comm_engine_init(parsec_context_t *parsec_context);
 int parsec_comm_engine_fini(parsec_comm_engine_t *comm_engine);

@@ -317,7 +317,10 @@ parsec_gpu_task_update_pushout(parsec_execution_stream_t *es,
     }
 
 #if defined(DISTRIBUTED)
-    plan.send_from_gpu_denied = !(parsec_mpi_allow_gpu_memory_communications & PARSEC_RUNTIME_SEND_GPU_MEMORY);
+    /* Which accelerator the data ends up on is not settled here, so the engine
+     * has to be able to send from all of them for the plan to count on it. */
+    plan.send_from_gpu_denied =
+        (PARSEC_DEV_GPU_MASK != (parsec_comm_buffer_device_types & PARSEC_DEV_GPU_MASK));
 #else
     plan.send_from_gpu_denied = 0;  /* there are no remote successors to begin with */
 #endif  /* defined(DISTRIBUTED) */
@@ -2336,27 +2339,27 @@ parsec_data_copy_t *parsec_device_data_copy_pin_value(parsec_data_copy_t *copy)
 {
     parsec_data_t *original = copy->original;
     uint32_t wanted = copy->version;
-    int device_memory_readable;
-
-    if( parsec_device_data_copy_pin_reader(copy) ) return copy;
-    if( NULL == original ) return NULL;
 
     /* Whoever asks here reads through the communication engine, which reaches
-     * accelerator memory only when it has been told it may. The host mirror is
-     * always a candidate, and is the copy a device writes back to, so it comes
-     * first for being both the likeliest and the cheapest to read.
+     * the memory of a device only when it has been told it may. The host
+     * mirror is always a candidate, and is the copy a device writes back to,
+     * so it comes first for being both the likeliest and the cheapest to read.
      */
 #if defined(DISTRIBUTED)
-    device_memory_readable =
-        (0 != (parsec_mpi_allow_gpu_memory_communications & PARSEC_RUNTIME_SEND_GPU_MEMORY));
+    uint8_t readable_types = parsec_comm_buffer_device_types;
 #else
-    device_memory_readable = 1;
+    uint8_t readable_types = PARSEC_DEV_ANY_TYPE;
 #endif  /* defined(DISTRIBUTED) */
+
+    if( (0 != (readable_types & parsec_mca_device_get(copy->device_index)->type)) &&
+        parsec_device_data_copy_pin_reader(copy) ) return copy;
+    if( NULL == original ) return NULL;
+
     for( uint32_t i = 0; i < parsec_nb_devices; i++ ) {
         parsec_data_copy_t *candidate = original->device_copies[i];
 
         if( (NULL == candidate) || (candidate == copy) ) continue;
-        if( (0 != i) && !device_memory_readable ) continue;
+        if( 0 == (readable_types & parsec_mca_device_get(i)->type) ) continue;
         /* A copy speaks for this one only while it holds what this one held. */
         if( candidate->version != wanted ) continue;
         if( !parsec_device_data_copy_pin_reader(candidate) ) continue;
@@ -5433,7 +5436,7 @@ parsec_device_kernel_epilog( parsec_device_gpu_module_t *gpu_device,
              * report the CPU copy as the task output. Otherwise, keep the GPU copy
              * as the output so remote successors can use the GPU-aware send path.
              */
-            if( 0 == (parsec_mpi_allow_gpu_memory_communications & PARSEC_RUNTIME_SEND_GPU_MEMORY) ) {
+            if( 0 == (parsec_comm_buffer_device_types & gpu_device->super.type) ) {
                 /* Report the CPU copy as the output of the task. */
                 this_task->data[i].data_out = cpu_copy;
                 PARSEC_DEBUG_VERBOSE(100, parsec_gpu_output_stream,
