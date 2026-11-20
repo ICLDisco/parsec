@@ -673,6 +673,24 @@ if( BUILD_PARSEC )
                                PARSEC_HAVE_MPI_OVERTAKE
                                FAIL_REGEX "malfunctioning mpi_assert_enable_overtaking")
     endif(PARSEC_HAVE_MPI_30)
+    # Whether MPI can take an accelerator pointer is a property of how it was
+    # built, so it can only be answered once it is running. Open MPI and MPICH
+    # both answer, in different words.
+    check_c_source_compiles("#include <mpi.h>
+                             #include <mpi-ext.h>
+                             int main(int argc, char* argv[]) { return MPIX_Query_cuda_support(); }"
+                             PARSEC_HAVE_MPIX_QUERY_CUDA_SUPPORT)
+    check_c_source_compiles("#include <mpi.h>
+                             #include <mpi-ext.h>
+                             int main(int argc, char* argv[]) { return MPIX_Query_rocm_support(); }"
+                             PARSEC_HAVE_MPIX_QUERY_ROCM_SUPPORT)
+    check_c_source_compiles("#include <mpi.h>
+                             int main(int argc, char* argv[]) {
+                               int supported;
+                               MPIX_GPU_query_support(MPIX_GPU_SUPPORT_CUDA, &supported);
+                               return supported;
+                             }"
+                             PARSEC_HAVE_MPIX_GPU_QUERY_SUPPORT)
     cmake_pop_check_state()
   endif (MPI_C_FOUND)
 

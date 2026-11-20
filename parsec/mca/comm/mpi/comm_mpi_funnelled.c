@@ -20,6 +20,10 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "comm_mpi_funnelled.h"
+#if defined(PARSEC_HAVE_MPIX_QUERY_CUDA_SUPPORT) || defined(PARSEC_HAVE_MPIX_QUERY_ROCM_SUPPORT)
+/* MPIX_Query_cuda_support() and friends live here, not in mpi.h. */
+#include <mpi-ext.h>
+#endif
 #include "parsec/remote_dep.h"
 #include "parsec/class/parsec_hash_table.h"
 #include "parsec/class/dequeue.h"
@@ -305,7 +309,10 @@ parsec_list_t mpi_funnelled_dynamic_sendreq_fifo; /* ordered non threaded fifo *
 parsec_list_t mpi_funnelled_dynamic_recvreq_fifo; /* ordered non threaded fifo */
 parsec_mempool_t *mpi_funnelled_dynamic_req_mempool = NULL;
 
-int parsec_mpi_allow_gpu_memory_communications = 3;
+/* What this MPI turned out to accept as a communication buffer, settled once
+ * by mpi_funnelled_settle_buffer_device_types() and then reported as a
+ * capability. Host memory is the floor, not a claim. */
+static uint8_t mpi_funnelled_buffer_device_types = PARSEC_DEV_CPU;
 
 /* This structure is used to save all the information necessary to
  * invoke a callback after a MPI_Request is satisfied
@@ -645,6 +652,91 @@ static int parsec_mpi_set_ctx(parsec_comm_engine_t* ce, intptr_t opaque_comm_ctx
     return (MPI_SUCCESS == rc) ? PARSEC_SUCCESS : PARSEC_ERROR;
 }
 
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
+/**
+ * @brief Ask MPI whether it can read and write CUDA device memory.
+ *
+ * Whether an MPI was built against an accelerator is a property of that build,
+ * so only the running library can answer. Open MPI and MPICH each ask it their
+ * own way, and an MPI that does neither does not answer at all.
+ *
+ * @return 1 if it can, 0 if it cannot, -1 if this MPI does not say.
+ */
+static int mpi_funnelled_takes_cuda_memory(void)
+{
+#if defined(PARSEC_HAVE_MPIX_QUERY_CUDA_SUPPORT)
+    return MPIX_Query_cuda_support();
+#elif defined(PARSEC_HAVE_MPIX_GPU_QUERY_SUPPORT)
+    int supported;
+    if( MPI_SUCCESS == MPIX_GPU_query_support(MPIX_GPU_SUPPORT_CUDA, &supported) ) return supported;
+#endif
+    return -1;
+}
+#endif  /* defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) */
+
+#if defined(PARSEC_HAVE_DEV_HIP_SUPPORT)
+/**
+ * @brief Ask MPI whether it can read and write ROCm device memory.
+ *
+ * @return 1 if it can, 0 if it cannot, -1 if this MPI does not say.
+ */
+static int mpi_funnelled_takes_rocm_memory(void)
+{
+#if defined(PARSEC_HAVE_MPIX_QUERY_ROCM_SUPPORT)
+    return MPIX_Query_rocm_support();
+#elif defined(PARSEC_HAVE_MPIX_GPU_QUERY_SUPPORT)
+    int supported;
+    if( MPI_SUCCESS == MPIX_GPU_query_support(MPIX_GPU_SUPPORT_HIP, &supported) ) return supported;
+#endif
+    return -1;
+}
+#endif  /* defined(PARSEC_HAVE_DEV_HIP_SUPPORT) */
+
+/**
+ * @brief Work out which device types this MPI can be handed memory from.
+ *
+ * PARSEC_MPI_IS_GPU_AWARE is a claim made at configure time that nothing has
+ * checked, and an MPI that cannot take an accelerator pointer does not refuse
+ * one: it reads the address and dies in the communication thread, far from
+ * whoever made the claim. MPI is up by the time this runs, so ask it, type by
+ * type, and keep only what it owns up to. An MPI that does not answer is
+ * believed, there being nothing better to go on.
+ *
+ * This reports and does not complain. What the backend can do is one thing and
+ * what the user asked for is another; it is the engine above, which hears both,
+ * that can tell whether anyone is going to be disappointed.
+ */
+static void mpi_funnelled_settle_buffer_device_types(void)
+{
+    char names[MAX_DEVICE_TYPE_NAMES_LEN];
+
+    /* Claim only what this build has accelerators for. Saying MPI can take HIP
+     * memory where no HIP device can exist is not generous, it is noise in
+     * whatever is told to the user downstream. */
+#if defined(PARSEC_MPI_IS_GPU_AWARE)
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
+    mpi_funnelled_buffer_device_types |= PARSEC_DEV_CUDA;
+#endif
+#if defined(PARSEC_HAVE_DEV_HIP_SUPPORT)
+    mpi_funnelled_buffer_device_types |= PARSEC_DEV_HIP;
+#endif
+#if defined(PARSEC_HAVE_DEV_LEVEL_ZERO_SUPPORT)
+    mpi_funnelled_buffer_device_types |= PARSEC_DEV_LEVEL_ZERO;
+#endif
+#endif  /* defined(PARSEC_MPI_IS_GPU_AWARE) */
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
+    if( (0 != (mpi_funnelled_buffer_device_types & PARSEC_DEV_CUDA)) &&
+        (0 == mpi_funnelled_takes_cuda_memory()) ) mpi_funnelled_buffer_device_types &= ~PARSEC_DEV_CUDA;
+#endif
+#if defined(PARSEC_HAVE_DEV_HIP_SUPPORT)
+    if( (0 != (mpi_funnelled_buffer_device_types & PARSEC_DEV_HIP)) &&
+        (0 == mpi_funnelled_takes_rocm_memory()) ) mpi_funnelled_buffer_device_types &= ~PARSEC_DEV_HIP;
+#endif
+    parsec_device_type_to_names(mpi_funnelled_buffer_device_types, names, sizeof(names));
+    PARSEC_DEBUG_VERBOSE(10, parsec_comm_output_stream,
+                         "MPI can be handed memory of type %s as a communication buffer", names);
+}
+
 /**
  * The following function take care of all the steps necessary to initialize the
  * invariable part of the communication engine such as the const dependencies
@@ -721,14 +813,8 @@ static int mpi_funneled_init_once(parsec_context_t* context)
                                   &parsec_param_comm_mpi_dynamic_recv_requests);
     mpi_funnelled_normalize_params();
 
-#if !defined(PARSEC_MPI_IS_GPU_AWARE)
-    parsec_mpi_allow_gpu_memory_communications = 0;
-#endif
-    parsec_mca_param_reg_int_name("mpi", "gpu_aware",
-                                  "Enabled if PaRSEC should allow MPI to move data directly from or to GPU memory. Otherwise, all data"
-                                  " movements will transit through CPU memory, and will always have a backup copy there. Accepted values "
-                                  "are ORed between 1 for receiving into GPU memory and 2 for sending from GPU memory",
-                                  false, false, parsec_mpi_allow_gpu_memory_communications, &parsec_mpi_allow_gpu_memory_communications);
+    mpi_funnelled_settle_buffer_device_types();
+
     (void)context;
     return 0;
 }
@@ -869,6 +955,7 @@ mpi_funnelled_init(parsec_context_t *context)
     parsec_ce.capabilites.sided   = 2;
     parsec_ce.capabilites.supports_noncontiguous_datatype = 1;
     parsec_ce.capabilites.multithreaded = (thread_level_support >= MPI_THREAD_MULTIPLE);
+    parsec_ce.capabilites.buffer_device_types = mpi_funnelled_buffer_device_types;
 
     /* Register for internal GET and PUT AMs */
     parsec_ce.tag_register(PARSEC_CE_MPI_FUNNELLED_GET_TAG_INTERNAL,

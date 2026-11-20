@@ -94,6 +94,29 @@ typedef struct parsec_device_base_component_2_0_0 parsec_device_base_component_t
  */
 uint8_t parsec_device_type_from_name(const char *name, size_t length);
 
+/**
+ * A buffer of this size holds the names of every device type at once, so a
+ * caller of parsec_device_type_to_names() that uses it never truncates.
+ */
+#define MAX_DEVICE_TYPE_NAMES_LEN 64
+
+/**
+ * Spell out a set of device types as the comma-separated list of names that
+ * parsec_device_type_from_name() reads back, naming each type on its own
+ * rather than reaching for the "gpu" and "all" shorthands.
+ *
+ * @param[in] types
+ *          The types to name.
+ *
+ * @param[out] buffer
+ *          Where to write the list, always nul terminated, and truncated to
+ *          fit. An empty set is written as "none".
+ *
+ * @param[in] length
+ *          How many characters, including the nul, buffer holds.
+ */
+void parsec_device_type_to_names(uint8_t types, char *buffer, size_t length);
+
 #define PARSEC_DEV_DATA_ADVICE_PREFETCH              ((int) 0x01)
 #define PARSEC_DEV_DATA_ADVICE_PREFERRED_DEVICE      ((int) 0x02)
 #define PARSEC_DEV_DATA_ADVICE_WARMUP                ((int) 0x03)
