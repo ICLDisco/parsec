@@ -175,11 +175,34 @@ typedef int(*parsec_gpu_step_function_t)(parsec_device_gpu_module_t  *gpu_device
                                          parsec_execution_stream_t    *es,
                                          parsec_gpu_task_t           *gpu_task,
                                          parsec_gpu_exec_stream_t    *gpu_stream);
+/* Tasks that write the same data without being ordered by the runtime (PARSEC_FLOW_CONCURRENT_WRITE)
+ * share one device copy, which goes back to the lists when the last of them is done: they are counted.
+ * Exclusive writers are not. */
+static inline void
+parsec_gpu_register_writer(parsec_gpu_task_t *gpu_task, uint32_t flow_index)
+{
+    parsec_data_copy_t *copy = gpu_task->ec->data[flow_index].data_out;
+
+    assert(0 == (gpu_task->data_out_writers & (1U << flow_index)));
+    gpu_task->data_out_writers |= (1U << flow_index);
+    (void)parsec_atomic_fetch_inc_int32(&copy->writers);
+}
+
+/* True if no other task writes the copy anymore, which includes a flow that was not counted. */
+static inline int
+parsec_gpu_unregister_writer(parsec_gpu_task_t *gpu_task, uint32_t flow_index, parsec_gpu_data_copy_t *copy)
+{
+    if( 0 == (gpu_task->data_out_writers & (1U << flow_index)) ) return 1;
+    gpu_task->data_out_writers &= ~(1U << flow_index);
+    return 1 == parsec_atomic_fetch_dec_int32(&copy->writers);
+}
+
 static void parsec_device_task_t_constructor(parsec_gpu_task_t *gpu_task)
 {
     gpu_task->task_type = PARSEC_GPU_TASK_TYPE_INVALID; /* need to be set later */
     gpu_task->pushout = 0;
     gpu_task->data_out_readers = 0;
+    gpu_task->data_out_writers = 0;
     gpu_task->last_status = 0;
     gpu_task->submit = NULL;
     gpu_task->complete_stage = NULL;
@@ -2644,6 +2667,8 @@ parsec_device_data_stage_in( parsec_device_gpu_module_t* gpu_device,
          */
         int other_readers = gpu_elem->readers -
             ((0 != (gpu_task->data_out_readers & (1U << flow->flow_index))) ? 1 : 0);
+        /* Concurrent writers hold a reader from their reservation: not what this warns about. */
+        other_readers -= gpu_elem->writers;
         if( other_readers > 0 ) {
             parsec_warning("GPU[%d:%s]:\tWrite access to data copy %p [ref_count %d] with existing readers [%d]\n"
                            "\tPossible anti-dependency, or concurrent accesses: please prevent that with CTL dependencies\n",
@@ -4806,9 +4831,18 @@ parsec_device_kernel_push_task( parsec_device_gpu_module_t      *gpu_device,
         gpu_task->last_data_check_epoch = gpu_device->data_avail_epoch;
         return ret;
     }
-    for( uint32_t i = 0; i < gpu_task->nb_flows  /* not this_task->task_class->nb_flows */; i++ ) {
+    /* Two passes over the flows, the concurrent writes go last. Their data stays on the device between
+     * the tasks sharing it, so only the other flows can make a push fail and be retried. Staged last,
+     * the concurrent flows are counted as writers once, however many attempts the push took. */
+    const uint32_t nb_flows = gpu_task->nb_flows;  /* not this_task->task_class->nb_flows */
+    uint32_t concurrent_writes = 0;
+    for( uint32_t step = 0; step < 2 * nb_flows; step++ ) {
+        const uint32_t i = step % nb_flows;
+        const int concurrent_pass = (step >= nb_flows);
 
         flow = gpu_task->flow_info[i].flow;
+        /* First pass: the other flows, second pass: the concurrent writes */
+        if( (0 != (PARSEC_FLOW_CONCURRENT_WRITE & flow->flow_flags)) != concurrent_pass ) continue;
         /* Skip CTL flows */
         if(PARSEC_FLOW_ACCESS_NONE == (PARSEC_FLOW_ACCESS_MASK & flow->flow_flags)) continue;
 
@@ -4866,6 +4900,12 @@ parsec_device_kernel_push_task( parsec_device_gpu_module_t      *gpu_device,
          * event before the task can advance to execution.
          */
         input_stream_work += ret;
+        if( concurrent_pass ) concurrent_writes |= (1U << i);
+    }
+    for( uint32_t i = 0; i < nb_flows; i++ ) {
+        if( concurrent_writes & (1U << i) ) {
+            parsec_gpu_register_writer(gpu_task, i);
+        }
     }
     PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
                          "GPU[%d:%s]: Push task %s DONE",
@@ -5410,6 +5450,9 @@ parsec_device_kernel_epilog( parsec_device_gpu_module_t *gpu_device,
         if( 0 == (gpu_copy->flags & PARSEC_DATA_FLAG_PARSEC_OWNED) ) continue;
         assert(0 <= gpu_copy->readers);
 
+        /* Other tasks are still writing this copy: the last of them puts it back */
+        if( !parsec_gpu_unregister_writer(gpu_task, i, gpu_copy) ) continue;
+
         if( gpu_task->pushout & (1 << i) ) {
             parsec_data_t *original = gpu_copy->original;
             parsec_gpu_data_copy_t *cpu_copy = original->device_copies[0];
@@ -5509,10 +5552,18 @@ parsec_device_kernel_cleanout( parsec_device_gpu_module_t *gpu_device,
 
         gpu_copy = this_task->data[i].data_out;
         original = gpu_copy->original;
+        const int last_writer = parsec_gpu_unregister_writer(gpu_task, i, gpu_copy);
         parsec_atomic_lock(&original->lock);
         /* Last chance to give back what the reservation took: the wrapper is
          * released right after, and its data_out_readers bits with it. */
         (void)parsec_device_flow_release_data_out(gpu_device, gpu_task, i, !is_write);
+
+        if( !last_writer ) {
+            /* Other tasks still write this copy: the last one puts it back */
+            this_task->data[i].data_out = original->device_copies[0];
+            parsec_atomic_unlock(&original->lock);
+            continue;
+        }
 
         /* Make sure data_in is not NULL */
         if( NULL == this_task->data[i].data_in ) {
