@@ -2990,6 +2990,21 @@ int
 parsec_dtd_record_local_task_inserted(parsec_dtd_taskpool_t *dtd_tp)
 {
     int should_block = 0;
+    parsec_execution_stream_t *es = parsec_my_execution_stream();
+
+    if( NULL != es ) {
+        /* Count insertions per stream, so that inserting threads do not all
+         * take one lock: each checks the window after its own insertions. The
+         * window still doubles up to parsec_dtd_window_size; a lost doubling
+         * race only delays it. */
+        int32_t w = dtd_tp->task_window_size;
+        if( 0 != (++es->dtd_tasks_inserted % (uint32_t)w) ) return 0;
+        if( w < parsec_dtd_window_size ) {
+            parsec_atomic_cas_int32((int32_t*)&dtd_tp->task_window_size, w, 2 * w);
+            return 0;
+        }
+        return 1;
+    }
 
     parsec_atomic_lock(&dtd_tp->task_window_lock);
     dtd_tp->local_task_inserted++;

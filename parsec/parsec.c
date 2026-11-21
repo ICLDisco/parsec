@@ -311,6 +311,7 @@ static void* __parsec_thread_init( __parsec_temporary_thread_initialization_t* s
     es->next_task        = NULL;
     startup->virtual_process->execution_streams[startup->th_id] = es;
     es->core_id          = startup->bindto;
+    es->dtd_tasks_inserted = 0;
 #if defined(PARSEC_HAVE_HWLOC)
     es->socket_id        = parsec_hwloc_socket_id(startup->bindto);
 #else
