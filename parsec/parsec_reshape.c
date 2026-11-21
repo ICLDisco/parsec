@@ -34,6 +34,15 @@ void parsec_local_reshape_cb(parsec_base_future_t *future, ... )
  *
  * @param[in] future  datacopy future.
  */
+/* A reshape promise's description, its local type description and the two
+ * datatypes it matches share one allocation: parsec_new_reshape_promise()
+ * makes it, parsec_cleanup_reshape_promise() frees it. */
+typedef struct parsec_reshape_promise_storage_s {
+    parsec_reshape_promise_description_t desc;   /* first: freed through cb_fulfill_data_in */
+    parsec_dep_type_description_t        local;
+    parsec_datatype_t                    match[2];
+} parsec_reshape_promise_storage_t;
+
 void parsec_cleanup_reshape_promise(parsec_base_future_t *future)
 {
     parsec_datacopy_future_t* d_fut = (parsec_datacopy_future_t*)future;
@@ -47,14 +56,8 @@ void parsec_cleanup_reshape_promise(parsec_base_future_t *future)
         if(d_fut->super.status & PARSEC_DATA_FUTURE_STATUS_TRIGGERED){
             PARSEC_DATA_COPY_RELEASE(future_in_data->data);
         }
-        if(future_in_data->local != NULL){
-            free(future_in_data->local);
-        }
-        free(future_in_data);
-    }
-    if(d_fut->cb_match_data_in != NULL){
-        parsec_datatype_t * match_data = (parsec_datatype_t*)d_fut->cb_match_data_in;
-        free(match_data);
+        /* also frees the local type description and cb_match_data_in */
+        free((parsec_reshape_promise_storage_t*)future_in_data);
     }
     if(d_fut->super.tracked_data != NULL){
         parsec_data_copy_t * copy = (parsec_data_copy_t*) d_fut->super.tracked_data;
@@ -111,14 +114,13 @@ parsec_new_reshape_promise(parsec_dep_data_description_t* data,
     parsec_datacopy_future_t *data_future;
 
     data_future = PARSEC_OBJ_NEW(parsec_datacopy_future_t);
-    future_in_data = (parsec_reshape_promise_description_t*)malloc(
-                            sizeof(parsec_reshape_promise_description_t));
-    parsec_datatype_t * match_data = (parsec_datatype_t*)malloc(
-                            sizeof(parsec_datatype_t)*2);
+    parsec_reshape_promise_storage_t *storage =
+        (parsec_reshape_promise_storage_t*)malloc(sizeof(parsec_reshape_promise_storage_t));
+    future_in_data = &storage->desc;
+    parsec_datatype_t * match_data = storage->match;
 
     future_in_data->data = data->data;
-    future_in_data->local = (parsec_dep_type_description_t*)malloc(
-                                   sizeof(parsec_dep_type_description_t));
+    future_in_data->local = &storage->local;
     future_in_data->local->arena        = data->local.arena;
     future_in_data->local->src_datatype = data->local.src_datatype;
     future_in_data->local->src_count    = data->local.src_count;
