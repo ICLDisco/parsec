@@ -39,6 +39,8 @@ parsec_addtest_cmd(dsl/dtd/new_tile:cpu ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_test_ne
 if(PARSEC_HAVE_CUDA AND CMAKE_CUDA_COMPILER)
   parsec_addtest_cmd(dsl/dtd/new_tile:gpu ${SHM_TEST_CMD_LIST} ${CTEST_CUDA_LAUNCHER_OPTIONS} dsl/dtd/dtd_test_new_tile --require-gpu --mca device_cuda_enabled 1 --mca device cuda)
   set_tests_properties(dsl/dtd/new_tile:gpu PROPERTIES FIXTURES_REQUIRED parsec_cuda_kernels_run)
+  parsec_addtest_cmd(dsl/dtd/atomic_write:gpu ${SHM_TEST_CMD_LIST} ${CTEST_CUDA_LAUNCHER_OPTIONS} dsl/dtd/dtd_test_atomic_write_cuda --require-gpu --mca device_cuda_enabled 1 --mca device cuda)
+  set_tests_properties(dsl/dtd/atomic_write:gpu PROPERTIES FIXTURES_REQUIRED parsec_cuda_kernels_run)
   parsec_addtest_cmd(dsl/dtd/cuda_batch_status:gpu ${SHM_TEST_CMD_LIST}
                     ${CTEST_CUDA_LAUNCHER_OPTIONS}
                     dsl/dtd/dtd_test_cuda_again_async
@@ -107,5 +109,9 @@ if( MPI_C_FOUND )
   if(PARSEC_HAVE_CUDA AND CMAKE_CUDA_COMPILER)
     parsec_addtest_cmd(dsl/dtd/new_tile:mp:gpu ${MPI_TEST_CMD_LIST} 2 ${CTEST_CUDA_LAUNCHER_OPTIONS} dsl/dtd/dtd_test_new_tile --require-gpu --mca device_cuda_enabled 1 --mca device cuda)
     set_tests_properties(dsl/dtd/new_tile:mp:gpu PROPERTIES FIXTURES_REQUIRED parsec_cuda_kernels_run)
+    parsec_addtest_cmd(dsl/dtd/atomic_write:mp:gpu ${MPI_TEST_CMD_LIST} 2 ${CTEST_CUDA_LAUNCHER_OPTIONS} dsl/dtd/dtd_test_atomic_write_cuda --require-gpu --mca device_cuda_enabled 1 --mca device cuda)
+    set_tests_properties(dsl/dtd/atomic_write:mp:gpu PROPERTIES FIXTURES_REQUIRED parsec_cuda_kernels_run)
+    parsec_addtest_cmd(dsl/dtd/atomic_write_matrix:mp:gpu ${MPI_TEST_CMD_LIST} 2 ${CTEST_CUDA_LAUNCHER_OPTIONS} dsl/dtd/dtd_test_atomic_write_matrix --mca device_cuda_enabled 1 --mca device cuda)
+    set_tests_properties(dsl/dtd/atomic_write_matrix:mp:gpu PROPERTIES FIXTURES_REQUIRED parsec_cuda_kernels_run)
   endif(PARSEC_HAVE_CUDA AND CMAKE_CUDA_COMPILER)
 endif( MPI_C_FOUND )
