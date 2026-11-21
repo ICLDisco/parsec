@@ -4009,10 +4009,11 @@ parsec_gpu_task_again_exceeded(parsec_device_gpu_module_t *gpu_device,
  * ring, the ring is returned as the out_task parameter and chained into the
  * next stream by the caller's next invocation of this helper.
  *
- * Beware: this function does not generate errors by itself, instead
- * it propagates upward the return code of the progress function.
- * However, by convention the error code follows the parsec_hook_return_e
- * enum.
+ * Beware: apart from a failed event query (PARSEC_HOOK_RETURN_ERROR with a
+ * NULL out_task) or event record (PARSEC_HOOK_RETURN_ERROR with the task in
+ * out_task), this function does not generate errors by itself, instead it
+ * propagates upward the return code of the progress function. However, by
+ * convention the error code follows the parsec_hook_return_e enum.
  */
 static inline int
 parsec_device_progress_stream( parsec_device_gpu_module_t* gpu_device,
@@ -4082,9 +4083,16 @@ parsec_device_progress_stream( parsec_device_gpu_module_t* gpu_device,
             /* the task can be withdrawn by the system */
             return rc;
         }
-        if( 0 != rc ) {
-            return PARSEC_HOOK_RETURN_AGAIN;
+        if( 0 > rc ) {
+            /* A backend event error is fatal for this device (for example,
+             * CUDA reports an asynchronous illegal-memory-access here).
+             * Retrying the same event forever only floods the log and cannot
+             * make it valid. PARSEC_ERROR and PARSEC_HOOK_RETURN_AGAIN share
+             * the same value, so remap the error at this boundary. */
+            return PARSEC_HOOK_RETURN_ERROR;
         }
+        /* The oldest event is not ready yet. Fall through so that the
+         * remaining event slots of this stream can still be filled. */
     }
 
   grab_a_task:
@@ -4195,7 +4203,20 @@ parsec_device_progress_stream( parsec_device_gpu_module_t* gpu_device,
      * completion path must retry this same stage instead of advancing the task.
      */
     rc = gpu_device->event_record(gpu_device, stream, stream->start);
-    assert(PARSEC_SUCCESS == rc);
+    if( PARSEC_SUCCESS != rc ) {
+        /* Without its event, the completion of the work just queued cannot be
+         * tracked: the slot would still hold the event of an older submission,
+         * and hand the task back before its work is done. Fail the task as if
+         * its hook had failed after queueing work.
+         */
+        rc = task->last_status = PARSEC_HOOK_RETURN_ERROR;
+        (void)parsec_gpu_stream_quiesce_after_failure(gpu_device, stream);
+#if defined(PARSEC_PROF_TRACE)
+        parsec_gpu_profile_exec_ring_end(stream, task);
+#endif
+        *out_task = task;
+        return rc;
+    }
     stream->tasks[stream->start] = task;
     stream->start = (stream->start + 1) % stream->max_events;
     PARSEC_DEBUG_VERBOSE(20, parsec_gpu_output_stream,
@@ -4367,8 +4388,9 @@ parsec_gpu_release_withdrawn_tasks(parsec_device_gpu_module_t *gpu_device,
  * Every call either completes the oldest event of the stream, or submits a
  * single ring, so that the caller progresses all stages evenly.
  *
- * Beware: this function does not generate errors by itself, instead it
- * propagates upward the return codes of the progress function.
+ * Beware: apart from a failed event query or event record, this function does
+ * not generate errors by itself, instead it propagates upward the return codes
+ * of the progress function.
  *
  * @returns
  *   PARSEC_HOOK_RETURN_DONE: *out_task is the ring of tasks that completed the
@@ -4377,9 +4399,9 @@ parsec_gpu_release_withdrawn_tasks(parsec_device_gpu_module_t *gpu_device,
  *                             device, and no task completed the stage.
  *   PARSEC_HOOK_RETURN_NEXT: tasks were delayed because of physical constraints,
  *                            and no task completed the stage. *out_task is NULL.
- *   PARSEC_HOOK_RETURN_AGAIN: the stream could not be queried. *out_task is NULL.
  *   PARSEC_HOOK_RETURN_ERROR or PARSEC_HOOK_RETURN_DISABLE: *out_task is the
- *                             ring of tasks that failed.
+ *                             ring of tasks that failed, or NULL if the stream
+ *                             could not be queried (always ERROR).
  */
 static int
 parsec_device_progress_stream_batch( parsec_device_gpu_module_t* gpu_device,
@@ -4447,9 +4469,14 @@ parsec_device_progress_stream_batch( parsec_device_gpu_module_t* gpu_device,
                 }
                 goto complete;
             }
-        } else if( 0 != rc ) {
-            return PARSEC_HOOK_RETURN_AGAIN;
+        } else if( 0 > rc ) {
+            /* As in parsec_device_progress_stream(): a backend event error is
+             * fatal for this device, and PARSEC_ERROR must not reach the
+             * caller as PARSEC_HOOK_RETURN_AGAIN, which has the same value. */
+            return PARSEC_HOOK_RETURN_ERROR;
         }
+        /* Otherwise the oldest event is not ready yet: fall through to fill
+         * the remaining event slots of this stream. */
     }
 
     if( NULL != stream->tasks[stream->start] ) {  /* no room on the stream */
@@ -4502,9 +4529,22 @@ parsec_device_progress_stream_batch( parsec_device_gpu_module_t* gpu_device,
                                          &error_ring, &error_rc);
         }
     }
+    if( (NULL != event_ring) &&
+        (PARSEC_SUCCESS != gpu_device->event_record(gpu_device, stream, stream->start)) ) {
+        /* Without their event, the completion of the work the tasks queued
+         * cannot be tracked, see parsec_device_progress_stream(). Fail them all;
+         * the error path below quiesces the stream before returning them. This
+         * is a device failure, so it overrides a DISABLE seen earlier.
+         */
+        error_rc = PARSEC_HOOK_RETURN_ERROR;
+        for( iter = event_ring; NULL != iter; iter = next ) {
+            next = parsec_gpu_task_ring_pop(iter);
+            parsec_gpu_stage_result_sort(PARSEC_HOOK_RETURN_ERROR, iter, &done_ring,
+                                         &async_ring, &error_ring, &error_rc);
+        }
+        event_ring = NULL;
+    }
     if( NULL != event_ring ) {
-        rc = gpu_device->event_record(gpu_device, stream, stream->start);
-        assert(PARSEC_SUCCESS == rc);
         stream->tasks[stream->start] = event_ring;
         stream->start = (stream->start + 1) % stream->max_events;
         PARSEC_DEBUG_VERBOSE(20, parsec_gpu_output_stream,
