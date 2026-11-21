@@ -309,6 +309,9 @@ static void* __parsec_thread_init( __parsec_temporary_thread_initialization_t* s
     es->rand_seed        = tv_now.tv_usec + startup->th_id;
     es->scheduler_object = NULL;
     es->next_task        = NULL;
+    es->nb_tasks_deferred_tp = NULL;
+    es->nb_tasks_deferred    = 0;
+    es->nb_tasks_defer_ok    = 0;
     startup->virtual_process->execution_streams[startup->th_id] = es;
     es->core_id          = startup->bindto;
 #if defined(PARSEC_HAVE_HWLOC)

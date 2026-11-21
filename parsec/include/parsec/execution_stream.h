@@ -57,6 +57,14 @@ struct parsec_execution_stream_s {
      */
     struct parsec_task_s* next_task;
 
+    /* Task completions this stream has not yet subtracted from the task count
+     * of nb_tasks_deferred_tp (nb_tasks_deferred <= 0). Only streams that run
+     * a scheduling loop keep them (nb_tasks_defer_ok); see
+     * parsec_taskpool_nb_tasks_done() in parsec_internal.h. */
+    struct parsec_taskpool_s* nb_tasks_deferred_tp;
+    int32_t nb_tasks_deferred;
+    int32_t nb_tasks_defer_ok;
+
 #if defined(PARSEC_SIM)
     int largest_simulation_date;
 #endif

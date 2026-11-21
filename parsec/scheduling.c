@@ -648,6 +648,11 @@ __parsec_get_next_task( parsec_execution_stream_t *es,
         es->next_task = NULL;
         *distance = 1;
     }
+    /* This stream runs a scheduling loop: it may keep task-count decrements,
+     * and publishes them before it idles or works for another taskpool. */
+    es->nb_tasks_defer_ok = 1;
+    if( NULL == task || task->taskpool != es->nb_tasks_deferred_tp )
+        parsec_taskpool_nb_tasks_flush(es);
     return task;
 }
 
@@ -690,6 +695,7 @@ static int __parsec_taskpool_test( parsec_taskpool_t* tp, parsec_execution_strea
             nbiterations++;
         }
     }
+    parsec_taskpool_nb_tasks_flush(es);
 
     PARSEC_PINS(es, SELECT_END, NULL);
 
@@ -761,6 +767,7 @@ static int __parsec_taskpool_wait( parsec_taskpool_t* tp, parsec_execution_strea
             nbiterations++;
         }
     }
+    parsec_taskpool_nb_tasks_flush(es);
 
     if( NULL != tp->on_leave_wait ) tp->on_leave_wait(tp, tp->on_leave_wait_data);
 
