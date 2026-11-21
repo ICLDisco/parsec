@@ -359,6 +359,23 @@ parsec_create_reshape_promise(parsec_execution_stream_t *es,
     }
 }
 
+/* Size of count elements of dtt once packed. The packed size is a property
+ * of the transport: fall back on the raw type size when no backend is up to
+ * answer. */
+static int
+parsec_reshape_packed_size(uint64_t count, parsec_datatype_t dtt)
+{
+    int dsize = 0;
+    if( (NULL == parsec_ce.pack_size) ||
+        (PARSEC_SUCCESS != parsec_ce.pack_size(&parsec_ce, count, dtt, &dsize)) ) {
+        if( PARSEC_SUCCESS != parsec_type_size(dtt, &dsize) ) {
+            dsize = 0;
+        }
+        dsize *= (int)count;
+    }
+    return dsize;
+}
+
 /**
  *
  * Routine to set up a reshape promise invoke during the first call of
@@ -453,20 +470,24 @@ parsec_set_up_reshape_promise(parsec_execution_stream_t *es,
             int dsize;
             parsec_dep_data_description_t aux_data;
 
+            memset(&aux_data, 0, sizeof(aux_data));
+            /* The packed copy spans exactly the payload (remote_dep_copy_allocate):
+             * that is the size the properties of the dependency see. */
+            aux_data.remote.src_count = data->data->original->span;
             if ( PARSEC_HOOK_RETURN_DONE == fct->get_datatype(es, newcontext, oldcontext, &flow_mask, &aux_data)){
                 parsec_fatal("Unable to find unpacking datatype.");
             }
             data->local = aux_data.remote;
             data->local.src_datatype = PARSEC_DATATYPE_PACKED;
-            /* The packed size is a property of the transport. Fall back on the
-             * raw type size when no backend is up to answer. */
-            if( (NULL == parsec_ce.pack_size) ||
-                (PARSEC_SUCCESS != parsec_ce.pack_size(&parsec_ce, aux_data.remote.dst_count,
-                                                       aux_data.remote.dst_datatype, &dsize)) ) {
-                if( PARSEC_SUCCESS != parsec_type_size(aux_data.remote.dst_datatype, &dsize) ) {
-                    dsize = 0;
-                }
-                dsize *= aux_data.remote.dst_count;
+            dsize = parsec_reshape_packed_size(aux_data.remote.dst_count, aux_data.remote.dst_datatype);
+            /* A successor may declare more than the producer sent (a padded
+             * receive). Its buffer keeps the declared size, but only what the
+             * packed copy holds can be unpacked into it: whole elements of
+             * its datatype, or the bytes held if not even one fits. */
+            if( (dsize > 0) && ((size_t)dsize > data->data->original->span) ) {
+                size_t held = data->data->original->span;
+                int esize = parsec_reshape_packed_size(1, aux_data.remote.dst_datatype);
+                dsize = (int)(((esize > 0) && (held >= (size_t)esize)) ? (held / (size_t)esize) * (size_t)esize : held);
             }
             data->local.src_count = dsize;
 
@@ -475,10 +496,19 @@ parsec_set_up_reshape_promise(parsec_execution_stream_t *es,
              * as we may generate different reshaping from PACKED to successors remote_type.
              * (data->data_future is only clean up during iterate_successors when the predecessor
              * remote type changes, there's no info about the successor remote type).
+             * The datatypes are not enough: the copy the reshape makes is sized
+             * by the successor's arena and count, which may differ (a padded
+             * receive and an [type = AUTO] one of the same layout).
              */
             if(data->data_future != NULL) {
-                if( 0 == parsec_reshape_check_match_datatypes((parsec_base_future_t*)data->data_future,
-                                                              data->data_future->cb_match_data_in, data)){
+                const parsec_reshape_promise_description_t *prev =
+                    (const parsec_reshape_promise_description_t*)data->data_future->cb_fulfill_data_in;
+                if( (0 == parsec_reshape_check_match_datatypes((parsec_base_future_t*)data->data_future,
+                                                               data->data_future->cb_match_data_in, data)) ||
+                    (NULL == prev) || (NULL == prev->local) ||
+                    (prev->local->arena != data->local.arena) ||
+                    (prev->local->dst_count != data->local.dst_count) ||
+                    (prev->local->dst_displ != data->local.dst_displ) ) {
                     data->data_future = NULL;
                 }
             }

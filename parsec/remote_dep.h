@@ -133,6 +133,8 @@ struct remote_dep_output_param_s {
                                                        dependencies indexes not flow indexes. */
     int32_t                              priority;    /**< the priority of the message */
     uint32_t                             count_bits;  /**< The number of participants */
+    uint32_t                             remote_size; /**< Receiver side: the size, in bytes, of the payload
+                                                       as packed by the sender (0 when none is expected). */
     uint32_t*                            rank_bits;   /**< The array of bits representing the propagation path */
 };
 
@@ -169,6 +171,37 @@ extern int parsec_communication_engine_up;
 extern int parsec_comm_output_stream;
 extern int parsec_comm_verbose;
 extern parsec_execution_stream_t parsec_comm_es;
+
+
+/**
+ * The number of elements of remote->arena that hold what the description
+ * receives (dst_displ, then dst_count elements of dst_datatype). An arena
+ * counts in elements of its own size, while the description counts in
+ * elements of its datatype: the two only agree when the datatype spans exactly
+ * one arena element. A tile arena holds a short receive in one element, an
+ * arena of small elements holds it in as many as it takes.
+ */
+size_t parsec_dep_type_arena_count(const parsec_dep_type_description_t *remote);
+
+/**
+ * [type = AUTO]: the datatype and the count a dependency receives, from the
+ * size of the incoming data in its context. The data is received as elements
+ * of layout when it is a whole number of them (measured as the sender packs
+ * them), as bytes otherwise; a size of 0 (no data, or no context) gives no
+ * datatype and a count of 0, a control.
+ */
+parsec_datatype_t parsec_dep_auto_datatype(const parsec_dep_context_t *dep_ctx, parsec_datatype_t layout);
+uint64_t          parsec_dep_auto_count(const parsec_dep_context_t *dep_ctx, parsec_datatype_t layout);
+
+/**
+ * The count an output dependency without a datatype sends a copy with. Such a
+ * dependency sends the copy as its own datatype, count times. A copy received
+ * with [type = AUTO] holds its data as span / extent elements of its
+ * datatype: a count of 1 (the default) sends all of them, so that data
+ * forwarded from a READ flow arrives whole. Any other copy or count is sent
+ * as given.
+ */
+uint64_t          parsec_dep_copy_count(const parsec_data_copy_t *copy, uint64_t count);
 extern int parsec_param_comm_thread_multiple;
 
 #ifdef DISTRIBUTED

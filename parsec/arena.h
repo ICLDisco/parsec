@@ -35,6 +35,22 @@ extern size_t parsec_arena_max_allocated_memory;
  */
 extern size_t parsec_arena_max_cached_memory;
 
+/**
+ * The arena of the buffers PaRSEC sizes at runtime: the receive buffer of a
+ * PTG input dependency declared [type = AUTO]. Its elements are grains of
+ * PARSEC_ARENA_AUTO_GRAIN bytes, and it caches its chunks by power-of-two
+ * class (parsec_arena_set_count_classes). It is set up by parsec_init() and
+ * released by parsec_fini(): every copy taken from it must have been released
+ * before (the runtime releases the receive buffers it allocates with the
+ * tasks that read them; a user who takes a copy from it releases it).
+ */
+PARSEC_DECLSPEC extern parsec_arena_t parsec_arena_auto;
+#define PARSEC_ARENA_AUTO (&parsec_arena_auto)
+#define PARSEC_ARENA_AUTO_GRAIN 64
+
+int  parsec_arena_auto_init(void);
+void parsec_arena_auto_fini(void);
+
 #define PARSEC_ALIGN(x,a,t) (((x)+((t)(a)-1)) & ~(((t)(a)-1)))
 #define PARSEC_ALIGN_PTR(x,a,t) ((t)PARSEC_ALIGN((uintptr_t)x, a, uintptr_t))
 #define PARSEC_ALIGN_PAD_AMOUNT(x,s) ((~((uintptr_t)(x))+1) & ((uintptr_t)(s)-1))
@@ -62,8 +78,29 @@ struct parsec_arena_s {
      */
     parsec_data_allocate_t data_malloc;
     parsec_data_free_t     data_free;
+    /** Chunks of several elements (a receive whose count is only known at
+     *  runtime, for instance) are cached by power-of-two class when
+     *  nb_classes > 0: class c holds chunks of 2^(c+1) elements. They share
+     *  the max_released budget with the single-element cache, and stay
+     *  counted in used while cached (counted in elements). */
+    int32_t                nb_classes;
+    volatile int32_t       class_released; /**< elements cached in the class lifos */
+    parsec_lifo_t         *class_lifo;
 };
 PARSEC_DECLSPEC PARSEC_OBJ_CLASS_DECLARATION(parsec_arena_t);
+
+/**
+ * Let the arena cache the chunks it hands out for requests of more than one
+ * element, up to max_count elements (at most 2^30): a request is rounded up to
+ * a power of two elements, and the chunk goes back to the cache of its class
+ * when released, within the max_released budget of the arena. The arena's
+ * own data_malloc and data_free are used, so a pinned arena stays pinned.
+ * Without it (the default) such chunks are allocated and freed on demand. An
+ * arena counts in elements of elem_size: one that serves byte counts and
+ * bounds its memory (max_used) should use a grain, such as 64 bytes, as its
+ * element, so that the int32_t counters cover large requests.
+ */
+int parsec_arena_set_count_classes(parsec_arena_t *arena, size_t max_count);
 
 
 struct parsec_arena_chunk_s {
