@@ -12,6 +12,7 @@ parsec_addtest_executable(C dtd_test_task_insertion SOURCES dtd_test_task_insert
 parsec_addtest_executable(C dtd_test_null_as_tile SOURCES dtd_test_null_as_tile.c)
 parsec_addtest_executable(C dtd_test_task_inserting_task SOURCES dtd_test_task_inserting_task.c)
 parsec_addtest_executable(C dtd_test_flag_dont_track SOURCES dtd_test_flag_dont_track.c)
+parsec_addtest_executable(C dtd_test_atomic_write SOURCES dtd_test_atomic_write.c)
 parsec_addtest_executable(C dtd_test_multiple_handle_wait SOURCES dtd_test_multiple_handle_wait.c)
 parsec_addtest_executable(C dtd_test_broadcast SOURCES dtd_test_broadcast.c)
 parsec_addtest_executable(C dtd_test_reduce SOURCES dtd_test_reduce.c)
@@ -32,6 +33,7 @@ parsec_addtest_executable(C dtd_test_tp_enqueue_dequeue SOURCES dtd_test_tp_enqu
 parsec_addtest_executable(C dtd_test_interleave_actions SOURCES dtd_test_interleave_actions.c)
 if( PARSEC_HAVE_MPI )
   parsec_addtest_executable(C dtd_test_ce SOURCES dtd_test_ce.c)
+  parsec_addtest_executable(C dtd_test_atomic_write_ranks SOURCES dtd_test_atomic_write_ranks.c)
 endif( PARSEC_HAVE_MPI )
 
 parsec_addtest_executable(C dtd_test_new_tile SOURCES dtd_test_new_tile.c)
