@@ -247,6 +247,10 @@ static int remote_dep_initialized = 0;
 #if defined(PARSEC_REMOTE_DEP_USE_THREADS)
 static pthread_mutex_t comm_thread_mutex;
 static pthread_cond_t comm_thread_condition;
+/* The communication thread was created and has not been joined yet */
+static int comm_thread_exists = 0;
+/* Set, under comm_thread_mutex, to tell a sleeping communication thread to leave */
+static int comm_thread_must_leave = 0;
 #endif
 
 parsec_execution_stream_t parsec_comm_es = {
@@ -407,6 +411,7 @@ remote_dep_dequeue_init(parsec_context_t* context)
                    &thread_attr,
                    (void* (*)(void*))remote_dep_dequeue_main,
                    (void*)context);
+    comm_thread_exists = 1;
 
     /* Wait until the communication thread signals it is awake. */
     pthread_cond_wait( &comm_thread_condition, &comm_thread_mutex );
@@ -445,6 +450,24 @@ remote_dep_dequeue_fini(parsec_context_t* context)
         pthread_mutex_unlock(&comm_thread_mutex);
         pthread_join(dep_thread_id, &ret);
         assert((parsec_context_t*)ret == context);
+        comm_thread_exists = 0;
+    }
+    else if( comm_thread_exists ) {
+        /* The communication thread is asleep, which is where
+         * remote_dep_dequeue_init() and remote_dep_dequeue_off() leave it, and
+         * no command can reach it there. We own the mutex: tell the thread to
+         * leave, wake it up and wait for it. Left behind, it would keep
+         * waiting on a condition and a context that are about to disappear. */
+        void *ret;
+
+        assert( 1 == parsec_communication_engine_up );
+        comm_thread_must_leave = 1;
+        pthread_cond_signal(&comm_thread_condition);
+        pthread_mutex_unlock(&comm_thread_mutex);
+        pthread_join(dep_thread_id, &ret);
+        assert((parsec_context_t*)ret == context);
+        comm_thread_must_leave = 0;
+        comm_thread_exists = 0;
     }
 
     assert(NULL == parsec_dequeue_pop_front(&dep_cmd_queue));
@@ -559,6 +582,11 @@ void* remote_dep_dequeue_main(parsec_context_t* context)
     while( -1 != whatsup ) {
         /* Let's wait until we are awaken */
         pthread_cond_wait(&comm_thread_condition, &comm_thread_mutex);
+        if( comm_thread_must_leave ) {
+            /* remote_dep_dequeue_fini() found us asleep: nothing to turn on */
+            pthread_mutex_unlock(&comm_thread_mutex);
+            break;
+        }
 
         PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "RDEP: comm engine ON on process %d/%d",
                              context->my_rank, context->nb_nodes);
