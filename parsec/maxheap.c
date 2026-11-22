@@ -37,9 +37,11 @@ static inline size_t hiBit(size_t n)
     return n - (n >> 1);
 }
 
-parsec_task_heap_t* heap_create(void)
+parsec_task_heap_t* heap_create(parsec_thread_mempool_t *mempool)
 {
-    parsec_task_heap_t *h = calloc(1, sizeof(parsec_task_heap_t));
+    /* The storage is recycled, not zeroed: the memory pool only maintains the
+     * list item and mempool_owner, every other field must be set here. */
+    parsec_task_heap_t *h = (parsec_task_heap_t*)parsec_thread_mempool_allocate(mempool);
     h->list_item.list_next = (parsec_list_item_t*)h;
     h->list_item.list_prev = (parsec_list_item_t*)h;
     h->priority = 0;
@@ -54,7 +56,9 @@ void heap_destroy(parsec_task_heap_t **heap)
 {
     assert(parsec_heap_is_empty(&(*heap)->heap));
     parsec_heap_fini(&(*heap)->heap);
-    free(*heap);
+    /* Not free(): a thread scanning the buffer this heap was taken from may
+     * still read its priority, see parsec_hbbuffer_pop_best(). */
+    parsec_thread_mempool_free((*heap)->mempool_owner, *heap);
     *heap = NULL;
 }
 
@@ -109,7 +113,8 @@ parsec_task_t* heap_remove(parsec_task_heap_t **heap_ptr)
 
 parsec_task_t*
 heap_split_and_steal(parsec_task_heap_t **heap_ptr,
-                     parsec_task_heap_t **new_heap_ptr)
+                     parsec_task_heap_t **new_heap_ptr,
+                     parsec_thread_mempool_t *mempool)
 {
     parsec_task_heap_t *heap = *heap_ptr;
     *new_heap_ptr = NULL;
@@ -148,7 +153,7 @@ heap_split_and_steal(parsec_task_heap_t **heap_ptr,
         size_t highBit  = hiBit(size);
         size_t twoBit   = highBit >> 1;
 
-        *new_heap_ptr = heap_create();
+        *new_heap_ptr = heap_create(mempool);
         (*new_heap_ptr)->heap.comp_offset = h->comp_offset;
 
         parsec_list_item_t *left_top  = HLEFT(h->top);
