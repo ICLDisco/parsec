@@ -5507,6 +5507,26 @@ jdf_generate_code_consume_predecessor_setup(const jdf_t *jdf, const jdf_call_t *
     }
 }
 
+/**
+ * parsec_arena_get_new_copy() hands a host copy over with one reference on
+ * the copy, and one on its data on top of the one the copy holds: the data
+ * belongs to the caller. Nothing else ever reaches the data of the copy a
+ * task creates for a flow it only writes, so that reference was never given
+ * back and the data outlived its last copy.
+ *
+ * Make this data self-contained, as the reception of a remote copy does: it
+ * lives through its copies, and the copy keeps a reference on its behalf.
+ * Once the tasks have released theirs, PARSEC_DATA_COPY_RELEASE() finds the
+ * data only reachable through its own copies and disposes of both. A copy
+ * asked for another device comes without the extra reference on the data.
+ * Takes the indentation four times.
+ */
+#define JDF2C_NEW_COPY_IS_SELF_CONTAINED                                      \
+    "%s    if( 0 == target_device ) {  /* the data now lives through its copies */\n" \
+    "%s      PARSEC_OBJ_RELEASE(chunk->original);\n"                           \
+    "%s      PARSEC_DATA_COPY_RETAIN(chunk);\n"                                \
+    "%s    }\n"
+
 static void
 jdf_generate_code_call_initialization(const jdf_t *jdf, const jdf_call_t *call,
                                       const jdf_function_entry_t* f, const jdf_dataflow_t *flow,
@@ -5640,9 +5660,11 @@ jdf_generate_code_call_initialization(const jdf_t *jdf, const jdf_call_t *call,
 
                 coutput("%s    chunk = parsec_arena_get_new_copy(%s->arena, %s, target_device, %s->opaque_dtt);\n"
                         "%s    chunk->original->owner_device = target_device;\n"
+                        JDF2C_NEW_COPY_IS_SELF_CONTAINED
                         "%s    this_task->data._f_%s.data_out = chunk;\n",
                         spaces, string_arena_get_string(sa), string_arena_get_string(sa2), string_arena_get_string(sa),
                         spaces,
+                        spaces, spaces, spaces, spaces,
                         spaces, flow->varname);
 
                 string_arena_free(info.sa);
@@ -5756,9 +5778,11 @@ static void jdf_generate_code_call_init_output(const jdf_t *jdf, const jdf_call_
              spaces);
 
     coutput("%s    chunk = parsec_arena_get_new_copy(%s->arena, %s, target_device, %s);\n"
-            "%s    chunk->original->owner_device = target_device;\n",
+            "%s    chunk->original->owner_device = target_device;\n"
+            JDF2C_NEW_COPY_IS_SELF_CONTAINED,
             spaces, string_arena_get_string(sa_arena), string_arena_get_string(sa_count), string_arena_get_string(sa_datatype),
-            spaces);
+            spaces,
+            spaces, spaces, spaces, spaces);
     coutput("%s    this_task->data._f_%s.data_out = chunk;\n"
             "%s  }\n",
             spaces, flow->varname,
