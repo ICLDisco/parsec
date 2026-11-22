@@ -667,11 +667,15 @@ void parsec_dtd_fini(void)
 {
     parsec_mempool_destruct( parsec_dtd_tile_mempool );
     free( parsec_dtd_tile_mempool );
+    parsec_dtd_tile_mempool = NULL;
 
     if( -1 != parsec_dtd_debug_verbose ) {
         parsec_output_close(parsec_dtd_debug_output);
         parsec_dtd_debug_output = parsec_debug_output;
     }
+
+    /* The first DTD taskpool of a later parsec_init must set all this up again */
+    __parsec_dtd_is_initialized = 0;
 }
 
 extern int __parsec_task_progress(parsec_execution_stream_t *es,

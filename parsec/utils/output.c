@@ -507,9 +507,10 @@ void parsec_output_finalize(void)
         free(verbose.lds_prefix);
         verbose_stream = -1;
 
-        free (output_prefix);
-        free (output_dir);
+        free (output_prefix); output_prefix = NULL;
+        free (output_dir); output_dir = NULL;
         PARSEC_OBJ_DESTRUCT(&verbose);
+        initialized = false;
     }
 #if defined(__WINDOWS__)
     WSACleanup();
