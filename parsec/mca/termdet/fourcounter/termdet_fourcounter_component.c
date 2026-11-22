@@ -78,9 +78,14 @@ static int termdet_fourcounter_component_query(mca_base_module_t **module, int *
     *module = (mca_base_module_t *)ptr;
 
     if( 0 == parsec_termdet_fourcounter_msg_cb_registered ) {
-        int rc = parsec_ce.tag_register(PARSEC_TERMDET_FOURCOUNTER_MSG_TAG, parsec_termdet_fourcounter_msg_dispatch, ptr,
-                                        PARSEC_TERMDET_FOURCOUNTER_MAX_MSG_SIZE);
-        (void)rc;
+        /* Without a communication engine (a build without MPI, for instance)
+         * its function table is empty and this process is alone: the detector
+         * has nobody to exchange a message with, and no tag to register. */
+        if( NULL != parsec_ce.tag_register ) {
+            int rc = parsec_ce.tag_register(PARSEC_TERMDET_FOURCOUNTER_MSG_TAG, parsec_termdet_fourcounter_msg_dispatch, ptr,
+                                            PARSEC_TERMDET_FOURCOUNTER_MAX_MSG_SIZE);
+            (void)rc;
+        }
         PARSEC_OBJ_CONSTRUCT(&parsec_termdet_fourcounter_delayed_messages, parsec_list_t);
         parsec_termdet_fourcounter_msg_cb_registered++;
     }
@@ -92,7 +97,9 @@ static int termdet_fourcounter_component_close()
 {
     parsec_termdet_fourcounter_msg_cb_registered--;
     if( 0 == parsec_termdet_fourcounter_msg_cb_registered ) {
-        parsec_ce.tag_unregister(PARSEC_TERMDET_FOURCOUNTER_MSG_TAG);
+        if( NULL != parsec_ce.tag_unregister ) {
+            parsec_ce.tag_unregister(PARSEC_TERMDET_FOURCOUNTER_MSG_TAG);
+        }
         PARSEC_OBJ_DESTRUCT(&parsec_termdet_fourcounter_delayed_messages);
     }
     return MCA_SUCCESS;
