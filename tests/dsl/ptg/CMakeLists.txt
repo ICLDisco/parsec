@@ -18,6 +18,10 @@ if(PARSEC_HAVE_RANDOM)
   target_ptg_sources(startup PRIVATE "startup.jdf")
 endif(PARSEC_HAVE_RANDOM)
 
+parsec_addtest_executable(C dynamic_termdet)
+target_link_libraries(dynamic_termdet PRIVATE tests_runtime_common)
+target_ptg_sources(dynamic_termdet PRIVATE "dynamic_termdet.jdf")
+
 parsec_addtest_executable(C complex_deps)
 target_link_libraries(complex_deps PRIVATE tests_runtime_common)
 target_ptg_sources(complex_deps PRIVATE "complex_deps.jdf")
