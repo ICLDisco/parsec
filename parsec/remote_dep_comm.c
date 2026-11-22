@@ -445,9 +445,8 @@ remote_dep_dequeue_fini(parsec_context_t* context)
         item->priority = 0;
         parsec_dequeue_push_back(&dep_cmd_queue, (parsec_list_item_t*) item);
 
-        /* I am supposed to own the lock. Wake the communication thread. */
-        pthread_cond_signal(&comm_thread_condition);
-        pthread_mutex_unlock(&comm_thread_mutex);
+        /* The engine is on: the communication thread owns the mutex and runs
+         * the command queue, where it finds this command and returns. */
         pthread_join(dep_thread_id, &ret);
         assert((parsec_context_t*)ret == context);
         comm_thread_exists = 0;
@@ -474,6 +473,9 @@ remote_dep_dequeue_fini(parsec_context_t* context)
     PARSEC_OBJ_DESTRUCT(&dep_cmd_queue);
     assert(NULL == parsec_dequeue_pop_front(&dep_cmd_fifo));
     PARSEC_OBJ_DESTRUCT(&dep_cmd_fifo);
+    /* remote_dep_dequeue_init() initializes them again. */
+    pthread_cond_destroy(&comm_thread_condition);
+    pthread_mutex_destroy(&comm_thread_mutex);
     remote_dep_initialized = 0;
 
     PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Process has reshaped %zu tiles.", count_reshaping);
@@ -580,11 +582,13 @@ void* remote_dep_dequeue_main(parsec_context_t* context)
      */
 
     while( -1 != whatsup ) {
-        /* Let's wait until we are awaken */
-        pthread_cond_wait(&comm_thread_condition, &comm_thread_mutex);
+        /* Let's wait until we are turned on, or told to leave. A wake-up
+         * for neither (a spurious one) goes back to sleep. */
+        while( (2 != parsec_communication_engine_up) && !comm_thread_must_leave ) {
+            pthread_cond_wait(&comm_thread_condition, &comm_thread_mutex);
+        }
         if( comm_thread_must_leave ) {
             /* remote_dep_dequeue_fini() found us asleep: nothing to turn on */
-            pthread_mutex_unlock(&comm_thread_mutex);
             break;
         }
 
@@ -615,6 +619,10 @@ void* remote_dep_dequeue_main(parsec_context_t* context)
                              context->my_rank, context->nb_nodes);
         parsec_communication_engine_up = 1;  /* went to sleep */
     }
+
+    /* The mutex is ours on both ways out of the loop; release it so that it
+     * can be destroyed. */
+    pthread_mutex_unlock(&comm_thread_mutex);
 
     /* Release resources */
     PARSEC_PAPI_SDE_THREAD_FINI();
