@@ -1185,6 +1185,34 @@ remote_dep_release_incoming(parsec_execution_stream_t* es,
     int i, pidx;
     uint32_t action_mask = 0;
 
+    /* The successors of all the outputs of a flow read the one copy the task
+     * holds for that flow (task.data[] below). A flow whose dependencies to
+     * this process declare different remote types sends one payload per type.
+     * When several of them complete together (in the activation message),
+     * release them in turns of at most one output per flow, as they would be
+     * one by one after a rendezvous. */
+    {
+        const parsec_task_class_t* tc = origin->taskpool->task_classes_array[origin->msg.task_class_id];
+        remote_dep_datakey_t first_mask = 0;
+        uint32_t flows = 0;
+        for(i = 0; complete_mask>>i; i++) {
+            if( !((1U<<i) & complete_mask) ) continue;
+            pidx = 0;
+            while( !((1U<<i) & tc->out[pidx]->flow_datatype_mask) ) {
+                pidx++;
+                assert(NULL != tc->out[pidx]);
+            }
+            if( flows & (1U<<pidx) ) continue;  /* this flow has an output in this turn already */
+            flows |= (1U<<pidx);
+            first_mask |= (1U<<i);
+        }
+        if( first_mask != complete_mask ) {
+            origin = remote_dep_release_incoming(es, origin, first_mask);
+            assert(NULL != origin);  /* the outputs of the next turns are still incoming */
+            return remote_dep_release_incoming(es, origin, complete_mask ^ first_mask);
+        }
+    }
+
     /* Update the mask of remaining dependencies to avoid releasing the same outputs twice */
     assert((origin->incoming_mask & complete_mask) == complete_mask);
     origin->incoming_mask ^= complete_mask;
