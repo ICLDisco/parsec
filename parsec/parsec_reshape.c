@@ -295,8 +295,14 @@ parsec_create_reshape_promise(parsec_execution_stream_t *es,
         } else {
             data->data_future = (parsec_datacopy_future_t*)predecessor_repo_entry->data[predecessor_dep_flow_index];
             /* New fulfilled promises are set up on the successor repo in case
-             * they track a data different to the one tracked by the predecessor repo. */
-            if(data->data != parsec_future_get_or_trigger(data->data_future, NULL, NULL, NULL, NULL)) {
+             * they track a data different to the one tracked by the predecessor repo.
+             * The predecessor repo may hold an unfulfilled promise instead: after a
+             * reception, one payload of this flow may have been received packed and
+             * another one with the datatype of its successor. The unfulfilled promise
+             * does not track this data either, and must not be triggered from here,
+             * with no execution stream and no task to run the reshape for. */
+            if( !(data->data_future->super.status & PARSEC_DATA_FUTURE_STATUS_COMPLETED) ||
+                (data->data != parsec_future_get_or_trigger(data->data_future, NULL, NULL, NULL, NULL)) ) {
                 /* This case happens when a predecessor sends multiple copies with
                  * different shapes (type_remote) on the same output flow to a set
                  * of successors on the same remote destination node.
