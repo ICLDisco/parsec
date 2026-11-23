@@ -75,6 +75,9 @@ typedef struct parsec_datatype_module_s {
     parsec_datatype_module_create_struct_fn_t        create_struct;
     parsec_datatype_module_create_resized_fn_t       create_resized;
     parsec_datatype_module_contiguous_fn_t           contiguous;
+    /** Optional: the lower bound and the extent of the data itself, ignoring
+     *  any resizing. When NULL, the extent above is used. */
+    parsec_datatype_module_extent_fn_t               true_extent;
 } parsec_datatype_module_t;
 
 /**

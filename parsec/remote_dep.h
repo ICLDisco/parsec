@@ -81,6 +81,13 @@ struct parsec_dep_data_description_s {
     struct parsec_dep_type_description_s local;
     struct parsec_dep_type_description_s remote;
 
+    /* Input of get_datatype(), which does not change it: the size, in bytes,
+     * of the data crossing the dependency, as the sender packs it (0 when
+     * unknown). It is what the properties of the dependency see as
+     * dep_ctx->incoming_bytes, for every successor of the same data.
+     */
+    size_t incoming_bytes;
+
     /* Keeping the datacopy future on the parsec description enables
      * the reusing the same future to all successor instances that are
      * doing the same reshape.
@@ -169,6 +176,17 @@ extern int parsec_communication_engine_up;
 extern int parsec_comm_output_stream;
 extern int parsec_comm_verbose;
 extern parsec_execution_stream_t parsec_comm_es;
+
+
+/**
+ * The number of elements of remote->arena that hold what the description
+ * receives (dst_displ, then dst_count elements of dst_datatype). An arena
+ * counts in elements of its own size, while the description counts in
+ * elements of its datatype: the two only agree when the datatype spans exactly
+ * one arena element. A tile arena holds a short receive in one element, an
+ * arena of small elements holds it in as many as it takes.
+ */
+size_t parsec_dep_type_arena_count(const parsec_dep_type_description_t *remote);
 extern int parsec_param_comm_thread_multiple;
 
 #ifdef DISTRIBUTED

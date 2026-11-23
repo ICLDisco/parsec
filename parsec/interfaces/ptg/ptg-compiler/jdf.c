@@ -1211,7 +1211,7 @@ jdf_datatype_remove_redundancy(const jdf_datatransfer_type_t* src,
     int are_types_equal = 0, are_layout_equal = 0, are_count_equal = 0, are_displ_equal = 0;
     string_arena_t* sa = string_arena_new(64);
     string_arena_t* sa1 = string_arena_new(64);
-    expr_info_t linfo;
+    expr_info_t linfo = EMPTY_EXPR_INFO;
 
     linfo.sa = sa1;
     linfo.prefix = ":";
@@ -1267,6 +1267,28 @@ jdf_datatype_remove_redundancy(const jdf_datatransfer_type_t* src,
 #define COPY_INDEX(DST, SRC)                                    \
     (DST)->dep_datatype_index = (SRC)->dep_datatype_index
 
+
+void jdf_expr_mark_dep_context(jdf_expr_t *expr)
+{
+    if( NULL == expr ) return;
+    /* Leaves first: JDF_OP_IS_BINARY() does not exclude strings, and the
+     * operands of a binary expression share their storage with jdf_var. */
+    if( JDF_OP_IS_CST(expr->op) || JDF_OP_IS_VAR(expr->op) || JDF_OP_IS_STRING(expr->op) ) {
+        return;
+    }
+    if( JDF_OP_IS_C_CODE(expr->op) ) {
+        expr->jdf_c_code.dep_context = 1;
+    } else if( JDF_OP_IS_UNARY(expr->op) ) {
+        jdf_expr_mark_dep_context(expr->jdf_ua);
+    } else if( JDF_OP_IS_TERNARY(expr->op) ) {
+        jdf_expr_mark_dep_context(expr->jdf_tat);
+        jdf_expr_mark_dep_context(expr->jdf_ta1);
+        jdf_expr_mark_dep_context(expr->jdf_ta2);
+    } else if( JDF_OP_IS_BINARY(expr->op) ) {
+        jdf_expr_mark_dep_context(expr->jdf_ba1);
+        jdf_expr_mark_dep_context(expr->jdf_ba2);
+    }
+}
 
 /* Function to check the datatype specified on the dependency.
  * Returns:
@@ -1444,7 +1466,7 @@ void jdf_dump_function_flows(jdf_function_entry_t* function, int expanded)
     for( flow = function->dataflow; NULL != flow; flow = flow->next) {
         string_arena_t* sa1 = string_arena_new(64);
         string_arena_t* sa2 = string_arena_new(64);
-        expr_info_t linfo;
+        expr_info_t linfo = EMPTY_EXPR_INFO;
         jdf_dep_t *dep;
 
         linfo.sa = sa1;

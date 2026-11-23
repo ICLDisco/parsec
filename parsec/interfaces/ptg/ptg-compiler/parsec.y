@@ -775,6 +775,12 @@ dependency:   ARROW named_expr guarded_call properties
 
                   d->local_defs = $2;
 
+                  /* The inline C code of the properties may look at the
+                   * dependency itself (its parent task, the incoming data). */
+                  for(jdf_def_list_t *p = $4; NULL != p; p = p->next) {
+                      jdf_expr_mark_dep_context(p->expr);
+                  }
+
                   expr = jdf_find_property($4, "type", &property);
                   expr_remote = jdf_find_property($4, "type_remote", &property_remote);
                   expr_data = jdf_find_property($4, "type_data", &property_data);
