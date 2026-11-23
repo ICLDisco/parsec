@@ -215,7 +215,9 @@ process_datatype(jdf_datatransfer_type_t *datatype,
         expr->jdf_type = PARSEC_RETURN_TYPE_ARENA_DATATYPE_T;
     }
 
-    if( (JDF_STRING == expr->op) || (JDF_VAR == expr->op) ) {
+    if( jdf_datatype_expr_is_auto(expr) ) {
+        /* [type = AUTO] names no arena datatype */
+    } else if( (JDF_STRING == expr->op) || (JDF_VAR == expr->op) ) {
         /* Special case: [type = SOMETHING] -> define the PARSEC_ARENA_SOMETHING arena index */
         for(prec = NULL, g = current_jdf.datatypes; g != NULL; g = g->next) {
             if( 0 == strcmp(expr->jdf_var, g->name) ) {
@@ -720,6 +722,17 @@ dataflow:       optional_flow_flags VAR dependencies
                     flow->varname         = $2;
                     flow->deps            = $3;
 
+                    /* [type = AUTO] buffers hold what was received and no
+                     * more: a task that writes the data could need more. */
+                    for(jdf_dep_t *d = $3; (NULL != d) && ($1 & JDF_FLOW_TYPE_WRITE); d = d->next) {
+                        if( (d->dep_flags & JDF_DEP_FLOW_IN) && jdf_datatype_is_auto(d->datatype_remote) ) {
+                            jdf_fatal(JDF_OBJECT_LINENO(d),
+                                      "type = " JDF_DATATYPE_AUTO_NAME " is only valid on a READ flow (flow %s):"
+                                      " the received buffer holds the incoming data and no more\n", $2);
+                            YYERROR;
+                        }
+                    }
+
                     $$ = flow;
                     if( NULL == $3) {
                         JDF_OBJECT_LINENO($$) = current_lineno;
@@ -779,6 +792,52 @@ dependency:   ARROW named_expr guarded_call properties
                    * dependency itself (its parent task, the incoming data). */
                   for(jdf_def_list_t *p = $4; NULL != p; p = p->next) {
                       jdf_expr_mark_dep_context(p->expr);
+                  }
+
+                  /* [type = AUTO]: receive whatever the producer sends, as
+                   * elements of layout, and give it to the task as received.
+                   * It describes the whole dependency, so it is written as
+                   * the type, and none of what it derives can be given. */
+                  for(jdf_def_list_t *p = $4; NULL != p; p = p->next) {
+                      if( ((0 == strcmp(p->name, "type_remote")) || (0 == strcmp(p->name, "type_data"))) &&
+                          jdf_datatype_expr_is_auto(p->expr) ) {
+                          jdf_fatal(JDF_OBJECT_LINENO($4),
+                                    "%s = " JDF_DATATYPE_AUTO_NAME " is not supported, " JDF_DATATYPE_AUTO_NAME
+                                    " is only valid as the type ([type = " JDF_DATATYPE_AUTO_NAME "])\n", p->name);
+                          YYERROR;
+                      }
+                  }
+                  if( jdf_datatype_expr_is_auto(jdf_find_property($4, "type", NULL)) ) {
+                      static const char *derived[] = { "type_remote", "type_data", "layout_remote", "layout_data",
+                                                       "count", "displ", "count_remote", "displ_remote",
+                                                       "count_data", "displ_data", NULL };
+                      if( $1 != JDF_DEP_FLOW_IN ) {
+                          jdf_fatal(JDF_OBJECT_LINENO($4),
+                                    "type = " JDF_DATATYPE_AUTO_NAME " is only valid on an input dependency"
+                                    " (the receiver sizes the reception)\n");
+                          YYERROR;
+                      }
+                      if( (NULL == $3->calltrue->var) ||
+                          ((NULL != $3->callfalse) && (NULL == $3->callfalse->var)) ) {
+                          jdf_fatal(JDF_OBJECT_LINENO($4),
+                                    "type = " JDF_DATATYPE_AUTO_NAME " is only valid on a dependency"
+                                    " from another task, not from a data collection, NEW or NULL\n");
+                          YYERROR;
+                      }
+                      for(int i = 0; NULL != derived[i]; i++) {
+                          if( NULL != jdf_find_property($4, derived[i], NULL) ) {
+                              jdf_fatal(JDF_OBJECT_LINENO($4),
+                                        "type = " JDF_DATATYPE_AUTO_NAME " derives the receive from the incoming"
+                                        " data, %s cannot be specified\n", derived[i]);
+                              YYERROR;
+                          }
+                      }
+                      /* The receive is AUTO, the local type undefined: the
+                       * task gets the data as it was received */
+                      for(jdf_def_list_t *p = $4; NULL != p; p = p->next) {
+                          if( 0 == strcmp(p->name, "type") )        p->name = strdup("type_remote");
+                          else if( 0 == strcmp(p->name, "layout") ) p->name = strdup("layout_remote");
+                      }
                   }
 
                   expr = jdf_find_property($4, "type", &property);

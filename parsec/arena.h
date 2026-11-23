@@ -35,6 +35,22 @@ extern size_t parsec_arena_max_allocated_memory;
  */
 extern size_t parsec_arena_max_cached_memory;
 
+/**
+ * The arena of the buffers PaRSEC sizes at runtime: the receive buffer of a
+ * PTG input dependency declared [type = AUTO]. Its elements are grains of
+ * PARSEC_ARENA_AUTO_GRAIN bytes, and it caches its chunks by power-of-two
+ * class (parsec_arena_set_count_classes). It is set up by parsec_init() and
+ * released by parsec_fini(): every copy taken from it must have been released
+ * before (the runtime releases the receive buffers it allocates with the
+ * tasks that read them; a user who takes a copy from it releases it).
+ */
+PARSEC_DECLSPEC extern parsec_arena_t parsec_arena_auto;
+#define PARSEC_ARENA_AUTO (&parsec_arena_auto)
+#define PARSEC_ARENA_AUTO_GRAIN 64
+
+int  parsec_arena_auto_init(void);
+void parsec_arena_auto_fini(void);
+
 #define PARSEC_ALIGN(x,a,t) (((x)+((t)(a)-1)) & ~(((t)(a)-1)))
 #define PARSEC_ALIGN_PTR(x,a,t) ((t)PARSEC_ALIGN((uintptr_t)x, a, uintptr_t))
 #define PARSEC_ALIGN_PAD_AMOUNT(x,s) ((~((uintptr_t)(x))+1) & ((uintptr_t)(s)-1))

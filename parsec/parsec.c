@@ -638,6 +638,27 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
 #endif
     nb_vp = parsec_vpmap_get_nb_vp();
 
+    /*
+     * Parameters defining the default ARENA behavior. Handle with care they can lead to
+     * significant memory consumption or to a significant overhead in memory management
+     * (allocation/deallocation). These values are only used by ARENAs constructed with
+     * the default constructor (not the extended one).
+     */
+    parsec_mca_param_reg_sizet_name("arena", "max_used", "The maximum amount of memory each arena can"
+                                   " allocate (default unlimited)",
+                                   false, false, parsec_arena_max_allocated_memory, &parsec_arena_max_allocated_memory);
+    parsec_mca_param_reg_sizet_name("arena", "max_cached", "The maximum amount of memory each arena can"
+                                   " cache in a freelist (0=no caching)",
+                                   false, false, parsec_arena_max_cached_memory, &parsec_arena_max_cached_memory);
+    /* A receive declared [type = AUTO] takes its buffer from this arena: fail
+     * here, before the context exists, rather than at such a receive. */
+    if( PARSEC_SUCCESS != parsec_arena_auto_init() ) {
+        parsec_warning("Unable to set up the arena of the buffers sized at runtime ([type = AUTO])");
+        parsec_arena_auto_fini();
+        PARSEC_OBJ_RELEASE(cmd_line);
+        return NULL;
+    }
+
     /* the extra allocation will pertain to the virtual_processes array */
     context = (parsec_context_t*)malloc(sizeof(parsec_context_t) + (nb_vp-1) * sizeof(parsec_vp_t*));
 
@@ -695,19 +716,6 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
         parsec_vp_init(vp, parsec_vpmap_get_vp_threads(p), &(startup[t]));
         t += vp->nb_cores;
     }
-
-    /*
-     * Parameters defining the default ARENA behavior. Handle with care they can lead to
-     * significant memory consumption or to a significant overhead in memory management
-     * (allocation/deallocation). These values are only used by ARENAs constructed with
-     * the default constructor (not the extended one).
-     */
-    parsec_mca_param_reg_sizet_name("arena", "max_used", "The maximum amount of memory each arena can"
-                                   " allocate (default unlimited)",
-                                   false, false, parsec_arena_max_allocated_memory, &parsec_arena_max_allocated_memory);
-    parsec_mca_param_reg_sizet_name("arena", "max_cached", "The maximum amount of memory each arena can"
-                                   " cache in a freelist (0=no caching)",
-                                   false, false, parsec_arena_max_cached_memory, &parsec_arena_max_cached_memory);
 
     parsec_mca_param_reg_sizet_name("task", "startup_iter", "The number of ready tasks to be generated during the startup "
                                    "before allowing the scheduler to distribute them across the entire execution context.",
@@ -1343,6 +1351,8 @@ int parsec_fini( parsec_context_t** pcontext )
     parsec_data_dist_fini();
 
     parsec_mca_device_fini();
+    /* after the devices, which may still hold copies taken from it */
+    parsec_arena_auto_fini();
 
     for(p = 0; p < context->nb_vp; p++) {
         parsec_vp_fini(context->virtual_processes[p]);

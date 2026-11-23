@@ -1268,6 +1268,13 @@ jdf_datatype_remove_redundancy(const jdf_datatransfer_type_t* src,
     (DST)->dep_datatype_index = (SRC)->dep_datatype_index
 
 
+int jdf_datatype_expr_is_auto(const jdf_expr_t *expr)
+{
+    return (NULL != expr) &&
+           ((JDF_VAR == expr->op) || (JDF_STRING == expr->op)) &&
+           (0 == strcmp(expr->jdf_var, JDF_DATATYPE_AUTO_NAME));
+}
+
 void jdf_expr_mark_dep_context(jdf_expr_t *expr)
 {
     if( NULL == expr ) return;

@@ -187,6 +187,27 @@ extern parsec_execution_stream_t parsec_comm_es;
  * arena of small elements holds it in as many as it takes.
  */
 size_t parsec_dep_type_arena_count(const parsec_dep_type_description_t *remote);
+
+/**
+ * [type = AUTO]: the datatype and the count a dependency receives, from the
+ * size of the incoming data in its context. The data is received as elements
+ * of layout when it is a whole number of them (measured as the sender packs
+ * them), as bytes otherwise; a size of 0 (no data, or no context) gives no
+ * datatype and a count of 0, a control.
+ */
+parsec_datatype_t parsec_dep_auto_datatype(const parsec_dep_context_t *dep_ctx, parsec_datatype_t layout);
+uint64_t          parsec_dep_auto_count(const parsec_dep_context_t *dep_ctx, parsec_datatype_t layout);
+
+/**
+ * The count an output dependency without a datatype sends a copy with. Such a
+ * dependency sends the copy as its own datatype, count times. A copy received
+ * with [type = AUTO] holds its data as span / extent elements of its
+ * datatype: a count of 1 sends all of them, so that data forwarded from a
+ * READ flow arrives whole. Any other copy or count is sent as given. The
+ * generated code calls it only for the default count: an explicit
+ * count_remote, 1 included, is sent as written.
+ */
+uint64_t          parsec_dep_copy_count(const parsec_data_copy_t *copy, uint64_t count);
 extern int parsec_param_comm_thread_multiple;
 
 #ifdef DISTRIBUTED
