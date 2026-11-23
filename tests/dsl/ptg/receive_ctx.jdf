@@ -1,0 +1,217 @@
+extern "C" %{
+/*
+ * Copyright (c) 2026      The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
+/**
+ * The inline C code of a dependency property sees the dependency it
+ * describes, through dep_ctx: the task on the other side (dep_ctx->parent)
+ * and the size of the incoming data (dep_ctx->incoming_bytes).
+ *
+ * SEND(k) sends ndbl(k) doubles, a number that changes with k, to RECV(k+1).
+ * RECV(k+1) declares no count: it computes it from the size of the payload,
+ * and receives into DBL, an arena of one double per element, so that its
+ * buffer holds the payload and no padding. The count function also checks that the parent it is shown is
+ * SEND(k), rebuilt from the activation message. RECV checks the content and,
+ * for data from another process, that its copy spans exactly the payload.
+ */
+
+#include <assert.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "parsec.h"
+#include "parsec/arena.h"
+#include "parsec/data_internal.h"
+#include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include "tests/tests_runtime.h"
+
+static int32_t g_errors = 0;
+static int32_t g_remote = 0;
+static int32_t g_parent = 0;  /* receives whose count was computed knowing their parent */
+
+static inline int ndbl_of(int k, int max)
+{
+    uint64_t h = (uint64_t)(k + 1) * 2654435761ULL;
+    return (int)(1 + h % (uint64_t)max);
+}
+
+static inline double dbl_of(int k, int i) { return (double)k + 0.25 * (double)i; }
+
+static inline int rank_of_k(parsec_matrix_block_cyclic_t *desc, int k)
+{
+    parsec_data_collection_t *dc = (parsec_data_collection_t*)desc;
+    return (int)dc->rank_of(dc, k, 0);
+}
+
+/* The count RECV(k) receives: as many doubles as the payload holds */
+static int64_t count_from(const parsec_dep_context_t *dep_ctx, int k)
+{
+    if( NULL != dep_ctx->parent ) {
+        if( (0 != strcmp(dep_ctx->parent->task_class->name, "SEND")) ||
+            (dep_ctx->parent->locals[0].value != k - 1) ) {
+            fprintf(stderr, "receive_ctx: RECV(%d) was shown %s(%d) as its parent, expected SEND(%d)\n",
+                    k, dep_ctx->parent->task_class->name, dep_ctx->parent->locals[0].value, k - 1);
+            (void)parsec_atomic_fetch_inc_int32(&g_errors);
+        } else {
+            (void)parsec_atomic_fetch_inc_int32(&g_parent);
+        }
+    }
+    if( 0 != (dep_ctx->incoming_bytes % sizeof(double)) ) {
+        fprintf(stderr, "receive_ctx: RECV(%d) is told of %zu bytes, not a whole number of doubles\n",
+                k, dep_ctx->incoming_bytes);
+        (void)parsec_atomic_fetch_inc_int32(&g_errors);
+    }
+    return (int64_t)(dep_ctx->incoming_bytes / sizeof(double));
+}
+%}
+
+descA  [type = "parsec_matrix_block_cyclic_t*"]
+NT     [type = int]
+MAXD   [type = int]
+
+SEND(k)
+k = 0 .. NT-2
+n = %{ return ndbl_of(k, MAXD); %}
+
+: descA(k, 0)
+
+WRITE B <- NEW          [ type = DEFAULT ]
+        -> B RECV(k+1)  [ type_remote   = DEFAULT
+                          layout_remote = parsec_datatype_double_t
+                          count_remote  = n ]
+
+BODY
+{
+    double *b = (double*)B;
+    for(int i = 0; i < n; i++) b[i] = dbl_of(k, i);
+}
+END
+
+RECV(k)
+k = 1 .. NT-1
+n = %{ return ndbl_of(k - 1, MAXD); %}
+
+: descA(k, 0)
+
+READ B <- B SEND(k-1)  [ type_remote   = DBL
+                         layout_remote = parsec_datatype_double_t
+                         count_remote  = %{ return count_from(dep_ctx, k); %} ]
+
+BODY
+{
+    const double *b = (const double*)B;
+    int err = 0, remote = (rank_of_k(descA, k - 1) != rank_of_k(descA, k));
+    for(int i = 0; i < n; i++) {
+        if( b[i] != dbl_of(k - 1, i) ) {
+            fprintf(stderr, "receive_ctx: RECV(%d) wrong double %d of %d\n", k, i, n);
+            err++;
+            break;
+        }
+    }
+    if( remote ) {
+        if( _f_B->original->span != (size_t)n * sizeof(double) ) {
+            fprintf(stderr, "receive_ctx: RECV(%d) spans %zu bytes, expected %zu\n",
+                    k, _f_B->original->span, (size_t)n * sizeof(double));
+            err++;
+        }
+        if( _f_B->dtt != parsec_datatype_double_t ) {
+            fprintf(stderr, "receive_ctx: RECV(%d) is not described as doubles\n", k);
+            err++;
+        }
+        (void)parsec_atomic_fetch_inc_int32(&g_remote);
+    }
+    if( err ) (void)parsec_atomic_fetch_add_int32(&g_errors, err);
+}
+END
+
+extern "C" %{
+
+int main(int argc, char **argv)
+{
+    parsec_context_t *parsec = NULL;
+    parsec_receive_ctx_taskpool_t *tp;
+    parsec_matrix_block_cyclic_t descA;
+    parsec_arena_datatype_t *adt = PARSEC_OBJ_NEW(parsec_arena_datatype_t);
+    parsec_arena_datatype_t *dadt = PARSEC_OBJ_NEW(parsec_arena_datatype_t);
+    int32_t local[3], global[3];
+    int nt = 64, maxd = 64, rank, world, rc;
+    int pargc = 0;
+    char **pargv = NULL;
+
+    /* our options, then "--" and the options of PaRSEC */
+    for(int i = 1; i < argc; i++) {
+        if( 0 == strcmp(argv[i], "--") ) {
+            pargc = argc - i;
+            pargv = argv + i;
+            break;
+        }
+        if( 0 == strncmp(argv[i], "-n=", 3) ) nt = (int)strtol(argv[i] + 3, NULL, 10);
+        if( 0 == strncmp(argv[i], "-d=", 3) ) maxd = (int)strtol(argv[i] + 3, NULL, 10);
+    }
+    rc = parsec_tests_context_init(-1, PARSEC_TEST_THREAD_SERIALIZED, &pargc, &pargv,
+                                   &parsec, &rank, &world);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_init");
+    if( nt < 2 ) nt = 2;
+    if( maxd < 1 ) maxd = 1;
+
+    /* One tile per k, round robin over the processes */
+    parsec_matrix_block_cyclic_init(&descA, PARSEC_MATRIX_DOUBLE, PARSEC_MATRIX_TILE,
+                                    rank, maxd, 1, nt * maxd, 1,
+                                    0, 0, nt * maxd, 1,
+                                    world, 1, 1, 1, 0, 0);
+    descA.mat = parsec_data_allocate((size_t)descA.super.nb_local_tiles *
+                                     (size_t)descA.super.bsiz *
+                                     parsec_datadist_getsizeoftype(PARSEC_MATRIX_DOUBLE));
+    rc = parsec_matrix_adt_define_rect(adt, parsec_datatype_double_t, maxd, 1, maxd);
+    PARSEC_CHECK_ERROR(rc, "parsec_matrix_adt_define_rect");
+    rc = parsec_matrix_adt_define_rect(dadt, parsec_datatype_double_t, 1, 1, 1);
+    PARSEC_CHECK_ERROR(rc, "parsec_matrix_adt_define_rect");
+
+    tp = parsec_receive_ctx_new(&descA, nt, maxd);
+    assert(NULL != tp);
+    tp->arenas_datatypes[PARSEC_receive_ctx_DEFAULT_ADT_IDX] = *adt;
+    tp->arenas_datatypes[PARSEC_receive_ctx_DBL_ADT_IDX] = *dadt;
+
+    rc = parsec_context_add_taskpool(parsec, &tp->super);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
+    rc = parsec_context_start(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_start");
+    rc = parsec_context_wait(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
+    parsec_taskpool_free(&tp->super);
+
+    local[0] = g_errors;
+    local[1] = g_remote;
+    local[2] = g_parent;
+    rc = parsec_tests_allreduce(parsec, local, global, 3, parsec_datatype_int32_t,
+                                PARSEC_TESTS_REDUCE_SUM);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_allreduce");
+
+    parsec_matrix_adt_free(&adt);
+    parsec_matrix_adt_free(&dadt);
+    parsec_data_free(descA.mat);
+    parsec_tiled_matrix_destroy((parsec_tiled_matrix_t*)&descA);
+    rc = parsec_tests_context_fini(&parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_fini");
+
+    if( 0 != global[0] ) {
+        fprintf(stderr, "receive_ctx: FAILED (%d errors)\n", global[0]);
+        return EXIT_FAILURE;
+    }
+    if( (world > 1) && ((0 == global[1]) || (global[2] < global[1])) ) {
+        fprintf(stderr, "receive_ctx: FAILED (%d remote receptions, %d counted knowing their parent)\n",
+                global[1], global[2]);
+        return EXIT_FAILURE;
+    }
+    if( 0 == rank ) {
+        printf("receive_ctx: PASS (nt=%d, max doubles=%d, processes=%d, remote receptions=%d, counted knowing the parent=%d)\n",
+               nt, maxd, world, global[1], global[2]);
+    }
+    return EXIT_SUCCESS;
+}
+%}

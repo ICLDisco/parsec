@@ -1,0 +1,22 @@
+/*
+ * Copyright (c) 2026
+ */
+/**
+ * This test checks that the compiler rejects [type = AUTO] on a flow the
+ * task writes: the received buffer holds the incoming data and no more.
+ */
+TASK(k)
+
+k = 0 .. 10
+
+: A( k )
+
+  RW X <- (k == 0) ? A(k)
+       <- (k > 0) ? X TASK(k-1)   [ type = AUTO ]
+       -> (k < 10) ? X TASK(k+1)
+       -> (k == 10) ? A(k)
+BODY
+{
+    /* Nothing */
+}
+END
