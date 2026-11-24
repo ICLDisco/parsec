@@ -361,6 +361,10 @@ parsec_list_item_t* lifo_merge_ring(parsec_list_item_t *next_in_lifo,
                 ring->list_prev = item->list_prev;
                 item->list_prev->list_next = ring;
             }
+            /* item->list_prev is left as it was in the ring (the tail of the
+             * ring, or item itself), unlike ring->list_prev above. This is
+             * harmless: the LIFO is chained through list_next only, and
+             * nothing reads the list_prev of a queued element. */
             item->list_next = next;
             if (NULL != prev) {
                 prev->list_next = item;
