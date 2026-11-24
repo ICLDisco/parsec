@@ -7,6 +7,7 @@
 
 #include "parsec/parsec_config.h"
 #include "parsec/parsec_internal.h"
+#include "parsec/parsec_build_info.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -1039,7 +1040,7 @@ int parsec_version_ex( size_t len, char* version_string) {
         "git_tag\t\t= %s\n"
         "git_dirty\t= %s\n"
         "git_date\t= %s\n"
-        "compile_date\t= %s\n"
+        "configure_date\t= %s\n"
         "debug\t\t= %s\n"
         "profiling\t= %s\n"
 #if defined(PARSEC_PROF_TRACE)
@@ -1060,7 +1061,7 @@ int parsec_version_ex( size_t len, char* version_string) {
         PARSEC_GIT_BRANCH,
         PARSEC_GIT_DIRTY,
         PARSEC_GIT_DATE,
-        PARSEC_COMPILE_DATE,
+        PARSEC_CONFIGURE_DATE,
 #if defined(PARSEC_DEBUG)
         "yes"
 #if defined(PARSEC_DEBUG_PARANOID)

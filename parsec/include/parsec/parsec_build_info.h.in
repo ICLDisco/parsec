@@ -1,0 +1,28 @@
+/*
+ * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
+ */
+
+#ifndef PARSEC_BUILD_INFO_H_HAS_BEEN_INCLUDED
+#define PARSEC_BUILD_INFO_H_HAS_BEEN_INCLUDED
+
+/* Information about the source tree this build comes from. It changes whenever
+ * the branch is switched, the tree is rebased or it is modified, so it is kept
+ * out of parsec_options.h, which nearly every source file (including those of
+ * downstream projects) depends on. This header is generated at configure time,
+ * is not installed, and must only be included by the files that report the
+ * information, so that a change recompiles nothing else.
+ */
+
+/** @brief Define the branch (or tag) that was compiled */
+#define PARSEC_GIT_BRANCH "@GIT_COMMIT_BRANCH@"
+/** @brief Define the upstream commit hash the compiled tree derives from */
+#define PARSEC_GIT_HASH "@GIT_COMMIT_HASH@"
+/** @brief Define whether the compiled tree differs from that upstream commit ("yes" or "no") */
+#define PARSEC_GIT_DIRTY "@GIT_COMMIT_DIRTY@"
+/** @brief Define the date of that upstream commit */
+#define PARSEC_GIT_DATE "@GIT_COMMIT_DATE@"
+/** @brief Define the date of the configuration. It is refreshed only when
+ *  something in the generated headers changed, not on each CMake re-run. */
+#define PARSEC_CONFIGURE_DATE "@PARSEC_CONFIGURE_DATE@"
+
+#endif  /* PARSEC_BUILD_INFO_H_HAS_BEEN_INCLUDED */

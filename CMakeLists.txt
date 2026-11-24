@@ -1100,8 +1100,6 @@ endif( BUILD_TESTING )
 
 add_subdirectory(docs)
 
-string(TIMESTAMP PARSEC_COMPILE_DATE)
-
 # Fetch GIT info for this build, if not preset for a release
 # First, check if `git archive` has substituted the special values
 set(GIT_COMMIT_HASH "$Format:%h$")
@@ -1112,25 +1110,47 @@ set(GIT_COMMIT_DATE "$Format:%cI$")
 if(GIT_COMMIT_DATE MATCHES "Format:")
   unset(GIT_COMMIT_DATE)
 endif()
-# Get the latest abbreviated commit hash of the working branch
+# The hash and date describe the upstream commit this tree derives from (the
+# merge base of HEAD and the upstream branch), not HEAD itself, so that they
+# rarely change. Local modifications are reported by GIT_COMMIT_DIRTY instead.
+# All of this goes into parsec_build_info.h, which only parsec.c includes.
+set(PARSEC_GIT_BASE_REF "" CACHE STRING
+    "Git ref identifying the upstream branch used to report the commit hash (default: upstream/master, then origin/master)")
+mark_as_advanced(PARSEC_GIT_BASE_REF)
+set(GIT_COMMIT_REF "HEAD")
 if(NOT GIT_COMMIT_HASH)
-execute_process(
-  COMMAND git log -1 --format=%h
-  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-  OUTPUT_VARIABLE GIT_COMMIT_HASH
-  OUTPUT_STRIP_TRAILING_WHITESPACE
-  ERROR_QUIET)
-if(NOT GIT_COMMIT_HASH)
-  set(GIT_COMMIT_HASH "unknown")
-  set(GIT_COMMIT_BRANCH "")
-  set(GIT_COMMIT_DIRTY "")
-  set(GIT_COMMIT_DATE "")
-endif()
+  foreach(base_ref IN LISTS PARSEC_GIT_BASE_REF ITEMS upstream/master origin/master)
+    execute_process(
+      COMMAND git merge-base HEAD ${base_ref}
+      WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+      OUTPUT_VARIABLE merge_base
+      RESULT_VARIABLE merge_base_status
+      OUTPUT_STRIP_TRAILING_WHITESPACE
+      ERROR_QUIET)
+    if(0 EQUAL merge_base_status AND merge_base)
+      set(GIT_COMMIT_REF "${merge_base}")
+      break()
+    endif()
+  endforeach()
+  # Get the abbreviated hash of the commit we derive from. With no known
+  # upstream branch this falls back to HEAD.
+  execute_process(
+    COMMAND git log -1 --format=%h ${GIT_COMMIT_REF}
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    OUTPUT_VARIABLE GIT_COMMIT_HASH
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_QUIET)
+  if(NOT GIT_COMMIT_HASH)
+    set(GIT_COMMIT_HASH "unknown")
+    set(GIT_COMMIT_BRANCH "")
+    set(GIT_COMMIT_DIRTY "")
+    set(GIT_COMMIT_DATE "")
+  endif()
 endif(NOT GIT_COMMIT_HASH)
-# Get the date of the commit hash
+# Get the date of the same commit
 if(NOT GIT_COMMIT_DATE)
 execute_process(
-  COMMAND git log -1 --format=%cI
+  COMMAND git log -1 --format=%cI ${GIT_COMMIT_REF}
   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
   OUTPUT_VARIABLE GIT_COMMIT_DATE
   OUTPUT_STRIP_TRAILING_WHITESPACE
@@ -1155,16 +1175,32 @@ execute_process(
   OUTPUT_STRIP_TRAILING_WHITESPACE
   ERROR_QUIET)
 endif()
-# Get the status of the clone
+# Report whether this tree differs from the upstream commit, either by local
+# commits or by uncommitted changes to tracked files. Only "yes" or "no", so
+# that further edits do not change the generated header.
 if(NOT GIT_COMMIT_DIRTY)
-execute_process(
-  COMMAND git diff HEAD --shortstat
-  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-  OUTPUT_VARIABLE GIT_COMMIT_DIRTY
-  ERROR_QUIET)
-string(STRIP "${GIT_COMMIT_DIRTY}" GIT_COMMIT_DIRTY)
-if(NOT GIT_COMMIT_DIRTY)
-  set(GIT_COMMIT_DIRTY "no")
+set(GIT_COMMIT_DIRTY "no")
+if(NOT "${GIT_COMMIT_REF}" STREQUAL "HEAD")
+  execute_process(
+    COMMAND git rev-parse HEAD
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    OUTPUT_VARIABLE git_head
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_QUIET)
+  if(NOT "${git_head}" STREQUAL "${GIT_COMMIT_REF}")
+    set(GIT_COMMIT_DIRTY "yes")
+  endif()
+endif()
+if(NOT GIT_COMMIT_DIRTY STREQUAL "yes")
+  # git diff --quiet exits with 1 when there are differences
+  execute_process(
+    COMMAND git diff HEAD --quiet
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    RESULT_VARIABLE git_diff_status
+    OUTPUT_QUIET ERROR_QUIET)
+  if(1 EQUAL git_diff_status)
+    set(GIT_COMMIT_DIRTY "yes")
+  endif()
 endif()
 endif()
 
@@ -1204,7 +1240,6 @@ configure_file (
 configure_file (
   "${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/parsec_options.h.in"
   "${PROJECT_INCLUDE_DIR}/parsec/parsec_options.h")
-
 # If we use CAS on int128_t, some structures change and we need to adapt parsec_options.h
 # so that .jdf code built externally uses the same variant of parsec_lifo_t structs and such.
 cmake_push_check_state()
@@ -1253,6 +1288,34 @@ if(PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128)
 else()
   message(STATUS "Internal PaRSEC does not use CAS on int128_t. Keeping parsec_options.h unchanged")
 endif()
+
+# The source tree information lives in its own private header, used only by
+# parsec.c, so that it changing does not rebuild everything.
+#
+# It also records the date of the configuration. That date is refreshed only if
+# something in the generated headers changed (the configuration header, the
+# options, the LIFO layout or the source tree information above). A CMake re-run
+# that changes nothing must not touch the header, or parsec.c would be rebuilt
+# for nothing. The previous state and date are kept in the cache between runs.
+set(parsec_generated_state
+    "${GIT_COMMIT_BRANCH}|${GIT_COMMIT_HASH}|${GIT_COMMIT_DIRTY}|${GIT_COMMIT_DATE}")
+foreach(generated_header IN ITEMS
+    "${PROJECT_INCLUDE_DIR}/parsec/parsec_config.h"
+    "${PROJECT_INCLUDE_DIR}/parsec/parsec_options.h"
+    "${CMAKE_CURRENT_BINARY_DIR}/parsec/class/lifo-external.h")
+  file(SHA256 "${generated_header}" generated_header_hash)
+  string(APPEND parsec_generated_state "|${generated_header_hash}")
+endforeach()
+if(NOT PARSEC_CONFIGURE_DATE OR NOT "${parsec_generated_state}" STREQUAL "${PARSEC_GENERATED_STATE}")
+  string(TIMESTAMP parsec_configure_date)  # honors SOURCE_DATE_EPOCH
+  set(PARSEC_CONFIGURE_DATE "${parsec_configure_date}" CACHE INTERNAL
+      "Date at which the generated headers of PaRSEC last changed")
+  set(PARSEC_GENERATED_STATE "${parsec_generated_state}" CACHE INTERNAL
+      "State of the generated headers corresponding to PARSEC_CONFIGURE_DATE")
+endif()
+configure_file (
+  "${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/parsec_build_info.h.in"
+  "${PROJECT_INCLUDE_DIR}/parsec/parsec_build_info.h")
 
 install(FILES
   ${PROJECT_INCLUDE_DIR}/parsec/parsec_options.h
