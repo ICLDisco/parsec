@@ -55,6 +55,25 @@ static int sched_lhq_install( parsec_context_t *master )
     return PARSEC_SUCCESS;
 }
 
+static int lhq_core_group(int level, const parsec_execution_stream_t *es)
+{
+    int core_id = es->core_id >= 0 ? es->core_id : es->th_id;
+    int group = parsec_hwloc_master_id(level, core_id);
+    if( group < 0 )
+        parsec_fatal("lhq scheduler requires a working hwloc");
+    return group;
+}
+
+static int lhq_group_owner(const parsec_vp_t *vp, int level, int t, int group)
+{
+    /* Only workers from this VP can own or share its queues. */
+    for(int i = 0; i < t; i++) {
+        if( lhq_core_group(level, vp->execution_streams[i]) == group )
+            return i;
+    }
+    return t;
+}
+
 static int flow_lhq_init(parsec_execution_stream_t* ces, struct parsec_barrier_t* barrier)
 {
     parsec_mca_sched_local_queues_scheduler_object_t *sched_obj = NULL;
@@ -95,10 +114,9 @@ static int flow_lhq_init(parsec_execution_stream_t* ces, struct parsec_barrier_t
                  * and create a hbbuffer for them */
                 es = vp->execution_streams[t];
                 sched_obj = (parsec_mca_sched_local_queues_scheduler_object_t*)es->scheduler_object;
-                int m = parsec_hwloc_master_id(level, es->th_id);
-                if( 0 > m ) parsec_fatal("lhq scheduler requires a working hwloc");
-                if( es->th_id == m ) {
-                    int nbcores = parsec_hwloc_nb_cores(level, m);
+                int group = lhq_core_group(level, es);
+                if( t == lhq_group_owner(vp, level, t, group) ) {
+                    int nbcores = parsec_hwloc_nb_cores(level, group);
                     if( 0 > nbcores ) parsec_fatal("lhq scheduler requires a working hwloc");
                     int queue_size = 96 * (level+1) / nbcores;
                     if( queue_size < nbcores ) queue_size = nbcores;
@@ -120,8 +138,8 @@ static int flow_lhq_init(parsec_execution_stream_t* ces, struct parsec_barrier_t
                 /* Now that the queues have been created for this level, the non-masters copy the queue */
                 es = vp->execution_streams[t];
                 sched_obj = (parsec_mca_sched_local_queues_scheduler_object_t*)es->scheduler_object;
-                int m = parsec_hwloc_master_id(level, es->th_id);
-                if(m != es->th_id) {
+                int m = lhq_group_owner(vp, level, t, lhq_core_group(level, es));
+                if(m != t) {
                     sched_obj->hierarch_queues[idx] = PARSEC_MCA_SCHED_LOCAL_QUEUES_OBJECT(vp->execution_streams[m])->hierarch_queues[idx];
                 }
             }
@@ -155,9 +173,8 @@ static int flow_lhq_init(parsec_execution_stream_t* ces, struct parsec_barrier_t
                 
                 for(int level = 0; level < sched_obj->nb_hierarch_queues; level++) {
                     int idx = sched_obj->nb_hierarch_queues - 1 - level;
-                    int m = parsec_hwloc_master_id(level, es->th_id);
-                    assert(m >= 0);
-                    if( es->th_id == m ) {
+                    int m = lhq_group_owner(vp, level, t, lhq_core_group(level, es));
+                    if( t == m ) {
                         snprintf(event_name, 256, "SCHEDULER::PENDING_TASKS::QUEUE=%d/%d::SCHED=LHQ",
                                  es->virtual_process->vp_id, idx);
                         parsec_papi_sde_register_fp_counter(event_name, PAPI_SDE_RO|PAPI_SDE_INSTANT,
@@ -237,8 +254,8 @@ static void sched_lhq_remove( parsec_context_t *master )
 
             for(int level = 0; level < sched_obj->nb_hierarch_queues; level++) {
                 int idx = sched_obj->nb_hierarch_queues - 1 - level;
-                int m = parsec_hwloc_master_id(level, es->th_id);
-                if( es->th_id == m ) {
+                int m = lhq_group_owner(vp, level, t, lhq_core_group(level, es));
+                if( t == m ) {
                     parsec_hbbuffer_destruct(sched_obj->hierarch_queues[idx]);
                     sched_obj->hierarch_queues[idx] = NULL;
                     PARSEC_PAPI_SDE_UNREGISTER_COUNTER("SCHEDULER::PENDING_TASKS::QUEUE=%d/%d::SCHED=LHQ", vp->vp_id, idx);
