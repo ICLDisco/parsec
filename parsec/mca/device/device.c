@@ -70,13 +70,26 @@ int parsec_device_peer_mesh_incomplete = 0;
 
 #if !defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) && !defined(PARSEC_HAVE_DEV_HIP_SUPPORT) && \
     !defined(PARSEC_HAVE_DEV_LEVEL_ZERO_SUPPORT)
-/* Without an accelerator no copy ever has memory that can be reclaimed under
- * its readers, so the announcement has nothing to protect. The accelerator
- * build defines these in the generic GPU module instead. */
-int parsec_device_data_copy_pin_reader(parsec_data_copy_t *copy) { (void)copy; return 1; }
-void parsec_device_data_copy_unpin_reader(parsec_data_copy_t *copy) { (void)copy; }
-int parsec_device_data_copy_try_pin_reader(parsec_data_copy_t *copy) { (void)copy; return 1; }
-parsec_data_copy_t *parsec_device_data_copy_pin_value(parsec_data_copy_t *copy) { return copy; }
+/* Without an accelerator the memory of a copy is never reclaimed under its readers, but they still have
+ * to be counted: a task that overwrites the copy (DTD waits for an empty count) must not do so while a
+ * task body or a remote send is reading it. The accelerator build defines these in the generic GPU module. */
+int parsec_device_data_copy_pin_reader(parsec_data_copy_t *copy)
+{
+    if( NULL != copy ) (void)parsec_atomic_fetch_inc_int32(&copy->readers);
+    return 1;
+}
+void parsec_device_data_copy_unpin_reader(parsec_data_copy_t *copy)
+{
+    if( NULL == copy ) return;
+    (void)parsec_atomic_fetch_dec_int32(&copy->readers);
+    assert(copy->readers >= 0);
+}
+int parsec_device_data_copy_try_pin_reader(parsec_data_copy_t *copy) { return parsec_device_data_copy_pin_reader(copy); }
+parsec_data_copy_t *parsec_device_data_copy_pin_value(parsec_data_copy_t *copy)
+{
+    (void)parsec_device_data_copy_pin_reader(copy);
+    return copy;
+}
 #endif
 #if defined(PARSEC_DEBUG) || defined(PARSEC_DEBUG_NOISIER)
 int parsec_device_inject_disable = 0;
