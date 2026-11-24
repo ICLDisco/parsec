@@ -64,15 +64,10 @@ static int lhq_core_group(int level, const parsec_execution_stream_t *es)
     return group;
 }
 
-static int lhq_group_owner(const parsec_vp_t *vp, int level, int t, int group)
-{
-    /* Only workers from this VP can own or share its queues. */
-    for(int i = 0; i < t; i++) {
-        if( lhq_core_group(level, vp->execution_streams[i]) == group )
-            return i;
-    }
-    return t;
-}
+typedef struct {
+    parsec_mca_sched_local_queues_scheduler_object_t queues;
+    int owner[];  /* VP worker owning each hierarchical queue. */
+} lhq_scheduler_object_t;
 
 static int flow_lhq_init(parsec_execution_stream_t* ces, struct parsec_barrier_t* barrier)
 {
@@ -86,12 +81,16 @@ static int flow_lhq_init(parsec_execution_stream_t* ces, struct parsec_barrier_t
     /* Due to the complexity of the hierarchy, building the LHQ is centralized */
     if( ces->th_id == 0 ) {
 
+        int levels = parsec_hwloc_nb_levels();
+        int *group = malloc(vp->nb_cores * sizeof(*group));
+
         for(t = 0; t < vp->nb_cores; t++) {
             /* First of all, we allocate the scheduling object memory for all threads */
             es = vp->execution_streams[t];
 
-            sched_obj = (parsec_mca_sched_local_queues_scheduler_object_t*)calloc(1, sizeof(parsec_mca_sched_local_queues_scheduler_object_t));
-            es->scheduler_object = sched_obj;
+            lhq_scheduler_object_t *lhq = calloc(1, sizeof(*lhq) + levels * sizeof(lhq->owner[0]));
+            es->scheduler_object = lhq;
+            sched_obj = &lhq->queues;
 
             if( es->th_id == 0 ) {
                 assert(t == 0);
@@ -102,22 +101,32 @@ static int flow_lhq_init(parsec_execution_stream_t* ces, struct parsec_barrier_t
                 sched_obj->system_queue = PARSEC_MCA_SCHED_LOCAL_QUEUES_OBJECT(vp->execution_streams[0])->system_queue;
             }
 
-            sched_obj->nb_hierarch_queues = parsec_hwloc_nb_levels();
+            sched_obj->nb_hierarch_queues = levels;
             sched_obj->hierarch_queues = (parsec_hbbuffer_t **)malloc(sched_obj->nb_hierarch_queues * sizeof(parsec_hbbuffer_t*) );
         }
 
-        for(int level = 0; level < sched_obj->nb_hierarch_queues; level++) {
-            /* Now we work level of the hierarchy per level */
-            int idx = sched_obj->nb_hierarch_queues - 1 - level;
+        for(int level = 0; level < levels; level++) {
+            int idx = levels - 1 - level;
+            int max_group = 0;
             for(t = 0; t < vp->nb_cores; t++) {
-                /* First, find which threads are a master for the lower level of the hierarchy,
-                 * and create a hbbuffer for them */
+                group[t] = lhq_core_group(level, vp->execution_streams[t]);
+                if( group[t] > max_group ) max_group = group[t];
+            }
+            /* Group IDs are OS processor IDs and can exceed the VP worker count. */
+            struct { int owner, workers; } *groups = calloc((size_t)max_group + 1, sizeof(*groups));
+            for(t = 0; t < vp->nb_cores; t++) {
+                if( groups[group[t]].workers++ == 0 )
+                    groups[group[t]].owner = t;
+            }
+
+            for(t = 0; t < vp->nb_cores; t++) {
                 es = vp->execution_streams[t];
-                sched_obj = (parsec_mca_sched_local_queues_scheduler_object_t*)es->scheduler_object;
-                int group = lhq_core_group(level, es);
-                if( t == lhq_group_owner(vp, level, t, group) ) {
-                    int nbcores = parsec_hwloc_nb_cores(level, group);
-                    if( 0 > nbcores ) parsec_fatal("lhq scheduler requires a working hwloc");
+                lhq_scheduler_object_t *lhq = es->scheduler_object;
+                int owner = groups[group[t]].owner;
+                lhq->owner[idx] = owner;
+                sched_obj = &lhq->queues;
+                if( t == owner ) {
+                    int nbcores = groups[group[t]].workers;
                     int queue_size = 96 * (level+1) / nbcores;
                     if( queue_size < nbcores ) queue_size = nbcores;
 
@@ -132,18 +141,13 @@ static int flow_lhq_init(parsec_execution_stream_t* ces, struct parsec_barrier_t
                                          level, idx, sched_obj->hierarch_queues[idx],
                                          level == 0 ? (void*)sched_obj->system_queue : (void*)sched_obj->hierarch_queues[idx+1],
                                          level == 0 ? "System queue" : "upper level hhbuffer");
+                } else {
+                    sched_obj->hierarch_queues[idx] = PARSEC_MCA_SCHED_LOCAL_QUEUES_OBJECT(vp->execution_streams[owner])->hierarch_queues[idx];
                 }
             }
-            for(t = 0; t < vp->nb_cores; t++) {
-                /* Now that the queues have been created for this level, the non-masters copy the queue */
-                es = vp->execution_streams[t];
-                sched_obj = (parsec_mca_sched_local_queues_scheduler_object_t*)es->scheduler_object;
-                int m = lhq_group_owner(vp, level, t, lhq_core_group(level, es));
-                if(m != t) {
-                    sched_obj->hierarch_queues[idx] = PARSEC_MCA_SCHED_LOCAL_QUEUES_OBJECT(vp->execution_streams[m])->hierarch_queues[idx];
-                }
-            }
+            free(groups);
         }
+        free(group);
         for(t = 0; t < vp->nb_cores; t++) {
             /* Last, the default task queue is the first hierarchical queue of each es */
             es = vp->execution_streams[t];
@@ -173,8 +177,7 @@ static int flow_lhq_init(parsec_execution_stream_t* ces, struct parsec_barrier_t
                 
                 for(int level = 0; level < sched_obj->nb_hierarch_queues; level++) {
                     int idx = sched_obj->nb_hierarch_queues - 1 - level;
-                    int m = lhq_group_owner(vp, level, t, lhq_core_group(level, es));
-                    if( t == m ) {
+                    if( ((lhq_scheduler_object_t *)es->scheduler_object)->owner[idx] == t ) {
                         snprintf(event_name, 256, "SCHEDULER::PENDING_TASKS::QUEUE=%d/%d::SCHED=LHQ",
                                  es->virtual_process->vp_id, idx);
                         parsec_papi_sde_register_fp_counter(event_name, PAPI_SDE_RO|PAPI_SDE_INSTANT,
@@ -254,8 +257,7 @@ static void sched_lhq_remove( parsec_context_t *master )
 
             for(int level = 0; level < sched_obj->nb_hierarch_queues; level++) {
                 int idx = sched_obj->nb_hierarch_queues - 1 - level;
-                int m = lhq_group_owner(vp, level, t, lhq_core_group(level, es));
-                if( t == m ) {
+                if( ((lhq_scheduler_object_t *)es->scheduler_object)->owner[idx] == t ) {
                     parsec_hbbuffer_destruct(sched_obj->hierarch_queues[idx]);
                     sched_obj->hierarch_queues[idx] = NULL;
                     PARSEC_PAPI_SDE_UNREGISTER_COUNTER("SCHEDULER::PENDING_TASKS::QUEUE=%d/%d::SCHED=LHQ", vp->vp_id, idx);
