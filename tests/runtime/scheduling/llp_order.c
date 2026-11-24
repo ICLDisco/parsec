@@ -74,7 +74,7 @@ static int run_case(parsec_execution_stream_t *es, const sched_case_t *tc)
 {
     parsec_task_t *tasks[MAX_TASKS], *task;
     char labels[MAX_TASKS], got[MAX_TASKS + 2];
-    int nb_tasks = 0, nb_got = 0, i;
+    int nb_tasks = 0, nb_got = 0, nb_left, i;
     int32_t distance;
 
     for( const sched_step_t *step = tc->steps; NULL != step->labels; step++ ) {
@@ -109,8 +109,23 @@ static int run_case(parsec_execution_stream_t *es, const sched_case_t *tc)
     }
     got[nb_got] = '\0';
 
-    for( i = 0; i < nb_tasks; i++ ) {
-        PARSEC_OBJ_RELEASE(tasks[i]);
+    /* Empty the queue before the tasks are released: a case that went wrong
+     * may stop with tasks still queued, and the next case would then walk
+     * freed tasks. If the queue does not empty, the tasks are kept. */
+    for( nb_left = 0; nb_left <= nb_tasks; nb_left++ ) {
+        if( NULL == parsec_current_scheduler->module.select(es, &distance) ) break;
+    }
+    if( nb_left <= nb_tasks ) {
+        for( i = 0; i < nb_tasks; i++ ) {
+            PARSEC_OBJ_RELEASE(tasks[i]);
+        }
+    }
+    if( nb_left > 0 ) {
+        fprintf(stderr, "FAIL %s: selected \"%s\", expected \"%s\", and %s\n",
+                tc->what, got, tc->expected,
+                nb_left <= nb_tasks ? "tasks were still queued"
+                                    : "the queue does not empty");
+        return 1;
     }
 
     if( 0 != strcmp(got, tc->expected) ) {
