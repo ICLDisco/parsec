@@ -736,6 +736,11 @@ parsec_execute_and_come_back(parsec_taskpool_t *tp,
             es->next_task = NULL;
             distance = 1;
         }
+        /* see __parsec_get_next_task: publish kept task-count decrements
+         * before idling or working for another taskpool */
+        es->nb_tasks_defer_ok = 1;
+        if( NULL == task || task->taskpool != es->nb_tasks_deferred_tp )
+            parsec_taskpool_nb_tasks_flush(es);
 
         if( task != NULL) {
             misses_in_a_row = 0;  /* reset the misses counter */
@@ -744,6 +749,7 @@ parsec_execute_and_come_back(parsec_taskpool_t *tp,
             (void)rc;
         }
     }
+    parsec_taskpool_nb_tasks_flush(es);
 }
 
 /* **************************************************************************** */
@@ -2039,7 +2045,6 @@ parsec_release_dtd_task_to_mempool(parsec_execution_stream_t *es,
                                    parsec_task_t *this_task)
 {
     parsec_taskpool_t *tp = this_task->taskpool;
-    (void)es;
 
     /*
      * Return the task to its task-class mempool before decrementing the
@@ -2048,7 +2053,7 @@ parsec_release_dtd_task_to_mempool(parsec_execution_stream_t *es,
      * still using them.
      */
     parsec_hook_return_t rc = parsec_dtd_release_local_task( (parsec_dtd_task_t *)this_task );
-    tp->tdm.module->taskpool_addto_nb_tasks(tp, -1);
+    parsec_taskpool_nb_tasks_done(es, tp);
     return rc;
 }
 
@@ -3292,7 +3297,7 @@ parsec_insert_dtd_task(parsec_task_t *__this_task)
     }
 
     if( parsec_dtd_task_is_local(this_task) ) {/* Task is local */
-        dtd_tp->super.tdm.module->taskpool_addto_nb_tasks(&dtd_tp->super, 1);
+        parsec_taskpool_nb_tasks_added(parsec_my_execution_stream(), &dtd_tp->super);
         should_block = parsec_dtd_record_local_task_inserted(dtd_tp);
         PARSEC_DEBUG_VERBOSE(parsec_dtd_dump_traversal_info, parsec_dtd_debug_output,
                              "Task generated -> %s %d rank %d\n", this_task->super.task_class->name,

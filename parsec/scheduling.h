@@ -14,6 +14,8 @@
 
 
 #include "parsec/runtime.h"
+#include "parsec/parsec_internal.h"
+#include "parsec/execution_stream.h"
 
 BEGIN_C_DECLS
 
@@ -191,6 +193,57 @@ void parsec_remove_scheduler( parsec_context_t *parsec );
 struct parsec_sched_module_s;
 extern struct parsec_sched_module_s *parsec_current_scheduler;
 
+
+/**
+ * Batched task-count decrements.
+ *
+ * Every task completion subtracts one from its taskpool's task count, an
+ * atomic operation on one cache line shared by all workers. Instead, a stream
+ * that runs a scheduling loop keeps its decrements (es->nb_tasks_deferred <= 0)
+ * and publishes them when it selects a task of another taskpool or finds none,
+ * when it leaves a scheduling loop, and every PARSEC_NB_TASKS_DEFER_MAX
+ * completions. A task that the same stream adds to the same taskpool cancels a
+ * kept decrement instead of publishing +1.
+ *
+ * Increments are never kept, so the published count never drops below the
+ * number of live tasks: termination can be detected late, never early.
+ */
+#define PARSEC_NB_TASKS_DEFER_MAX 64
+
+static inline void parsec_taskpool_nb_tasks_flush(parsec_execution_stream_t *es)
+{
+    parsec_taskpool_t *tp = es->nb_tasks_deferred_tp;
+    int32_t d = es->nb_tasks_deferred;
+
+    if( NULL == tp ) return;
+    /* reset first: publishing the last decrement may terminate and free tp */
+    es->nb_tasks_deferred_tp = NULL;
+    es->nb_tasks_deferred = 0;
+    if( 0 != d ) tp->tdm.module->taskpool_addto_nb_tasks(tp, d);
+}
+
+static inline void parsec_taskpool_nb_tasks_done(parsec_execution_stream_t *es, parsec_taskpool_t *tp)
+{
+    if( NULL == es || !es->nb_tasks_defer_ok ) {
+        tp->tdm.module->taskpool_addto_nb_tasks(tp, -1);
+        return;
+    }
+    if( es->nb_tasks_deferred_tp != tp ) {
+        parsec_taskpool_nb_tasks_flush(es);
+        es->nb_tasks_deferred_tp = tp;
+    }
+    if( --es->nb_tasks_deferred <= -PARSEC_NB_TASKS_DEFER_MAX )
+        parsec_taskpool_nb_tasks_flush(es);
+}
+
+static inline void parsec_taskpool_nb_tasks_added(parsec_execution_stream_t *es, parsec_taskpool_t *tp)
+{
+    if( NULL != es && es->nb_tasks_deferred_tp == tp && es->nb_tasks_deferred < 0 ) {
+        es->nb_tasks_deferred++;
+        return;
+    }
+    tp->tdm.module->taskpool_addto_nb_tasks(tp, 1);
+}
 
 END_C_DECLS
 
