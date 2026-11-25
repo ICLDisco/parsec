@@ -1884,9 +1884,13 @@ parsec_release_dep_fct(parsec_execution_stream_t *es,
 
     data_repo_t        *target_repo = arg->output_repo;
     data_repo_entry_t  *target_repo_entry = arg->output_entry;
-    parsec_data_copy_t *target_dc = target_repo_entry->data[src_flow->flow_index];
-    data_repo_entry_t  *entry_for_reshapping =
-            data_repo_lookup_entry(successor_repo, successor_repo_key);
+    /* A task class with control flows only has no repository entry */
+    parsec_data_copy_t *target_dc = (NULL != target_repo_entry) ? target_repo_entry->data[src_flow->flow_index] : NULL;
+    data_repo_entry_t  *entry_for_reshapping = NULL;
+    /* A control dependency carries no data, so no reshape promise was set up
+     * for it (see parsec_set_up_reshape_promise): skip the hash-table lookup. */
+    if( PARSEC_FLOW_ACCESS_NONE != (dst_flow->flow_flags & PARSEC_FLOW_ACCESS_MASK) )
+        entry_for_reshapping = data_repo_lookup_entry(successor_repo, successor_repo_key);
     /* If the successor repo has been advanced with a reshape promise,
      * that one is selected for release_deps, otherwise the one on the
      * predecessor repo is selected.

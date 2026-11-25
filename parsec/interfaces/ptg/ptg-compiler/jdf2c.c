@@ -274,6 +274,22 @@ static inline int function_has_data_output( const jdf_function_entry_t *f )
     return 0;
 }
 
+/**
+ * Returns true if the function has any data flow (not control), input or output.
+ * A function with control flows only stores nothing in its data repository:
+ * neither outputs for its successors nor reshape promises for its inputs
+ * (parsec_set_up_reshape_promise skips control dependencies).
+ */
+static inline int function_has_data_flow( const jdf_function_entry_t *f )
+{
+    jdf_dataflow_t* flow;
+
+    for( flow = f->dataflow; flow != NULL; flow = flow->next)
+        if( !(flow->flow_flags & JDF_FLOW_TYPE_CTL) )
+            return 1;
+    return 0;
+}
+
 /** Utils: dumper functions for UTIL_DUMP_LIST_FIELD and UTIL_DUMP_LIST calls **/
 
 /**
@@ -6538,19 +6554,23 @@ jdf_generate_code_data_lookup(const jdf_t *jdf,
      * be retained once and in the other twice.
      * This way, it's only retained once during release_deps.
      */
-    coutput("  if( NULL == this_task->repo_entry ){\n"
-            "    this_task->repo_entry = data_repo_lookup_entry_and_create(es, %s_repo, \n"
-            "                                      %s((const parsec_taskpool_t*)__parsec_tp, (const parsec_assignment_t*)&this_task->locals));\n"
-            "    data_repo_entry_addto_usage_limit(%s_repo, this_task->repo_entry->ht_item.key, 1);\n"
-            "    this_task->repo_entry->generator = (void*)this_task;  /* for AYU */\n"
-            "#if defined(PARSEC_SIM)\n"
-            "    assert(this_task->repo_entry ->sim_exec_date == 0);\n"
-            "    this_task->repo_entry ->sim_exec_date = this_task->sim_exec_date;\n"
-            "#endif\n"
-            "  }\n",
-            f->fname,
-            jdf_property_get_string(f->properties, JDF_PROP_UD_MAKE_KEY_FN_NAME, NULL),
-            f->fname);
+    if( function_has_data_flow(f) ) {
+        coutput("  if( NULL == this_task->repo_entry ){\n"
+                "    this_task->repo_entry = data_repo_lookup_entry_and_create(es, %s_repo, \n"
+                "                                      %s((const parsec_taskpool_t*)__parsec_tp, (const parsec_assignment_t*)&this_task->locals));\n"
+                "    data_repo_entry_addto_usage_limit(%s_repo, this_task->repo_entry->ht_item.key, 1);\n"
+                "    this_task->repo_entry->generator = (void*)this_task;  /* for AYU */\n"
+                "#if defined(PARSEC_SIM)\n"
+                "    assert(this_task->repo_entry ->sim_exec_date == 0);\n"
+                "    this_task->repo_entry ->sim_exec_date = this_task->sim_exec_date;\n"
+                "#endif\n"
+                "  }\n",
+                f->fname,
+                jdf_property_get_string(f->properties, JDF_PROP_UD_MAKE_KEY_FN_NAME, NULL),
+                f->fname);
+    } else {
+        coutput("  /* %s has control flows only: it needs no data repository entry */\n", f->fname);
+    }
 
     coutput("  /* The reshape repo is the current task repo. */\n"
             "  reshape_repo = %s_repo;\n"
@@ -7253,15 +7273,17 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
                 "  arg.output_usage = 0;\n",
                 f->fname);
 
-        coutput("  if( action_mask & (PARSEC_ACTION_RELEASE_LOCAL_DEPS | PARSEC_ACTION_GET_REPO_ENTRY) ) {\n"
-                "    arg.output_entry = data_repo_lookup_entry_and_create( es, arg.output_repo, %s((const parsec_taskpool_t*)__parsec_tp, (const parsec_assignment_t*)&this_task->locals));\n"
-                "    arg.output_entry->generator = (void*)this_task;  /* for AYU */\n"
-                "#if defined(PARSEC_SIM)\n"
-                "    assert(arg.output_entry->sim_exec_date == 0);\n"
-                "    arg.output_entry->sim_exec_date = this_task->sim_exec_date;\n"
-                "#endif\n"
-                "  }\n",
-                jdf_property_get_string(f->properties, JDF_PROP_UD_MAKE_KEY_FN_NAME, NULL));
+        if( function_has_data_flow(f) ) {
+            coutput("  if( action_mask & (PARSEC_ACTION_RELEASE_LOCAL_DEPS | PARSEC_ACTION_GET_REPO_ENTRY) ) {\n"
+                    "    arg.output_entry = data_repo_lookup_entry_and_create( es, arg.output_repo, %s((const parsec_taskpool_t*)__parsec_tp, (const parsec_assignment_t*)&this_task->locals));\n"
+                    "    arg.output_entry->generator = (void*)this_task;  /* for AYU */\n"
+                    "#if defined(PARSEC_SIM)\n"
+                    "    assert(arg.output_entry->sim_exec_date == 0);\n"
+                    "    arg.output_entry->sim_exec_date = this_task->sim_exec_date;\n"
+                    "#endif\n"
+                    "  }\n",
+                    jdf_property_get_string(f->properties, JDF_PROP_UD_MAKE_KEY_FN_NAME, NULL));
+        }
 
         /* We need 2 iterate_successors calls so that all reshaping info is
          * setup before it is consumed by any local successor.
@@ -7282,9 +7304,11 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
                 "  }\n"
                 "#endif\n"
                 "\n");
-        coutput("  if(action_mask & PARSEC_ACTION_RELEASE_LOCAL_DEPS) {\n"
-                "    data_repo_entry_addto_usage_limit(%s_repo, arg.output_entry->ht_item.key, arg.output_usage);\n",
-                f->fname);
+        coutput("  if(action_mask & PARSEC_ACTION_RELEASE_LOCAL_DEPS) {\n");
+        if( function_has_data_flow(f) ) {
+            coutput("    data_repo_entry_addto_usage_limit(%s_repo, arg.output_entry->ht_item.key, arg.output_usage);\n",
+                    f->fname);
+        }
         if(jdf_uses_dynamic_termdet(jdf)) {
             coutput("    {\n"
                     "      /* Using Dynamic Termination Detection, the DSL is responsible for counting the number of tasks scheduled before scheduling them */\n"
