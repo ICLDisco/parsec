@@ -134,6 +134,8 @@ struct remote_dep_output_param_s {
     int32_t                              priority;    /**< the priority of the message */
     uint32_t                             count_bits;  /**< The number of participants */
     uint32_t*                            rank_bits;   /**< The array of bits representing the propagation path */
+    struct parsec_data_s                *merge_held;  /**< The tile this message holds for a merged
+                                                       taskpool until it is sent, or NULL */
 };
 
 struct parsec_remote_deps_s {

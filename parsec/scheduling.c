@@ -17,6 +17,7 @@
 #include "parsec/os-spec-timing.h"
 #include "parsec/remote_dep.h"
 #include "parsec/scheduling.h"
+#include "parsec/taskpool_merge.h"
 #include "parsec/papi_sde.h"
 
 #include "parsec/debug_marks.h"
@@ -259,6 +260,9 @@ static inline int all_tasks_done(parsec_context_t* context)
 
 void parsec_taskpool_termination_detected(parsec_taskpool_t *tp)
 {
+    /* Let the later taskpools have the tiles before anything the completion
+     * callback might add to the context is queued behind this one. */
+    parsec_merge_taskpool_terminated(tp);
     if( NULL != tp->on_complete ) {
         (void)tp->on_complete( tp, tp->on_complete_data );
     }
@@ -547,7 +551,11 @@ int __parsec_complete_execution( parsec_execution_stream_t *es,
      */
     parsec_task_unpin_inputs(task);
 
-    if( NULL != task->task_class->complete_execution )
+    /* A merged taskpool releases the tiles of the task once its successors
+     * are given theirs, and before release_task can terminate the taskpool. */
+    if( PARSEC_TASKPOOL_IS_MERGED(task->taskpool) )
+        rc = parsec_merge_complete_execution( es, task );
+    else if( NULL != task->task_class->complete_execution )
         rc = task->task_class->complete_execution( es, task );
 
     PARSEC_PAPI_SDE_COUNTER_ADD(PARSEC_PAPI_SDE_TASKS_RETIRED, 1);
@@ -573,6 +581,13 @@ int __parsec_task_progress( parsec_execution_stream_t* es,
     int rc = PARSEC_HOOK_RETURN_DONE;
 
     if(task->status <= PARSEC_TASK_STATUS_PREPARE_INPUT) {
+        /* Before its inputs are looked up, and before any device is chosen: a
+         * task of a merged taskpool may have to wait for earlier taskpools to
+         * be done with the tiles it reads or writes. The gate parks it and
+         * schedules it again when they are. */
+        if( PARSEC_TASKPOOL_IS_MERGED(task->taskpool) && !parsec_merge_task_gate(es, task) ) {
+            return PARSEC_HOOK_RETURN_ASYNC;
+        }
         PARSEC_PINS(es, PREPARE_INPUT_BEGIN, task);
         rc = task->task_class->prepare_input(es, task);
         PARSEC_PINS(es, PREPARE_INPUT_END, task);
@@ -981,6 +996,10 @@ int parsec_context_add_taskpool( parsec_context_t* context, parsec_taskpool_t* t
     if( parsec_profile_enabled )
         parsec_profiling_add_taskpool_properties(tp);
 #endif
+
+    /* Count what the taskpool will touch and queue it behind the taskpools
+     * added before, while none of its tasks exists yet. */
+    (void)parsec_merge_taskpool_register(context, tp);
 
     if( NULL != tp->startup_hook ) {
         parsec_task_t **startup_list;

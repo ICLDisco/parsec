@@ -129,6 +129,7 @@ set(SOURCES
   datatype/datatype_module.c
   scheduling.c
   compound.c
+  taskpool_merge.c
   vpmap.c
   maxheap.c
   hbbuffer.c

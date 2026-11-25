@@ -1,0 +1,55 @@
+extern "C" %{
+/*
+ * Copyright (c) 2026      The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
+/*
+ * One task per tile, reading the tile from the matrix and writing it back:
+ *
+ *     RW A <- descA(m, n)
+ *          -> descA(m, n)
+ *
+ * Applies operation OP. Its CPU body checks the tile went through operations
+ * 0 .. OP-1 first; its CUDA body only applies the operation (the final values
+ * tell if it was ordered).
+ */
+
+#include "parsec/parsec_config.h"
+#include "parsec/data_dist/matrix/matrix.h"
+#include "auto_merge_ops.h"
+
+%}
+
+descA    [type = "parsec_tiled_matrix_t*"]
+OP       [type = "int"]
+DELAY    [type = "int"]
+NB_VIOL  [type = "int32_t*"]
+
+MAP(m, n)
+  m = 0 .. descA->mt-1
+  n = 0 .. descA->nt-1
+
+: descA(m, n)
+
+RW A <- descA(m, n)
+     -> descA(m, n)
+
+BODY [type=CUDA]
+{
+    am_cuda_affine((int*)A, descA->mb * descA->nb, am_op_a(OP), am_op_b(OP),
+                   ((m + n + OP) % 2 == 0) ? DELAY : 0, (void*)parsec_body.stream);
+}
+END
+
+BODY
+{
+    /* Every other tile is slow, so the next taskpool would get ahead on it.
+     * Which ones changes from one operation to the next, so a barrier between
+     * taskpools costs a slow tile at every step, where merged taskpools only
+     * pay the slow steps of each tile. */
+    am_cpu_stage((int*)A, descA->mb * descA->nb, m, n, OP,
+                 ((m + n + OP) % 2 == 0) ? DELAY : 0, NB_VIOL);
+}
+END

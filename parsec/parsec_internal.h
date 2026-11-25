@@ -160,6 +160,10 @@ struct parsec_taskpool_s {
                                                      *   Indexed on the same index as task_classes_array */
     data_repo_t**               repo_array; /**< Array of data repositories
                                              *   Indexed on the same index as functions array */
+    int32_t                     auto_merge; /**< PARSEC_AUTO_MERGE_*: is this taskpool ordered
+                                             *   with the others of its context */
+    struct parsec_merge_taskpool_s *merge;  /**< What automatic merging tracks for this taskpool,
+                                             *   NULL when it is not merged */
 };
 
 PARSEC_DECLSPEC PARSEC_OBJ_CLASS_DECLARATION(parsec_taskpool_t);

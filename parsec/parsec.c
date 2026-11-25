@@ -36,6 +36,7 @@
 #include "parsec/class/barrier.h"
 #include "parsec/remote_dep.h"
 #include "parsec/datarepo.h"
+#include "parsec/taskpool_merge.h"
 #include "parsec/bindthread.h"
 #include "parsec/parsec_prof_grapher.h"
 #include "parsec/vpmap.h"
@@ -199,6 +200,8 @@ static void __parsec_taskpool_constructor(parsec_taskpool_t* tp)
     tp->tdm.callback = NULL;
     tp->tdm.monitor = NULL;
     tp->tdm.module = NULL;
+    tp->auto_merge = PARSEC_AUTO_MERGE_DEFAULT;
+    tp->merge = NULL;
 }
 
 static void __parsec_taskpool_destructor(parsec_taskpool_t* tp)
@@ -653,6 +656,11 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     parsec_hash_table_init(&context->dtd_arena_datatypes_hash_table, offsetof(parsec_arena_datatype_t, ht_item),
                            8, parsec_hash_table_generic_key_fn, NULL);
     context->dtd_arena_datatypes_next_id = 0;
+    context->auto_merge          = PARSEC_AUTO_MERGE_OFF;
+    context->merge_tracker       = NULL;
+    if( PARSEC_SUCCESS != parsec_merge_context_init(context) ) {
+        parsec_warning("Automatic taskpool merging is not available for this context");
+    }
 #if defined(PARSEC_SIM)
     context->largest_simulation_date = 0;
 #endif /* PARSEC_SIM */
@@ -1264,6 +1272,7 @@ int parsec_fini( parsec_context_t** pcontext )
                        "release time\n", nb_items);
     }
     parsec_hash_table_fini(&context->dtd_arena_datatypes_hash_table);
+    parsec_merge_context_fini(context);
 
     /**
      * We need to force the main thread to drain all possible pending messages
@@ -1841,7 +1850,10 @@ parsec_release_local_OUT_dependencies(parsec_execution_stream_t* es,
             (void)data;
             PARSEC_AYU_ADD_TASK_DEP(new_context, (int)dest_flow->flow_index);
 
-            if(task->task_class->flags & PARSEC_IMMEDIATE_TASK) {
+            /* An immediate task skips the scheduler, and with it the gate of
+             * automatic merging: a merged taskpool schedules it as any other. */
+            if( (task->task_class->flags & PARSEC_IMMEDIATE_TASK) &&
+                !PARSEC_TASKPOOL_IS_MERGED(origin->taskpool) ) {
                 PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "  Task %s is immediate and will be executed ASAP", tmp1);
                 __parsec_execute(es, new_context);
                 __parsec_complete_execution(es, new_context);
@@ -1991,6 +2003,14 @@ parsec_release_dep_fct(parsec_execution_stream_t *es,
 
     if( (arg->action_mask & PARSEC_ACTION_RELEASE_LOCAL_DEPS) &&
         (es->virtual_process->parsec_context->my_rank == dst_rank) ) {
+        /* A successor given a copy of a tile uses the tile as much as the task
+         * that read it from the collection did: a merged taskpool keeps the
+         * tile held until that successor completes. Taken before the successor
+         * can possibly run, released by parsec_merge_complete_execution(). */
+        if( PARSEC_TASKPOOL_IS_MERGED(oldcontext->taskpool) && (NULL != data->data) &&
+            (PARSEC_FLOW_ACCESS_NONE != (dst_flow->flow_flags & PARSEC_FLOW_ACCESS_MASK)) ) {
+            (void)parsec_merge_hold(oldcontext->taskpool, data->data);
+        }
         /* Copying data in data-repo if there is data .
          * We are doing this in order for dtd to be able to track control dependencies.
          * Usage count of the repo is dealt with when setting up reshape promises.
