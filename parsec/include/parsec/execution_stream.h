@@ -77,6 +77,8 @@ struct parsec_execution_stream_s {
                                                                     *   we use these mempools */
     parsec_thread_mempool_t *dependencies_mempool; /**< If using hashtables to store dependencies
                                                     *   those are allocated using this mempool */
+    uint32_t dtd_tasks_inserted; /**< Tasks this stream inserted into DTD taskpools, for the
+                                  *   insertion window (parsec_dtd_record_local_task_inserted) */
 };
 
 /**
