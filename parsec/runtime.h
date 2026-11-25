@@ -82,6 +82,29 @@ typedef struct parsec_external_fini_s {
 }parsec_external_fini_t;
 
 /**
+ * What the inline C code of a dependency property (type, layout, count, displ
+ * and their _remote and _data variants) can see of the dependency, as the
+ * dep_ctx argument of its function. It is filled when the runtime describes a
+ * data crossing that dependency through the get_datatype() of the receiving
+ * task class: on the receiver of a remote dependency, when a packed payload is
+ * unpacked for a successor, and when a host copy is rebuilt to stage a GPU
+ * copy out. Elsewhere it is parsec_dep_context_none.
+ */
+typedef struct parsec_dep_context_s {
+    /** The task on the other side of the dependency, the producer of the data.
+     *  On the receiver it is rebuilt from the activation message: its
+     *  task_class and locals are set, its data are not. NULL when unknown. */
+    const parsec_task_t *parent;
+    /** The size, in bytes, of the data the producer sends, as it packs it.
+     *  When a host copy is rebuilt for a GPU copy, the span of that copy.
+     *  0 when unknown. */
+    size_t               incoming_bytes;
+} parsec_dep_context_t;
+
+/** The context of a description the runtime knows nothing more about */
+extern const parsec_dep_context_t parsec_dep_context_none;
+
+/**
  * @brief Prototype of the allocator function
  */
 typedef void* (*parsec_data_allocate_t)(size_t matrix_size);

@@ -438,6 +438,8 @@ typedef struct jdf_expr {
                     int                   lineno;
                     char                 *fname;
                     jdf_function_entry_t *function_context;
+                    int                   dep_context;  /**< a property of a dependency: the inline function
+                                                         *   also receives the parsec_dep_context_t dep_ctx */
                 } c_code;
                 int32_t           int32_cstval;
                 int64_t           int64_cstval;
@@ -540,6 +542,21 @@ int jdf_link_params_and_locals(jdf_function_entry_t* f);
 #define DEP_UNDEFINED_DATATYPE 0
 #define DEP_CUSTOM_DATATYPE 1
 int jdf_dep_undefined_type(jdf_datatransfer_type_t datatype );
+
+/* [type = AUTO] on an input dependency from a task: the data is received in
+ * a buffer sized after the incoming payload, as elements of layout (bytes by
+ * default) whose count is only known at runtime, and handed to the task as
+ * received. The parser turns it into type_remote = AUTO (and layout into
+ * layout_remote), leaving the local type undefined. AUTO names no arena
+ * datatype. */
+#define JDF_DATATYPE_AUTO_NAME "AUTO"
+int jdf_datatype_expr_is_auto(const jdf_expr_t *expr);
+#define jdf_datatype_is_auto(DATATYPE) jdf_datatype_expr_is_auto((DATATYPE).type)
+
+/* Mark the inline C code of a dependency property (type, layout, count,
+ * displ and their _remote / _data variants): its function also receives the
+ * description of the dependency at runtime, parsec_dep_context_t *dep_ctx. */
+void jdf_expr_mark_dep_context(jdf_expr_t *expr);
 
 #define PARSEC_RETURN_TYPE_INT32                0
 #define PARSEC_RETURN_TYPE_INT64                1

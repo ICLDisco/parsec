@@ -127,9 +127,11 @@ typedef struct expr_info {
     int         nb_bound_locals;
     char**      bound_locals;
     const char* suffix;
+    const char* dep_ctx;  /**< the parsec_dep_context_t* to pass to the inline C code of dependency
+                           *   properties, NULL for none (&parsec_dep_context_none) */
 } expr_info_t;
 
-#define EMPTY_EXPR_INFO { .sa = NULL, .prefix = NULL, .assignments = NULL, .nb_bound_locals = 0, .bound_locals = NULL, .suffix = NULL }
+#define EMPTY_EXPR_INFO { .sa = NULL, .prefix = NULL, .assignments = NULL, .nb_bound_locals = 0, .bound_locals = NULL, .suffix = NULL, .dep_ctx = NULL }
 
 /* The elem should be a jdf_expr_t while the arg should be an expr_info_t */
 char * dump_expr(void **elem, void *arg);

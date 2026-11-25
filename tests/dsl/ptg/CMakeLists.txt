@@ -34,3 +34,38 @@ add_subdirectory(controlgather)
 add_subdirectory(user-defined-functions)
 add_subdirectory(local-indices)
 add_subdirectory(multisize_bcast)
+
+# the inline C code of a dependency property sees the dependency (dep_ctx)
+parsec_addtest_executable(C receive_ctx)
+target_link_libraries(receive_ctx PRIVATE tests_runtime_common)
+target_ptg_sources(receive_ctx PRIVATE "receive_ctx.jdf")
+
+# [type = AUTO]: receive data whose size is only known at runtime
+parsec_addtest_executable(C receive_auto)
+target_link_libraries(receive_auto PRIVATE tests_runtime_common)
+target_ptg_sources(receive_auto PRIVATE "receive_auto.jdf")
+
+parsec_addtest_executable(C receive_auto_mixed)
+target_link_libraries(receive_auto_mixed PRIVATE tests_runtime_common)
+target_ptg_sources(receive_auto_mixed PRIVATE "receive_auto_mixed.jdf")
+
+# a padded receive and AUTO receives of one payload, in both orders
+parsec_addtest_executable(C receive_auto_pad)
+target_link_libraries(receive_auto_pad PRIVATE tests_runtime_common)
+target_ptg_sources(receive_auto_pad PRIVATE "receive_auto_pad.jdf")
+
+# AUTO data forwarded from a READ flow (and a quoted dependency property)
+parsec_addtest_executable(C receive_auto_fwd)
+target_link_libraries(receive_auto_fwd PRIVATE tests_runtime_common)
+target_ptg_sources(receive_auto_fwd PRIVATE "receive_auto_fwd.jdf")
+
+# a packed payload and an exact one from the same flow, on the same process
+parsec_addtest_executable(C receive_packed_exact)
+target_link_libraries(receive_packed_exact PRIVATE tests_runtime_common)
+target_ptg_sources(receive_packed_exact PRIVATE "receive_packed_exact.jdf")
+
+# benchmark (see its header): receives sized after the incoming data against
+# padded receives for variable-rank payloads; ctest runs a short case of each mode
+parsec_addtest_executable(C tlr_bench)
+target_link_libraries(tlr_bench PRIVATE tests_runtime_common)
+target_ptg_sources(tlr_bench PRIVATE "tlr_bench.jdf")

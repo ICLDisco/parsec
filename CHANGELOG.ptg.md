@@ -1,6 +1,36 @@
 Changelog for features specific to the PTG Domain Specific Language
 
 
+2026-11-16
+
+ - The inline C code of a dependency property (type, layout, count, displ and
+   their _remote and _data variants) receives a description of the dependency,
+   dep_ctx (parsec_dep_context_t, parsec/runtime.h): the task on the other side
+   (parent) and the size of the incoming data (incoming_bytes). A receive can
+   be sized after what the producer sent, into the application's own arena:
+         B <- B SEND(k) [type_remote = DBL layout_remote = parsec_datatype_double_t
+                         count_remote = %{ return dep_ctx->incoming_bytes / sizeof(double); %}]
+ - A receive is allocated as the number of elements of its arena that hold it,
+   the end of its last element taken from the true extent of its datatype (a
+   datatype resized below its data gets enough room). Release notes, for the
+   local successors of one payload:
+   * When they disagree on the datatype (the packed fallback), the receive
+     takes the packed bytes rounded up to elements of the arena, no longer the
+     packed bytes times the element size. Each successor unpacks no more than
+     the packed copy holds, in whole elements of its datatype; a successor
+     that declares more (a padded receive) keeps a buffer of its declared
+     size. A successor shares the unpacked copy of the previous one only if
+     their datatype, arena, count and displacement all match.
+   * An [type = AUTO] receive and another receive of the same datatype also
+     go through the packed fallback, so that the AUTO one spans the payload.
+   * When they agree on the datatype but not on the count, the largest count
+     is received, whatever their order (the last one used to win).
+ - [type = AUTO] on an input dependency from another task, on a READ flow:
+   receive whatever the producer sends, as elements of layout (bytes by
+   default), in a buffer of exactly that size taken from the runtime arena
+   PARSEC_ARENA_AUTO, and give it to the task as received:
+         A <- A SEND(k) [type = AUTO layout = parsec_datatype_double_t]
+
 2020-12-22
 
  - Add PTG CUDA bodies support for:

@@ -81,6 +81,13 @@ BEGIN_C_DECLS
 int parsec_type_size(parsec_datatype_t type,
                      int *size);
 int parsec_type_extent(parsec_datatype_t type, ptrdiff_t *lb, ptrdiff_t *extent);
+/**
+ * The lower bound and the extent of the data a datatype describes, ignoring
+ * any resizing (MPI_Type_get_true_extent). Element i of count elements of a
+ * datatype ends at i * extent + true_lb + true_extent, which exceeds
+ * (i + 1) * extent for a datatype resized below its data.
+ */
+int parsec_type_true_extent(parsec_datatype_t type, ptrdiff_t *lb, ptrdiff_t *extent);
 
 int parsec_type_free(parsec_datatype_t* type);
 int parsec_type_create_contiguous(int count,

@@ -35,6 +35,19 @@ comm_mpi_datatype_extent(parsec_datatype_t type, ptrdiff_t *lb, ptrdiff_t *exten
 }
 
 static int
+comm_mpi_datatype_true_extent(parsec_datatype_t type, ptrdiff_t *lb, ptrdiff_t *extent)
+{
+#if defined(PARSEC_HAVE_MPI_20)
+    MPI_Aint mpi_extent, mpi_lb;
+    int rc = MPI_Type_get_true_extent(type, &mpi_lb, &mpi_extent);
+    *lb = mpi_lb; *extent = mpi_extent;
+    return (MPI_SUCCESS == rc ? PARSEC_SUCCESS : PARSEC_ERROR);
+#else
+    return comm_mpi_datatype_extent(type, lb, extent);
+#endif  /* defined(PARSEC_HAVE_MPI_20) */
+}
+
+static int
 comm_mpi_datatype_free(parsec_datatype_t *type)
 {
     int rc = MPI_Type_free(type);
@@ -173,4 +186,5 @@ const parsec_datatype_module_t parsec_comm_mpi_datatype_module = {
     .create_struct        = comm_mpi_datatype_create_struct,
     .create_resized       = comm_mpi_datatype_create_resized,
     .contiguous           = comm_mpi_datatype_contiguous,
+    .true_extent          = comm_mpi_datatype_true_extent,
 };

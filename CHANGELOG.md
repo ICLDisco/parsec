@@ -5,6 +5,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+Unreleased
+----------
+
+### Changed
+
+ - PTG: `AUTO` is a reserved datatype name. `[type = AUTO]` on an input
+   dependency receives data sized at runtime (see CHANGELOG.ptg.md), so a
+   JDF that names one of its own datatypes `AUTO` must rename it.
+
+
 v4.0.2411
 ---------
 
