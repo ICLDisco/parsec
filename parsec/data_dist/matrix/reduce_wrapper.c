@@ -29,7 +29,6 @@ parsec_reduce_col_New( const parsec_tiled_matrix_t* src,
 {
     parsec_reduce_col_taskpool_t* tp;
     parsec_datatype_t oldtype, newtype;
-    ptrdiff_t lb, extent;
 
     tp = parsec_reduce_col_new( src, dest, operation, op_data, 0, 0, src->lnt, src->lmt );
     assert(src->mtype == dest->mtype);
@@ -37,10 +36,13 @@ parsec_reduce_col_New( const parsec_tiled_matrix_t* src,
         parsec_debug_verbose(3, parsec_debug_output, "Unknown matrix type %d.", src->mtype );
         return NULL;
     }
+    /* Size the arena from the element count: without a communication
+     * backend parsec_type_extent() reports 0 for a derived type. */
     parsec_type_create_contiguous(src->mb*src->nb, oldtype, &newtype);
-    parsec_type_extent(newtype, &lb, &extent);
     parsec_arena_datatype_set_type(&tp->arenas_datatypes[PARSEC_reduce_col_DEFAULT_ADT_IDX],
-                                   extent, PARSEC_ARENA_ALIGNMENT_SSE,
+                                   (size_t)src->mb * (size_t)src->nb *
+                                   (size_t)parsec_datadist_getsizeoftype(src->mtype),
+                                   PARSEC_ARENA_ALIGNMENT_SSE,
                                    newtype);
 
     return (parsec_taskpool_t*)tp;
@@ -65,7 +67,6 @@ parsec_reduce_row_New( const parsec_tiled_matrix_t* src,
 {
     parsec_reduce_row_taskpool_t* tp;
     parsec_datatype_t oldtype, newtype;
-    ptrdiff_t lb, extent;
 
     tp = parsec_reduce_row_new( src, dest, operation, op_data, 0, 0, src->lnt, src->lmt );
     assert(src->mtype == dest->mtype);
@@ -73,10 +74,12 @@ parsec_reduce_row_New( const parsec_tiled_matrix_t* src,
         parsec_debug_verbose(3, parsec_debug_output, "Unknown matrix type %d.", src->mtype );
         return NULL;
     }
+    /* Size the arena from the element count: without a communication
+     * backend parsec_type_extent() reports 0 for a derived type. */
     parsec_type_create_contiguous(src->mb*src->nb, oldtype, &newtype);
-    parsec_type_extent(newtype, &lb, &extent);
     parsec_arena_datatype_set_type(&tp->arenas_datatypes[PARSEC_reduce_row_DEFAULT_ADT_IDX],
-                                   extent,
+                                   (size_t)src->mb * (size_t)src->nb *
+                                   (size_t)parsec_datadist_getsizeoftype(src->mtype),
                                    PARSEC_ARENA_ALIGNMENT_SSE,
                                    newtype);
     return (parsec_taskpool_t*)tp;

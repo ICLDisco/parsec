@@ -97,18 +97,34 @@ int parsec_arena_construct(parsec_arena_t* arena,
                                     parsec_arena_max_cached_memory);
 }
 
+/* Give every field a known value as soon as the object exists, so that an
+ * arena released before parsec_arena_construct_ex() succeeded (it was never
+ * called, or it rejected its parameters) is recognized as not constructed. */
+static void parsec_arena_constructor(parsec_arena_t* arena)
+{
+    arena->alignment    = 0;
+    arena->elem_size    = 0;
+    arena->used         = 0;
+    arena->max_used     = 0;
+    arena->released     = 0;
+    arena->max_released = 0;
+    arena->data_malloc  = NULL;
+    arena->data_free    = NULL;
+}
+
 static void parsec_arena_destructor(parsec_arena_t* arena)
 {
     parsec_list_item_t* item;
 
-    assert( arena->used == arena->released
-         || arena->max_released == 0
-         || arena->max_released == INT32_MAX
-         || arena->max_used == 0
-         || arena->max_used == INT32_MAX );
-
-    /* If elem_size == 0, the arena has not been initialized */
+    /* If elem_size == 0, the arena has not been initialized: the LIFO was
+     * never constructed and there is nothing to release. */
     if ( 0 != arena->elem_size ) {
+        assert( arena->used == arena->released
+             || arena->max_released == 0
+             || arena->max_released == INT32_MAX
+             || arena->max_used == 0
+             || arena->max_used == INT32_MAX );
+
         while(NULL != (item = parsec_lifo_pop(&arena->area_lifo))) {
             PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "Arena:\tfree element base ptr %p, data ptr %p (from arena %p)",
                                 item, ((parsec_arena_chunk_t*)item)->data, arena);
@@ -119,7 +135,8 @@ static void parsec_arena_destructor(parsec_arena_t* arena)
     }
 }
 
-PARSEC_OBJ_CLASS_INSTANCE(parsec_arena_t, parsec_object_t, NULL, parsec_arena_destructor);
+PARSEC_OBJ_CLASS_INSTANCE(parsec_arena_t, parsec_object_t,
+                          parsec_arena_constructor, parsec_arena_destructor);
 
 static inline parsec_list_item_t*
 parsec_arena_get_chunk( parsec_arena_t *arena, size_t size, parsec_data_allocate_t alloc )

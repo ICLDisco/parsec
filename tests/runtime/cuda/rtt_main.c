@@ -69,14 +69,14 @@ parsec_taskpool_t *rtt_New(parsec_context_t *ctx, parsec_matrix_block_cyclic_t *
                            parsec_datatype_t block, int roundtrips, int frags)
 {
     parsec_rtt_taskpool_t *tp = NULL;
-    ptrdiff_t lb, extent;
 
     tp = parsec_rtt_new((parsec_data_collection_t*)dcA, roundtrips, frags, ctx->nb_nodes);
     parsec_mca_device_taskpool_restrict((parsec_taskpool_t*)tp, PARSEC_DEV_CUDA);
-    parsec_type_extent(block, &lb, &extent);
-    (void)lb;
+    /* Size the arena from the element count: without a communication
+     * backend parsec_type_extent() reports 0 for a derived type. */
     parsec_arena_datatype_set_type(&tp->arenas_datatypes[PARSEC_rtt_DEFAULT_ADT_IDX],
-                                   extent, PARSEC_ARENA_ALIGNMENT_SSE,
+                                   (size_t)dcA->super.mb * (size_t)dcA->super.nb * sizeof(uint8_t),
+                                   PARSEC_ARENA_ALIGNMENT_SSE,
                                    block);
 
     return (parsec_taskpool_t *)tp;
