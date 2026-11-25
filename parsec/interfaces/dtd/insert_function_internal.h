@@ -44,6 +44,37 @@ extern int parsec_dtd_dump_traversal_info; /**< For printing traversal info */
 
 #define PARSEC_DTD_FLUSH_TC_ID    ((uint8_t)0x00)
 
+/**
+ * The access types are values of the PARSEC_GET_OP_TYPE field, not bits to be
+ * combined. These predicates are the single place that says which values name a
+ * data flow, so the places that count flows, create the flows or walk them
+ * cannot disagree.
+ */
+static inline int
+parsec_dtd_access_is_flow(int op_type)
+{
+    int access = op_type & PARSEC_GET_OP_TYPE;
+    return PARSEC_INPUT == access || PARSEC_OUTPUT == access ||
+           PARSEC_INOUT == access || PARSEC_ATOMIC_WRITE == access;
+}
+
+/** Any value that is meaningful for a parameter: a data flow, or one of the by-value kinds */
+static inline int
+parsec_dtd_access_is_valid(int op_type)
+{
+    int access = op_type & PARSEC_GET_OP_TYPE;
+    return parsec_dtd_access_is_flow(op_type) ||
+           PARSEC_SCRATCH == access || PARSEC_VALUE == access || PARSEC_REF == access;
+}
+
+/** Accesses that are chained as a group of concurrent users, that is that do not own the data exclusively */
+static inline int
+parsec_dtd_access_is_unordered(int op_type)
+{
+    int access = op_type & PARSEC_GET_OP_TYPE;
+    return PARSEC_INPUT == access || PARSEC_ATOMIC_WRITE == access;
+}
+
 /* To flag the task we are trying to complete as a local one */
 #define PARSEC_ACTION_COMPLETE_LOCAL_TASK 0x08000000
 
@@ -157,12 +188,19 @@ typedef struct parsec_dtd_task_flow_s {
 
 #define FLOW_OF(TASK, INDEX) (&(TASK_FLOW_OF((TASK), (INDEX))->flow))
 
+/** The run of PARSEC_ATOMIC_WRITE accesses a local task belongs to (see atomic_write.c) */
+typedef struct parsec_dtd_task_atomic_write_s {
+    int32_t run;   /**< run of the tile the task is part of, 0 for none */
+    int32_t flow;  /**< flow of the task that is part of the run */
+} parsec_dtd_task_atomic_write_t;
+
 struct parsec_dtd_task_s {
     parsec_task_t                super;
     parsec_hash_table_item_t     ht_item;
     parsec_thread_mempool_t     *mempool_owner;
     int32_t                      rank;
     int32_t                      flow_count;
+    parsec_dtd_task_atomic_write_t atomic_write;
     /* for testing PTG inserting task in DTD */
     parsec_task_t  *orig_task;
 };
@@ -179,6 +217,29 @@ typedef struct parsec_dtd_tile_user_s {
     uint8_t              flow_index;
 }parsec_dtd_tile_user_t;
 
+/**
+ * What a tile remembers of the PARSEC_ATOMIC_WRITE accesses inserted on it. Except for the latch it is
+ * only touched at insertion, and describes the accesses inserted, not how far the execution went: that
+ * is what keeps the decisions taken from it identical on all the ranks.
+ */
+typedef struct parsec_dtd_tile_atomic_write_s {
+    int32_t          last_access;  /**< access type of the last tracked access inserted */
+    int32_t          rank;         /**< rank of the open run, -1 if none */
+    int32_t          gpu;          /**< a task of the open run has a GPU chore */
+    int32_t          run;          /**< last run started, 0 if none */
+    volatile int64_t latch;        /**< device of a run, picked by its first task selected (see atomic_write.c) */
+} parsec_dtd_tile_atomic_write_t;
+
+static inline void
+parsec_dtd_tile_atomic_write_init(parsec_dtd_tile_atomic_write_t *atomic_write)
+{
+    atomic_write->last_access = 0;
+    atomic_write->rank = -1;
+    atomic_write->gpu = 0;
+    atomic_write->run = 0;
+    atomic_write->latch = 0;
+}
+
 struct parsec_dtd_tile_s {
     parsec_list_item_t        super;
     parsec_hash_table_item_t  ht_item;
@@ -191,6 +252,7 @@ struct parsec_dtd_tile_s {
     parsec_data_collection_t *dc;
     parsec_dtd_tile_user_t    last_user;
     parsec_dtd_tile_user_t    last_writer;
+    parsec_dtd_tile_atomic_write_t atomic_write;
 };
 /* For creating objects of class parsec_dtd_tile_t */
 PARSEC_DECLSPEC PARSEC_OBJ_CLASS_DECLARATION(parsec_dtd_tile_t);
@@ -244,6 +306,7 @@ struct parsec_dtd_task_class_s {
     parsec_dtd_param_t        *params;
     parsec_hook_t             *cpu_func_ptr;
     parsec_advance_task_function_t gpu_func_ptr;
+    int8_t                     atomic_write_fence; /**< prologue or epilogue of an ATOMIC_WRITE run */
 };
 
 #define RANK_SENT_TO_OF(TASK, INDEX) (TASK_FLOW_OF((TASK), (INDEX))->rank_sent_to)
@@ -392,6 +455,62 @@ set_deps_for_flush_task(const parsec_task_class_t *tc);
 
 void
 parsec_dtd_fini();
+
+/* Support for PARSEC_ATOMIC_WRITE, in atomic_write.c */
+
+/* Bodies of the fences of an ATOMIC_WRITE run */
+int
+parsec_dtd_atomic_write_prologue_body(parsec_execution_stream_t *es, parsec_task_t *this_task);
+
+int
+parsec_dtd_atomic_write_epilogue_body(parsec_execution_stream_t *es, parsec_task_t *this_task);
+
+/* Is this the task class of a prologue or an epilogue? */
+static inline int
+parsec_dtd_is_atomic_write_fence(const parsec_dtd_task_class_t *dtd_tc)
+{
+    return dtd_tc->atomic_write_fence;
+}
+
+/* Refuse the tasks that cannot be part of a run */
+void
+parsec_dtd_atomic_write_check_task(const parsec_dtd_task_t *this_task);
+
+/* Insert the fence the access of the task needs in front of it, if any */
+void
+parsec_dtd_atomic_write_order(parsec_dtd_taskpool_t *dtd_tp, const parsec_dtd_task_t *this_task,
+                              parsec_dtd_tile_t *tile, int tile_op_type);
+
+/* Record the access of the task as the last one inserted on the tile */
+void
+parsec_dtd_atomic_write_track(parsec_dtd_task_t *this_task, int flow_index, parsec_dtd_tile_t *tile, int access);
+
+/* Close the run open on the tile, if any, with its epilogue */
+void
+parsec_dtd_atomic_write_close_run(parsec_dtd_taskpool_t *dtd_tp, parsec_dtd_tile_t *tile);
+
+/* Count the write of a task of a run executing on the host */
+void
+parsec_dtd_atomic_write_cpu_update(parsec_data_copy_t *copy);
+
+/* Evaluate hook of the DTD chores: keeps the tasks of a run on one device */
+parsec_hook_return_t
+parsec_dtd_atomic_write_evaluate_chore(const parsec_task_t *task);
+
+/*
+ * Direct insert_task calls intentionally use a coarse cache key: the user
+ * function pointer plus the number of data flows. Keep the arithmetic in one
+ * place so callers agree on the legacy behavior, and so a future key extension
+ * has a single obvious entry point.
+ */
+static inline uint64_t
+parsec_dtd_task_class_cache_key(uintptr_t function_key, int flow_count)
+{
+    return (uint64_t)function_key + (uint64_t)flow_count;
+}
+
+int
+parsec_dtd_taskpool_supports_device_type(parsec_taskpool_t *tp, int device_type, int require_exact);
 
 static inline void
 parsec_dtd_retain_data_copy( parsec_data_copy_t *copy )

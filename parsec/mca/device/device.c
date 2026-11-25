@@ -70,13 +70,26 @@ int parsec_device_peer_mesh_incomplete = 0;
 
 #if !defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) && !defined(PARSEC_HAVE_DEV_HIP_SUPPORT) && \
     !defined(PARSEC_HAVE_DEV_LEVEL_ZERO_SUPPORT)
-/* Without an accelerator no copy ever has memory that can be reclaimed under
- * its readers, so the announcement has nothing to protect. The accelerator
- * build defines these in the generic GPU module instead. */
-int parsec_device_data_copy_pin_reader(parsec_data_copy_t *copy) { (void)copy; return 1; }
-void parsec_device_data_copy_unpin_reader(parsec_data_copy_t *copy) { (void)copy; }
-int parsec_device_data_copy_try_pin_reader(parsec_data_copy_t *copy) { (void)copy; return 1; }
-parsec_data_copy_t *parsec_device_data_copy_pin_value(parsec_data_copy_t *copy) { return copy; }
+/* Without an accelerator the memory of a copy is never reclaimed under its readers, but they still have
+ * to be counted: a task that overwrites the copy (DTD waits for an empty count) must not do so while a
+ * task body or a remote send is reading it. The accelerator build defines these in the generic GPU module. */
+int parsec_device_data_copy_pin_reader(parsec_data_copy_t *copy)
+{
+    if( NULL != copy ) (void)parsec_atomic_fetch_inc_int32(&copy->readers);
+    return 1;
+}
+void parsec_device_data_copy_unpin_reader(parsec_data_copy_t *copy)
+{
+    if( NULL == copy ) return;
+    (void)parsec_atomic_fetch_dec_int32(&copy->readers);
+    assert(copy->readers >= 0);
+}
+int parsec_device_data_copy_try_pin_reader(parsec_data_copy_t *copy) { return parsec_device_data_copy_pin_reader(copy); }
+parsec_data_copy_t *parsec_device_data_copy_pin_value(parsec_data_copy_t *copy)
+{
+    (void)parsec_device_data_copy_pin_reader(copy);
+    return copy;
+}
 #endif
 #if defined(PARSEC_DEBUG) || defined(PARSEC_DEBUG_NOISIER)
 int parsec_device_inject_disable = 0;
@@ -128,6 +141,26 @@ static int64_t time_estimate(const parsec_task_t *this_task, parsec_device_modul
      * double-precision floprate of the device: the weaker the device (w.r.t.
      * other available devices), the higher this number. */
     return dev->time_estimate_default;
+}
+
+/* The device the data says a task writing it should use (preferred device, else the owning GPU), or NULL.
+ * Every WRITE flow goes through here, the ones not ordered with other writers included. */
+parsec_device_module_t *
+parsec_select_device_for_write_data(const parsec_taskpool_t *tp, const parsec_data_t *original,
+                                    unsigned int valid_types)
+{
+    parsec_device_module_t *dev;
+
+    dev = parsec_mca_device_get(original->preferred_device);
+    if( NULL != dev && (dev->type & valid_types) && (tp->devices_index_mask & (1<<dev->device_index)) ) {
+        return dev;
+    }
+    dev = parsec_mca_device_get(original->owner_device);
+    if( NULL != dev && (dev->type & valid_types) && (tp->devices_index_mask & (1<<dev->device_index)) &&
+        PARSEC_DEV_IS_GPU(dev->type) ) {
+        return dev;
+    }
+    return NULL;
 }
 
 /**
@@ -218,18 +251,10 @@ int parsec_select_best_device( parsec_task_t* this_task ) {
         data_copy = this_task->data[this_task->task_class->out[i]->flow_index].data_in;
         if( NULL == data_copy ) continue; /* possible for NULL flows */
 
-        /* If the WRITE data has a preferred device, select it. */
-        dev = parsec_mca_device_get(data_copy->original->preferred_device);
-        if( NULL != dev && (dev->type & valid_types) && (tp->devices_index_mask & (1<<dev->device_index))) {
-            PARSEC_DEBUG_VERBOSE(30, parsec_device_output, "%s: Task %s set selected_device %d:%s because preferred by data %p AWRITE flow out[%d]",
-                                 __func__, tmp, dev->device_index, dev->name, data_copy->original, i);
-            this_task->selected_device = dev;
-            goto device_selected;
-        }
-        /* WRITE data is already located on a GPU device, select it */
-        dev = parsec_mca_device_get(data_copy->original->owner_device);
-        if( NULL != dev && (dev->type & valid_types) && (tp->devices_index_mask & (1<<dev->device_index)) && PARSEC_DEV_IS_GPU(dev->type) ) {
-            PARSEC_DEBUG_VERBOSE(30, parsec_device_output, "%s: Task %s set selected_device %d:%s because owner of data %p flow AWRITE flow out[%d]",
+        /* The preferred device of the WRITE data, or the GPU that owns it */
+        dev = parsec_select_device_for_write_data(tp, data_copy->original, valid_types);
+        if( NULL != dev ) {
+            PARSEC_DEBUG_VERBOSE(30, parsec_device_output, "%s: Task %s set selected_device %d:%s because of data %p AWRITE flow out[%d]",
                                  __func__, tmp, dev->device_index, dev->name, data_copy->original, i);
             this_task->selected_device = dev;
             goto device_selected;

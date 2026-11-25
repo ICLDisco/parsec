@@ -65,6 +65,9 @@ typedef enum {
 #define PARSEC_FLOW_ACCESS_RW       (PARSEC_FLOW_ACCESS_READ | PARSEC_FLOW_ACCESS_WRITE)
 #define PARSEC_FLOW_ACCESS_MASK     (PARSEC_FLOW_ACCESS_READ | PARSEC_FLOW_ACCESS_WRITE)
 #define PARSEC_FLOW_HAS_IN_DEPS     ((uint8_t)(1 << 4))
+/* Several tasks write the data of this flow without the runtime ordering them: they share one copy, so one
+ * device. Comes with PARSEC_FLOW_ACCESS_WRITE. */
+#define PARSEC_FLOW_CONCURRENT_WRITE ((uint8_t)(1 << 5))
 
 struct parsec_expr_s {
     union {

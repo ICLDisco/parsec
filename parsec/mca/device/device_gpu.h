@@ -200,6 +200,9 @@ struct parsec_gpu_task_s {
      * is what keeps the two from happening twice.
      */
     uint32_t                               data_out_readers;
+    /* One bit per PARSEC_FLOW_CONCURRENT_WRITE flow counted in the writers of its data_out copy.
+     * Set once by the push, cleared by the epilog or the cleanup. */
+    uint32_t                               data_out_writers;
     int32_t                                last_status;
     /* Number of consecutive AGAIN continuations of the ring this task heads on
      * an execution stream; see parsec_gpu_again_warn_threshold. */

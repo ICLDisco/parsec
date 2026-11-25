@@ -344,6 +344,10 @@ parsec_internal_dtd_data_flush(parsec_dtd_tile_t *tile, parsec_taskpool_t *tp)
     assert(tile->flushed == NOT_FLUSHED);
     parsec_dtd_tile_retain(tile);
 
+    /* The flush bypasses parsec_insert_dtd_task and takes its source from tile->last_writer, which the
+     * tasks of a run never become: close the run first. */
+    parsec_dtd_atomic_write_close_run((parsec_dtd_taskpool_t *)tp, tile);
+
     parsec_dtd_insert_flush_task_pair(tp, tile);
 
     tile->flushed = FLUSHED;

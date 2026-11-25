@@ -168,8 +168,8 @@ void parsec_prof_grapher_dep(const parsec_task_t* from, const parsec_task_t* to,
                 "%s [label=\"%s=>%s\",color=\"#%s\",style=\"%s\"]\n",
                 tmp, origin_flow->name, dest_flow->name,
                 dependency_activates_task ? "00FF00" : "FF0000",
-                ((dest_flow->flow_flags == PARSEC_FLOW_ACCESS_NONE) ? "dotted":
-                 (dest_flow->flow_flags == PARSEC_FLOW_ACCESS_RW) ? "solid" : "dashed"));
+                ((PARSEC_FLOW_ACCESS_NONE == (dest_flow->flow_flags & PARSEC_FLOW_ACCESS_MASK)) ? "dotted":
+                 (PARSEC_FLOW_ACCESS_RW == (dest_flow->flow_flags & PARSEC_FLOW_ACCESS_MASK)) ? "solid" : "dashed"));
         fflush(grapher_file);
     }
 }

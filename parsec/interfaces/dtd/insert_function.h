@@ -31,16 +31,41 @@ BEGIN_C_DECLS
  *  PARSEC_INPUT:        Data is used in read-only mode, no modification is done.
  *  PARSEC_OUTPUT:       Data is used in write-only, written only, not read.
  *  PARSEC_INOUT:        Data is read and written both.
- *  PARSEC_ATOMIC_WRITE: Data is used like OUTPUT but the ordering of the tasks having this flag is not maintained
- *                       by the scheduler.
- *                       It is the responsibility of the user to make sure data is written atomically.
- *                       Treated like PARSEC_INPUT by the scheduler.
- *                       This flag is not currently VALID, please refrain from using it.
- *  PARSEC_SCRATCH:      Will be used by the task as scratch pad, does not effect the DAG, tells the runtime
- *                       to allocate memory specified by the user.
- *                       This flag can also be used to pass pointer of any variable. Please look at the usage below.
- *  PARSEC_VALUE:        Tells the runtime to copy the value as a parameter of the task.
- *  PARSEC_REF:          Tells the runtime to reference the user pointer (i.e., not a PaRSEC data)
+ *  PARSEC_ATOMIC_WRITE: Data is read and written like with PARSEC_INOUT, except that consecutive tasks using this
+ *                       access type on the same data are not ordered with each other: they run concurrently,
+ *                       like a chain of PARSEC_INPUT tasks. Towards every other access type it behaves like
+ *                       PARSEC_INOUT: it waits for all the earlier users of the data (readers included), and
+ *                       every later access of another type waits for all the ATOMIC_WRITE tasks.
+ *                       Typical uses are a counter updated with atomic operations, or tasks that each write a
+ *                       different part of the same data. The user is responsible for the coherency of what the
+ *                       concurrent tasks write, and the tasks may read the previous content of the data.
+ *                       All the concurrent writes must land on a single copy of the data:
+ *                         - a run is a sequence of consecutive ATOMIC_WRITE accesses on the same data, placed on
+ *                           one rank. It does not have to be the owner of the data, but the task must be placed
+ *                           explicitly (see PARSEC_AFFINITY). Consecutive ATOMIC_WRITE accesses placed on different
+ *                           ranks are different runs, ordered like regular writes: the second starts when the first
+ *                           is over, which moves the data to the new rank;
+ *                         - all the tasks of a run execute on the same device. The first one scheduled picks it
+ *                           like for any other write: the preferred device of the data if it can run the task,
+ *                           else the GPU that owns the data, else the lowest device index with a chore for the
+ *                           task. The others follow, and it is an error for one not to have a chore for it;
+ *                         - a task has at most one ATOMIC_WRITE flow, and does not use that data in another flow;
+ *                         - PARSEC_PUSHOUT is rejected on it, as the tasks of a run cannot push the shared copy.
+ *                           The epilogue of the run does it when the run executed on a GPU, so the host copy is
+ *                           what other ranks, CPU tasks, readers and the flush get. The exception is a follower
+ *                           that writes the data, only has GPU chores and is on the rank of the run: it takes the
+ *                           data from the device, and its own PARSEC_PUSHOUT decides what happens next.
+ *                       The runtime delimits a run with empty tasks placed on its rank: a prologue before the first
+ *                       ATOMIC_WRITE task that follows PARSEC_INPUT tasks, and an epilogue after the last one, before
+ *                       the first task of any other access type (wherever it is placed), before an ATOMIC_WRITE task
+ *                       on another rank, and before the flush, unless the flush finds the data where the run left
+ *                       it (a CPU-only run on the owner, after a writer that was on the owner too). The epilogue is
+ *                       the last writer of the data, so whatever follows gets it from the rank where the run
+ *                       executed, and it executes on the device of the run.
+ *  The access types above all live in a single field (PARSEC_GET_OP_TYPE) and exactly one of them must be
+ *  given per parameter: they are values of that field, not bits to combine, and any other value (for example
+ *  PARSEC_INPUT | PARSEC_ATOMIC_WRITE) is rejected. PARSEC_INOUT already names the read-write access.
+ *  The flags below are separate bits and are the ones meant to be OR-ed with an access type.
  *
  *  PARSEC_AFFINITY:     Indicates where to place a task. This flag should be provided with a data and the
  *                       runtime will place the task in the rank where the data, this flag was provided with,
@@ -51,14 +76,16 @@ BEGIN_C_DECLS
  *  Lower 16 bits:       Index (arbitrary value) for different REGIONS to express more specific dependency.
  *                       Regions indices are user provided and must be mutually exclusive for the tile.
  */
-typedef enum { PARSEC_INPUT =      0x100000,
-               PARSEC_OUTPUT =     0x200000,
-               PARSEC_INOUT =      0x300000,
-               PARSEC_ATOMIC_WRITE=0x400000, /* DO NOT USE ,Iterate_successors do not support this at this point */
-               PARSEC_SCRATCH =    0x500000,
-               PARSEC_VALUE =      0x600000,
-               PARSEC_REF =        0x700000,
+typedef enum { PARSEC_INPUT =      0x100000, /* READ               */
+               PARSEC_OUTPUT =     0x200000, /* WRITE              */
+               PARSEC_INOUT =      0x300000, /* READ | WRITE       */
+               PARSEC_ATOMIC_WRITE=0x600000, /* WRITE | UNORDERED  */
+               PARSEC_SCRATCH =    0x800000,
+               PARSEC_VALUE =      0x900000,
+               PARSEC_REF =        0xa00000,
                PARSEC_GET_OP_TYPE =0xf00000, /* MASK: not an actual value, used to filter the relevant enum values */
+               PARSEC_NOT_A_FLOW  =0x800000, /* MASK: not an actual value, set on every access type above that does
+                                              * not name a data flow */
                PARSEC_AFFINITY    =1<<16, /* Data affinity */
                PARSEC_DONT_TRACK  =1<<17, /* Drop dependency tracking */
                PARSEC_PUSHOUT     =1<<18, /* Push GPU data back to CPU */
