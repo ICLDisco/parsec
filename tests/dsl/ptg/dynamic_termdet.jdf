@@ -1,0 +1,117 @@
+extern "C" %{
+/*
+ * Copyright (c) 2026      The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
+#include <stdio.h>
+#include <stdlib.h>
+#include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include "parsec/sys/atomic.h"
+#include "parsec/utils/debug.h"
+#include "tests/tests_runtime.h"
+
+/**
+ * A taskpool that asks for the dynamic termination detector (the
+ * four-counter algorithm) must run in every build and on any number of
+ * processes: on several the detector exchanges its waves of messages, on
+ * one, or without a communication engine at all, it has nobody to talk to.
+ *
+ * NT tasks form a chain. Task k runs where tile (k, 0) lives, so with
+ * several processes the tile travels from one to the next. Each task
+ * checks that the tile went through its k predecessors, and adds one to it.
+ */
+
+static int32_t nb_tasks_run = 0;    /* tasks of the chain that ran in this process */
+static int32_t nb_tasks_wrong = 0;  /* tasks that did not receive what they expected */
+%}
+
+%option termdet = "dynamic"
+
+descA  [type = "parsec_matrix_block_cyclic_t *"]
+NT     [type = "int"]
+
+T(k)
+ k = 0 .. NT-1
+
+: descA(k, 0)
+
+RW A <- (k == 0) ? descA(k, 0) : A T(k-1)
+     -> (k < NT-1) ? A T(k+1)
+
+BODY
+{
+    if( k != ((int32_t*)A)[0] ) {
+        fprintf(stderr, "T(%d) received %d instead of %d\n", k, (int)((int32_t*)A)[0], k);
+        (void)parsec_atomic_fetch_inc_int32(&nb_tasks_wrong);
+    }
+    ((int32_t*)A)[0] += 1;
+    (void)parsec_atomic_fetch_inc_int32(&nb_tasks_run);
+}
+END
+
+extern "C" %{
+
+#define TASKS_PER_PROCESS 8
+
+int main(int argc, char *argv[])
+{
+    parsec_context_t *parsec;
+    parsec_dynamic_termdet_taskpool_t *tp;
+    parsec_matrix_block_cyclic_t descA;
+    int rc, rank, world, NT, ret = 0;
+
+    rc = parsec_tests_context_init(-1, PARSEC_TEST_THREAD_SERIALIZED,
+                                   &argc, &argv, &parsec, &rank, &world);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_init");
+
+    NT = TASKS_PER_PROCESS * world;
+    parsec_matrix_block_cyclic_init(&descA, PARSEC_MATRIX_INTEGER, PARSEC_MATRIX_TILE,
+                                    rank,
+                                    1, 1,      /* Tile size */
+                                    NT, 1,     /* Global matrix size */
+                                    0, 0,      /* Starting point in the global matrix */
+                                    NT, 1,     /* Submatrix size */
+                                    world, 1,  /* process grid */
+                                    1, 1,      /* k-cyclicity */
+                                    0, 0);
+    descA.mat = parsec_data_allocate(descA.super.nb_local_tiles *
+                                     descA.super.bsiz *
+                                     parsec_datadist_getsizeoftype(PARSEC_MATRIX_INTEGER));
+    for( int i = 0; i < (int)(descA.super.nb_local_tiles * descA.super.bsiz); i++ ) {
+        ((int32_t*)descA.mat)[i] = 0;
+    }
+    parsec_data_collection_set_key(&descA.super.super, "A");
+
+    tp = parsec_dynamic_termdet_new(&descA, NT);
+    parsec_matrix_adt_define_rect(&tp->arenas_datatypes[PARSEC_dynamic_termdet_DEFAULT_ADT_IDX],
+                                  parsec_datatype_int32_t, 1, 1, 1);
+
+    rc = parsec_context_add_taskpool(parsec, &tp->super);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
+    rc = parsec_context_start(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_start");
+    rc = parsec_context_wait(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
+
+    /* The tiles are dealt one per process in turn: so are the tasks */
+    if( (TASKS_PER_PROCESS != nb_tasks_run) || (0 != nb_tasks_wrong) ) {
+        fprintf(stderr, "Rank %d: %d tasks ran instead of %d, %d of them on the wrong value\n",
+                rank, (int)nb_tasks_run, TASKS_PER_PROCESS, (int)nb_tasks_wrong);
+        ret = 1;
+    } else {
+        printf("Rank %d: its %d tasks of the chain of %d ran\n", rank, TASKS_PER_PROCESS, NT);
+    }
+
+    parsec_matrix_arena_datatype_destruct_free_type(&tp->arenas_datatypes[PARSEC_dynamic_termdet_DEFAULT_ADT_IDX]);
+    parsec_taskpool_free(&tp->super);
+    parsec_data_free(descA.mat);
+    parsec_tiled_matrix_destroy((parsec_tiled_matrix_t*)&descA);
+
+    rc = parsec_tests_context_fini(&parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_tests_context_fini");
+    return ret;
+}
+
+%}

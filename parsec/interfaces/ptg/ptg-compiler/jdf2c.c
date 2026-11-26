@@ -3891,7 +3891,12 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
                 "                           this_task->taskpool->taskpool_id, NULL);\n"
                 "#endif /* defined(PARSEC_PROF_TRACE) && defined(PARSEC_PROF_TRACE_PTG_INTERNAL_INIT) */\n");
     }
-    if( f->flags & JDF_FUNCTION_FLAG_CAN_BE_STARTUP ) {
+    /* A taskpool that knows its number of tasks holds one more pending action
+     * for as long as it has tasks. One that discovers them (dynamic or user
+     * triggered termination detection) holds none yet: its startup tasks must
+     * run to find out. */
+    if( (f->flags & JDF_FUNCTION_FLAG_CAN_BE_STARTUP) &&
+        !(f->user_defines & (JDF_HAS_USER_TRIGGERED_TERMDET | JDF_HAS_DYNAMIC_TERMDET)) ) {
         coutput("    if( 1 >= __parsec_tp->super.super.nb_pending_actions ) {\n"
                 "        /* if no tasks will be generated let's prevent the runtime from calling the hook and instead go directly to complete the task */\n"
                 "        this_task->status = PARSEC_TASK_STATUS_COMPLETE;\n"
