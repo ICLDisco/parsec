@@ -222,17 +222,20 @@ int parsec_hwloc_master_id( int level, int processor_id )
 {
 #if defined(PARSEC_HAVE_HWLOC)
     unsigned int i;
-    int ncores;
+    int ncores, pu;
+    hwloc_obj_t core;
 
     ncores = hwloc_get_nbobjs_by_type(parsec_hwloc_loaded_topology, HWLOC_OBJ_CORE);
+    if( ncores <= 0 || processor_id < 0 )
+        return PARSEC_ERR_NOT_FOUND;
 
-    /* If we are using hyper-threads */
-    processor_id = processor_id % ncores;
+    core = hwloc_get_obj_by_type(parsec_hwloc_loaded_topology, HWLOC_OBJ_CORE, processor_id % ncores);
+    pu = HWLOC_FIRST(core->cpuset);
 
     for(i = 0; i < hwloc_get_nbobjs_by_depth(parsec_hwloc_loaded_topology, level); i++) {
         hwloc_obj_t obj = hwloc_get_obj_by_depth(parsec_hwloc_loaded_topology, level, i);
 
-        if(HWLOC_ISSET(obj->cpuset, processor_id)) {
+        if(HWLOC_ISSET(obj->cpuset, pu)) {
             return HWLOC_FIRST(obj->cpuset);
         }
     }
