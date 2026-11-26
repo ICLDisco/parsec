@@ -72,6 +72,7 @@ int parsec_show_help_finalize(void)
     /* destruct the search list */
     if (NULL != search_dirs) {
         parsec_argv_free(search_dirs);
+        search_dirs = NULL;  /* a later parsec_init starts from an empty list */
     };
 
     return PARSEC_SUCCESS;

@@ -750,6 +750,11 @@ int parsec_mca_device_fini(void)
     }
 
     free(parsec_devices); parsec_devices = NULL;
+    /* Leave the device table as it was before the first parsec_init, so that
+     * a later parsec_init can register its devices again. */
+    parsec_nb_devices = 0;
+    parsec_nb_max_devices = 0;
+    parsec_mca_device_are_freezed = 0;
 
     if( 0 < parsec_device_verbose ) {
         parsec_output_close(parsec_device_output);

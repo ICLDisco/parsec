@@ -1,5 +1,6 @@
 parsec_addtest_cmd(api/trim_chores ${SHM_TEST_CMD_LIST} api/trim_chores)
 parsec_addtest_cmd(api/init_fini ${SHM_TEST_CMD_LIST} api/init_fini)
+parsec_addtest_cmd(api/reinit ${SHM_TEST_CMD_LIST} api/reinit)
 parsec_addtest_cmd(api/touch  ${SHM_TEST_CMD_LIST} api/touch_ex -v=5)
 parsec_addtest_cmd(api/touch:inline  ${SHM_TEST_CMD_LIST} api/touch_ex_inline -v=5)
 
@@ -12,6 +13,7 @@ parsec_addtest_cmd(api/compose ${SHM_TEST_CMD_LIST} api/compose)
 
 if( MPI_C_FOUND )
   parsec_addtest_cmd(api/init_fini:mp ${MPI_TEST_CMD_LIST} 4 api/init_fini)
+  parsec_addtest_cmd(api/reinit:mp ${MPI_TEST_CMD_LIST} 4 api/reinit)
   parsec_addtest_cmd(api/compose:mp ${MPI_TEST_CMD_LIST} 4 api/compose)
   parsec_addtest_cmd(api/operator:mp ${MPI_TEST_CMD_LIST} 4 api/operator)
 endif( MPI_C_FOUND )

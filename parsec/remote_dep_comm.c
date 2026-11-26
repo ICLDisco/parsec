@@ -247,6 +247,10 @@ static int remote_dep_initialized = 0;
 #if defined(PARSEC_REMOTE_DEP_USE_THREADS)
 static pthread_mutex_t comm_thread_mutex;
 static pthread_cond_t comm_thread_condition;
+/* The communication thread was created and has not been joined yet */
+static int comm_thread_exists = 0;
+/* Set, under comm_thread_mutex, to tell a sleeping communication thread to leave */
+static int comm_thread_must_leave = 0;
 #endif
 
 parsec_execution_stream_t parsec_comm_es = {
@@ -407,6 +411,7 @@ remote_dep_dequeue_init(parsec_context_t* context)
                    &thread_attr,
                    (void* (*)(void*))remote_dep_dequeue_main,
                    (void*)context);
+    comm_thread_exists = 1;
 
     /* Wait until the communication thread signals it is awake. */
     pthread_cond_wait( &comm_thread_condition, &comm_thread_mutex );
@@ -440,17 +445,37 @@ remote_dep_dequeue_fini(parsec_context_t* context)
         item->priority = 0;
         parsec_dequeue_push_back(&dep_cmd_queue, (parsec_list_item_t*) item);
 
-        /* I am supposed to own the lock. Wake the communication thread. */
+        /* The engine is on: the communication thread owns the mutex and runs
+         * the command queue, where it finds this command and returns. */
+        pthread_join(dep_thread_id, &ret);
+        assert((parsec_context_t*)ret == context);
+        comm_thread_exists = 0;
+    }
+    else if( comm_thread_exists ) {
+        /* The communication thread is asleep, which is where
+         * remote_dep_dequeue_init() and remote_dep_dequeue_off() leave it, and
+         * no command can reach it there. We own the mutex: tell the thread to
+         * leave, wake it up and wait for it. Left behind, it would keep
+         * waiting on a condition and a context that are about to disappear. */
+        void *ret;
+
+        assert( 1 == parsec_communication_engine_up );
+        comm_thread_must_leave = 1;
         pthread_cond_signal(&comm_thread_condition);
         pthread_mutex_unlock(&comm_thread_mutex);
         pthread_join(dep_thread_id, &ret);
         assert((parsec_context_t*)ret == context);
+        comm_thread_must_leave = 0;
+        comm_thread_exists = 0;
     }
 
     assert(NULL == parsec_dequeue_pop_front(&dep_cmd_queue));
     PARSEC_OBJ_DESTRUCT(&dep_cmd_queue);
     assert(NULL == parsec_dequeue_pop_front(&dep_cmd_fifo));
     PARSEC_OBJ_DESTRUCT(&dep_cmd_fifo);
+    /* remote_dep_dequeue_init() initializes them again. */
+    pthread_cond_destroy(&comm_thread_condition);
+    pthread_mutex_destroy(&comm_thread_mutex);
     remote_dep_initialized = 0;
 
     PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Process has reshaped %zu tiles.", count_reshaping);
@@ -557,8 +582,15 @@ void* remote_dep_dequeue_main(parsec_context_t* context)
      */
 
     while( -1 != whatsup ) {
-        /* Let's wait until we are awaken */
-        pthread_cond_wait(&comm_thread_condition, &comm_thread_mutex);
+        /* Let's wait until we are turned on, or told to leave. A wake-up
+         * for neither (a spurious one) goes back to sleep. */
+        while( (2 != parsec_communication_engine_up) && !comm_thread_must_leave ) {
+            pthread_cond_wait(&comm_thread_condition, &comm_thread_mutex);
+        }
+        if( comm_thread_must_leave ) {
+            /* remote_dep_dequeue_fini() found us asleep: nothing to turn on */
+            break;
+        }
 
         PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "RDEP: comm engine ON on process %d/%d",
                              context->my_rank, context->nb_nodes);
@@ -573,20 +605,27 @@ void* remote_dep_dequeue_main(parsec_context_t* context)
         /* acknowledge the activation */
         parsec_communication_engine_up = 3;
 
-        /* Check that we have the right memory pool pointers and update them if needed */
-        if( parsec_comm_es.context_mempool != &(parsec_comm_es.virtual_process->context_mempool.thread_mempools[0]) ) {
-            parsec_comm_es.context_mempool = &(parsec_comm_es.virtual_process->context_mempool.thread_mempools[0]);
-            for(int pi = 0; pi <= MAX_PARAM_COUNT; pi++) {
-                parsec_comm_es.datarepo_mempools[pi] = &(parsec_comm_es.virtual_process->datarepo_mempools[pi].thread_mempools[0]);
-            }
-            parsec_comm_es.dependencies_mempool = &(parsec_comm_es.virtual_process->dependencies_mempool.thread_mempools[0]);
+        /* The communication thread shares the memory pools of thread 0. They
+         * do not exist yet when its execution stream is set up, and a context
+         * created after parsec_fini() has new ones, so take the pointers each
+         * time the engine is turned on. Do not skip this when one of them
+         * still has the value it had: a new context can get the same address
+         * for one pool while the others moved. */
+        parsec_comm_es.context_mempool = &(parsec_comm_es.virtual_process->context_mempool.thread_mempools[0]);
+        for(int pi = 0; pi <= MAX_PARAM_COUNT; pi++) {
+            parsec_comm_es.datarepo_mempools[pi] = &(parsec_comm_es.virtual_process->datarepo_mempools[pi].thread_mempools[0]);
         }
+        parsec_comm_es.dependencies_mempool = &(parsec_comm_es.virtual_process->dependencies_mempool.thread_mempools[0]);
 
         whatsup = remote_dep_dequeue_nothread_progress(&parsec_comm_es, -1 /* loop till explicitly asked to return */);
         PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "RDEP: comm engine OFF on process %d/%d",
                              context->my_rank, context->nb_nodes);
         parsec_communication_engine_up = 1;  /* went to sleep */
     }
+
+    /* The mutex is ours on both ways out of the loop; release it so that it
+     * can be destroyed. */
+    pthread_mutex_unlock(&comm_thread_mutex);
 
     /* Release resources */
     PARSEC_PAPI_SDE_THREAD_FINI();
