@@ -75,6 +75,22 @@ parsec_hbbuffer_is_empty(parsec_hbbuffer_t *b)
     return 1;
 }
 
+/**
+ * @brief Remove and return the element of highest priority of the bounded buffer
+ *
+ * @details The priority of every element found in the buffer is read before
+ *   one of them is taken, so an element can be read after another thread
+ *   removed it from the buffer. This is harmless (the priority is stale and
+ *   the element is not taken) only if the storage is still there: an element
+ *   stored in a bounded buffer must not be freed as long as a thread may
+ *   call this function on the buffer. Tasks and task heaps satisfy this
+ *   because they are recycled through memory pools.
+ *
+ * @param[inout] b the bounded buffer
+ * @param[in] priority_offset the offset of the priority (an int) in the elements
+ * @return the element removed, that now belongs to the caller, or NULL if
+ *   the buffer was found empty
+ */
 parsec_list_item_t*
 parsec_hbbuffer_pop_best(parsec_hbbuffer_t *b, off_t priority_offset);
 

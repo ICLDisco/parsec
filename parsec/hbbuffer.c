@@ -243,6 +243,11 @@ parsec_hbbuffer_pop_best(parsec_hbbuffer_t *b, off_t priority_offset)
             if( NULL == (candidate = (parsec_list_item_t *)b->items[idx]) )
                 continue;
 
+            /* Neither candidate nor best_elt belongs to this thread: another
+             * one may have taken them out of the buffer since they were read
+             * from items[]. Their storage must still be valid, which is why
+             * the elements of a bounded buffer come from memory pools.
+             */
             if( (NULL == best_elt) || A_HIGHER_PRIORITY_THAN_B(candidate, best_elt, priority_offset) ) {
                 best_elt  = candidate;
                 best_idx  = idx;

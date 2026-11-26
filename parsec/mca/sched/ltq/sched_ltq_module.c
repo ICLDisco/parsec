@@ -28,6 +28,21 @@
 #define parsec_heap_priority_comparator (offsetof(parsec_task_heap_t, priority))
 
 /**
+ * The storage of the heaps, one memory pool per virtual process. A thread
+ * that looks for the best heap of a bounded buffer reads the priority of
+ * heaps it does not own, and that their owner may destroy in the meantime:
+ * heaps cannot be freed as long as the bounded buffers are in use, they
+ * return to these memory pools instead, until the scheduler is removed.
+ */
+static parsec_mempool_t *sched_ltq_heap_mempools = NULL;
+
+static inline parsec_thread_mempool_t*
+sched_ltq_heap_mempool(const parsec_execution_stream_t *es)
+{
+    return &sched_ltq_heap_mempools[es->virtual_process->vp_id].thread_mempools[es->th_id];
+}
+
+/**
  * Module functions
  */
 static int sched_ltq_install(parsec_context_t* master);
@@ -53,7 +68,13 @@ const parsec_sched_module_t parsec_sched_ltq_module = {
 
 static int sched_ltq_install( parsec_context_t *master )
 {
-    (void)master;
+    sched_ltq_heap_mempools = (parsec_mempool_t*)malloc(master->nb_vp * sizeof(parsec_mempool_t));
+    for(int p = 0; p < master->nb_vp; p++) {
+        parsec_mempool_construct(&sched_ltq_heap_mempools[p],
+                                 NULL, sizeof(parsec_task_heap_t),
+                                 offsetof(parsec_task_heap_t, mempool_owner),
+                                 master->virtual_processes[p]->nb_cores);
+    }
     return PARSEC_SUCCESS;
 }
 
@@ -188,7 +209,7 @@ sched_ltq_select(parsec_execution_stream_t *es,
     // if we failed to find one in our queue
     for(i = 1; i <  PARSEC_MCA_SCHED_LOCAL_QUEUES_OBJECT(es)->nb_hierarch_queues; i++ ) {
         heap = (parsec_task_heap_t*)parsec_hbbuffer_pop_best(PARSEC_MCA_SCHED_LOCAL_QUEUES_OBJECT(es)->hierarch_queues[i], parsec_heap_priority_comparator);
-        task = heap_split_and_steal(&heap, &new_heap);
+        task = heap_split_and_steal(&heap, &new_heap, sched_ltq_heap_mempool(es));
         if( NULL != heap ) {
             if (NULL != new_heap) {
                 /* turn two-element doubly-linked list
@@ -216,7 +237,7 @@ sched_ltq_select(parsec_execution_stream_t *es,
 
     // if nothing yet, then go to system queue
     heap = (parsec_task_heap_t *)parsec_dequeue_pop_front(PARSEC_MCA_SCHED_LOCAL_QUEUES_OBJECT(es)->system_queue);
-    task = heap_split_and_steal(&heap, &new_heap);
+    task = heap_split_and_steal(&heap, &new_heap, sched_ltq_heap_mempool(es));
 #if defined(PARSEC_PAPI_SDE)
     if( NULL != task ) {
         PARSEC_MCA_SCHED_LOCAL_QUEUES_OBJECT(es)->local_system_queue_balance--;
@@ -239,7 +260,7 @@ static int sched_ltq_schedule(parsec_execution_stream_t* es,
 {
     parsec_task_t * cur = new_context;
     parsec_task_t * next;
-    parsec_task_heap_t* heap = heap_create();
+    parsec_task_heap_t* heap = heap_create(sched_ltq_heap_mempool(es));
     parsec_task_heap_t* first_h = heap;
     int matches = 0;
     int i, j;
@@ -272,7 +293,7 @@ static int sched_ltq_schedule(parsec_execution_stream_t* es,
 
         if (!matches) {
             // make new heap
-            parsec_task_heap_t * new_heap = heap_create();
+            parsec_task_heap_t * new_heap = heap_create(sched_ltq_heap_mempool(es));
             heap->list_item.list_next->list_prev = (parsec_list_item_t*)new_heap;
             new_heap->list_item.list_prev = (parsec_list_item_t*)heap;
             new_heap->list_item.list_next = (parsec_list_item_t*)heap->list_item.list_next;
@@ -319,6 +340,12 @@ static void sched_ltq_remove( parsec_context_t *master )
             PARSEC_PAPI_SDE_UNREGISTER_COUNTER("SCHEDULER::PENDING_TASKS::QUEUE=%d/%d::SCHED=LTQ", vp->vp_id, t);
         }
         PARSEC_PAPI_SDE_UNREGISTER_COUNTER("SCHEDULER::PENDING_TASKS::QUEUE=%d/overflow::SCHED=LTQ", p);
+
+        /* The bounded buffers of this virtual process are gone: nobody can
+         * read a heap anymore, release their storage. */
+        parsec_mempool_destruct(&sched_ltq_heap_mempools[p]);
     }
+    free(sched_ltq_heap_mempools);
+    sched_ltq_heap_mempools = NULL;
     PARSEC_PAPI_SDE_UNREGISTER_COUNTER("SCHEDULER::PENDING_TASKS::SCHED=LTQ");
 }
