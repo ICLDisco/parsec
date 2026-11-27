@@ -132,6 +132,32 @@ int parsec_type_match(parsec_datatype_t dtt1,
  *         PARSEC_ERROR otherwise.
  */
 int parsec_type_contiguous(parsec_datatype_t dtt);
+
+/**
+ * Routine to check if one element of a datatype is contiguous in order: its
+ * data is the bytes [0, size) of the element, with no gaps, and its typemap
+ * visits them in increasing address order. Packing such an element copies its
+ * first size bytes as they are, so the first N bytes of a message received
+ * into it are its first N bytes in memory.
+ *
+ * This is stronger than parsec_type_contiguous(), which only looks at how the
+ * type was built, and size, lb and extent cannot tell it either: a transposed
+ * tile (an hvector of strided columns) has no gaps, lb == 0 and
+ * extent == size, but visits memory out of order, so a partial receive into it
+ * is scattered over the tile.
+ *
+ * Only one element is checked. count elements are contiguous in order if, in
+ * addition, the extent is the size.
+ *
+ * A backend may leave this check out of its datatype module. Callers must
+ * treat anything but PARSEC_SUCCESS as "not known to be", so a false negative
+ * may cost them work but never correctness.
+ * @param[in] parsec_datatype_t datatype
+ * @return PARSEC_SUCCESS if the selected backend can prove it,
+ *         PARSEC_ERR_NOT_SUPPORTED if the backend does not implement the check,
+ *         PARSEC_ERROR otherwise, including when it cannot tell.
+ */
+int parsec_type_contiguous_in_order(parsec_datatype_t dtt);
 END_C_DECLS
 
 /** @} */

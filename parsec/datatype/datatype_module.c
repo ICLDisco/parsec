@@ -204,3 +204,16 @@ parsec_type_contiguous(parsec_datatype_t dtt)
     }
     return parsec_datatype_selected_module->contiguous(dtt);
 }
+
+int
+parsec_type_contiguous_in_order(parsec_datatype_t dtt)
+{
+    if( !parsec_datatype_module_ready() ) {
+        return PARSEC_ERR_NOT_FOUND;
+    }
+    /* Optional: a backend without it cannot tell. */
+    if( NULL == parsec_datatype_selected_module->contiguous_in_order ) {
+        return PARSEC_ERR_NOT_SUPPORTED;
+    }
+    return parsec_datatype_selected_module->contiguous_in_order(dtt);
+}
