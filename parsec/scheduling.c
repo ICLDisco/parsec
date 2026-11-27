@@ -178,16 +178,27 @@ int __parsec_execute( parsec_execution_stream_t* es,
                 PARSEC_DATA_COPY_RETAIN(task->data[i].data_in);
                 PARSEC_DATA_COPY_RELEASE(copy);
             }
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) || defined(PARSEC_HAVE_DEV_HIP_SUPPORT) || \
+    defined(PARSEC_HAVE_DEV_LEVEL_ZERO_SUPPORT)
             /* The body is about to read these bytes, and a write-back coming
              * down from an accelerator would land on the very same host mirror.
              * Say that the mirror is being read, for as long as that is true.
              * Remember the flows rather than look for them again afterwards, so
              * what is handed back cannot drift from what was taken.
+             *
+             * Without an accelerator nothing writes back to a host copy, and
+             * the count is not needed here to keep a writer away from a running
+             * task either: DTD counts its own local readers until they complete.
+             * So skip the two atomic operations per input flow, on a counter
+             * that every reader of the same data shares. The readers that DTD
+             * does not count itself, the communication engine and the
+             * forwarders, are pinned on their own paths.
              */
             assert(i < MAX_PARAM_COUNT);
             if( parsec_device_data_copy_pin_reader(task->data[i].data_in) ) {
                 task->pinned_input_mask |= (1U << i);
             }
+#endif  /* accelerator support */
         }
     }
 
