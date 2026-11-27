@@ -180,6 +180,9 @@ struct parsec_device_module_s {
     uint64_t  executed_tasks;
     uint64_t  nb_data_faults;
     uint64_t  nb_evictions;
+    uint64_t  nb_rejected_tasks; /**< Tasks this device took in and then pushed back out without
+                                  *   running them, to be tried again elsewhere. Unrelated to
+                                  *   nb_evictions, which counts data copies, not tasks */
     /* We provide the compute capacity of the device in GFlop/s so that conversion to #nanosec in load estimates is straightforward */
     /* These compute capacities can be useful for users when providing their own
      * time_estimate functions: the user can divide the number of flops for the

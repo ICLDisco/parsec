@@ -172,7 +172,16 @@ int __parsec_execute( parsec_execution_stream_t* es,
                  * claims, so it stands in for it here as any shared copy would. */
                 assert(parsec_data_copy_is_placeholder(copy)
                     || copy->coherency_state == PARSEC_DATA_COHERENCY_SHARED);
-                assert(NULL != copy->original && NULL != copy->original->device_copies[0]);
+                if( NULL == copy->original || NULL == copy->original->device_copies[0] ) {
+                    char task_str[MAX_TASK_STRLEN];
+                    parsec_fatal("Task %s is about to read flow %s on device %d:%s from copy %p, which "
+                                 "has no host mirror: whoever took it off its accelerator left the "
+                                 "value nowhere a CPU body can read it.",
+                                 parsec_task_snprintf(task_str, MAX_TASK_STRLEN, task),
+                                 task->task_class->in[i]->name,
+                                 task->selected_device->device_index, task->selected_device->name,
+                                 copy);
+                }
                 assert(copy->version == copy->original->device_copies[0]->version);
                 task->data[i].data_in = copy->original->device_copies[0];
                 PARSEC_DATA_COPY_RETAIN(task->data[i].data_in);
