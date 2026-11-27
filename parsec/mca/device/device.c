@@ -85,30 +85,53 @@ int parsec_device_inject_disable = 0;
 int parsec_device_audit_stage_in = 0;
 #endif  /* defined(PARSEC_DEBUG_NOISIER) */
 
+/**
+ * Every name PaRSEC knows for a device type. A name is read back into the set
+ * of types it stands for; it is written out only when it is the one name for
+ * one type, which is what canonical says. The rest are the short spelling of
+ * a type and the two names that stand for several at once.
+ */
+static const struct {
+    const char *name;
+    uint8_t     types;
+    int         canonical;
+} parsec_device_type_names[] = {
+    { "cpu",        PARSEC_DEV_CPU,        1 },
+    { "recursive",  PARSEC_DEV_RECURSIVE,  1 },
+    { "cuda",       PARSEC_DEV_CUDA,       1 },
+    { "hip",        PARSEC_DEV_HIP,        1 },
+    { "rocm",       PARSEC_DEV_HIP,        0 },
+    { "level_zero", PARSEC_DEV_LEVEL_ZERO, 1 },
+    { "ze",         PARSEC_DEV_LEVEL_ZERO, 0 },
+    { "gpu",        PARSEC_DEV_GPU_MASK,   0 },
+    { "all",        PARSEC_DEV_ANY_TYPE,   0 },
+    { NULL,         PARSEC_DEV_NONE,       0 }
+};
+
 uint8_t parsec_device_type_from_name(const char *name, size_t length)
 {
-    static const struct {
-        const char *name;
-        uint8_t     types;
-    } known[] = {
-        { "cpu",        PARSEC_DEV_CPU        },
-        { "recursive",  PARSEC_DEV_RECURSIVE  },
-        { "cuda",       PARSEC_DEV_CUDA       },
-        { "hip",        PARSEC_DEV_HIP        },
-        { "level_zero", PARSEC_DEV_LEVEL_ZERO },
-        { "ze",         PARSEC_DEV_LEVEL_ZERO },
-        { "gpu",        PARSEC_DEV_GPU_MASK   },
-        { "all",        PARSEC_DEV_ANY_TYPE   },
-        { NULL,         PARSEC_DEV_NONE       }
-    };
-
-    for( int i = 0; NULL != known[i].name; i++ ) {
-        if( (strlen(known[i].name) == length) &&
-            (0 == strncasecmp(known[i].name, name, length)) ) {
-            return known[i].types;
+    for( int i = 0; NULL != parsec_device_type_names[i].name; i++ ) {
+        if( (strlen(parsec_device_type_names[i].name) == length) &&
+            (0 == strncasecmp(parsec_device_type_names[i].name, name, length)) ) {
+            return parsec_device_type_names[i].types;
         }
     }
     return PARSEC_DEV_NONE;
+}
+
+void parsec_device_type_to_names(uint8_t types, char *buffer, size_t length)
+{
+    size_t written = 0;
+
+    if( 0 == length ) return;
+    buffer[0] = '\0';
+    for( int i = 0; (NULL != parsec_device_type_names[i].name) && (written + 1 < length); i++ ) {
+        if( !parsec_device_type_names[i].canonical ) continue;
+        if( 0 == (types & parsec_device_type_names[i].types) ) continue;
+        written += (size_t)snprintf(buffer + written, length - written, "%s%s",
+                                    (0 == written) ? "" : ",", parsec_device_type_names[i].name);
+    }
+    if( 0 == written ) snprintf(buffer, length, "none");
 }
 
 /**

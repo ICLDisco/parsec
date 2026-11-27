@@ -2379,10 +2379,13 @@ static void remote_dep_comm_get_start(parsec_execution_stream_t* es,
              * all, as nothing mirrors an incoming value back to the host. Take
              * the host detour whenever the devices do not all reach each other.
              */
-            int best_device = ((parsec_mpi_allow_gpu_memory_communications & PARSEC_RUNTIME_RECV_GPU_MEMORY) &&
-                               !parsec_device_peer_mesh_incomplete &&
-                               (0 < deps->output[k].data.preferred_device)) ?
-                              deps->output[k].data.preferred_device : 0;
+            int preferred_device = deps->output[k].data.preferred_device;
+            parsec_device_module_t *preferred_module =
+                (0 < preferred_device) ? parsec_mca_device_get(preferred_device) : NULL;
+            int best_device = ((NULL != preferred_module) &&
+                               (0 != (parsec_comm_buffer_device_types & preferred_module->type)) &&
+                               !parsec_device_peer_mesh_incomplete) ?
+                              preferred_device : 0;
             int pinned;
             deps->output[k].data.data = remote_dep_copy_allocate(&deps->output[k].data.remote, best_device, &pinned);
             if( pinned ) deps->pinned_mask |= (1U << k);
