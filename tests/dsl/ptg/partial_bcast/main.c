@@ -10,7 +10,11 @@
 
 #include "parsec/runtime.h"
 #include "parsec/utils/debug.h"
+#include "parsec/datatype_module.h"
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
+#if defined(PARSEC_HAVE_MPI)
+#include "parsec/mca/comm/mpi/comm_mpi.h"
+#endif
 #include "tests/tests_runtime.h"
 #include "partial_bcast_wrapper.h"
 
@@ -19,25 +23,33 @@
  * rank and check what arrived. Run with several processes; the broadcast
  * topology (runtime_comm_coll_bcast: 0 star, 1 chain, 2 binomial) decides
  * which ranks forward. "-m MASK" selects the PB_CASE_* cases (default: all).
+ * "-n" runs them with a datatype backend that leaves out the optional
+ * contiguous_in_order check, so no receive is known to be contiguous in order:
+ * the forwards are larger, the data must be the same.
  */
 int main(int argc, char *argv[])
 {
     parsec_context_t *parsec;
     parsec_matrix_block_cyclic_t dcA;
     parsec_taskpool_t *tp;
-    int rank, world, rc, mask = PB_CASE_ALL;
+    int rank, world, rc, mask = PB_CASE_ALL, no_in_order = 0;
     int32_t total = 0;
     const int nb = 64;        /* tile of nb x nb doubles */
     const int nodd = 901;     /* short payload: below PARSEC_DIST_SHORT_LIMIT KB, not a multiple of 8 */
     const int nbig = 20001;   /* rendezvous payload: above the short limit, not a multiple of 8 */
     const int nrb = 64;       /* elements of the resized-byte receive */
 
-    /* Take "-m MASK" out of argv before parsec_init() reads the rest, the
-     * --mca arguments among them: it stops at an option it does not know. */
+    /* Take "-m MASK" and "-n" out of argv before parsec_init() reads the
+     * rest, the --mca arguments among them: it stops at an option it does not
+     * know. */
     int nargs = 1;
     for( int i = 1; i < argc; i++ ) {
         if( (0 == strcmp(argv[i], "-m")) && (i + 1 < argc) ) {
             mask = (int)strtol(argv[++i], NULL, 0);
+            continue;
+        }
+        if( 0 == strcmp(argv[i], "-n") ) {
+            no_in_order = 1;
             continue;
         }
         argv[nargs++] = argv[i];
@@ -54,6 +66,25 @@ int main(int argc, char *argv[])
      * message; by rendezvous it would be a truncated receive. */
     mask &= ~PB_CASE_OVER;
 #endif
+
+#if defined(PARSEC_HAVE_MPI)
+    /* The MPI backend without its contiguous_in_order check: installing it
+     * must work, and the check must then answer that it cannot tell. It has
+     * to stay valid until the communication engine is finalized. */
+    static parsec_datatype_module_t partial_module;
+    if( no_in_order ) {
+        partial_module = parsec_comm_mpi_datatype_module;
+        partial_module.contiguous_in_order = NULL;
+        rc = parsec_datatype_module_install(&partial_module);
+        PARSEC_CHECK_ERROR(rc, "parsec_datatype_module_install without contiguous_in_order");
+        if( PARSEC_ERR_NOT_SUPPORTED != parsec_type_contiguous_in_order(parsec_datatype_double_t) ) {
+            fprintf(stderr, "FAIL a backend without contiguous_in_order still answers it\n");
+            partial_bcast_failures++;
+        }
+    }
+#else
+    (void)no_in_order;
+#endif  /* defined(PARSEC_HAVE_MPI) */
 
     if( world < 2 ) {
         if( 0 == rank ) printf("partial_bcast needs at least two processes, nothing to check\n");
@@ -85,13 +116,21 @@ int main(int argc, char *argv[])
     rc = parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
     parsec_taskpool_free(tp);
+#if defined(PARSEC_HAVE_MPI)
+    if( no_in_order &&
+        (PARSEC_ERR_NOT_SUPPORTED != parsec_type_contiguous_in_order(parsec_datatype_double_t)) ) {
+        fprintf(stderr, "FAIL the backend without contiguous_in_order was replaced during the run\n");
+        partial_bcast_failures++;
+    }
+#endif  /* defined(PARSEC_HAVE_MPI) */
 
     rc = parsec_tests_allreduce(parsec, &partial_bcast_failures, &total, 1,
                                 parsec_datatype_int32_t, PARSEC_TESTS_REDUCE_SUM);
     PARSEC_CHECK_ERROR(rc, "parsec_tests_allreduce");
     if( 0 == rank ) {
-        printf("partial_bcast: mask 0x%x on %d processes: %d failure%s\n",
-               mask, world, total, (1 == total) ? "" : "s");
+        printf("partial_bcast: mask 0x%x%s on %d processes: %d failure%s\n",
+               mask, no_in_order ? " without contiguous_in_order" : "",
+               world, total, (1 == total) ? "" : "s");
     }
 
     parsec_data_free(dcA.mat);

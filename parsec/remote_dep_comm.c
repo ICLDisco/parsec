@@ -18,6 +18,8 @@
 
 #include "parsec/parsec_config.h"
 
+#include <limits.h>
+
 #include "profiling.h"
 #include "parsec/class/list.h"
 #include "parsec/utils/output.h"
@@ -1055,6 +1057,84 @@ remote_dep_comm_retrieve_datatype(parsec_execution_stream_t *eu,
 }
 
 /**
+ * Whether count elements of dtt are contiguous in order: each element is (see
+ * parsec_type_contiguous_in_order()) and, when there are several, the next
+ * one starts where the previous one ends (extent == size). The first N bytes
+ * of a message received as (count, dtt) are then the first N bytes of the
+ * buffer, and int8 x N describes them. A backend that cannot tell gives "no".
+ */
+static int
+remote_dep_type_contiguous_in_order(parsec_datatype_t dtt, uint64_t count)
+{
+    int size;
+    ptrdiff_t lb, extent;
+
+    if( PARSEC_SUCCESS != parsec_type_contiguous_in_order(dtt) ) return 0;
+    if( count <= 1 ) return 1;
+    return (PARSEC_SUCCESS == parsec_type_size(dtt, &size)) &&
+           (PARSEC_SUCCESS == parsec_type_extent(dtt, &lb, &extent)) &&
+           ((ptrdiff_t)size == extent);
+}
+
+/**
+ * Describe the message that actually arrived, so a broadcast hop can forward
+ * that and nothing else.
+ *
+ * dst_datatype and dst_count stay the declared receive: the buffer is sized
+ * from them and local successors read the copy as that type. src_datatype and
+ * src_count become the message to forward. A payload as long as the declared
+ * receive, or longer, is not adapted: by rendezvous a longer one is illegal
+ * MPI, and the eager path (remote_dep_comm_recv_activate()) truncates it to
+ * the declared receive.
+ *
+ * A shorter payload is described as follows.
+ * - If the declared receive is contiguous in order, the payload is the first
+ *   received_bytes of the buffer, and the message is int8 of that length,
+ *   whether or not it ends on an element boundary.
+ *   remote_dep_comm_get_start() posts the matching int8 receive over the
+ *   whole declared span when the parent is a forwarder, so both ends of a
+ *   forwarded hop use int8. Each end decides from its own receive type and
+ *   the payload size alone, so two ranks that declare different types for
+ *   the flow agree as long as both types are contiguous in order and the
+ *   payload fills neither. A receive
+ *   straight from the root keeps the declared type, since the root's type is
+ *   not known here.
+ * - Otherwise, when it is a whole number of elements, the message is that
+ *   many elements of the declared datatype (a shorter count, not a new type):
+ *   the receive filled exactly its first elements, and a child that declared
+ *   the same type receives them as a prefix of its own receive.
+ * - Otherwise the typemap scattered the payload over the buffer, no
+ *   (datatype, count) pair describes just those bytes, and src is left as
+ *   the full declared receive.
+ */
+static inline void
+remote_dep_adapt_to_received(parsec_dep_type_description_t* data, uint64_t received_bytes)
+{
+    int elem_pack = 0;
+    uint64_t declared_bytes;
+
+    if( 0 == received_bytes || 0 == data->dst_count ) return;  /* control flow */
+    /* Without MPI this is also PACKED, which no size query knows: keep the
+     * full forward. */
+    if( PARSEC_DATATYPE_NULL == data->dst_datatype ) return;
+    if( (PARSEC_SUCCESS != parsec_ce.pack_size(&parsec_ce, 1, data->dst_datatype, &elem_pack))
+        || (elem_pack <= 0) ) return;
+
+    declared_bytes = (uint64_t)elem_pack * data->dst_count;
+    if( received_bytes >= declared_bytes ) return;
+
+    if( remote_dep_type_contiguous_in_order(data->dst_datatype, data->dst_count) ) {
+        data->src_datatype = parsec_datatype_int8_t;
+        data->src_count    = received_bytes;
+        return;
+    }
+    if( 0 == (received_bytes % (uint64_t)elem_pack) ) {
+        data->src_datatype = data->dst_datatype;
+        data->src_count    = received_bytes / (uint64_t)elem_pack;
+    }
+}
+
+/**
  * Retrieve the datatypes involved in this communication. In addition the flag
  * PARSEC_ACTION_RECV_INIT_REMOTE_DEPS set the priority to the maximum priority
  * of all the children.
@@ -1198,10 +1278,13 @@ remote_dep_get_datatypes(parsec_execution_stream_t* es,
              * hint from a recycled remote_deps item. */
             origin->output[k].data.preferred_device = 0;
             assert(idx <= data_sizes[0]);
-            origin->output[k].data.remote.src_count = (idx < data_sizes[0]) ? data_sizes[idx+1] : 0;
+            /* get_datatype() overwrites src_count, so keep the size for
+             * remote_dep_adapt_to_received() below. */
+            uint32_t received_bytes = (idx < data_sizes[0]) ? data_sizes[idx+1] : 0;
+            origin->output[k].data.remote.src_count = received_bytes;
             PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream,
                                  "RDEP:\tRetrieve datatype with mask 0x%x (remote_dep_get_datatypes) remote size %u",
-                                 local_mask, origin->output[k].data.remote.src_count);
+                                 local_mask, received_bytes);
             incoming_mask = origin->incoming_mask;
             task.task_class->iterate_successors(es, &task,
                                                 local_mask,
@@ -1210,6 +1293,7 @@ remote_dep_get_datatypes(parsec_execution_stream_t* es,
             if( (origin->incoming_mask & ~incoming_mask & (1U<<k)) &&
                 (0 != origin->output[k].data.remote.dst_count) ) {
                 assert(idx < data_sizes[0]);
+                remote_dep_adapt_to_received(&origin->output[k].data.remote, received_bytes);
                 idx++;
             } else {
                 origin->output[k].data.remote.src_count = 0;
@@ -2222,6 +2306,23 @@ static void remote_dep_comm_recv_activate(parsec_execution_stream_t* es,
                                  wire.dst_count, wire.dst_datatype);
                 *position = save_position + data_sizes[ds_idx];  /* jump the entire short data */
 #endif  /* PARSEC_PROF_DRY_DEP */
+                /* Forward what arrived: the shorter message
+                 * remote_dep_adapt_to_received() describes, or else the
+                 * bytes as they were unpacked. An empty payload would be
+                 * forwarded empty, but no sender produces one:
+                 * remote_dep_comm_pack_dep() requires a non-zero count. */
+                parsec_dep_type_description_t fwd = *type_desc;
+                fwd.src_datatype = fwd.dst_datatype;
+                fwd.src_count    = fwd.dst_count;
+                remote_dep_adapt_to_received(&fwd, data_sizes[ds_idx]);
+                if( (fwd.src_datatype != fwd.dst_datatype) || (fwd.src_count != fwd.dst_count) ) {
+                    type_desc->src_datatype = fwd.src_datatype;
+                    type_desc->src_count    = fwd.src_count;
+                } else {
+                    type_desc->src_datatype = wire.dst_datatype;
+                    type_desc->src_count    = wire.dst_count;
+                }
+                type_desc->src_displ = wire.dst_displ;
                 complete_mask |= (1U<<k);
                 continue;
             }
@@ -2457,6 +2558,27 @@ static void remote_dep_comm_get_start(parsec_execution_stream_t* es,
         deps->output[k].data.data->flags |= PARSEC_DATA_FLAG_TRANSIT;
         dtt = deps->output[k].data.remote.dst_datatype;
         nbdtt = deps->output[k].data.remote.dst_count;
+        /* A forwarding parent (deps->from is not the root) sends what
+         * remote_dep_adapt_to_received() described from its own receive. When
+         * this rank's description of the same payload is int8 (a payload
+         * shorter than a receive that is contiguous in order), post int8 over
+         * the whole declared span: the parent sends int8 too, unless it
+         * declared another type for the flow, one that is not contiguous in
+         * order or that the payload fills. The root sends its own type, which
+         * this rank cannot know, so a receive straight from the root keeps the
+         * declared type as it always did. A span that does not fit an int
+         * count also keeps the declared receive. */
+        if( (deps->from != deps->root) &&
+            (deps->output[k].data.remote.src_datatype == parsec_datatype_int8_t) &&
+            (dtt != parsec_datatype_int8_t) ) {
+            int elem_pack = 0;
+            if( (PARSEC_SUCCESS == parsec_ce.pack_size(&parsec_ce, 1, dtt, &elem_pack)) &&
+                (elem_pack > 0) &&
+                ((uint64_t)elem_pack * deps->output[k].data.remote.dst_count <= (uint64_t)INT_MAX) ) {
+                dtt = parsec_datatype_int8_t;
+                nbdtt = (int)((uint64_t)elem_pack * deps->output[k].data.remote.dst_count);
+            }
+        }
 
         /* We have the remote mem_handle.
          * Let's allocate our mem_reg_handle
@@ -2574,11 +2696,14 @@ remote_dep_comm_get_end_cb(parsec_comm_engine_t *ce,
 #endif /* PARSEC_PROF_TRACE */
 
 #if defined(PARSEC_DEBUG_WIRE_CHECKSUM)
+    /* Hash what arrived, as the sender hashed what it sent: src is the
+     * received message (see remote_dep_adapt_to_received()), dst the
+     * possibly longer declared receive. */
     remote_dep_log_payload("RECV", deps->from, deps->taskpool->context->my_rank,
                            &deps->msg,
                            deps->output[callback_data->k].data.data, callback_data->k,
-                           deps->output[callback_data->k].data.remote.dst_datatype,
-                           deps->output[callback_data->k].data.remote.dst_count);
+                           deps->output[callback_data->k].data.remote.src_datatype,
+                           deps->output[callback_data->k].data.remote.src_count);
 #endif
 
     remote_dep_comm_get_end(es, callback_data->k, deps);

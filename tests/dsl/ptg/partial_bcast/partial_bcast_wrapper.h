@@ -23,7 +23,9 @@
 #define PB_CASE_TRANS2    256   /* one whole element into two transposed tiles */
 #define PB_CASE_PACKED    512   /* two consumers per rank with different receive types */
 #define PB_CASE_OVER      1024  /* short payload longer than the declared receive */
-#define PB_CASE_ALL       2047
+#define PB_CASE_MIXD      2048  /* tile on even ranks, doubles on odd ones: whole doubles */
+#define PB_CASE_MIXT      4096  /* transposed tile on even ranks, tile on odd ones */
+#define PB_CASE_ALL       8191
 
 /* Where the bytes of a payload land once received through a layout. */
 #define PB_LAYOUT_CONTIG  0
