@@ -24,6 +24,24 @@ if(PARSEC_HAVE_CUDA)
       parsec_addtest_cmd(runtime/cuda/stress:gpu:capped:disable ${SHM_TEST_CMD_LIST} ${CTEST_CUDA_LAUNCHER_OPTIONS} runtime/cuda/stress -n 512 -d 60 -- --mca device_cuda_enabled 1 --mca device_cuda_memory_number_of_blocks 32 --mca device_inject_disable 7 --mca device_show_statistics 1)
     endif()
   endif()
+  if(TARGET new_staging)
+    # NEW buffers read by GPU tasks (issues #795 and #872). The drain between
+    # runs warns about every buffer a device still holds after its last reader.
+    parsec_addtest_cmd(runtime/cuda/new_staging:gpu ${SHM_TEST_CMD_LIST} ${CTEST_CUDA_LAUNCHER_OPTIONS} runtime/cuda/new_staging -r 3 -- --mca device_cuda_enabled 1 --mca device_show_statistics 1)
+    # The buffers are written on the device, so they never have a host copy.
+    parsec_addtest_cmd(runtime/cuda/new_staging:gpu:gpu_writer ${SHM_TEST_CMD_LIST} ${CTEST_CUDA_LAUNCHER_OPTIONS} runtime/cuda/new_staging -g -r 3 -- --mca device_cuda_enabled 1 --mca device_show_statistics 1)
+    # No drain between runs, and memory for the buffers of about two runs: a
+    # device that keeps them runs out of memory and stops making progress.
+    parsec_addtest_cmd(runtime/cuda/new_staging:gpu:gpu_writer:keep ${SHM_TEST_CMD_LIST} ${CTEST_CUDA_LAUNCHER_OPTIONS} runtime/cuda/new_staging -g -k -t 256 -r 6 -- --mca device_cuda_enabled 1 --mca device_cuda_memory_number_of_blocks 160 --mca device_show_statistics 1)
+    set_tests_properties(runtime/cuda/new_staging:gpu runtime/cuda/new_staging:gpu:gpu_writer runtime/cuda/new_staging:gpu:gpu_writer:keep
+                         PROPERTIES FAIL_REGULAR_EXPRESSION "still OWNS")
+    set_tests_properties(runtime/cuda/new_staging:gpu:gpu_writer:keep PROPERTIES TIMEOUT 120)
+    if(MPI_C_FOUND)
+      # The buffers cross processes, so most readers receive them.
+      parsec_addtest_cmd(runtime/cuda/new_staging:mp:gpu:gpu_writer ${MPI_TEST_CMD_LIST} 2 ${CTEST_CUDA_LAUNCHER_OPTIONS} runtime/cuda/new_staging -g -r 3 -- --mca device_cuda_enabled 1 --mca device_show_statistics 1)
+      set_tests_properties(runtime/cuda/new_staging:mp:gpu:gpu_writer PROPERTIES FAIL_REGULAR_EXPRESSION "still OWNS")
+    endif()
+  endif()
   if(TARGET stage)
     parsec_addtest_cmd(runtime/cuda/stage:gpu ${SHM_TEST_CMD_LIST} ${CTEST_CUDA_LAUNCHER_OPTIONS} runtime/cuda/stage --mca device_cuda_enabled 2 --mca device_show_statistics 1)
   endif()
