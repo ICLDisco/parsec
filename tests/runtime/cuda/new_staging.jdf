@@ -22,6 +22,12 @@ extern "C" %{
  *
  * Every operand is 1.0, so each element of C accumulates exactly
  * nruns * tiles_k * tile_size, and the test fails if any element disagrees.
+ *
+ * With -g the staging tasks run on the GPU as well (issue #872), so each NEW
+ * buffer is written on the device and has no host copy left once its producer
+ * completes. With -k the runs follow one another without
+ * parsec_devices_release_memory(), the way an application usually chains
+ * taskpools: the buffers of a run then have to leave the device on their own.
  */
 
 #include "parsec/parsec_config.h"
@@ -57,6 +63,10 @@ typedef cublasStatus_t (*cublas_dgemm_v2_t)( cublasHandle_t handle,
 #include <mpi.h>
 #endif
 
+/* Which incarnation of a staging task runs, chosen by the gpuP global */
+static parsec_hook_return_t stage_on_gpu(const parsec_task_t *task);
+static parsec_hook_return_t stage_on_cpu(const parsec_task_t *task);
+
 %}
 
 /*
@@ -68,6 +78,7 @@ descC  [type = "parsec_tiled_matrix_t *"]
 CuHI   [type = "parsec_info_id_t"]
 lookP  [type = "int"]
 lookQ  [type = "int"]
+gpuP   [type = "int"]   /* the staging tasks run on the GPU */
 
 /**************************************************
  *                      READ_A                    *
@@ -86,7 +97,15 @@ WRITE AP <- NEW
 
 CTL   ctla <- (k >= lookQ) ? ctla GEMM(m, 0 .. descC->nt-1, k-lookQ)
 
-BODY
+BODY [type=CUDA evaluate=stage_on_gpu]
+{
+    cudaError_t err = cudaMemcpyAsync(AP, A, (size_t)descA->mb * descA->nb * sizeof(double),
+                                      cudaMemcpyDeviceToDevice, parsec_body.stream);
+    PARSEC_CUDA_CHECK_ERROR( "cudaMemcpyAsync", err, {return PARSEC_HOOK_RETURN_ERROR;} );
+}
+END
+
+BODY [evaluate=stage_on_cpu]
 {
     memcpy(AP, A, (size_t)descA->mb * descA->nb * sizeof(double));
 }
@@ -109,7 +128,15 @@ WRITE BP <- NEW
 
 CTL   ctlb <- (k >= lookP) ? ctlb GEMM(0 .. descC->mt-1, n, k-lookP)
 
-BODY
+BODY [type=CUDA evaluate=stage_on_gpu]
+{
+    cudaError_t err = cudaMemcpyAsync(BP, B, (size_t)descB->mb * descB->nb * sizeof(double),
+                                      cudaMemcpyDeviceToDevice, parsec_body.stream);
+    PARSEC_CUDA_CHECK_ERROR( "cudaMemcpyAsync", err, {return PARSEC_HOOK_RETURN_ERROR;} );
+}
+END
+
+BODY [evaluate=stage_on_cpu]
 {
     memcpy(BP, B, (size_t)descB->mb * descB->nb * sizeof(double));
 }
@@ -167,6 +194,18 @@ extern "C" %{
 
 static parsec_matrix_block_cyclic_t descA, descB, descC;
 
+static parsec_hook_return_t stage_on_gpu(const parsec_task_t *task)
+{
+    const parsec_new_staging_taskpool_t *tp = (const parsec_new_staging_taskpool_t *)task->taskpool;
+    return tp->_g_gpuP ? PARSEC_HOOK_RETURN_DONE : PARSEC_HOOK_RETURN_NEXT;
+}
+
+static parsec_hook_return_t stage_on_cpu(const parsec_task_t *task)
+{
+    const parsec_new_staging_taskpool_t *tp = (const parsec_new_staging_taskpool_t *)task->taskpool;
+    return tp->_g_gpuP ? PARSEC_HOOK_RETURN_NEXT : PARSEC_HOOK_RETURN_DONE;
+}
+
 #if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
 static void *create_cublas_handle(void *obj, void *p)
 {
@@ -217,6 +256,7 @@ int main(int argc, char *argv[])
     parsec_info_id_t CuHI;
     int tile_size = 512, tiles_k = 8, tiles_m = 4, tiles_n = 4;
     int nruns = 1, lookahead = 2;
+    int gpu_producer = 0, keep_device_memory = 0;
     int rank = 0, np = 1, ch, rc;
     int error_found = 0;
 
@@ -229,7 +269,7 @@ int main(int argc, char *argv[])
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 #endif
 
-    while ((ch = getopt(argc, argv, "t:K:M:N:r:l:")) != -1) {
+    while ((ch = getopt(argc, argv, "t:K:M:N:r:l:gk")) != -1) {
         switch (ch) {
             case 't': tile_size = atoi(optarg); break;
             case 'K': tiles_k   = atoi(optarg); break;
@@ -237,10 +277,12 @@ int main(int argc, char *argv[])
             case 'N': tiles_n   = atoi(optarg); break;
             case 'r': nruns     = atoi(optarg); break;
             case 'l': lookahead = atoi(optarg); break;
+            case 'g': gpu_producer = 1; break;
+            case 'k': keep_device_memory = 1; break;
             default:
                 if( 0 == rank )
                     fprintf(stderr, "usage: %s [-t tile_size] [-K tiles_k] [-M tiles_m]"
-                                    " [-N tiles_n] [-r nruns] [-l lookahead]\n", argv[0]);
+                                    " [-N tiles_n] [-r nruns] [-l lookahead] [-g] [-k]\n", argv[0]);
                 return 1;
         }
     }
@@ -277,12 +319,13 @@ int main(int argc, char *argv[])
 
         /* The drain the reported loop performs between runs, and the one that
          * reports what it could not reclaim. */
-        parsec_devices_release_memory();
+        if( !keep_device_memory )
+            parsec_devices_release_memory();
 
         tp = parsec_new_staging_new((parsec_tiled_matrix_t*)&descA,
                                     (parsec_tiled_matrix_t*)&descB,
                                     (parsec_tiled_matrix_t*)&descC,
-                                    CuHI, lookahead, lookahead);
+                                    CuHI, lookahead, lookahead, gpu_producer);
         assert(NULL != tp);
 
         parsec_matrix_adt_define_square(&tp->arenas_datatypes[PARSEC_new_staging_DEFAULT_ADT_IDX],
