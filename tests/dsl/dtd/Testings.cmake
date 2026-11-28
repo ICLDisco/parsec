@@ -10,6 +10,10 @@ parsec_addtest_cmd(dsl/dtd/task_insertion ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_test_
 parsec_addtest_cmd(dsl/dtd/war ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_test_war)
 parsec_addtest_cmd(dsl/dtd/reader_release ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_test_reader_release)
 parsec_addtest_cmd(dsl/dtd/interleave_actions ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_test_interleave_actions)
+# Few tasks and one rep: as a test this checks that every way of reading a
+# task's arguments returns the values that were inserted. Give it a realistic
+# task count and more reps to use it as the benchmark it also is.
+parsec_addtest_cmd(dsl/dtd/bench_arg_passing ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_bench_arg_passing 500 1)
 parsec_addtest_cmd(dsl/dtd/allreduce ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_test_allreduce)
 parsec_addtest_cmd(dsl/dtd/broadcast ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_test_broadcast)
 parsec_addtest_cmd(dsl/dtd/data_flush ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_test_data_flush)
