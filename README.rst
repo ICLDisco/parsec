@@ -41,6 +41,27 @@ installation instructions.
 .. _INSTALL.rst: https://github.com/icldisco/parsec/blob/master/INSTALL.rst
 
 
+Python Bindings
+---------------
+
+py-parsec_ provides Python bindings for PaRSEC. They follow the C API: a
+context, DTD taskpools, data collections shared between DSLs, and taskpools
+of any DSL built in C. Task bodies are Python callables (NumPy, SciPy, ...)
+or C function pointers, and the same program runs on one process or under
+``mpiexec``. The bindings are published on PyPI as python-parsec_ and
+install the ``py_parsec`` module; they build against an installed PaRSEC
+(a shared-library build, the default):
+
+.. code-block:: bash
+
+   PARSEC_ROOT=/path/to/parsec/install pip install python-parsec
+
+See the py-parsec_ repository for the supported PaRSEC versions and examples.
+
+.. _py-parsec: https://github.com/QingleiCao/py-parsec
+.. _python-parsec: https://pypi.org/project/python-parsec/
+
+
 Links and Community
 -------------------
 
